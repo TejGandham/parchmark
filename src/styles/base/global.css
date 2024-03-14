@@ -1,0 +1,15 @@
+/* Base global styles */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Transition effects */
+.note-transition {
+  transition: all 0.3s ease-in-out;
+}
