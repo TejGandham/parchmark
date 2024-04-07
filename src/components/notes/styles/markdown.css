@@ -1,0 +1,132 @@
+/* Markdown Preview Styling */
+.markdown-preview {
+  line-height: 1.6;
+  color: inherit;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-preview h1 {
+  font-size: 2em;
+  border-bottom: 1px solid rgba(88, 12, 36, 0.2);
+  padding-bottom: 0.3em;
+}
+
+.markdown-preview h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid rgba(88, 12, 36, 0.2);
+  padding-bottom: 0.3em;
+}
+
+.markdown-preview ul, 
+.markdown-preview ol {
+  padding-left: 2em;
+  margin: 1em 0;
+}
+
+.markdown-preview ul li, 
+.markdown-preview ol li {
+  margin: 0.2em 0;
+}
+
+.markdown-preview blockquote {
+  padding: 0 1em;
+  border-left: 0.25em solid #580c24;
+  color: #6a737d;
+  margin: 1em 0;
+}
+
+.markdown-preview pre {
+  background-color: #f6f8fa;
+  border-radius: 3px;
+  padding: 16px;
+  overflow: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 85%;
+}
+
+.markdown-preview code {
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 85%;
+  padding: 0.2em 0.4em;
+}
+
+.markdown-preview pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-preview img {
+  max-width: 100%;
+}
+
+.markdown-preview a {
+  color: #580c24;
+  text-decoration: none;
+  border-bottom: 1px dotted #580c24;
+}
+
+.markdown-preview a:hover {
+  text-decoration: none;
+  border-bottom: 1px solid #580c24;
+  color: #8a3b53;
+}
+
+.markdown-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdown-preview table th, 
+.markdown-preview table td {
+  border: 1px solid rgba(88, 12, 36, 0.3);
+  padding: 6px 13px;
+}
+
+.markdown-preview table tr {
+  background-color: #fff;
+  border-top: 1px solid rgba(88, 12, 36, 0.2);
+}
+
+.markdown-preview table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+.markdown-preview hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: rgba(88, 12, 36, 0.2);
+  border: 0;
+}
+
+/* Dark mode overrides for markdown */
+.chakra-ui-dark .markdown-preview pre,
+.chakra-ui-dark .markdown-preview code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.chakra-ui-dark .markdown-preview table tr {
+  background-color: transparent;
+}
+
+.chakra-ui-dark .markdown-preview table tr:nth-child(2n) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.chakra-ui-dark .markdown-preview blockquote {
+  border-left-color: #580c24;
+  color: rgba(255, 255, 255, 0.7);
+}
