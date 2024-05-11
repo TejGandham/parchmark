@@ -1,27 +1,24 @@
-# ParchMark: Modern Markdown Note-Taking
+# ParchMark
 
-![ParchMark Logo](/public/favicon.svg)
-
-## Overview
-
-ParchMark is a clean, elegant note-taking application inspired by ancient papyrus scrolls and modern markdown technology. It combines a minimalist user interface with powerful markdown capabilities to create a distraction-free writing environment.
+ParchMark is a modern, minimalist markdown note-taking application inspired by ancient papyrus and modern markdown. It provides a clean, distraction-free interface for creating, editing, and organizing your notes with markdown formatting.
 
 ## Features
 
-- **Markdown Support**: Full markdown rendering with proper styling
-- **Clean UI**: Distraction-free writing environment
-- **Automatic Title Extraction**: Titles are automatically extracted from H1 headings
-- **Sidebar Organization**: Easy access to all your notes
-- **Local Storage**: Notes are saved to local storage for persistence
-- **Responsive Design**: Works on desktop and mobile devices
+- 📝 Create, edit, and delete notes
+- 🔄 Switch between edit and preview modes
+- 🌙 Dark/light mode toggle
+- 📱 Responsive layout with collapsible sidebar
+- 🎨 Elegant styling with refined color scheme
+- 📊 Beautiful markdown rendering
 
 ## Technologies Used
 
 - React with TypeScript
-- Vite for fast development and building
-- Chakra UI for components and styling
-- React Markdown for rendering markdown
-- FontAwesome for icons
+- Vite for build system
+- Chakra UI for component library
+- React Markdown with RemarkGFM for markdown rendering
+- Font Awesome for icons
+- ESLint and Prettier for code quality
 
 ## Getting Started
 
@@ -31,61 +28,59 @@ ParchMark is a clean, elegant note-taking application inspired by ancient papyru
 
 ### Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/parchmark.git
-cd parchmark
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/parchmark.git
+   cd parchmark
+   ```
 
-# Install dependencies
-npm install
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-# Start the development server
-npm run dev
-```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser and navigate to http://localhost:5173
 
 ## Usage
 
-1. Create a new note using the + button in the sidebar
-2. Write your note content using markdown syntax
-3. The title is automatically extracted from the first H1 heading (# Title)
-4. Save your note using the save button
-5. Toggle between edit and preview mode using the edit/save buttons
+- Create a new note by clicking the "+" button in the sidebar
+- Select notes from the sidebar
+- Edit a note by clicking the "Edit" button
+- Save your changes with the "Save" button
+- Delete a note by clicking the trash icon in the sidebar
+- Toggle dark/light mode with the sun/moon icon in the header
+- Hide/show the sidebar with the hamburger menu icon
 
-## Development
+## Implementation Details
 
-```bash
-# Run linter
-npm run lint
+ParchMark uses React's state management to handle notes and UI state. The application follows a component-based architecture with a clean separation of concerns. Styling is handled by Chakra UI with custom theme configuration.
 
-# Build for production
-npm run build
+For more detailed information, see:
+- [MVP Document](./docs/MVP_DOCUMENT.md) - Detailed feature specifications
+- [Implementation Plan](./docs/IMPLEMENTATION_PLAN.md) - Development roadmap
+- [UI Regression Tests](./docs/UI_REGRESSION_TESTS.md) - Comprehensive UI testing plan
 
-# Preview production build
-npm run preview
-```
+## Future Enhancements
 
-## Project Structure
-
-```
-src/
-├── assets/           # Static assets
-├── components/       # React components
-│   ├── common/       # Shared components
-│   ├── layout/       # Layout components
-│   └── notes/        # Note-related components
-├── features/         # Feature modules
-│   └── notes/        # Notes feature
-├── hooks/            # Custom React hooks
-├── services/         # Service modules
-├── styles/           # Global styles
-├── types/            # TypeScript types
-└── utils/            # Utility functions
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Data persistence with localStorage
+- Enhanced markdown editor with toolbar
+- Search functionality
+- Tags and categories
+- Mobile-optimized experience
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
+
+## Acknowledgements
+
+- [React](https://reactjs.org/)
+- [Chakra UI](https://chakra-ui.com/)
+- [React Markdown](https://github.com/remarkjs/react-markdown)
+- [Font Awesome](https://fontawesome.com/)
+- [Inter Font](https://fonts.google.com/specimen/Inter)
