@@ -1,4 +1,13 @@
-import { Box, Flex, VStack, Text, Button, Heading, Input, Textarea } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  VStack,
+  Text,
+  Button,
+  Heading,
+  Input,
+  Textarea,
+} from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { Note } from '../../types';
@@ -57,18 +66,20 @@ const NoteContent = ({
     if (isEditing) {
       return editedContent;
     }
-    
+
     // For viewing, remove the H1 title to prevent duplication
-    const contentWithoutH1 = currentNote.content.replace(/^#\s+(.+)($|\n)/, '').trim();
+    const contentWithoutH1 = currentNote.content
+      .replace(/^#\s+(.+)($|\n)/, '')
+      .trim();
     return contentWithoutH1;
   };
 
   // Check if content has an H1 heading
   const hasH1Heading = editedContent.match(/^#\s+(.+)($|\n)/);
-  
+
   // Get the title from H1 if it exists
   const h1TitleContent = hasH1Heading ? hasH1Heading[1].trim() : null;
-  
+
   // If editing and there's an H1, update the title field to match H1
   if (isEditing && h1TitleContent && h1TitleContent !== editedTitle) {
     setEditedTitle(h1TitleContent);
@@ -85,15 +96,23 @@ const NoteContent = ({
                 onChange={(e) => setEditedTitle(e.target.value)}
                 fontWeight="bold"
                 size="lg"
-                className={isEditing ? "edit-mode-indicator" : ""}
+                className={isEditing ? 'edit-mode-indicator' : ''}
                 width="100%"
                 isReadOnly={hasH1Heading ? true : false}
-                title={hasH1Heading ? "Title is controlled by the H1 heading in your content" : "Edit note title"}
-                cursor={hasH1Heading ? "not-allowed" : "text"}
-                _hover={hasH1Heading ? { 
-                  borderColor: "gray.300", 
-                  background: "gray.50" 
-                } : {}}
+                title={
+                  hasH1Heading
+                    ? 'Title is controlled by the H1 heading in your content'
+                    : 'Edit note title'
+                }
+                cursor={hasH1Heading ? 'not-allowed' : 'text'}
+                _hover={
+                  hasH1Heading
+                    ? {
+                        borderColor: 'gray.300',
+                        background: 'gray.50',
+                      }
+                    : {}
+                }
               />
               {hasH1Heading && (
                 <Text fontSize="xs" color="gray.500" mt={1}>
@@ -105,9 +124,13 @@ const NoteContent = ({
             currentNote.title
           )}
         </Heading>
-        <NoteActions isEditing={isEditing} onEdit={startEditing} onSave={saveNote} />
+        <NoteActions
+          isEditing={isEditing}
+          onEdit={startEditing}
+          onSave={saveNote}
+        />
       </Flex>
-      
+
       {/* Content area */}
       <Box mt={4}>
         {isEditing ? (
@@ -117,7 +140,7 @@ const NoteContent = ({
               onChange={(e) => {
                 const newContent = e.target.value;
                 setEditedContent(newContent);
-                
+
                 // Check if the content now has an H1 heading
                 const h1Match = newContent.match(/^#\s+(.+)($|\n)/);
                 if (h1Match && h1Match[1]) {

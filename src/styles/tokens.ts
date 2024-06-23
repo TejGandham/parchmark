@@ -4,7 +4,7 @@ export const colors = {
   primary: {
     main: '#580c24', // Deep burgundy
     light: '#8a3b53', // Lighter burgundy
-    dark: '#42061A',  // Darker burgundy
+    dark: '#42061A', // Darker burgundy
     50: '#F2E8EB',
     100: '#E5D2D8',
     200: '#D8BBC4',
@@ -24,7 +24,7 @@ export const colors = {
   ui: {
     sidebar: 'white',
     border: 'rgba(88, 12, 36, 0.1)',
-  }
+  },
 };
 
 export const spacing = {

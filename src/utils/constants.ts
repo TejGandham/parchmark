@@ -22,4 +22,6 @@ export const COLORS = {
   complementaryColor: colors.complementary,
   bgColor: colors.background.light,
   sidebarBgColor: colors.ui.sidebar,
+  headingColor: colors.primary.main,
+  textColor: 'gray.700',
 };

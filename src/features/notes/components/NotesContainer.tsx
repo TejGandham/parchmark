@@ -1,4 +1,6 @@
-import { Box, Flex, Heading } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
+import { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useNotesState } from '../../../hooks/useNotesState';
 import { useSidebarState } from '../../../hooks/useSidebarState';
 import Header from '../../../components/layout/Header';
@@ -24,7 +26,27 @@ const NotesContainer = () => {
     saveNote,
   } = useNotesState();
 
+  const { noteId } = useParams<{ noteId?: string }>();
+  const navigate = useNavigate();
   const { isSidebarOpen, toggleSidebar } = useSidebarState();
+
+  // Handle navigation case where note ID in URL doesn't exist
+  useEffect(() => {
+    // Only check for invalid noteId if we have a noteId in the URL
+    if (noteId) {
+      // Check if this noteId exists in our notes collection
+      const noteExists = notes.some((note) => note.id === noteId);
+
+      // If the note doesn't exist, redirect to 404 page
+      if (!noteExists) {
+        navigate('/not-found', { replace: true });
+      }
+    } else if (notes.length > 0 && window.location.pathname === '/notes') {
+      // If we're at the /notes route with no specific note ID but we have notes,
+      // navigate to the first note
+      navigate(`/notes/${notes[0].id}`, { replace: true });
+    }
+  }, [noteId, notes, navigate]);
 
   return (
     <Box minH="100vh" bg={COLORS.bgColor} className="bg-texture">
