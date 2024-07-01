@@ -1,8 +1,8 @@
 import { Box, Flex } from '@chakra-ui/react';
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useNotesState } from '../../../hooks/useNotesState';
-import { useSidebarState } from '../../../hooks/useSidebarState';
+import { useUIStore } from '../../../store';
+import { useZustandRouterSync } from '../../../hooks/useZustandRouterSync';
 import Header from '../../../components/layout/Header';
 import Sidebar from '../../../components/layout/Sidebar';
 import NoteContent from '../../../components/notes/NoteContent';
@@ -10,25 +10,22 @@ import { COLORS } from '../../../utils/constants';
 import '../../../components/layout/styles/layout.css';
 
 const NotesContainer = () => {
+  // UI state from Zustand
+  const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
+  const toggleSidebar = useUIStore((state) => state.actions.toggleSidebar);
+
+  // Use our custom hook for routing/store synchronization
   const {
     notes,
     currentNoteId,
     currentNote,
     isEditing,
     editedContent,
-    editedTitle,
-    setEditedContent,
-    setEditedTitle,
-    selectNote,
-    createNewNote,
-    deleteNote,
-    startEditing,
-    saveNote,
-  } = useNotesState();
+    actions,
+  } = useZustandRouterSync();
 
   const { noteId } = useParams<{ noteId?: string }>();
   const navigate = useNavigate();
-  const { isSidebarOpen, toggleSidebar } = useSidebarState();
 
   // Handle navigation case where note ID in URL doesn't exist
   useEffect(() => {
@@ -57,10 +54,10 @@ const NotesContainer = () => {
           {isSidebarOpen && (
             <Sidebar
               notes={notes}
-              currentNoteId={currentNoteId}
-              onSelectNote={selectNote}
-              onCreateNote={createNewNote}
-              onDeleteNote={deleteNote}
+              currentNoteId={currentNoteId || ''}
+              onSelectNote={actions.setCurrentNote}
+              onCreateNote={actions.createNote}
+              onDeleteNote={actions.deleteNote}
             />
           )}
 
@@ -68,13 +65,16 @@ const NotesContainer = () => {
             <NoteContent
               currentNote={currentNote}
               isEditing={isEditing}
-              editedTitle={editedTitle}
-              editedContent={editedContent}
-              setEditedTitle={setEditedTitle}
-              setEditedContent={setEditedContent}
-              startEditing={startEditing}
-              saveNote={saveNote}
-              createNewNote={createNewNote}
+              editedContent={editedContent || ''}
+              setEditedContent={actions.setEditedContent}
+              startEditing={() =>
+                actions.setEditedContent(currentNote?.content || '')
+              }
+              saveNote={() =>
+                currentNoteId &&
+                actions.updateNote(currentNoteId, editedContent || '')
+              }
+              createNewNote={actions.createNote}
             />
           </Box>
         </Flex>

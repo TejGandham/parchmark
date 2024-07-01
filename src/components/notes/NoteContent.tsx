@@ -21,10 +21,8 @@ import remarkGfm from 'remark-gfm';
 interface NoteContentProps {
   currentNote: Note | undefined;
   isEditing: boolean;
-  editedTitle: string;
   editedContent: string;
-  setEditedTitle: (title: string) => void;
-  setEditedContent: (content: string) => void;
+  setEditedContent: (content: string | null) => void;
   startEditing: () => void;
   saveNote: () => void;
   createNewNote: () => void;
@@ -33,9 +31,7 @@ interface NoteContentProps {
 const NoteContent = ({
   currentNote,
   isEditing,
-  editedTitle,
   editedContent,
-  setEditedTitle,
   setEditedContent,
   startEditing,
   saveNote,
@@ -80,10 +76,9 @@ const NoteContent = ({
   // Get the title from H1 if it exists
   const h1TitleContent = hasH1Heading ? hasH1Heading[1].trim() : null;
 
-  // If editing and there's an H1, update the title field to match H1
-  if (isEditing && h1TitleContent && h1TitleContent !== editedTitle) {
-    setEditedTitle(h1TitleContent);
-  }
+  // Title is directly from the note object
+  const title =
+    isEditing && h1TitleContent ? h1TitleContent : currentNote.title;
 
   return (
     <Box>
@@ -92,33 +87,21 @@ const NoteContent = ({
           {isEditing ? (
             <>
               <Input
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
+                value={title}
+                isReadOnly={true}
                 fontWeight="bold"
                 size="lg"
-                className={isEditing ? 'edit-mode-indicator' : ''}
                 width="100%"
-                isReadOnly={hasH1Heading ? true : false}
-                title={
-                  hasH1Heading
-                    ? 'Title is controlled by the H1 heading in your content'
-                    : 'Edit note title'
-                }
-                cursor={hasH1Heading ? 'not-allowed' : 'text'}
-                _hover={
-                  hasH1Heading
-                    ? {
-                        borderColor: 'gray.300',
-                        background: 'gray.50',
-                      }
-                    : {}
-                }
+                cursor="not-allowed"
+                _hover={{
+                  borderColor: 'gray.300',
+                  background: 'gray.50',
+                }}
+                title="Title is controlled by the H1 heading in your content"
               />
-              {hasH1Heading && (
-                <Text fontSize="xs" color="gray.500" mt={1}>
-                  Title is automatically set from H1 heading.
-                </Text>
-              )}
+              <Text fontSize="xs" color="gray.500" mt={1}>
+                Title is automatically set from H1 heading.
+              </Text>
             </>
           ) : (
             currentNote.title
@@ -138,15 +121,7 @@ const NoteContent = ({
             <Textarea
               value={editedContent}
               onChange={(e) => {
-                const newContent = e.target.value;
-                setEditedContent(newContent);
-
-                // Check if the content now has an H1 heading
-                const h1Match = newContent.match(/^#\s+(.+)($|\n)/);
-                if (h1Match && h1Match[1]) {
-                  // Update title to match the H1 heading
-                  setEditedTitle(h1Match[1].trim());
-                }
+                setEditedContent(e.target.value);
               }}
               minH="500px"
               p={4}
