@@ -3,13 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useNotesStore } from '../store';
 
 /**
- * This hook synchronizes the URL/route with the Zustand store state
+ * This hook synchronizes the URL/route with the store state
  * It is responsible for:
  * 1. Setting the current note in store based on the URL param
  * 2. Handling navigation after store operations like create/delete
  * 3. Providing access to current note data and editing state
  */
-export const useZustandRouterSync = () => {
+export const useStoreRouterSync = () => {
   const params = useParams();
   const navigate = useNavigate();
 

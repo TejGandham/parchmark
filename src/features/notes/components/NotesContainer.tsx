@@ -2,7 +2,7 @@ import { Box, Flex } from '@chakra-ui/react';
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../../store';
-import { useZustandRouterSync } from '../../../hooks/useZustandRouterSync';
+import { useStoreRouterSync } from '../../../hooks/useStoreRouterSync';
 import Header from '../../../components/layout/Header';
 import Sidebar from '../../../components/layout/Sidebar';
 import NoteContent from '../../../components/notes/NoteContent';
@@ -10,7 +10,7 @@ import { COLORS } from '../../../utils/constants';
 import '../../../components/layout/styles/layout.css';
 
 const NotesContainer = () => {
-  // UI state from Zustand
+  // UI state from store
   const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
   const toggleSidebar = useUIStore((state) => state.actions.toggleSidebar);
 
@@ -22,7 +22,7 @@ const NotesContainer = () => {
     isEditing,
     editedContent,
     actions,
-  } = useZustandRouterSync();
+  } = useStoreRouterSync();
 
   const { noteId } = useParams<{ noteId?: string }>();
   const navigate = useNavigate();
