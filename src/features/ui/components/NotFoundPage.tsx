@@ -1,7 +1,7 @@
 import { Box, Flex, Heading, Text, Button } from '@chakra-ui/react';
 import { Link } from 'react-router-dom';
-import { COLORS } from '../../utils/constants';
-import { colors } from '../../styles/tokens';
+import { COLORS } from '../../../utils/constants';
+import { colors } from '../../../styles/tokens';
 
 const NotFoundPage = () => {
   return (

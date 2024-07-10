@@ -1,14 +1,14 @@
 import { Box, Flex, Heading, IconButton, List } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
-import { Note } from '../../types';
-import { COLORS } from '../../utils/constants';
-import NoteItem from '../notes/NoteItem';
+import { Note } from '../../../types';
+import { COLORS } from '../../../utils/constants';
+import NoteItem from '../../notes/components/NoteItem';
 
 interface SidebarProps {
   notes: Note[];
   currentNoteId: string;
-  onSelectNote: (id: string) => void;
+  onSelectNote: (id: string | null) => void;
   onCreateNote: () => void;
   onDeleteNote: (id: string) => void;
 }

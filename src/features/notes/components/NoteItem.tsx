@@ -1,8 +1,8 @@
 import { HStack, Text, IconButton, ListItem } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faFile } from '@fortawesome/free-solid-svg-icons';
-import { Note } from '../../types';
-import { COLORS } from '../../utils/constants';
+import { Note } from '../../../types';
+import { COLORS } from '../../../utils/constants';
 
 interface NoteItemProps {
   note: Note;

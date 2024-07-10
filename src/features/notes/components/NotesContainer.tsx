@@ -1,13 +1,13 @@
 import { Box, Flex } from '@chakra-ui/react';
-import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../../store';
-import { useStoreRouterSync } from '../../../hooks/useStoreRouterSync';
-import Header from '../../../components/layout/Header';
-import Sidebar from '../../../components/layout/Sidebar';
-import NoteContent from '../../../components/notes/NoteContent';
+import { useStoreRouterSync } from '../hooks/useStoreRouterSync';
 import { COLORS } from '../../../utils/constants';
-import '../../../components/layout/styles/layout.css';
+import '../../ui/styles/layout.css';
+
+// Direct imports from feature folders
+import Header from '../../ui/components/Header';
+import Sidebar from '../../ui/components/Sidebar';
+import NoteContent from './NoteContent';
 
 const NotesContainer = () => {
   // UI state from store
@@ -23,27 +23,6 @@ const NotesContainer = () => {
     editedContent,
     actions,
   } = useStoreRouterSync();
-
-  const { noteId } = useParams<{ noteId?: string }>();
-  const navigate = useNavigate();
-
-  // Handle navigation case where note ID in URL doesn't exist
-  useEffect(() => {
-    // Only check for invalid noteId if we have a noteId in the URL
-    if (noteId) {
-      // Check if this noteId exists in our notes collection
-      const noteExists = notes.some((note) => note.id === noteId);
-
-      // If the note doesn't exist, redirect to 404 page
-      if (!noteExists) {
-        navigate('/not-found', { replace: true });
-      }
-    } else if (notes.length > 0 && window.location.pathname === '/notes') {
-      // If we're at the /notes route with no specific note ID but we have notes,
-      // navigate to the first note
-      navigate(`/notes/${notes[0].id}`, { replace: true });
-    }
-  }, [noteId, notes, navigate]);
 
   return (
     <Box minH="100vh" bg={COLORS.bgColor} className="bg-texture">
@@ -65,15 +44,16 @@ const NotesContainer = () => {
             <NoteContent
               currentNote={currentNote}
               isEditing={isEditing}
-              editedContent={editedContent || ''}
+              editedContent={editedContent === null ? '' : editedContent}
               setEditedContent={actions.setEditedContent}
               startEditing={() =>
                 actions.setEditedContent(currentNote?.content || '')
               }
-              saveNote={() =>
-                currentNoteId &&
-                actions.updateNote(currentNoteId, editedContent || '')
-              }
+              saveNote={() => {
+                if (currentNoteId && editedContent !== null) {
+                  actions.updateNote(currentNoteId, editedContent);
+                }
+              }}
               createNewNote={actions.createNote}
             />
           </Box>

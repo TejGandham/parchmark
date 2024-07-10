@@ -1,7 +1,7 @@
 import { Flex, HStack, Heading, IconButton, Box } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
-import { COLORS } from '../../utils/constants';
+import { COLORS } from '../../../utils/constants';
 
 interface HeaderProps {
   toggleSidebar: () => void;

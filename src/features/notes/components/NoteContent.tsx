@@ -10,16 +10,16 @@ import {
 } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
-import { Note } from '../../types';
-import { COLORS } from '../../utils/constants';
+import { Note } from '../../../types';
+import { COLORS, extractTitleFromMarkdown } from '../../../utils/constants';
 import NoteActions from './NoteActions';
-import './styles/notes.css';
-import './styles/markdown.css';
+import '../styles/notes.css';
+import '../styles/markdown.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface NoteContentProps {
-  currentNote: Note | undefined;
+  currentNote: Note | null | undefined;
   isEditing: boolean;
   editedContent: string;
   setEditedContent: (content: string | null) => void;
@@ -37,7 +37,41 @@ const NoteContent = ({
   saveNote,
   createNewNote,
 }: NoteContentProps) => {
+  // Handle case when no note is selected, or we're in the process of creating one
   if (!currentNote) {
+    // If we're editing (creating a new note) but currentNote is not yet set
+    if (isEditing && editedContent) {
+      return (
+        <Box>
+          <Flex justifyContent="space-between" alignItems="flex-start" mb={4}>
+            <Heading size="lg" fontFamily="'Playfair Display', serif" mb={2}>
+              {extractTitleFromMarkdown(editedContent)}
+            </Heading>
+            <NoteActions
+              isEditing={isEditing}
+              onEdit={() => {
+                /* Already editing */
+              }}
+              onSave={saveNote}
+            />
+          </Flex>
+          <Box className="edit-mode-indicator">
+            <Textarea
+              value={editedContent}
+              onChange={(e) => {
+                setEditedContent(e.target.value);
+              }}
+              minH="500px"
+              p={4}
+              width="100%"
+              placeholder="# Your Title Here&#10;&#10;Start writing content..."
+            />
+          </Box>
+        </Box>
+      );
+    }
+
+    // Default "no note" view
     return (
       <VStack spacing={4} align="center" justify="center" h="100%">
         <Text>No note selected.</Text>
@@ -60,25 +94,22 @@ const NoteContent = ({
   // Extract the first line after the H1 to avoid duplicating the title in content
   const renderContent = () => {
     if (isEditing) {
+      // When editing, show the full content
       return editedContent;
     }
 
-    // For viewing, remove the H1 title to prevent duplication
+    // Remove the H1 title to prevent duplication in the rendered output
     const contentWithoutH1 = currentNote.content
       .replace(/^#\s+(.+)($|\n)/, '')
       .trim();
+
     return contentWithoutH1;
   };
 
-  // Check if content has an H1 heading
-  const hasH1Heading = editedContent.match(/^#\s+(.+)($|\n)/);
-
-  // Get the title from H1 if it exists
-  const h1TitleContent = hasH1Heading ? hasH1Heading[1].trim() : null;
-
-  // Title is directly from the note object
-  const title =
-    isEditing && h1TitleContent ? h1TitleContent : currentNote.title;
+  // Get the title - when editing use the H1 heading from content
+  const title = isEditing
+    ? extractTitleFromMarkdown(editedContent)
+    : currentNote.title;
 
   return (
     <Box>
