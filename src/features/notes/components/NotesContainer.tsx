@@ -9,12 +9,16 @@ import Header from '../../ui/components/Header';
 import Sidebar from '../../ui/components/Sidebar';
 import NoteContent from './NoteContent';
 
+/**
+ * Main container component for the notes feature
+ * Orchestrates layout and state management between UI components
+ */
 const NotesContainer = () => {
-  // UI state from store
+  // Get UI state using selector pattern for better performance
   const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
   const toggleSidebar = useUIStore((state) => state.actions.toggleSidebar);
 
-  // Use our custom hook for routing/store synchronization
+  // Centralized hook for all notes state + routing
   const {
     notes,
     currentNoteId,
@@ -23,6 +27,21 @@ const NotesContainer = () => {
     editedContent,
     actions,
   } = useStoreRouterSync();
+
+  // Prepare props for NoteContent
+  const noteContentProps = {
+    currentNote,
+    isEditing,
+    editedContent: editedContent === null ? '' : editedContent,
+    setEditedContent: actions.setEditedContent,
+    startEditing: () => actions.setEditedContent(currentNote?.content || ''),
+    saveNote: () => {
+      if (currentNoteId && editedContent !== null) {
+        actions.updateNote(currentNoteId, editedContent);
+      }
+    },
+    createNewNote: actions.createNote,
+  };
 
   return (
     <Box minH="100vh" bg={COLORS.bgColor} className="bg-texture">
@@ -41,21 +60,7 @@ const NotesContainer = () => {
           )}
 
           <Box flex="1" p={6} overflowY="auto" className="note-transition">
-            <NoteContent
-              currentNote={currentNote}
-              isEditing={isEditing}
-              editedContent={editedContent === null ? '' : editedContent}
-              setEditedContent={actions.setEditedContent}
-              startEditing={() =>
-                actions.setEditedContent(currentNote?.content || '')
-              }
-              saveNote={() => {
-                if (currentNoteId && editedContent !== null) {
-                  actions.updateNote(currentNoteId, editedContent);
-                }
-              }}
-              createNewNote={actions.createNote}
-            />
+            <NoteContent {...noteContentProps} />
           </Box>
         </Flex>
       </Flex>

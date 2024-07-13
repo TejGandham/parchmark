@@ -1,123 +1,161 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useNotesStore } from '../../../store';
+import { Note } from '../../../types';
 
 /**
- * This hook synchronizes the URL/route with the store state
- * It is responsible for:
- * 1. Setting the current note in store based on the URL param
- * 2. Handling navigation after store operations like create/delete
- * 3. Providing access to current note data and editing state
- * 4. Ensuring proper routing when notes don't exist or no specific note is selected
+ * Custom hook that synchronizes URL parameters with store state
+ * Simplifies routing by separating concerns:
+ * 1. URL → Store: One-way sync from URL parameters to store state
+ * 2. Actions → Navigation: Explicit navigation after state changes
  */
 export const useStoreRouterSync = () => {
+  // Router hooks
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get data from notes store
+  // Get store state with optimized selectors
   const notes = useNotesStore((state) => state.notes);
   const currentNoteId = useNotesStore((state) => state.currentNoteId);
   const editedContent = useNotesStore((state) => state.editedContent);
   const storeActions = useNotesStore((state) => state.actions);
 
-  // Compute derived state
-  const currentNote = useMemo(
-    () => notes.find((note) => note.id === currentNoteId) || null,
-    [notes, currentNoteId]
-  );
+  // Derived state with proper memoization and safety checks
+  const currentNote = useMemo<Note | null>(() => {
+    // CRITICAL FIX: Check that notes is an array before using array methods
+    // This handles the case when notes might be undefined during initial load
+    return Array.isArray(notes) && currentNoteId
+      ? notes.find((note) => note.id === currentNoteId) || null
+      : null;
+  }, [notes, currentNoteId]);
 
   const isEditing = editedContent !== null;
 
-  // Sync route parameter to store
+  // URL → Store: One-way synchronization
   useEffect(() => {
+    // Skip synchronization if notes is not yet available (during initial load)
+    if (!Array.isArray(notes)) {
+      return;
+    }
+    
     const noteId = params.noteId;
     const pathname = location.pathname;
 
-    // Case 1: We have a note ID in the URL
+    // Only handle route synchronization here, not navigation
     if (noteId) {
+      // CRITICAL FIX: Safely check if note exists
       const noteExists = notes.some((note) => note.id === noteId);
-
-      // If note exists and isn't current, set it as current
-      if (noteExists && noteId !== currentNoteId) {
-        storeActions.setCurrentNote(noteId);
-      }
-      // If note doesn't exist, redirect
-      else if (!noteExists) {
-        if (notes.length > 0) {
-          navigate(`/notes/${notes[0].id}`, { replace: true });
-        } else {
-          navigate('/not-found', { replace: true });
+      
+      if (noteExists) {
+        // CRITICAL FIX: Check if storeActions and setCurrentNote exist before calling
+        // This prevents errors during initial hydration when the store might not be fully initialized
+        if (storeActions && typeof storeActions.setCurrentNote === 'function') {
+          // ALWAYS force the current note to be set from the URL parameter
+          // This is critical for proper hydration on direct URL access
+          storeActions.setCurrentNote(noteId);
         }
+      } else if (notes.length > 0) {
+        // Redirect if note doesn't exist
+        navigate(`/notes/${notes[0].id}`, { replace: true });
+      } else {
+        navigate('/not-found', { replace: true });
       }
-    }
-    // Case 2: We're at /notes with no specific ID but have notes
-    else if (pathname === '/notes' && notes.length > 0) {
+    } else if (pathname === '/notes' && notes.length > 0) {
       navigate(`/notes/${notes[0].id}`, { replace: true });
     }
   }, [
+    // Don't include currentNoteId in the dependencies
+    // This prevents unnecessary re-runs when the store changes
     params.noteId,
     location.pathname,
-    currentNoteId,
     notes,
     storeActions,
     navigate,
   ]);
 
-  // Wrap store actions with navigation
-  const wrappedActions = useMemo(
-    () => ({
-      createNote: () => {
-        // Create the note in the store
-        // Note: the store now handles setting editedContent
-        const newNoteId = storeActions.createNote();
+  // Simplified action handlers with explicit navigation
+  const navigateToNote = useCallback(
+    (noteId: string | null) => {
+      navigate(noteId ? `/notes/${noteId}` : '/notes');
+    },
+    [navigate]
+  );
 
-        // Navigate to the new note
-        navigate(`/notes/${newNoteId}`);
+  const findNextNoteId = useCallback(
+    (deletedId: string): string | null => {
+      if (notes.length <= 1) return null;
 
-        return newNoteId;
-      },
-      deleteNote: (id: string) => {
-        // Before deleting, check if we need to navigate
-        const willNeedNavigation = id === currentNoteId;
+      const index = notes.findIndex((note) => note.id === deletedId);
+      if (index === -1) return null;
 
-        // Find the index of the note being deleted
-        const noteIndex = notes.findIndex((note) => note.id === id);
+      // Return the next note if available, otherwise the previous
+      const nextIndex = index < notes.length - 1 ? index + 1 : index - 1;
+      return notes[nextIndex]?.id || null;
+    },
+    [notes]
+  );
 
-        // Determine the next note to navigate to
-        let nextNoteId: string | null = null;
-        if (notes.length > 1) {
-          // Try to select the next note in the list, or fallback to the previous one
-          const nextIndex =
-            noteIndex < notes.length - 1 ? noteIndex + 1 : noteIndex - 1;
-          nextNoteId = notes[nextIndex]?.id;
-        }
-
-        storeActions.deleteNote(id);
-
-        // Navigate if needed
-        if (willNeedNavigation) {
-          navigate(nextNoteId ? `/notes/${nextNoteId}` : '/notes', {
-            replace: true,
-          });
-        }
-      },
-      updateNote: storeActions.updateNote,
-      setCurrentNote: (id: string | null) => {
-        // Only navigate if the ID is different from current to avoid unnecessary rerenders
-        if (id !== currentNoteId) {
-          storeActions.setCurrentNote(id);
-
-          if (id) {
-            navigate(`/notes/${id}`);
-          } else {
-            navigate('/notes');
+  // Simplified action wrappers
+  const actions = useMemo(
+    () => {
+      // CRITICAL FIX: Add safety wrapper for each action to handle initialization state
+      // This prevents errors when actions are accessed before store is fully initialized
+      const safeStoreAction = <T extends (...args: any[]) => any>(
+        action: T | undefined,
+        fallback: any = undefined
+      ) => {
+        return (...args: Parameters<T>): ReturnType<T> | undefined => {
+          if (typeof action === 'function') {
+            return action(...args);
           }
-        }
-      },
-      setEditedContent: storeActions.setEditedContent,
-    }),
-    [storeActions, navigate, currentNoteId, notes]
+          return fallback;
+        };
+      };
+
+      return {
+        // Create note and navigate with safety check
+        createNote: () => {
+          // Check if storeActions exists and has the necessary method
+          if (storeActions && typeof storeActions.createNote === 'function') {
+            const newId = storeActions.createNote();
+            navigateToNote(newId);
+            return newId;
+          }
+          return null;
+        },
+
+        // Delete note with simplified navigation logic and safety check
+        deleteNote: (id: string) => {
+          if (!storeActions || typeof storeActions.deleteNote !== 'function') return;
+          
+          const isCurrentNote = id === currentNoteId;
+          const nextId = isCurrentNote ? findNextNoteId(id) : null;
+
+          storeActions.deleteNote(id);
+
+          if (isCurrentNote) {
+            navigateToNote(nextId);
+          }
+        },
+
+        // Direct pass-through for simple actions with safety checks
+        updateNote: safeStoreAction(storeActions?.updateNote),
+
+        // Set current note with navigation and safety check
+        setCurrentNote: (id: string | null) => {
+          // Always set current note and navigate, even if it's the same note
+          if (storeActions && typeof storeActions.setCurrentNote === 'function') {
+            storeActions.setCurrentNote(id);
+          }
+          navigateToNote(id);
+        },
+
+        // Simple pass-through with safety check
+        setEditedContent: safeStoreAction(storeActions?.setEditedContent),
+      };
+    },
+    [storeActions, navigateToNote, findNextNoteId, currentNoteId]
   );
 
   return {
@@ -126,6 +164,6 @@ export const useStoreRouterSync = () => {
     currentNote,
     isEditing,
     editedContent,
-    actions: wrappedActions,
+    actions,
   };
 };

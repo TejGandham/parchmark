@@ -65,9 +65,21 @@ For more detailed information, see:
 - [Implementation Plan](./docs/IMPLEMENTATION_PLAN.md) - Development roadmap
 - [UI Regression Tests](./docs/UI_REGRESSION_TESTS.md) - Comprehensive UI testing plan
 
+## Testing
+
+```bash
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+```
+
 ## Future Enhancements
 
-- Data persistence with localStorage
 - Enhanced markdown editor with toolbar
 - Search functionality
 - Tags and categories

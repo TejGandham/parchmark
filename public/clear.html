@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear ParchMark Storage</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2rem;
+      text-align: center;
+    }
+    h1 { color: #580c24; }
+    button {
+      background: #580c24;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 1rem 0;
+    }
+    button:hover {
+      background: #7a1935;
+    }
+    .message {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 4px;
+      background: #f8f0f2;
+      display: none;
+    }
+    .success { border-left: 4px solid #48bb78; }
+  </style>
+</head>
+<body>
+  <h1>ParchMark Storage Utility</h1>
+  <p>This utility will clear the localStorage for ParchMark, which can help resolve issues after code changes.</p>
+  
+  <button id="clearBtn">Clear Storage</button>
+  
+  <div id="message" class="message success">
+    Storage cleared successfully! You can now return to the app.
+  </div>
+
+  <script>
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      localStorage.removeItem('parchmark-notes');
+      localStorage.removeItem('parchmark-ui');
+      
+      // Show success message
+      const message = document.getElementById('message');
+      message.style.display = 'block';
+      
+      console.log('ParchMark storage cleared');
+    });
+  </script>
+</body>
+</html>

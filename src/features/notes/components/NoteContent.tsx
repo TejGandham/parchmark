@@ -11,7 +11,11 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { Note } from '../../../types';
-import { COLORS, extractTitleFromMarkdown } from '../../../utils/constants';
+import { COLORS } from '../../../utils/constants';
+import {
+  extractTitleFromMarkdown,
+  removeH1FromContent,
+} from '../../../services/markdownService';
 import NoteActions from './NoteActions';
 import '../styles/notes.css';
 import '../styles/markdown.css';
@@ -99,11 +103,7 @@ const NoteContent = ({
     }
 
     // Remove the H1 title to prevent duplication in the rendered output
-    const contentWithoutH1 = currentNote.content
-      .replace(/^#\s+(.+)($|\n)/, '')
-      .trim();
-
-    return contentWithoutH1;
+    return removeH1FromContent(currentNote.content);
   };
 
   // Get the title - when editing use the H1 heading from content

@@ -29,17 +29,3 @@ export const COLORS = {
   headingColor: colors.primary.main,
   textColor: 'gray.700',
 };
-
-// Utility functions for content manipulation
-export const extractTitleFromMarkdown = (content: string): string => {
-  const titleMatch = content.match(/^#\s+(.+)$/m);
-  return titleMatch ? titleMatch[1].trim() : 'Untitled Note';
-};
-
-export const formatNoteContent = (content: string): string => {
-  const cleanedContent = content.trim();
-  const title = extractTitleFromMarkdown(cleanedContent);
-
-  // If content is only a title, ensure it has spacing for editing
-  return cleanedContent === `# ${title}` ? `# ${title}\n\n` : cleanedContent;
-};

@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
+import { DEFAULT_NOTES } from '../../../utils/constants';
 import {
-  DEFAULT_NOTES,
   extractTitleFromMarkdown,
   formatNoteContent,
-} from '../../../utils/constants';
+  createEmptyNoteContent,
+} from '../../../services/markdownService';
 import { Note } from '../../../types';
 
 export type NotesState = {
@@ -28,11 +29,13 @@ export const useNotesStore = create<NotesState>()(
       notes: DEFAULT_NOTES,
       currentNoteId: DEFAULT_NOTES.length > 0 ? DEFAULT_NOTES[0].id : null,
       editedContent: null,
+      // CRITICAL: This actions object must always be defined synchronously
+      // to prevent errors during initial hydration from localStorage
       actions: {
         createNote: () => {
           const id = `note-${Date.now()}`;
           const timestamp = new Date().toISOString();
-          const content = '# New Note\n\n';
+          const content = createEmptyNoteContent();
 
           set((state) => {
             state.notes.push({
@@ -82,13 +85,12 @@ export const useNotesStore = create<NotesState>()(
 
         setCurrentNote: (id) => {
           set((state) => {
+            // CRITICAL FIX: Always reset edited content on ANY setCurrentNote call
+            // This ensures switching notes from any source works properly
+            state.editedContent = null;
+            
+            // Update the current note ID
             state.currentNoteId = id;
-
-            // We want to exit edit mode when changing notes
-            // but don't reset when creating a new note (which sets editedContent)
-            if (id && state.currentNoteId !== id) {
-              state.editedContent = null;
-            }
           });
         },
 
@@ -99,6 +101,17 @@ export const useNotesStore = create<NotesState>()(
         },
       },
     })),
-    { name: 'parchmark-notes' }
+    {
+      name: 'parchmark-notes',
+      // Add configuration to ensure actions are always available during hydration
+      merge: (persistedState, currentState) => {
+        // Make sure we always preserve the actions from the current state
+        // This prevents actions from being undefined during hydration
+        return {
+          ...persistedState,
+          actions: currentState.actions
+        };
+      }
+    }
   )
 );
