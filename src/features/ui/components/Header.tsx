@@ -2,6 +2,7 @@ import { Flex, HStack, Heading, IconButton, Box } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
 import { COLORS } from '../../../utils/constants';
+import Logo from '../../../../assets/images/parchmark.svg';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -29,7 +30,11 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
           _hover={{ bg: 'rgba(88, 12, 36, 0.1)' }}
         />
         <Heading size="md" ml={1} fontFamily="'Playfair Display', serif">
-          ParchMark
+          <img
+            src={Logo}
+            alt="ParchMark Logo"
+            style={{ height: '46px', marginRight: '10px' }}
+          />
         </Heading>
       </HStack>
       <Box></Box>

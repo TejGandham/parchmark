@@ -14,9 +14,10 @@ import NoteContent from './NoteContent';
  * Orchestrates layout and state management between UI components
  */
 const NotesContainer = () => {
-  // Get UI state using selector pattern for better performance
-  const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
-  const toggleSidebar = useUIStore((state) => state.actions.toggleSidebar);
+  // Access the entire store once to prevent infinite loops
+  const uiStore = useUIStore();
+  const isSidebarOpen = uiStore.isSidebarOpen;
+  const toggleSidebar = uiStore.actions.toggleSidebar;
 
   // Centralized hook for all notes state + routing
   const {

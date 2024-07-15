@@ -24,7 +24,9 @@ describe('Markdown Service', () => {
 
     it('should handle H1 with special characters', () => {
       const content = '# Title with *bold* and _italic_';
-      expect(extractTitleFromMarkdown(content)).toBe('Title with *bold* and _italic_');
+      expect(extractTitleFromMarkdown(content)).toBe(
+        'Title with *bold* and _italic_'
+      );
     });
 
     it('should extract title when H1 is not the first line', () => {
@@ -92,7 +94,9 @@ describe('Markdown Service', () => {
     });
 
     it('should handle special characters in title', () => {
-      expect(createEmptyNoteContent('Title with *special* chars')).toBe('# Title with *special* chars\n\n');
+      expect(createEmptyNoteContent('Title with *special* chars')).toBe(
+        '# Title with *special* chars\n\n'
+      );
     });
   });
 });

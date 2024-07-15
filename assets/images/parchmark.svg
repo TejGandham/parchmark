@@ -1,0 +1,28 @@
+<svg
+  width="210"
+  height="50"
+  viewBox="0 0 210 50"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+>
+  <defs>
+    <style type="text/css">
+      <![CDATA[
+        .text {
+          font-family: 'Playfair Display', serif;
+          font-size: 46px;
+          fill: #8D455B; /* Assuming COLORS.primaryColor is a shade of red */
+        }
+        .highlight {
+          fill: #581224; /* New color for "Mark" */
+        }
+      ]]>
+    </style>
+  </defs>
+  <text
+    x="0"
+    y="40"
+    class="text"
+  > Parch<tspan class="highlight">Mark</tspan>
+  </text>
+</svg>

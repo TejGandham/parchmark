@@ -38,7 +38,7 @@ export const useStoreRouterSync = () => {
     if (!Array.isArray(notes)) {
       return;
     }
-    
+
     const noteId = params.noteId;
     const pathname = location.pathname;
 
@@ -46,7 +46,7 @@ export const useStoreRouterSync = () => {
     if (noteId) {
       // CRITICAL FIX: Safely check if note exists
       const noteExists = notes.some((note) => note.id === noteId);
-      
+
       if (noteExists) {
         // CRITICAL FIX: Check if storeActions and setCurrentNote exist before calling
         // This prevents errors during initial hydration when the store might not be fully initialized
@@ -97,66 +97,64 @@ export const useStoreRouterSync = () => {
   );
 
   // Simplified action wrappers
-  const actions = useMemo(
-    () => {
-      // CRITICAL FIX: Add safety wrapper for each action to handle initialization state
-      // This prevents errors when actions are accessed before store is fully initialized
-      const safeStoreAction = <T extends (...args: any[]) => any>(
-        action: T | undefined,
-        fallback: any = undefined
-      ) => {
-        return (...args: Parameters<T>): ReturnType<T> | undefined => {
-          if (typeof action === 'function') {
-            return action(...args);
-          }
-          return fallback;
-        };
+  const actions = useMemo(() => {
+    // CRITICAL FIX: Add safety wrapper for each action to handle initialization state
+    // This prevents errors when actions are accessed before store is fully initialized
+    const safeStoreAction = <T extends (...args: any[]) => any>(
+      action: T | undefined,
+      fallback: any = undefined
+    ) => {
+      return (...args: Parameters<T>): ReturnType<T> | undefined => {
+        if (typeof action === 'function') {
+          return action(...args);
+        }
+        return fallback;
       };
+    };
 
-      return {
-        // Create note and navigate with safety check
-        createNote: () => {
-          // Check if storeActions exists and has the necessary method
-          if (storeActions && typeof storeActions.createNote === 'function') {
-            const newId = storeActions.createNote();
-            navigateToNote(newId);
-            return newId;
-          }
-          return null;
-        },
+    return {
+      // Create note and navigate with safety check
+      createNote: () => {
+        // Check if storeActions exists and has the necessary method
+        if (storeActions && typeof storeActions.createNote === 'function') {
+          const newId = storeActions.createNote();
+          navigateToNote(newId);
+          return newId;
+        }
+        return null;
+      },
 
-        // Delete note with simplified navigation logic and safety check
-        deleteNote: (id: string) => {
-          if (!storeActions || typeof storeActions.deleteNote !== 'function') return;
-          
-          const isCurrentNote = id === currentNoteId;
-          const nextId = isCurrentNote ? findNextNoteId(id) : null;
+      // Delete note with simplified navigation logic and safety check
+      deleteNote: (id: string) => {
+        if (!storeActions || typeof storeActions.deleteNote !== 'function')
+          return;
 
-          storeActions.deleteNote(id);
+        const isCurrentNote = id === currentNoteId;
+        const nextId = isCurrentNote ? findNextNoteId(id) : null;
 
-          if (isCurrentNote) {
-            navigateToNote(nextId);
-          }
-        },
+        storeActions.deleteNote(id);
 
-        // Direct pass-through for simple actions with safety checks
-        updateNote: safeStoreAction(storeActions?.updateNote),
+        if (isCurrentNote) {
+          navigateToNote(nextId);
+        }
+      },
 
-        // Set current note with navigation and safety check
-        setCurrentNote: (id: string | null) => {
-          // Always set current note and navigate, even if it's the same note
-          if (storeActions && typeof storeActions.setCurrentNote === 'function') {
-            storeActions.setCurrentNote(id);
-          }
-          navigateToNote(id);
-        },
+      // Direct pass-through for simple actions with safety checks
+      updateNote: safeStoreAction(storeActions?.updateNote),
 
-        // Simple pass-through with safety check
-        setEditedContent: safeStoreAction(storeActions?.setEditedContent),
-      };
-    },
-    [storeActions, navigateToNote, findNextNoteId, currentNoteId]
-  );
+      // Set current note with navigation and safety check
+      setCurrentNote: (id: string | null) => {
+        // Always set current note and navigate, even if it's the same note
+        if (storeActions && typeof storeActions.setCurrentNote === 'function') {
+          storeActions.setCurrentNote(id);
+        }
+        navigateToNote(id);
+      },
+
+      // Simple pass-through with safety check
+      setEditedContent: safeStoreAction(storeActions?.setEditedContent),
+    };
+  }, [storeActions, navigateToNote, findNextNoteId, currentNoteId]);
 
   return {
     notes,

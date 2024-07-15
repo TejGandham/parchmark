@@ -48,15 +48,21 @@ const Sidebar = ({
         />
       </Flex>
       <List spacing={1}>
-        {notes.map((note) => (
-          <NoteItem
-            key={note.id}
-            note={note}
-            isActive={note.id === currentNoteId}
-            onSelect={onSelectNote}
-            onDelete={onDeleteNote}
-          />
-        ))}
+        {Array.isArray(notes) && notes.length > 0 ? (
+          notes.map((note) => (
+            <NoteItem
+              key={note.id}
+              note={note}
+              isActive={note.id === currentNoteId}
+              onSelect={onSelectNote}
+              onDelete={onDeleteNote}
+            />
+          ))
+        ) : (
+          <Box p={2} textAlign="center" color="gray.500" fontSize="sm">
+            No notes yet
+          </Box>
+        )}
       </List>
     </Box>
   );

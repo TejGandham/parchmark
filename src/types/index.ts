@@ -5,3 +5,8 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface User {
+  username: string;
+  password: string;
+}

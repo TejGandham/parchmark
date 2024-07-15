@@ -26,8 +26,11 @@ export type NotesState = {
 export const useNotesStore = create<NotesState>()(
   persist(
     immer((set) => ({
-      notes: DEFAULT_NOTES,
-      currentNoteId: DEFAULT_NOTES.length > 0 ? DEFAULT_NOTES[0].id : null,
+      notes: Array.isArray(DEFAULT_NOTES) ? DEFAULT_NOTES : [],
+      currentNoteId:
+        Array.isArray(DEFAULT_NOTES) && DEFAULT_NOTES.length > 0
+          ? DEFAULT_NOTES[0].id
+          : null,
       editedContent: null,
       // CRITICAL: This actions object must always be defined synchronously
       // to prevent errors during initial hydration from localStorage
@@ -38,6 +41,11 @@ export const useNotesStore = create<NotesState>()(
           const content = createEmptyNoteContent();
 
           set((state) => {
+            // Ensure notes is initialized as an array
+            if (!Array.isArray(state.notes)) {
+              state.notes = [];
+            }
+
             state.notes.push({
               id,
               title: 'New Note',
@@ -55,6 +63,12 @@ export const useNotesStore = create<NotesState>()(
 
         updateNote: (id, content) => {
           set((state) => {
+            // Ensure notes is initialized as an array
+            if (!Array.isArray(state.notes)) {
+              state.notes = [];
+              return;
+            }
+
             const noteIndex = state.notes.findIndex((note) => note.id === id);
             if (noteIndex !== -1) {
               // Extract title and format content using shared utility functions
@@ -71,6 +85,12 @@ export const useNotesStore = create<NotesState>()(
 
         deleteNote: (id) => {
           set((state) => {
+            // Ensure notes is initialized as an array
+            if (!Array.isArray(state.notes)) {
+              state.notes = [];
+              return;
+            }
+
             const noteIndex = state.notes.findIndex((note) => note.id === id);
             if (noteIndex !== -1) {
               state.notes.splice(noteIndex, 1);
@@ -88,7 +108,7 @@ export const useNotesStore = create<NotesState>()(
             // CRITICAL FIX: Always reset edited content on ANY setCurrentNote call
             // This ensures switching notes from any source works properly
             state.editedContent = null;
-            
+
             // Update the current note ID
             state.currentNoteId = id;
           });
@@ -109,9 +129,9 @@ export const useNotesStore = create<NotesState>()(
         // This prevents actions from being undefined during hydration
         return {
           ...persistedState,
-          actions: currentState.actions
+          actions: currentState.actions,
         };
-      }
+      },
     }
   )
 );

@@ -1,6 +1,9 @@
 import { act } from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { useNotesStore, NotesState } from '../../../../features/notes/store/notes';
+import {
+  useNotesStore,
+  NotesState,
+} from '../../../../features/notes/store/notes';
 
 // Mock the dependencies
 jest.mock('../../../../services/markdownService', () => ({
@@ -31,7 +34,7 @@ describe('Notes Store', () => {
             id: 'note-1',
             title: 'Test Note 1',
             content: '# Test Note 1\n\nContent 1',
-            createdAt: '2023-01-01T00:00:00.000Z', 
+            createdAt: '2023-01-01T00:00:00.000Z',
             updatedAt: '2023-01-01T00:00:00.000Z',
           },
           {
@@ -62,13 +65,13 @@ describe('Notes Store', () => {
   describe('createNote', () => {
     it('should create a new note with correct data', () => {
       const newNoteId = store.actions.createNote();
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toHaveLength(3);
       expect(updatedStore.currentNoteId).toBe(newNoteId);
       expect(updatedStore.editedContent).toBe('# New Note\n\n');
-      
-      const newNote = updatedStore.notes.find(note => note.id === newNoteId);
+
+      const newNote = updatedStore.notes.find((note) => note.id === newNoteId);
       expect(newNote).toBeDefined();
       expect(newNote?.title).toBe('New Note');
       expect(newNote?.content).toBe('# New Note\n\n');
@@ -86,12 +89,12 @@ describe('Notes Store', () => {
     it('should update note content and title', () => {
       const noteId = 'note-1';
       const newContent = '# Updated Title\n\nNew content';
-      
+
       store.actions.updateNote(noteId, newContent);
-      
+
       const updatedStore = useNotesStore.getState();
-      const updatedNote = updatedStore.notes.find(note => note.id === noteId);
-      
+      const updatedNote = updatedStore.notes.find((note) => note.id === noteId);
+
       expect(updatedNote?.title).toBe('Updated Title');
       expect(updatedNote?.content).toBe(newContent);
       expect(updatedNote?.updatedAt).toBe(mockTimestamp);
@@ -100,9 +103,9 @@ describe('Notes Store', () => {
 
     it('should not update any note if ID does not exist', () => {
       const initialNotes = [...store.notes];
-      
+
       store.actions.updateNote('non-existent-id', 'New content');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toEqual(initialNotes);
     });
@@ -111,7 +114,7 @@ describe('Notes Store', () => {
   describe('deleteNote', () => {
     it('should delete a note by ID', () => {
       store.actions.deleteNote('note-1');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toHaveLength(1);
       expect(updatedStore.notes[0].id).toBe('note-2');
@@ -119,7 +122,7 @@ describe('Notes Store', () => {
 
     it('should update currentNoteId when deleting current note', () => {
       store.actions.deleteNote('note-1');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.currentNoteId).toBe('note-2');
       expect(updatedStore.editedContent).toBeNull();
@@ -128,7 +131,7 @@ describe('Notes Store', () => {
     it('should set currentNoteId to null if all notes are deleted', () => {
       store.actions.deleteNote('note-1');
       store.actions.deleteNote('note-2');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toHaveLength(0);
       expect(updatedStore.currentNoteId).toBeNull();
@@ -139,9 +142,9 @@ describe('Notes Store', () => {
         notes: [...store.notes],
         currentNoteId: store.currentNoteId,
       };
-      
+
       store.actions.deleteNote('non-existent-id');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toEqual(initialState.notes);
       expect(updatedStore.currentNoteId).toBe(initialState.currentNoteId);
@@ -151,7 +154,7 @@ describe('Notes Store', () => {
   describe('setCurrentNote', () => {
     it('should update currentNoteId', () => {
       store.actions.setCurrentNote('note-2');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.currentNoteId).toBe('note-2');
     });
@@ -159,18 +162,20 @@ describe('Notes Store', () => {
     it('should clear editedContent when changing notes', () => {
       // First set editing state
       store.actions.setEditedContent('Some edited content');
-      expect(useNotesStore.getState().editedContent).toBe('Some edited content');
-      
+      expect(useNotesStore.getState().editedContent).toBe(
+        'Some edited content'
+      );
+
       // Then change note
       store.actions.setCurrentNote('note-2');
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.editedContent).toBeNull();
     });
 
     it('should handle null ID', () => {
       store.actions.setCurrentNote(null);
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.currentNoteId).toBeNull();
     });
@@ -180,7 +185,7 @@ describe('Notes Store', () => {
     it('should update editedContent state', () => {
       const content = 'Edited content';
       store.actions.setEditedContent(content);
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.editedContent).toBe(content);
     });
@@ -188,10 +193,10 @@ describe('Notes Store', () => {
     it('should handle null content', () => {
       // First set some content
       store.actions.setEditedContent('Some content');
-      
+
       // Then set to null
       store.actions.setEditedContent(null);
-      
+
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.editedContent).toBeNull();
     });

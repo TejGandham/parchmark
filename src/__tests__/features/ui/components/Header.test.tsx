@@ -16,7 +16,7 @@ describe('Header Component', () => {
         <Header toggleSidebar={toggleSidebar} />
       </TestProvider>
     );
-    
+
     expect(screen.getByText(/parchmark/i)).toBeInTheDocument();
   });
 
@@ -26,11 +26,11 @@ describe('Header Component', () => {
         <Header toggleSidebar={toggleSidebar} />
       </TestProvider>
     );
-    
+
     // Find the button (might be a button with an icon)
     const menuButton = screen.getByRole('button');
     fireEvent.click(menuButton);
-    
+
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
   });
 
@@ -40,10 +40,10 @@ describe('Header Component', () => {
         <Header toggleSidebar={toggleSidebar} />
       </TestProvider>
     );
-    
+
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
-    
+
     // Check for specific styling based on the actual component implementation
     expect(header).toHaveStyle('box-shadow: var(--chakra-shadows-sm)');
     expect(header).toHaveStyle('border-bottom: 1px solid #e2e8f0');
@@ -55,7 +55,7 @@ describe('Header Component', () => {
         <Header toggleSidebar={toggleSidebar} />
       </TestProvider>
     );
-    
+
     // Check if the button has accessible attributes
     const menuButton = screen.getByRole('button');
     expect(menuButton).toHaveAttribute('aria-label');

@@ -9,3 +9,4 @@
 // Import from feature barrel files instead of individual store files
 export * from '../features/notes/store';
 export * from '../features/ui/store';
+export * from '../features/auth/store';

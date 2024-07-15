@@ -17,7 +17,7 @@ jest.mock('../../../../features/notes/components/NoteItem', () => {
         >
           {note.title}
         </button>
-        <button 
+        <button
           onClick={(e) => {
             e.stopPropagation();
             onDelete(note.id);
@@ -56,7 +56,7 @@ describe('Sidebar Component', () => {
 
   it('should render the list of notes', () => {
     renderComponent();
-    
+
     // Check that each note title is rendered
     expect(screen.getByText('Test Note 1')).toBeInTheDocument();
     expect(screen.getByText('Test Note 2')).toBeInTheDocument();
@@ -64,51 +64,51 @@ describe('Sidebar Component', () => {
 
   it('should highlight the currently selected note', () => {
     renderComponent();
-    
+
     // Check that the current note has a different style or class
     const noteItems = screen.getAllByRole('button');
-    
+
     // Get the note items (this implementation may vary based on your component)
-    const currentNote = noteItems.find(item => 
+    const currentNote = noteItems.find((item) =>
       item.textContent?.includes('Test Note 1')
     );
-    
+
     expect(currentNote).toHaveAttribute('aria-selected', 'true');
   });
 
   it('should call onSelectNote when a note is clicked', () => {
     renderComponent();
-    
+
     // Find the second note and click it
     const noteItem = screen.getByText('Test Note 2').closest('button');
     if (noteItem) fireEvent.click(noteItem);
-    
+
     expect(defaultProps.onSelectNote).toHaveBeenCalledWith('note-2');
   });
 
   it('should call onCreateNote when create button is clicked', () => {
     renderComponent();
-    
+
     // Find the create button and click it
     const createButton = screen.getByRole('button', { name: /new note/i });
     fireEvent.click(createButton);
-    
+
     expect(defaultProps.onCreateNote).toHaveBeenCalled();
   });
 
   it('should call onDeleteNote when delete button is clicked', () => {
     renderComponent();
-    
+
     // Find the delete buttons and click the first one
     const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
     fireEvent.click(deleteButtons[0]);
-    
+
     expect(defaultProps.onDeleteNote).toHaveBeenCalledWith('note-1');
   });
 
   it('should display creation date', () => {
     renderComponent();
-    
+
     // Our mock implementation shows dates
     const dateElements = screen.getAllByTestId('note-date');
     expect(dateElements.length).toBeGreaterThan(0);
@@ -117,13 +117,15 @@ describe('Sidebar Component', () => {
 
   it('should render empty state when no notes are available', () => {
     renderComponent({ notes: [] });
-    
+
     // There should be no note items
     const noteItems = screen.queryAllByRole('button', { name: /test note/i });
     expect(noteItems.length).toBe(0);
-    
+
     // Create button should still be available
-    const createButton = screen.getByRole('button', { name: /create new note/i });
+    const createButton = screen.getByRole('button', {
+      name: /create new note/i,
+    });
     expect(createButton).toBeInTheDocument();
   });
 
@@ -139,11 +141,13 @@ describe('Sidebar Component', () => {
       },
       ...mockNotes,
     ];
-    
+
     renderComponent({ notes: notesWithNewFirst });
-    
+
     // Check that the notes are rendered in the correct order
-    const noteItems = screen.getAllByRole('button', { name: /test note|newest note/i });
+    const noteItems = screen.getAllByRole('button', {
+      name: /test note|newest note/i,
+    });
     expect(noteItems[0].textContent).toContain('Newest Note');
   });
 });

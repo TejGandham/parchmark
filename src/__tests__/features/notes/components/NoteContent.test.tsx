@@ -12,7 +12,11 @@ jest.mock('../../../../features/notes/components/NoteActions', () => {
         <button data-testid="edit-button" onClick={onEdit} disabled={isEditing}>
           Edit
         </button>
-        <button data-testid="save-button" onClick={onSave} disabled={!isEditing}>
+        <button
+          data-testid="save-button"
+          onClick={onSave}
+          disabled={!isEditing}
+        >
           Save
         </button>
       </div>
@@ -54,14 +58,16 @@ describe('NoteContent Component', () => {
   describe('View Mode', () => {
     it('should render the note title and content in view mode', () => {
       renderComponent();
-      
+
       expect(screen.getByText('Test Note 1')).toBeInTheDocument();
-      expect(screen.getByText('This is test note 1 content.')).toBeInTheDocument();
+      expect(
+        screen.getByText('This is test note 1 content.')
+      ).toBeInTheDocument();
     });
 
     it('should show edit button in view mode', () => {
       renderComponent();
-      
+
       const editButton = screen.getByTestId('edit-button');
       expect(editButton).toBeInTheDocument();
       expect(editButton).not.toBeDisabled();
@@ -69,7 +75,7 @@ describe('NoteContent Component', () => {
 
     it('should call startEditing when edit button is clicked', () => {
       renderComponent();
-      
+
       fireEvent.click(screen.getByTestId('edit-button'));
       expect(defaultProps.startEditing).toHaveBeenCalled();
     });
@@ -81,7 +87,7 @@ describe('NoteContent Component', () => {
         isEditing: true,
         editedContent: '# Test Note 1\n\nEdited content',
       });
-      
+
       // Just get the textarea by its placeholder text
       const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
       expect(textarea).toBeInTheDocument();
@@ -93,12 +99,16 @@ describe('NoteContent Component', () => {
         isEditing: true,
         editedContent: '# Test Note 1\n\nInitial content',
       });
-      
+
       // Just get the textarea by its placeholder text
       const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
-      fireEvent.change(textarea, { target: { value: '# Test Note 1\n\nUpdated content' } });
-      
-      expect(defaultProps.setEditedContent).toHaveBeenCalledWith('# Test Note 1\n\nUpdated content');
+      fireEvent.change(textarea, {
+        target: { value: '# Test Note 1\n\nUpdated content' },
+      });
+
+      expect(defaultProps.setEditedContent).toHaveBeenCalledWith(
+        '# Test Note 1\n\nUpdated content'
+      );
     });
 
     it('should call saveNote when save button is clicked', () => {
@@ -106,7 +116,7 @@ describe('NoteContent Component', () => {
         isEditing: true,
         editedContent: '# Test Note 1\n\nEdited content',
       });
-      
+
       fireEvent.click(screen.getByTestId('save-button'));
       expect(defaultProps.saveNote).toHaveBeenCalled();
     });
@@ -116,27 +126,29 @@ describe('NoteContent Component', () => {
         isEditing: true,
         editedContent: '# Changed Title\n\nContent',
       });
-      
+
       // Look for an input that has the title value
       const titleInput = screen.getByDisplayValue('Changed Title');
       expect(titleInput).toBeInTheDocument();
-      
+
       // There should be a help text about the title
-      expect(screen.getByText(/title is automatically set/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/title is automatically set/i)
+      ).toBeInTheDocument();
     });
   });
 
   describe('Empty State', () => {
     it('should show "No note selected" message when no note is provided', () => {
       renderComponent({ currentNote: null });
-      
+
       expect(screen.getByText('No note selected.')).toBeInTheDocument();
       expect(screen.getByText('Create New Note')).toBeInTheDocument();
     });
 
     it('should call createNewNote when "Create New Note" button is clicked', () => {
       renderComponent({ currentNote: null });
-      
+
       fireEvent.click(screen.getByText('Create New Note'));
       expect(defaultProps.createNewNote).toHaveBeenCalled();
     });
@@ -147,11 +159,11 @@ describe('NoteContent Component', () => {
         isEditing: true,
         editedContent: '# New Note\n\n',
       });
-      
+
       // Should have an element with the title (could be readonly input with title value)
       const heading = screen.getByRole('heading');
       expect(heading).toBeInTheDocument();
-      
+
       // Should have a textarea
       const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
       expect(textarea).toBeInTheDocument();
@@ -168,7 +180,7 @@ describe('NoteContent Component', () => {
           content: 'Content without title',
         },
       });
-      
+
       // The component should still render without errors
       expect(screen.getByTestId('note-actions')).toBeInTheDocument();
     });
@@ -180,7 +192,7 @@ describe('NoteContent Component', () => {
           content: '',
         },
       });
-      
+
       // The component should still render without errors
       expect(screen.getByTestId('note-actions')).toBeInTheDocument();
     });

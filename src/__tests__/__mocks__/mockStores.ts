@@ -19,8 +19,10 @@ export const mockNotes: Note[] = [
 
 export const mockUIStore = {
   isSidebarOpen: true,
+  isDarkMode: false,
   actions: {
     toggleSidebar: jest.fn(),
+    toggleDarkMode: jest.fn(),
   },
 };
 
@@ -53,5 +55,39 @@ export const mockEmptyNotesStore = {
     deleteNote: jest.fn(),
     setCurrentNote: jest.fn(),
     setEditedContent: jest.fn(),
+  },
+};
+
+// Auth store mocks
+export const mockAuthStore = {
+  isAuthenticated: true,
+  user: { username: 'user', password: '' },
+  error: null,
+  actions: {
+    login: jest.fn().mockReturnValue(true),
+    logout: jest.fn(),
+    clearError: jest.fn(),
+  },
+};
+
+export const mockUnauthenticatedStore = {
+  isAuthenticated: false,
+  user: null,
+  error: null,
+  actions: {
+    login: jest.fn().mockReturnValue(false),
+    logout: jest.fn(),
+    clearError: jest.fn(),
+  },
+};
+
+export const mockAuthStoreWithError = {
+  isAuthenticated: false,
+  user: null,
+  error: 'Invalid username or password',
+  actions: {
+    login: jest.fn().mockReturnValue(false),
+    logout: jest.fn(),
+    clearError: jest.fn(),
   },
 };

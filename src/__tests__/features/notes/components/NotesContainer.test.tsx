@@ -57,25 +57,21 @@ jest.mock('../../../../features/notes/components/NoteContent', () => {
 
 describe('NotesContainer Component', () => {
   const mockToggleSidebar = jest.fn();
-  
+
   // Default mock implementations
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Mock useUIStore
-    (useUIStore as jest.Mock).mockImplementation((selector) => {
-      if (typeof selector === 'function') {
-        return selector({
-          isSidebarOpen: true,
-          actions: { toggleSidebar: mockToggleSidebar },
-        });
+
+    // Mock useUIStore - updated for direct store access pattern
+    (useUIStore as jest.Mock).mockReturnValue({
+      isSidebarOpen: true,
+      isDarkMode: false,
+      actions: { 
+        toggleSidebar: mockToggleSidebar,
+        toggleDarkMode: jest.fn()
       }
-      return {
-        isSidebarOpen: true,
-        actions: { toggleSidebar: mockToggleSidebar },
-      };
     });
-    
+
     // Mock useStoreRouterSync
     (useStoreRouterSync as jest.Mock).mockReturnValue({
       notes: mockNotes,
@@ -103,29 +99,25 @@ describe('NotesContainer Component', () => {
 
   it('should render the component with sidebar open', () => {
     renderComponent();
-    
+
     expect(screen.getByTestId('header')).toBeInTheDocument();
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('note-content')).toBeInTheDocument();
   });
 
   it('should not render sidebar when isSidebarOpen is false', () => {
-    // Update the mock to return sidebar closed
-    (useUIStore as jest.Mock).mockImplementation((selector) => {
-      if (typeof selector === 'function') {
-        return selector({
-          isSidebarOpen: false,
-          actions: { toggleSidebar: mockToggleSidebar },
-        });
+    // Update the mock to return sidebar closed - updated for direct store access pattern
+    (useUIStore as jest.Mock).mockReturnValue({
+      isSidebarOpen: false,
+      isDarkMode: false,
+      actions: { 
+        toggleSidebar: mockToggleSidebar,
+        toggleDarkMode: jest.fn()
       }
-      return {
-        isSidebarOpen: false,
-        actions: { toggleSidebar: mockToggleSidebar },
-      };
     });
-    
+
     renderComponent();
-    
+
     expect(screen.getByTestId('header')).toBeInTheDocument();
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
     expect(screen.getByTestId('note-content')).toBeInTheDocument();
@@ -146,9 +138,9 @@ describe('NotesContainer Component', () => {
         setEditedContent: jest.fn(),
       },
     });
-    
+
     renderComponent();
-    
+
     expect(screen.getByText('Note: Test Note 1')).toBeInTheDocument();
     expect(screen.getByText('Editing: Yes')).toBeInTheDocument();
   });
@@ -168,16 +160,16 @@ describe('NotesContainer Component', () => {
         setEditedContent: jest.fn(),
       },
     });
-    
+
     renderComponent();
-    
+
     expect(screen.getByText('Note: None')).toBeInTheDocument();
   });
 
   it('should handle editing state properly', () => {
     const mockUpdateNote = jest.fn();
     const mockSetEditedContent = jest.fn();
-    
+
     (useStoreRouterSync as jest.Mock).mockReturnValue({
       notes: mockNotes,
       currentNoteId: 'note-1',
@@ -192,9 +184,9 @@ describe('NotesContainer Component', () => {
         setEditedContent: mockSetEditedContent,
       },
     });
-    
+
     renderComponent();
-    
+
     // The NoteContent should receive the correct props for editing
     expect(screen.getByText('Editing: Yes')).toBeInTheDocument();
   });

@@ -2,6 +2,11 @@ import React, { act } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import App from '../App';
+import { useAuthStore } from '../features/auth/store';
+import {
+  mockAuthStore,
+  mockUnauthenticatedStore,
+} from './__mocks__/mockStores';
 
 // Mock the lazy-loaded components
 jest.mock('../features/notes/components/NotesContainer', () => {
@@ -16,18 +21,33 @@ jest.mock('../features/ui/components/NotFoundPage', () => {
   };
 });
 
+jest.mock('../features/auth/components/LoginForm', () => {
+  return function MockLoginForm() {
+    return <div data-testid="login-form">Login Form</div>;
+  };
+});
+
+// Mock the auth store
+jest.mock('../features/auth/store');
+
 // Create a complete mock of react-router-dom
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => jest.fn(),
   useParams: () => ({}),
   useLocation: () => ({ pathname: '/notes' }),
-  Routes: ({ children }: { children: React.ReactNode }) => <div data-testid="routes">{children}</div>,
-  Route: ({ path, element }: { path: string, element: React.ReactNode }) => (
+  Routes: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="routes">{children}</div>
+  ),
+  Route: ({ path, element }: { path: string; element: React.ReactNode }) => (
     <div data-testid={`route-${path}`}>{element}</div>
   ),
-  Navigate: ({ to }: { to: string }) => <div data-testid={`navigate-${to}`}>Redirecting to {to}</div>,
-  BrowserRouter: ({ children }: { children: React.ReactNode }) => <div data-testid="browser-router">{children}</div>,
+  Navigate: ({ to }: { to: string }) => (
+    <div data-testid={`navigate-${to}`}>Redirecting to {to}</div>
+  ),
+  BrowserRouter: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="browser-router">{children}</div>
+  ),
 }));
 
 // Mock Suspense to avoid lazy loading issues
@@ -35,7 +55,13 @@ jest.mock('react', () => {
   const originalReact = jest.requireActual('react');
   return {
     ...originalReact,
-    Suspense: ({ children, fallback }: { children: React.ReactNode, fallback: React.ReactNode }) => (
+    Suspense: ({
+      children,
+      fallback,
+    }: {
+      children: React.ReactNode;
+      fallback: React.ReactNode;
+    }) => (
       <div data-testid="suspense">
         <div data-testid="suspense-fallback">{fallback}</div>
         <div data-testid="suspense-children">{children}</div>
@@ -47,6 +73,8 @@ jest.mock('react', () => {
 describe('App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default to unauthenticated state
+    (useAuthStore as jest.Mock).mockReturnValue(mockUnauthenticatedStore);
   });
 
   it('should render the ChakraProvider', async () => {
@@ -57,10 +85,40 @@ describe('App Component', () => {
         </BrowserRouter>
       );
     });
-    
+
     // ChakraProvider should apply its theme to the document
     const appElement = document.querySelector('div');
     expect(appElement).toBeInTheDocument();
+  });
+
+  it('should redirect to login page when user is not authenticated', async () => {
+    // Mock route to notes when unauthenticated
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      );
+    });
+
+    // Should render Login route
+    expect(screen.getByTestId('route-/login')).toBeInTheDocument();
+  });
+
+  it('should render notes when user is authenticated', async () => {
+    // Mock authenticated state
+    (useAuthStore as jest.Mock).mockReturnValue(mockAuthStore);
+
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      );
+    });
+
+    // Should render the notes route
+    expect(screen.getByTestId('route-/notes')).toBeInTheDocument();
   });
 
   it('should render a loading fallback', async () => {
@@ -71,7 +129,7 @@ describe('App Component', () => {
         </BrowserRouter>
       );
     });
-    
+
     // There should be a suspense fallback
     const fallback = screen.getByTestId('suspense-fallback');
     expect(fallback).toBeInTheDocument();
@@ -85,11 +143,11 @@ describe('App Component', () => {
         </BrowserRouter>
       );
     });
-    
+
     // The suspense children should contain the routes with notes container
     const suspenseChildren = screen.getByTestId('suspense-children');
     expect(suspenseChildren).toBeInTheDocument();
-    
+
     // Check one of the nested routes
     expect(screen.getByTestId('route-/notes')).toBeInTheDocument();
   });
@@ -102,10 +160,10 @@ describe('App Component', () => {
         </BrowserRouter>
       );
     });
-    
+
     // Check for the routes container
     expect(screen.getByTestId('routes')).toBeInTheDocument();
-    
+
     // Look for specific route paths in our mocked Route components
     expect(screen.getByTestId('route-/')).toBeInTheDocument();
     expect(screen.getByTestId('route-/notes')).toBeInTheDocument();
@@ -123,7 +181,7 @@ describe('App Component', () => {
           </BrowserRouter>
         );
       });
-      
+
       // Check for the fallback element
       const fallback = screen.getByTestId('suspense-fallback');
       expect(fallback).toBeInTheDocument();

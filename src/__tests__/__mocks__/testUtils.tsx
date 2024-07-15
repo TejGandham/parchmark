@@ -10,11 +10,7 @@ interface TestProviderProps {
 
 // Provider wrapper with Chakra UI theme
 export const TestProvider: React.FC<TestProviderProps> = ({ children }) => {
-  return (
-    <ChakraProvider theme={theme}>
-      {children}
-    </ChakraProvider>
-  );
+  return <ChakraProvider theme={theme}>{children}</ChakraProvider>;
 };
 
 // Custom render with providers
