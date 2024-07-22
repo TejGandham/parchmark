@@ -38,17 +38,20 @@ ParchMark is a modern, minimalist markdown note-taking application inspired by a
 #### Local Development
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/yourusername/parchmark.git
    cd parchmark
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -58,6 +61,7 @@ ParchMark is a modern, minimalist markdown note-taking application inspired by a
 #### Docker Deployment
 
 1. Build and run using Docker Compose:
+
    ```bash
    docker-compose up -d
    ```
@@ -81,11 +85,6 @@ ParchMark is a modern, minimalist markdown note-taking application inspired by a
 ParchMark uses Zustand for state management and React Router for navigation. The application follows a feature-based architecture with clean separation of concerns. Authentication is implemented with protected routes to secure user content. Styling is handled by Chakra UI with custom theme configuration.
 
 The project is containerized with Docker for easy deployment and consistent environment across different platforms.
-
-For more detailed information, see:
-- [MVP Document](./docs/MVP_DOCUMENT.md) - Detailed feature specifications
-- [Implementation Plan](./docs/IMPLEMENTATION_PLAN.md) - Development roadmap
-- [UI Regression Tests](./tests/UI_REGRESSION_TESTS.md) - Comprehensive UI testing plan
 
 ## Testing
 
