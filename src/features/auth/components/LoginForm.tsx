@@ -111,10 +111,6 @@ const LoginForm = () => {
             </Button>
           </VStack>
         </form>
-
-        <Text fontSize="sm" textAlign="center" color="gray.500">
-          Demo credentials: username: "user", password: "password"
-        </Text>
       </VStack>
     </Box>
   );
