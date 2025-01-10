@@ -24,6 +24,11 @@ describe('LoginForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    // Mock useLocation with default state
+    (useLocation as jest.Mock).mockReturnValue({
+      pathname: '/login',
+      state: null,
+    });
     // Mock the auth store for direct access pattern
     (useAuthStore as jest.Mock).mockReturnValue(mockUnauthenticatedStore);
   });
