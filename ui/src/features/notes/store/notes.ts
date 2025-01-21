@@ -25,7 +25,7 @@ export type NotesState = {
 };
 
 export const useNotesStore = create<NotesState>()(
-  immer((set, get) => ({
+  immer((set) => ({
     notes: [],
     currentNoteId: null,
     editedContent: null,
@@ -37,8 +37,10 @@ export const useNotesStore = create<NotesState>()(
         try {
           const notes = await api.getNotes();
           set({ notes, isLoading: false });
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'An error occurred';
+          set({ error: errorMessage, isLoading: false });
         }
       },
       createNote: async () => {
@@ -52,13 +54,14 @@ export const useNotesStore = create<NotesState>()(
             state.editedContent = content;
           });
           return newNote.id;
-        } catch (error: any) {
-          set({ error: error.message });
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'An error occurred';
+          set({ error: errorMessage });
           return null;
         }
       },
       updateNote: async (id, content) => {
-        const title = extractTitleFromMarkdown(content);
         const formattedContent = formatNoteContent(content);
         try {
           const updatedNote = await api.updateNote(id, {
@@ -71,8 +74,10 @@ export const useNotesStore = create<NotesState>()(
               state.editedContent = null;
             }
           });
-        } catch (error: any) {
-          set({ error: error.message });
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'An error occurred';
+          set({ error: errorMessage });
         }
       },
       deleteNote: async (id) => {
@@ -89,8 +94,10 @@ export const useNotesStore = create<NotesState>()(
               }
             }
           });
-        } catch (error: any) {
-          set({ error: error.message });
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'An error occurred';
+          set({ error: errorMessage });
         }
       },
       setCurrentNote: (id) => {

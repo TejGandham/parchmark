@@ -34,9 +34,11 @@ export const useAuthStore = create<AuthState>()(
               state.error = null;
             });
             return true;
-          } catch (error: any) {
+          } catch (error: unknown) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Login failed';
             set((state) => {
-              state.error = error.message || 'Login failed';
+              state.error = errorMessage;
               state.isAuthenticated = false;
               state.user = null;
               state.token = null;
