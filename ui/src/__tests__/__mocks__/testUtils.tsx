@@ -57,7 +57,7 @@ export const mockBreakpoint = (
 
 // Mock Chakra UI's useBreakpointValue hook directly
 export const mockUseBreakpointValue = (
-  values: Record<string, any>,
+  values: Record<string, string | number | boolean>,
   currentBreakpoint: string
 ) => {
   const chakraUI = jest.requireActual('@chakra-ui/react');

@@ -9,7 +9,7 @@ jest.mock('mermaid', () => ({
   contentLoaded: jest.fn(),
 }));
 
-const mermaidMock = require('mermaid');
+import mermaidMock from 'mermaid';
 
 describe('Mermaid Component', () => {
   beforeEach(() => {

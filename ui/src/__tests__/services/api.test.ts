@@ -321,11 +321,13 @@ describe('API Service', () => {
 
       try {
         await getNotes();
-      } catch (error: any) {
-        expect(error.message).toBe('Custom error');
-        expect(error.status).toBe(400);
-        expect(error.data).toEqual(errorData);
-        expect(error.name).toBe('Error');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(Error);
+        const apiError = error as Error & { status?: number; data?: unknown };
+        expect(apiError.message).toBe('Custom error');
+        expect(apiError.status).toBe(400);
+        expect(apiError.data).toEqual(errorData);
+        expect(apiError.name).toBe('Error');
       }
     });
   });

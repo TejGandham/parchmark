@@ -74,9 +74,9 @@ export const useStoreRouterSync = () => {
   );
 
   const actions = useMemo(() => {
-    const safeStoreAction = <T extends (...args: any[]) => any>(
+    const safeStoreAction = <T extends (...args: unknown[]) => unknown>(
       action: T | undefined,
-      fallback: any = undefined
+      fallback: unknown = undefined
     ) => {
       return async (
         ...args: Parameters<T>

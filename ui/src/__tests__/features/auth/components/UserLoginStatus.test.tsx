@@ -5,7 +5,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
 import UserLoginStatus from '../../../../features/auth/components/UserLoginStatus/UserLoginStatus';
 import { useAuthStore } from '../../../../features/auth/store';
-import { mockBreakpoint } from '../../../__mocks__/testUtils';
 
 // Mock the auth store
 jest.mock('../../../../features/auth/store', () => ({
@@ -29,7 +28,7 @@ jest.mock('@chakra-ui/react', () => {
   const actual = jest.requireActual('@chakra-ui/react');
   return {
     ...actual,
-    useBreakpointValue: (...args: any[]) => mockUseBreakpointValue(...args),
+    useBreakpointValue: (...args: unknown[]) => mockUseBreakpointValue(...args),
   };
 });
 

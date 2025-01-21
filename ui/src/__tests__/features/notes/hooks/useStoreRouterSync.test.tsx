@@ -1,5 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
-import { MemoryRouter, useNavigate } from 'react-router-dom';
+import {
+  MemoryRouter,
+  useNavigate,
+  useParams,
+  useLocation,
+} from 'react-router-dom';
 import { useStoreRouterSync } from '../../../../features/notes/hooks/useStoreRouterSync';
 import { useNotesStore } from '../../../../store';
 import { useAuthStore } from '../../../../features/auth/store';
@@ -36,12 +41,8 @@ describe('useStoreRouterSync', () => {
 
     // Setup default mocks
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue(
-      mockParams
-    );
-    (require('react-router-dom').useLocation as jest.Mock).mockReturnValue(
-      mockLocation
-    );
+    (useParams as jest.Mock).mockReturnValue(mockParams);
+    (useLocation as jest.Mock).mockReturnValue(mockLocation);
 
     // Mock the stores
     (useNotesStore as jest.Mock).mockReturnValue(mockNotesStore);
@@ -65,7 +66,7 @@ describe('useStoreRouterSync', () => {
 
   it('should navigate to first note when at /notes route with notes available', () => {
     // Mock location to trigger the navigation effect
-    (require('react-router-dom').useLocation as jest.Mock).mockReturnValue({
+    (useLocation as jest.Mock).mockReturnValue({
       pathname: '/notes',
     });
 
@@ -78,7 +79,7 @@ describe('useStoreRouterSync', () => {
 
   it('should navigate to first available note if noteId in URL doesnt exist', () => {
     // Mock params with non-existent note ID but with notes available
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
+    (useParams as jest.Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
@@ -134,12 +135,12 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with a non-existent ID to trigger path for non-existent note
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
+    (useParams as jest.Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
     // Mock location to trigger the navigation effect
-    (require('react-router-dom').useLocation as jest.Mock).mockReturnValue({
+    (useLocation as jest.Mock).mockReturnValue({
       pathname: '/notes/non-existent',
     });
 
@@ -160,7 +161,7 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with existing note ID
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
+    (useParams as jest.Mock).mockReturnValue({
       noteId: 'note-1',
     });
 

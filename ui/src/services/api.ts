@@ -1,4 +1,4 @@
-import { User, Note } from '../types';
+import { Note } from '../types';
 
 const API_BASE_URL = '/api';
 

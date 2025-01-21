@@ -31,10 +31,13 @@ jest.mock('../../../../features/ui/components/Sidebar', () => {
   return function MockSidebar({
     notes,
     currentNoteId,
-    onSelectNote,
-    onCreateNote,
-    onDeleteNote,
-  }: any) {
+  }: {
+    notes: unknown[];
+    currentNoteId: string | null;
+    onSelectNote: () => void;
+    onCreateNote: () => void;
+    onDeleteNote: () => void;
+  }) {
     return (
       <div data-testid="sidebar">
         <div>Notes: {notes.length}</div>
@@ -45,7 +48,15 @@ jest.mock('../../../../features/ui/components/Sidebar', () => {
 });
 
 jest.mock('../../../../features/notes/components/NoteContent', () => {
-  return function MockNoteContent(props: any) {
+  return function MockNoteContent(props: {
+    currentNote: { title: string } | null;
+    isEditing: boolean;
+    editedContent: string | null;
+    setEditedContent: (content: string) => void;
+    startEditing: () => void;
+    saveNote: () => void;
+    createNewNote: () => void;
+  }) {
     return (
       <div data-testid="note-content">
         <div>Note: {props.currentNote?.title || 'None'}</div>

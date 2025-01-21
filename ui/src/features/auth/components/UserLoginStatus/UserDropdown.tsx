@@ -12,6 +12,7 @@ import {
   faCog,
   faQuestionCircle,
   faSignOutAlt,
+  IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store';
@@ -23,7 +24,7 @@ export interface UserDropdownProps {
 }
 
 interface DropdownItemProps {
-  icon: any;
+  icon: IconDefinition;
   label: string;
   onClick: () => void;
   isLogout?: boolean;

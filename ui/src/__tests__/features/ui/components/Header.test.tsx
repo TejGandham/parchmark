@@ -20,7 +20,7 @@ jest.mock('@chakra-ui/react', () => {
   const actual = jest.requireActual('@chakra-ui/react');
   return {
     ...actual,
-    useBreakpointValue: (...args: any[]) => mockUseBreakpointValue(...args),
+    useBreakpointValue: (...args: unknown[]) => mockUseBreakpointValue(...args),
   };
 });
 

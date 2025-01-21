@@ -106,8 +106,8 @@ describe('Notes Store', () => {
     });
 
     it('should set loading state during fetch', async () => {
-      let resolvePromise: (value: any) => void;
-      const promise = new Promise((resolve) => {
+      let resolvePromise: (value: unknown[]) => void;
+      const promise = new Promise<unknown[]>((resolve) => {
         resolvePromise = resolve;
       });
       (api.getNotes as jest.Mock).mockReturnValue(promise);
