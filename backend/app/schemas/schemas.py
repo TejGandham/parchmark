@@ -5,7 +5,6 @@ Defines request/response models for validation matching frontend data structures
 
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 
 
 # User Schemas
@@ -115,3 +114,4 @@ class DeleteResponse(BaseModel):
 
     message: str = Field(..., description="Confirmation message")
     deleted_id: str = Field(..., description="ID of the deleted item")
+
