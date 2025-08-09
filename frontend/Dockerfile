@@ -4,12 +4,12 @@ FROM node:23-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency files from repo root
+# Copy dependency files
 COPY package.json package-lock.json ./
 
 RUN npm ci
 
-# Copy all app source and config (from repo root, NOT from infra/)
+# Copy all app source and config files
 COPY . .
 
 RUN npm run build
