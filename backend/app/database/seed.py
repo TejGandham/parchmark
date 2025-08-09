@@ -19,7 +19,13 @@ DEFAULT_NOTES_DATA = [
     {
         "id": "1",
         "title": "Welcome to ParchMark",
-        "content": "# Welcome to ParchMark\n\nThis is a simple yet powerful note-taking application inspired by ancient papyrus and modern markdown. Here are some features:\n\n- **Markdown support**\n- Dark mode support\n- Clean, minimal UI\n\nFeel free to edit this note or create a new one!",
+        "content": (
+            "# Welcome to ParchMark\n\n"
+            "This is a simple yet powerful note-taking application inspired by "
+            "ancient papyrus and modern markdown. Here are some features:\n\n"
+            "- **Markdown support**\n- Dark mode support\n- Clean, minimal UI\n\n"
+            "Feel free to edit this note or create a new one!"
+        ),
     },
     {
         "id": "2",
@@ -231,4 +237,5 @@ if __name__ == "__main__":
     else:
         print("Database seeding failed!")
         sys.exit(1)
+
 
