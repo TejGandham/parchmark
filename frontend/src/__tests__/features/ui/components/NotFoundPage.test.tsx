@@ -70,4 +70,3 @@ describe('NotFoundPage Component', () => {
     ).toBeInTheDocument();
   });
 });
-

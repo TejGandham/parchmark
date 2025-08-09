@@ -1,9 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { useAuthStore } from '../../../../features/auth/store';
-import {
-  mockAuthStore,
-} from '../../../__mocks__/mockStores';
+import { mockAuthStore } from '../../../__mocks__/mockStores';
 
 // Mock the auth store
 jest.mock('../../../../features/auth/store');
@@ -30,4 +28,3 @@ describe('ProtectedRoute', () => {
     }).not.toThrow();
   });
 });
-

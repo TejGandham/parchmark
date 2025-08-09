@@ -194,5 +194,3 @@ describe('NotesContainer Component', () => {
     expect(screen.getByText('Editing: Yes')).toBeInTheDocument();
   });
 });
-
-

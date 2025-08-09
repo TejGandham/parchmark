@@ -4,7 +4,6 @@ import { TestProvider } from '../../../__mocks__/testUtils';
 import Sidebar from '../../../../features/ui/components/Sidebar';
 import { mockNotes } from '../../../__mocks__/mockStores';
 
-
 // Mock NoteItem component
 jest.mock('../../../../features/notes/components/NoteItem', () => {
   return function MockNoteItem({ note, isActive, onSelect, onDelete }) {
@@ -151,4 +150,3 @@ describe('Sidebar Component', () => {
     expect(noteItems[0].textContent).toContain('Newest Note');
   });
 });
-

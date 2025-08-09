@@ -1,5 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
-import { MemoryRouter, useNavigate, useParams, useLocation } from 'react-router-dom';
+import {
+  MemoryRouter,
+  useNavigate,
+  useParams,
+  useLocation,
+} from 'react-router-dom';
 import { useStoreRouterSync } from '../../../../features/notes/hooks/useStoreRouterSync';
 import { useNotesStore } from '../../../../store';
 import { mockNotes, mockNotesStore } from '../../../__mocks__/mockStores';
@@ -251,10 +256,3 @@ describe('useStoreRouterSync', () => {
     expect(true).toBe(true);
   });
 });
-
-
-
-
-
-
-
