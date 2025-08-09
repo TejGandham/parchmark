@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
 import Sidebar from '../../../../features/ui/components/Sidebar';
 import { mockNotes } from '../../../__mocks__/mockStores';
-import { List } from '@chakra-ui/react';
+
 
 // Mock NoteItem component
 jest.mock('../../../../features/notes/components/NoteItem', () => {
@@ -151,3 +151,4 @@ describe('Sidebar Component', () => {
     expect(noteItems[0].textContent).toContain('Newest Note');
   });
 });
+
