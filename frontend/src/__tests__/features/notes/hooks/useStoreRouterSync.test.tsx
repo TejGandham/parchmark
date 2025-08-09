@@ -239,7 +239,7 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with existing note ID
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
+    (useParams as jest.Mock).mockReturnValue({
       noteId: 'note-1',
     });
 
@@ -251,6 +251,7 @@ describe('useStoreRouterSync', () => {
     expect(true).toBe(true);
   });
 });
+
 
 
 
