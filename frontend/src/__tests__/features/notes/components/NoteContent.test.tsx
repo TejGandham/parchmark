@@ -6,7 +6,7 @@ import { mockNotes } from '../../../__mocks__/mockStores';
 
 // Mock the components that NoteContent uses
 jest.mock('../../../../features/notes/components/NoteActions', () => {
-  return function MockNoteActions({ isEditing, onEdit, onSave }: any) {
+  return function MockNoteActions({ isEditing, onEdit, onSave }: { isEditing: boolean; onEdit: () => void; onSave: () => void }) {
     return (
       <div data-testid="note-actions">
         <button data-testid="edit-button" onClick={onEdit} disabled={isEditing}>
@@ -198,3 +198,4 @@ describe('NoteContent Component', () => {
     });
   });
 });
+
