@@ -5,3 +5,14 @@ dist
 *.local
 private/
 coverage/
+
+# Python patterns
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
