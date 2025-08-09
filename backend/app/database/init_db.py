@@ -32,4 +32,3 @@ def init_database():
 if __name__ == "__main__":
     # Allow running this script directly to initialize the database
     init_database()
-

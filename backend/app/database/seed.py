@@ -243,7 +243,3 @@ if __name__ == "__main__":
     else:
         print("Database seeding failed!")
         sys.exit(1)
-
-
-
-

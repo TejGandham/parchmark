@@ -153,4 +153,3 @@ async def health_check():
     Health check endpoint for monitoring and load balancers.
     """
     return {"status": "healthy", "service": "ParchMark API", "version": "1.0.0"}
-

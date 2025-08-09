@@ -128,5 +128,3 @@ async def auth_health_check():
         dict: Status message indicating auth service is operational
     """
     return {"status": "Authentication service is healthy"}
-
-
