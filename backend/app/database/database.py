@@ -7,9 +7,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
+from dotenv import load_dotenv
 
-# Database URL - SQLite file will be created in the backend directory
-SQLALCHEMY_DATABASE_URL = "sqlite:///./parchmark.db"
+# Load environment variables from .env file
+load_dotenv()
+
+# Database URL - can be configured via environment variable
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./parchmark.db")
 
 # Create SQLAlchemy engine
 # connect_args={"check_same_thread": False} is needed for SQLite
@@ -35,3 +39,4 @@ def get_db():
         yield db
     finally:
         db.close()
+
