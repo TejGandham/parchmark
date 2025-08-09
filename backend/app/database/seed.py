@@ -140,7 +140,7 @@ def seed_database() -> bool:
             # Create default notes for the user
             default_notes = create_default_notes(db, default_user)
 
-            logger.info(f"Database seeding completed successfully!")
+            logger.info("Database seeding completed successfully!")
             logger.info(f"Created user: {default_user.username}")
             logger.info(f"Created {len(default_notes)} notes")
 
@@ -243,6 +243,7 @@ if __name__ == "__main__":
     else:
         print("Database seeding failed!")
         sys.exit(1)
+
 
 
 
