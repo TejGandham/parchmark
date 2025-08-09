@@ -1,7 +1,7 @@
 services:
   parchmark-frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     #ports:
     #  - '9090:80' not needed as services are on proxiable network exposing original ports
@@ -14,3 +14,4 @@ networks:
   proxiable:
     external: true
     name: proxiable
+
