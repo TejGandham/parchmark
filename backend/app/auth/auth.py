@@ -27,11 +27,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a plain password against its hash.
-    
+
     Args:
         plain_password: The plain text password to verify
         hashed_password: The hashed password to compare against
-        
+
     Returns:
         bool: True if password matches, False otherwise
     """
@@ -41,10 +41,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """
     Hash a plain password using bcrypt.
-    
+
     Args:
         password: The plain text password to hash
-        
+
     Returns:
         str: The hashed password
     """
@@ -54,11 +54,11 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create a JWT access token.
-    
+
     Args:
         data: The data to encode in the token (typically {"sub": username})
         expires_delta: Optional custom expiration time
-        
+
     Returns:
         str: The encoded JWT token
     """
@@ -67,7 +67,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -76,14 +76,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def verify_token(token: str, credentials_exception: HTTPException) -> TokenData:
     """
     Verify and decode a JWT token.
-    
+
     Args:
         token: The JWT token to verify
         credentials_exception: Exception to raise if verification fails
-        
+
     Returns:
         TokenData: The decoded token data
-        
+
     Raises:
         HTTPException: If token is invalid or expired
     """
@@ -98,15 +98,17 @@ def verify_token(token: str, credentials_exception: HTTPException) -> TokenData:
         raise credentials_exception
 
 
-def authenticate_user(username: str, password: str, user_db_check_func) -> Optional[dict]:
+def authenticate_user(
+    username: str, password: str, user_db_check_func
+) -> Optional[dict]:
     """
     Authenticate a user with username and password.
-    
+
     Args:
         username: The username to authenticate
         password: The plain text password
         user_db_check_func: Function to get user from database by username
-        
+
     Returns:
         dict: User data if authentication successful, None otherwise
     """
@@ -130,4 +132,3 @@ invalid_credentials_exception = HTTPException(
     detail="Invalid username or password",
     headers={"WWW-Authenticate": "Bearer"},
 )
-

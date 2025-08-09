@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting ParchMark API...")
-    
+
     # Initialize database
     try:
         success = init_database()
@@ -38,11 +38,11 @@ async def lifespan(app: FastAPI):
             logger.error("Failed to initialize database")
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
-    
+
     logger.info("ParchMark API startup complete")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down ParchMark API...")
 
@@ -73,7 +73,7 @@ app = FastAPI(
     license_info={
         "name": "MIT",
     },
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS middleware for frontend integration
@@ -105,8 +105,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={
             "detail": exc.detail,
             "status_code": exc.status_code,
-            "path": str(request.url.path)
-        }
+            "path": str(request.url.path),
+        },
     )
 
 
@@ -122,8 +122,8 @@ async def general_exception_handler(request: Request, exc: Exception):
         content={
             "detail": "Internal server error",
             "status_code": 500,
-            "path": str(request.url.path)
-        }
+            "path": str(request.url.path),
+        },
     )
 
 
@@ -143,7 +143,7 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs",
         "redoc": "/redoc",
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -152,9 +152,4 @@ async def health_check():
     """
     Health check endpoint for monitoring and load balancers.
     """
-    return {
-        "status": "healthy",
-        "service": "ParchMark API",
-        "version": "1.0.0"
-    }
-
+    return {"status": "healthy", "service": "ParchMark API", "version": "1.0.0"}

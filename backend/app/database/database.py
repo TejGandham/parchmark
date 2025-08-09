@@ -18,8 +18,7 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./parchmark.db")
 # Create SQLAlchemy engine
 # connect_args={"check_same_thread": False} is needed for SQLite
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, 
-    connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
 
 # Create SessionLocal class for database sessions
@@ -27,6 +26,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create Base class for declarative models
 Base = declarative_base()
+
 
 # Dependency to get database session
 def get_db():
@@ -39,4 +39,3 @@ def get_db():
         yield db
     finally:
         db.close()
-

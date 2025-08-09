@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Load environment variables
 load_dotenv()
 
+
 def main():
     """
     Main function to start the FastAPI server.
@@ -24,7 +25,7 @@ def main():
     port = int(os.getenv("PORT", "8000"))
     debug = os.getenv("DEBUG", "true").lower() == "true"
     log_level = os.getenv("LOG_LEVEL", "info").lower()
-    
+
     print("🚀 Starting ParchMark Backend Server...")
     print(f"📍 Server will be available at: http://{host}:{port}")
     print(f"📚 API Documentation: http://{host}:{port}/docs")
@@ -33,7 +34,7 @@ def main():
     print(f"🐛 Debug Mode: {'Enabled' if debug else 'Disabled'}")
     print(f"📝 Log Level: {log_level.upper()}")
     print("-" * 50)
-    
+
     # Start the server
     uvicorn.run(
         "main:app",
@@ -41,8 +42,9 @@ def main():
         port=port,
         reload=debug,  # Auto-reload in debug mode
         log_level=log_level,
-        access_log=True
+        access_log=True,
     )
+
 
 if __name__ == "__main__":
     try:
