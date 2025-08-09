@@ -3,7 +3,7 @@ Authentication dependencies for FastAPI routes.
 Provides dependency functions for protected routes and user authentication.
 """
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database.database import get_db
@@ -118,3 +118,4 @@ def get_current_admin_user(
     #     )
 
     return current_user
+
