@@ -74,7 +74,7 @@ describe('useStoreRouterSync', () => {
 
   it('should navigate to not-found if noteId in URL doesnt exist', () => {
     // Mock params with non-existent note ID and an empty notes array
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
+    (useParams as jest.Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
@@ -251,6 +251,7 @@ describe('useStoreRouterSync', () => {
     expect(true).toBe(true);
   });
 });
+
 
 
 
