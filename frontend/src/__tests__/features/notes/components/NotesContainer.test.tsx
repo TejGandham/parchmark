@@ -31,10 +31,13 @@ jest.mock('../../../../features/ui/components/Sidebar', () => {
   return function MockSidebar({
     notes,
     currentNoteId,
-    onSelectNote,
-    onCreateNote,
-    onDeleteNote,
-  }: any) {
+  }: {
+    notes: unknown[];
+    currentNoteId: string | null;
+    onSelectNote: () => void;
+    onCreateNote: () => void;
+    onDeleteNote: () => void;
+  }) {
     return (
       <div data-testid="sidebar">
         <div>Notes: {notes.length}</div>
@@ -191,3 +194,4 @@ describe('NotesContainer Component', () => {
     expect(screen.getByText('Editing: Yes')).toBeInTheDocument();
   });
 });
+
