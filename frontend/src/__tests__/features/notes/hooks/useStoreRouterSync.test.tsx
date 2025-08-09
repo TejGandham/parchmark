@@ -199,12 +199,12 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with a non-existent ID to trigger path for non-existent note
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
+    (useParams as jest.Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
     // Mock location to trigger the navigation effect
-    (require('react-router-dom').useLocation as jest.Mock).mockReturnValue({
+    (useLocation as jest.Mock).mockReturnValue({
       pathname: '/notes/non-existent',
     });
 
@@ -251,6 +251,7 @@ describe('useStoreRouterSync', () => {
     expect(true).toBe(true);
   });
 });
+
 
 
 
