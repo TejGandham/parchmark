@@ -35,7 +35,7 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     2. Returns a JWT token if credentials are valid
     3. Returns an error if credentials are invalid
 
-    Matches the frontend auth flow from `/home/daytona/parchmark/src/features/auth/store/auth.ts`
+    Matches the frontend auth flow from the auth store.
 
     Args:
         user_credentials: UserLogin schema with username and password
@@ -128,4 +128,5 @@ async def auth_health_check():
         dict: Status message indicating auth service is operational
     """
     return {"status": "Authentication service is healthy"}
+
 
