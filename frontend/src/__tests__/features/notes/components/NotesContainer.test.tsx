@@ -48,7 +48,7 @@ jest.mock('../../../../features/ui/components/Sidebar', () => {
 });
 
 jest.mock('../../../../features/notes/components/NoteContent', () => {
-  return function MockNoteContent(props: any) {
+  return function MockNoteContent(_props: Record<string, unknown>) {
     return (
       <div data-testid="note-content">
         <div>Note: {props.currentNote?.title || 'None'}</div>
@@ -194,4 +194,5 @@ describe('NotesContainer Component', () => {
     expect(screen.getByText('Editing: Yes')).toBeInTheDocument();
   });
 });
+
 
