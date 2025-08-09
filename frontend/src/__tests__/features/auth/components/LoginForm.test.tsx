@@ -3,7 +3,6 @@ import { MemoryRouter, useNavigate } from 'react-router-dom';
 import LoginForm from '../../../../features/auth/components/LoginForm';
 import { useAuthStore } from '../../../../features/auth/store';
 import {
-  mockAuthStore,
   mockUnauthenticatedStore,
   mockAuthStoreWithError,
 } from '../../../__mocks__/mockStores';
@@ -145,3 +144,4 @@ describe('LoginForm', () => {
     });
   });
 });
+
