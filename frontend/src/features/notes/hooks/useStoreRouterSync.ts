@@ -100,9 +100,9 @@ export const useStoreRouterSync = () => {
   const actions = useMemo(() => {
     // CRITICAL FIX: Add safety wrapper for each action to handle initialization state
     // This prevents errors when actions are accessed before store is fully initialized
-    const safeStoreAction = <T extends (...args: any[]) => any>(
+    const safeStoreAction = <T extends (...args: unknown[]) => unknown>(
       action: T | undefined,
-      fallback: any = undefined
+      fallback: unknown = undefined
     ) => {
       return (...args: Parameters<T>): ReturnType<T> | undefined => {
         if (typeof action === 'function') {
@@ -165,3 +165,4 @@ export const useStoreRouterSync = () => {
     actions,
   };
 };
+
