@@ -28,6 +28,7 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "httpx>=0.25.0",
     "pytest-cov>=4.1.0",
+    "bandit>=1.7.0",
 ]
 
 [build-system]
@@ -83,4 +84,5 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
 ]
+
 
