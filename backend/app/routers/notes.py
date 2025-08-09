@@ -16,7 +16,6 @@ from app.schemas.schemas import (
     NoteUpdate,
     NoteResponse,
     DeleteResponse,
-    MessageResponse,
 )
 from app.auth.dependencies import get_current_user
 
@@ -297,3 +296,4 @@ async def notes_health_check():
         dict: Status message indicating notes service is operational
     """
     return {"status": "Notes service is healthy"}
+
