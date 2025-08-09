@@ -3,9 +3,7 @@ Database initialization module for ParchMark backend.
 Creates database tables and handles initial database setup.
 """
 
-from sqlalchemy import create_engine
 from app.database.database import Base, engine
-from app.models.models import User, Note
 
 
 def create_tables():
@@ -34,3 +32,4 @@ def init_database():
 if __name__ == "__main__":
     # Allow running this script directly to initialize the database
     init_database()
+
