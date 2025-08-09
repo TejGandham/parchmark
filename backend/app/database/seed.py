@@ -30,7 +30,13 @@ DEFAULT_NOTES_DATA = [
     {
         "id": "2",
         "title": "Getting Started",
-        "content": "# Getting Started\n\n1. Create new notes using the + button\n2. Edit notes in markdown\n3. Toggle between edit and preview mode\n4. Use the sidebar to navigate between notes",
+        "content": (
+            "# Getting Started\n\n"
+            "1. Create new notes using the + button\n"
+            "2. Edit notes in markdown\n"
+            "3. Toggle between edit and preview mode\n"
+            "4. Use the sidebar to navigate between notes"
+        ),
     },
 ]
 
@@ -237,5 +243,6 @@ if __name__ == "__main__":
     else:
         print("Database seeding failed!")
         sys.exit(1)
+
 
 
