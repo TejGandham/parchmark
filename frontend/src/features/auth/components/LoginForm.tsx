@@ -8,7 +8,6 @@ import {
   Input,
   VStack,
   Heading,
-  Text,
   Alert,
   AlertIcon,
   FormErrorMessage,
@@ -117,3 +116,4 @@ const LoginForm = () => {
 };
 
 export default LoginForm;
+
