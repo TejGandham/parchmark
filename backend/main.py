@@ -52,16 +52,16 @@ app = FastAPI(
     title="ParchMark API",
     description="""
     Backend API for ParchMark note-taking application.
-    
+
     ## Features
-    
+
     * **Authentication**: JWT-based user authentication
     * **Notes Management**: Full CRUD operations for markdown notes
     * **User Authorization**: Secure access to user-specific data
     * **Markdown Processing**: Automatic title extraction from H1 headings
-    
+
     ## Authentication
-    
+
     Most endpoints require authentication via JWT Bearer token.
     Use the `/auth/login` endpoint to obtain a token.
     """,
@@ -153,3 +153,4 @@ async def health_check():
     Health check endpoint for monitoring and load balancers.
     """
     return {"status": "healthy", "service": "ParchMark API", "version": "1.0.0"}
+
