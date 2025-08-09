@@ -61,7 +61,7 @@ describe('useStoreRouterSync', () => {
 
   it('should navigate to first note when at /notes route with notes available', () => {
     // Mock location to trigger the navigation effect
-    (require('react-router-dom').useLocation as jest.Mock).mockReturnValue({
+    (useLocation as jest.Mock).mockReturnValue({
       pathname: '/notes',
     });
 
@@ -251,5 +251,6 @@ describe('useStoreRouterSync', () => {
     expect(true).toBe(true);
   });
 });
+
 
 
