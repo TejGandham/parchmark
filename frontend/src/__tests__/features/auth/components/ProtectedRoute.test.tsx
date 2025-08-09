@@ -3,7 +3,6 @@ import { render } from '@testing-library/react';
 import { useAuthStore } from '../../../../features/auth/store';
 import {
   mockAuthStore,
-  mockUnauthenticatedStore,
 } from '../../../__mocks__/mockStores';
 
 // Mock the auth store
@@ -31,3 +30,4 @@ describe('ProtectedRoute', () => {
     }).not.toThrow();
   });
 });
+
