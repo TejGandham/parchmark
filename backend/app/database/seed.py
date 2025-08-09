@@ -4,7 +4,6 @@ Creates default user and seeds with default notes for testing purposes.
 """
 
 from sqlalchemy.orm import Session
-from datetime import datetime
 from app.database.database import SessionLocal, engine
 from app.models.models import User, Note
 from app.auth.auth import get_password_hash
@@ -232,3 +231,4 @@ if __name__ == "__main__":
     else:
         print("Database seeding failed!")
         sys.exit(1)
+
