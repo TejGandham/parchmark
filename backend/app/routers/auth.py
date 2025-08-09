@@ -14,9 +14,7 @@ from app.schemas.schemas import UserLogin, Token, UserResponse, MessageResponse
 from app.auth.auth import (
     authenticate_user,
     create_access_token,
-    get_password_hash,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    invalid_credentials_exception,
 )
 from app.auth.dependencies import get_user_by_username, get_current_user
 
@@ -130,3 +128,4 @@ async def auth_health_check():
         dict: Status message indicating auth service is operational
     """
     return {"status": "Authentication service is healthy"}
+
