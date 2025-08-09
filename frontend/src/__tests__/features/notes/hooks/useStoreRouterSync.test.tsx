@@ -32,12 +32,8 @@ describe('useStoreRouterSync', () => {
 
     // Setup default mocks
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue(
-      mockParams
-    );
-    (require('react-router-dom').useLocation as jest.Mock).mockReturnValue(
-      mockLocation
-    );
+    (useParams as jest.Mock).mockReturnValue(mockParams);
+    (useLocation as jest.Mock).mockReturnValue(mockLocation);
 
     // Mock the store
     (useNotesStore as jest.Mock).mockImplementation((selector) => {
@@ -255,4 +251,5 @@ describe('useStoreRouterSync', () => {
     expect(true).toBe(true);
   });
 });
+
 
