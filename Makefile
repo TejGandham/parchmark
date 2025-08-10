@@ -93,9 +93,10 @@ setup: install-frontend install-backend
 
 clean:
 	@echo "Cleaning build artifacts..."
-	cd frontend && rm -rf dist node_modules/.cache
+	cd ui && rm -rf dist node_modules/.cache
 	cd backend && rm -rf .pytest_cache __pycache__ .coverage htmlcov
 	docker system prune -f
+
 
 
 
