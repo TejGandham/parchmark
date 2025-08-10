@@ -36,7 +36,7 @@ help:
 # Development Commands
 dev-frontend:
 	@echo "Starting frontend development server..."
-	cd frontend && npm run dev
+	cd ui && npm run dev
 
 dev-backend:
 	@echo "Starting backend development server..."
@@ -96,3 +96,4 @@ clean:
 	cd frontend && rm -rf dist node_modules/.cache
 	cd backend && rm -rf .pytest_cache __pycache__ .coverage htmlcov
 	docker system prune -f
+
