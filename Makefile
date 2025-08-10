@@ -81,7 +81,7 @@ test-backend:
 # Code Quality Commands
 lint-frontend:
 	@echo "Running frontend linting..."
-	cd frontend && npm run lint
+	cd ui && npm run lint
 
 lint-backend:
 	@echo "Running backend linting..."
@@ -96,6 +96,7 @@ clean:
 	cd frontend && rm -rf dist node_modules/.cache
 	cd backend && rm -rf .pytest_cache __pycache__ .coverage htmlcov
 	docker system prune -f
+
 
 
 
