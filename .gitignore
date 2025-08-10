@@ -5,3 +5,9 @@ dist
 *.local
 private/
 coverage/
+__pycache__
+ui/coverage
+ui/dist/**
+private/**
+api
+.obsidian
