@@ -5,7 +5,13 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   server: {
-    open: true  // Automatically open browser
+    open: true, // Automatically open browser
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   publicDir: 'public',
   build: {

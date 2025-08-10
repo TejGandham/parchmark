@@ -8,7 +8,6 @@ import {
   Input,
   VStack,
   Heading,
-  Text,
   Alert,
   AlertIcon,
   FormErrorMessage,
@@ -20,6 +19,7 @@ const LoginForm = () => {
   const [password, setPassword] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   // Access the auth store directly to avoid infinite loops
   const authStore = useAuthStore();
   const error = authStore.error;
@@ -46,16 +46,16 @@ const LoginForm = () => {
     return isValid;
   };
 
-  // We removed the conditional console.log that was causing an infinite loop
-
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    const success = actions.login(username, password);
+    setIsLoading(true);
+    const success = await actions.login(username, password);
+    setIsLoading(false);
 
     if (success) {
       navigate('/notes');
@@ -105,6 +105,7 @@ const LoginForm = () => {
               colorScheme="purple"
               width="full"
               mt={4}
+              isLoading={isLoading}
               data-testid="login-button"
             >
               Login
