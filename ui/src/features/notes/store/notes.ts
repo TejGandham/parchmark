@@ -1,96 +1,84 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { persist } from 'zustand/middleware';
-import { DEFAULT_NOTES } from '../../../utils/constants';
 import {
   extractTitleFromMarkdown,
   formatNoteContent,
   createEmptyNoteContent,
 } from '../../../services/markdownService';
+import * as api from '../../../services/api';
 import { Note } from '../../../types';
 
 export type NotesState = {
   notes: Note[];
   currentNoteId: string | null;
   editedContent: string | null;
+  isLoading: boolean;
+  error: string | null;
   actions: {
-    createNote: () => string;
-    updateNote: (id: string, content: string) => void;
-    deleteNote: (id: string) => void;
+    fetchNotes: () => Promise<void>;
+    createNote: () => Promise<string | null>;
+    updateNote: (id: string, content: string) => Promise<void>;
+    deleteNote: (id: string) => Promise<void>;
     setCurrentNote: (id: string | null) => void;
     setEditedContent: (content: string | null) => void;
   };
 };
 
-// Initialize with default notes if storage is empty
 export const useNotesStore = create<NotesState>()(
-  persist(
-    immer((set) => ({
-      notes: Array.isArray(DEFAULT_NOTES) ? DEFAULT_NOTES : [],
-      currentNoteId:
-        Array.isArray(DEFAULT_NOTES) && DEFAULT_NOTES.length > 0
-          ? DEFAULT_NOTES[0].id
-          : null,
-      editedContent: null,
-      // CRITICAL: This actions object must always be defined synchronously
-      // to prevent errors during initial hydration from localStorage
-      actions: {
-        createNote: () => {
-          const id = `note-${Date.now()}`;
-          const timestamp = new Date().toISOString();
-          const content = createEmptyNoteContent();
-
+  immer((set, get) => ({
+    notes: [],
+    currentNoteId: null,
+    editedContent: null,
+    isLoading: false,
+    error: null,
+    actions: {
+      fetchNotes: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const notes = await api.getNotes();
+          set({ notes, isLoading: false });
+        } catch (error: any) {
+          set({ error: error.message, isLoading: false });
+        }
+      },
+      createNote: async () => {
+        const content = createEmptyNoteContent();
+        const title = extractTitleFromMarkdown(content);
+        try {
+          const newNote = await api.createNote({ title, content });
           set((state) => {
-            // Ensure notes is initialized as an array
-            if (!Array.isArray(state.notes)) {
-              state.notes = [];
-            }
-
-            state.notes.push({
-              id,
-              title: 'New Note',
-              content,
-              createdAt: timestamp,
-              updatedAt: timestamp,
-            });
-            state.currentNoteId = id;
-            // Immediately set edited content to put note in edit mode
+            state.notes.push(newNote);
+            state.currentNoteId = newNote.id;
             state.editedContent = content;
           });
-
-          return id;
-        },
-
-        updateNote: (id, content) => {
+          return newNote.id;
+        } catch (error: any) {
+          set({ error: error.message });
+          return null;
+        }
+      },
+      updateNote: async (id, content) => {
+        const title = extractTitleFromMarkdown(content);
+        const formattedContent = formatNoteContent(content);
+        try {
+          const updatedNote = await api.updateNote(id, {
+            content: formattedContent,
+          });
           set((state) => {
-            // Ensure notes is initialized as an array
-            if (!Array.isArray(state.notes)) {
-              state.notes = [];
-              return;
-            }
-
             const noteIndex = state.notes.findIndex((note) => note.id === id);
             if (noteIndex !== -1) {
-              // Extract title and format content using shared utility functions
-              const title = extractTitleFromMarkdown(content);
-              const formattedContent = formatNoteContent(content);
-
-              state.notes[noteIndex].content = formattedContent;
-              state.notes[noteIndex].title = title;
-              state.notes[noteIndex].updatedAt = new Date().toISOString();
+              state.notes[noteIndex] = updatedNote;
               state.editedContent = null;
             }
           });
-        },
-
-        deleteNote: (id) => {
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      deleteNote: async (id) => {
+        try {
+          await api.deleteNote(id);
           set((state) => {
-            // Ensure notes is initialized as an array
-            if (!Array.isArray(state.notes)) {
-              state.notes = [];
-              return;
-            }
-
             const noteIndex = state.notes.findIndex((note) => note.id === id);
             if (noteIndex !== -1) {
               state.notes.splice(noteIndex, 1);
@@ -101,37 +89,20 @@ export const useNotesStore = create<NotesState>()(
               }
             }
           });
-        },
-
-        setCurrentNote: (id) => {
-          set((state) => {
-            // CRITICAL FIX: Always reset edited content on ANY setCurrentNote call
-            // This ensures switching notes from any source works properly
-            state.editedContent = null;
-
-            // Update the current note ID
-            state.currentNoteId = id;
-          });
-        },
-
-        setEditedContent: (content) => {
-          set((state) => {
-            state.editedContent = content;
-          });
-        },
+        } catch (error: any) {
+          set({ error: error.message });
+        }
       },
-    })),
-    {
-      name: 'parchmark-notes',
-      // Add configuration to ensure actions are always available during hydration
-      merge: (persistedState, currentState) => {
-        // Make sure we always preserve the actions from the current state
-        // This prevents actions from being undefined during hydration
-        return {
-          ...persistedState,
-          actions: currentState.actions,
-        };
+      setCurrentNote: (id) => {
+        set((state) => {
+          state.editedContent = null;
+          state.currentNoteId = id;
+        });
       },
-    }
-  )
+      setEditedContent: (content) => {
+        set({ editedContent: content });
+      },
+    },
+  }))
 );
+

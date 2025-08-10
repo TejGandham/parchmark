@@ -11,3 +11,11 @@ ui/dist/**
 private/**
 api
 .obsidian
+parchmark.db
+parchmark.db-journal
+*.sqlite3
+*.sqlite
+*.db
+*.db-journal
+*.log
+backend/parchmark.db

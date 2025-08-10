@@ -127,9 +127,9 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Register routers
-app.include_router(auth.router)
-app.include_router(notes.router)
+# Register routers with /api prefix
+app.include_router(auth.router, prefix="/api")
+app.include_router(notes.router, prefix="/api")
 
 
 # Root endpoints
