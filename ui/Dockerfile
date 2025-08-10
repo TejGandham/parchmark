@@ -17,10 +17,16 @@ RUN npm run build
 # === Production Stage ===
 FROM nginx:1.28-alpine
 
+# Copy the built app
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configs and entrypoint
+COPY nginx.http.conf /etc/nginx/conf.d/nginx.http.conf
+COPY nginx.https.conf /etc/nginx/conf.d/nginx.https.conf
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Run the entrypoint script
+CMD ["/entrypoint.sh"]
