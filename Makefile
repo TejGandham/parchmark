@@ -45,7 +45,7 @@ dev-backend:
 # Installation Commands
 install-frontend:
 	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
+	cd ui && npm install
 
 install-backend:
 	@echo "Installing backend dependencies..."
@@ -96,4 +96,5 @@ clean:
 	cd frontend && rm -rf dist node_modules/.cache
 	cd backend && rm -rf .pytest_cache __pycache__ .coverage htmlcov
 	docker system prune -f
+
 
