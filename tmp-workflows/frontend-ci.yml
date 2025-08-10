@@ -60,7 +60,7 @@ jobs:
     
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./ui
 
     steps:
     - name: Checkout code
@@ -85,6 +85,7 @@ jobs:
         name: frontend-build
         path: frontend/dist/
         retention-days: 7
+
 
 
 
