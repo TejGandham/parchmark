@@ -54,7 +54,7 @@ install-backend:
 # Build Commands
 build-frontend:
 	@echo "Building frontend for production..."
-	cd frontend && npm run build
+	cd ui && npm run build
 
 build-backend:
 	@echo "Building backend Docker image..."
@@ -96,5 +96,6 @@ clean:
 	cd frontend && rm -rf dist node_modules/.cache
 	cd backend && rm -rf .pytest_cache __pycache__ .coverage htmlcov
 	docker system prune -f
+
 
 
