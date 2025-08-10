@@ -72,7 +72,7 @@ docker-down:
 # Testing Commands
 test-frontend:
 	@echo "Running frontend tests..."
-	cd frontend && npm test
+	cd ui && npm test
 
 test-backend:
 	@echo "Running backend tests..."
@@ -96,6 +96,7 @@ clean:
 	cd frontend && rm -rf dist node_modules/.cache
 	cd backend && rm -rf .pytest_cache __pycache__ .coverage htmlcov
 	docker system prune -f
+
 
 
 
