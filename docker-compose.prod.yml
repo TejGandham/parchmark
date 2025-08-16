@@ -1,0 +1,55 @@
+services:
+  frontend:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: parchmark-frontend
+    environment:
+      - USE_HTTPS=false
+    env_file:
+      - ./ui/.env.production
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - proxiable
+      - parchmark-internal
+    labels:
+      # Nginx Proxy Manager labels for automatic configuration
+      - "npm.enable=true"
+      - "npm.host=notes.engen.tech"
+      - "npm.port=80"
+      - "npm.proto=http"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: parchmark-backend
+    env_file:
+      - ./backend/.env.production
+    restart: unless-stopped
+    volumes:
+      # Persist database and uploads
+      - parchmark-data:/app/data
+    networks:
+      - proxiable
+      - parchmark-internal
+    labels:
+      # Nginx Proxy Manager labels for API
+      - "npm.enable=true"
+      - "npm.host=assets-api.engen.tech"
+      - "npm.port=8000"
+      - "npm.proto=http"
+
+volumes:
+  parchmark-data:
+
+networks:
+  # Connect to existing proxiable network for Nginx Proxy Manager
+  proxiable:
+    external: true
+    name: proxiable
+  # Internal network for frontend-backend communication
+  parchmark-internal:
+    driver: bridge
