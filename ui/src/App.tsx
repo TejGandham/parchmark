@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react';
 import theme from './styles/theme';
 import { Box, Spinner, Center } from '@chakra-ui/react';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
+import { useAuthStore } from './features/auth/store';
 
 // Keep lazy loading only for the main route components
 const NotesContainer = lazy(
@@ -24,12 +25,17 @@ const LoadingFallback = () => (
   </Center>
 );
 
+const RootRoute = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return <Navigate to={isAuthenticated ? '/notes' : '/login'} replace />;
+};
+
 function App() {
   return (
     <ChakraProvider theme={theme}>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/" element={<Navigate to="/notes" replace />} />
+          <Route path="/" element={<RootRoute />} />
           <Route path="/login" element={<LoginForm />} />
           <Route
             path="/notes"
