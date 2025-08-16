@@ -291,6 +291,27 @@ docker run --rm -v parchmark-data:/source -v $(pwd):/backup alpine tar czf /back
 docker run --rm -v parchmark-data:/target -v $(pwd):/backup alpine tar xzf /backup/parchmark-backup-YYYYMMDD.tar.gz -C /target
 ```
 
+## Manual User Management
+
+A script is provided to manually manage users from the command line. Use this for creating admin users, resetting passwords, or deleting accounts.
+
+**Note:** Run these commands from the root of the project directory.
+
+### Create a User
+```bash
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py create <username> '<password>'
+```
+
+### Update a User's Password
+```bash
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py update-password <username> '<new_password>'
+```
+
+### Delete a User
+```bash
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py delete <username>
+```
+
 ---
 
 **Note:** This setup provides a production-ready deployment with SSL, proper networking, and data persistence. Both the frontend application and backend API are required for full functionality.
