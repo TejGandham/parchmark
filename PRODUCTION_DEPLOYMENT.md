@@ -1,0 +1,296 @@
+# ParchMark Production Deployment Guide
+
+This guide provides step-by-step instructions for deploying ParchMark to a production server using Docker Compose and Nginx Proxy Manager on Debian.
+
+## Overview
+
+**Frontend URL:** `https://notes.engen.tech`  
+**Backend API URL:** `https://assets-api.engen.tech`
+
+**Architecture:**
+- Frontend: React app served via Nginx container
+- Backend: FastAPI application with SQLite database
+- Nginx Proxy Manager: SSL termination and reverse proxy
+- Docker Network: `proxiable` (shared with NPM)
+
+## Prerequisites
+
+- Debian server with Docker and Docker Compose installed
+- Nginx Proxy Manager running on `proxiable` network
+- DNS records pointing both domains to your server IP
+- Access to Nginx Proxy Manager web interface
+
+## Step 1: Generate Production Secret Key
+
+Generate a secure JWT secret key:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Save this key - you'll need it in Step 3.
+
+## Step 2: DNS Configuration
+
+Create A records pointing to your server IP:
+- `notes.engen.tech` → Your server IP
+- `assets-api.engen.tech` → Your server IP
+
+Wait for DNS propagation (can take up to 24 hours).
+
+## Step 3: Environment Configuration
+
+The following files have been created for production:
+
+### Backend Environment (`.env.production`)
+```env
+# ParchMark Backend Production Configuration
+
+# JWT Configuration - CHANGE THESE IN PRODUCTION!
+# Generate: python -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY=CHANGE_THIS_SECRET_KEY_IN_PRODUCTION
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# Database Configuration
+DATABASE_URL=sqlite:///./data/parchmark.db
+
+# Application Configuration
+APP_NAME=ParchMark API
+APP_VERSION=1.0.0
+DEBUG=false
+
+# CORS Configuration - Production domains
+ALLOWED_ORIGINS=https://notes.engen.tech,https://assets-api.engen.tech
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+
+# Logging Configuration
+LOG_LEVEL=INFO
+```
+
+**⚠️ IMPORTANT:** Replace `CHANGE_THIS_SECRET_KEY_IN_PRODUCTION` with the key generated in Step 1.
+
+### Frontend Environment (`.env.production`)
+```env
+# ParchMark Frontend Production Configuration
+
+# Set to "false" since Nginx Proxy Manager handles SSL
+USE_HTTPS=false
+```
+
+## Step 4: Docker Compose Configuration
+
+The production compose file (`docker-compose.prod.yml`) has been created with:
+
+- Both services connected to `proxiable` network for NPM integration
+- Internal network for frontend-backend communication
+- Persistent volume for database storage
+- Proper container naming and restart policies
+
+## Step 5: Nginx Proxy Manager Configuration
+
+### Frontend Proxy Host (notes.engen.tech)
+
+1. **Go to Proxy Hosts → Add Proxy Host**
+
+2. **Details Tab:**
+   ```
+   Domain Names: notes.engen.tech
+   Scheme: http
+   Forward Hostname/IP: parchmark-frontend
+   Forward Port: 80
+   ```
+
+3. **Advanced Tab:**
+   ```
+   ☑️ Cache Assets
+   ☑️ Block Common Exploits  
+   ☑️ Websockets Support
+   ☐ Access List (None)
+   
+   Custom Nginx Configuration: (leave empty)
+   ```
+
+4. **SSL Tab:**
+   ```
+   ☑️ SSL Certificate
+   ☑️ Force SSL
+   ☑️ HTTP/2 Support
+   ☑️ HSTS Enabled
+   ☐ HSTS Subdomains
+
+   Certificate: Request a new SSL Certificate
+   Provider: Let's Encrypt
+   Email Address: your-email@domain.com
+   Domain Names: notes.engen.tech
+   ☑️ Use a DNS Challenge
+   ☑️ I Agree to the Let's Encrypt Terms of Service
+   ```
+
+### Backend Proxy Host (assets-api.engen.tech)
+
+1. **Add Proxy Host (second one)**
+
+2. **Details Tab:**
+   ```
+   Domain Names: assets-api.engen.tech
+   Scheme: http
+   Forward Hostname/IP: parchmark-backend
+   Forward Port: 8000
+   ```
+
+3. **Advanced Tab:**
+   ```
+   ☐ Cache Assets (APIs shouldn't cache)
+   ☑️ Block Common Exploits
+   ☐ Websockets Support (not needed for API)
+   ☐ Access List (None)
+   
+   Custom Nginx Configuration: (leave empty)
+   ```
+
+4. **SSL Tab:**
+   ```
+   ☑️ SSL Certificate
+   ☑️ Force SSL
+   ☑️ HTTP/2 Support
+   ☑️ HSTS Enabled
+   ☐ HSTS Subdomains
+
+   Certificate: Request a new SSL Certificate
+   Provider: Let's Encrypt
+   Email Address: your-email@domain.com
+   Domain Names: assets-api.engen.tech
+   ☑️ Use a DNS Challenge
+   ☑️ I Agree to the Let's Encrypt Terms of Service
+   ```
+
+## Step 6: Deployment
+
+1. **Upload/Clone your code to the server:**
+   ```bash
+   cd /path/to/your/parchmark
+   ```
+
+2. **Update the backend secret key:**
+   ```bash
+   nano backend/.env.production
+   # Replace CHANGE_THIS_SECRET_KEY_IN_PRODUCTION with your generated key
+   ```
+
+3. **Build and start containers:**
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+
+4. **Verify containers are running:**
+   ```bash
+   docker compose -f docker-compose.prod.yml ps
+   ```
+
+5. **Check logs if needed:**
+   ```bash
+   # Frontend logs
+   docker compose -f docker-compose.prod.yml logs frontend
+   
+   # Backend logs
+   docker compose -f docker-compose.prod.yml logs backend
+   ```
+
+## Step 7: Testing
+
+1. **Frontend:** Visit `https://notes.engen.tech`
+   - Should load the ParchMark application
+   - Should redirect HTTP to HTTPS
+
+2. **Backend API Documentation:** Visit `https://assets-api.engen.tech/docs`
+   - Should load FastAPI Swagger documentation
+   - Should redirect HTTP to HTTPS
+
+3. **Health Check:** Visit `https://assets-api.engen.tech/health`
+   - Should return JSON: `{"status": "healthy", "service": "ParchMark API", "version": "1.0.0"}`
+
+## Architecture Notes
+
+### Why Both Frontend and Backend?
+- **Frontend:** Serves the React application and handles routing
+- **Backend:** Provides JWT authentication, note storage, and API endpoints
+- **Database:** SQLite database persisted in Docker volume for user data
+
+### Network Communication
+- **External Access:** Nginx Proxy Manager → Frontend/Backend containers
+- **Internal API Calls:** Frontend container → Backend container (Docker network)
+- **Database:** Stored in Docker volume, accessed by backend only
+
+### Security
+- SSL certificates automatically managed by Let's Encrypt
+- CORS configured for production domains only  
+- JWT tokens for API authentication
+- Database isolated within Docker network
+
+## Troubleshooting
+
+### Container Issues
+```bash
+# View all logs
+docker compose -f docker-compose.prod.yml logs
+
+# Restart services
+docker compose -f docker-compose.prod.yml restart
+
+# Rebuild and restart
+docker compose -f docker-compose.prod.yml up -d --build --force-recreate
+```
+
+### SSL Certificate Issues
+- Ensure DNS records are propagated
+- Check Nginx Proxy Manager logs for Let's Encrypt errors
+- Verify email address is valid for Let's Encrypt notifications
+
+### Database Issues
+```bash
+# Check database volume
+docker volume ls | grep parchmark
+
+# Access backend container
+docker exec -it parchmark-backend bash
+
+# View database location
+ls -la /app/data/
+```
+
+### Network Issues
+```bash
+# Verify proxiable network exists
+docker network ls | grep proxiable
+
+# Check container network connections
+docker network inspect proxiable
+```
+
+## Maintenance
+
+### Updates
+```bash
+# Pull latest code
+git pull
+
+# Rebuild and restart
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### Backups
+```bash
+# Backup database volume
+docker run --rm -v parchmark-data:/source -v $(pwd):/backup alpine tar czf /backup/parchmark-backup-$(date +%Y%m%d).tar.gz -C /source .
+
+# Restore database volume
+docker run --rm -v parchmark-data:/target -v $(pwd):/backup alpine tar xzf /backup/parchmark-backup-YYYYMMDD.tar.gz -C /target
+```
+
+---
+
+**Note:** This setup provides a production-ready deployment with SSL, proper networking, and data persistence. Both the frontend application and backend API are required for full functionality.
