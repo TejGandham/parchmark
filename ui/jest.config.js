@@ -2,13 +2,13 @@ export default {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   transform: {
-    '^.+\\.(ts|tsx)$': [
+    '^.+\.(ts|tsx)$': [
       'ts-jest',
       {
         tsconfig: 'tsconfig.test.json',
       },
     ],
-    '^.+\\.(js|jsx|mjs)$': 'babel-jest',
+    '^.+\.(js|jsx|mjs)$': 'babel-jest',
   },
   transformIgnorePatterns: [
     '/node_modules/(?!react-markdown|remark-gfm|micromark|decode-named-character-reference|character-entities|unist-util-stringify-position|unist-util-visit|unist-util-is|unified|bail|is-plain-obj|trough|vfile|remark-parse|mdast-util-from-markdown|mdast-util-to-string|escape-string-regexp|markdown-table|ccount)/',
@@ -17,6 +17,7 @@ export default {
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '^src/(.*)$': '<rootDir>/src/$1',
+    '\\.svg$': '<rootDir>/src/__tests__/__mocks__/svgrMock.js',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testMatch: ['**/__tests__/**/*.test.(ts|tsx|js|jsx)'],
@@ -29,4 +30,13 @@ export default {
   ],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   verbose: true,
+  coverageThreshold: {
+    global: {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
+  coverageReporters: ['text', 'lcov', 'html'],
 };
