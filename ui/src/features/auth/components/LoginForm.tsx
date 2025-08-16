@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -25,6 +25,7 @@ const LoginForm = () => {
   const error = authStore.error;
   const actions = authStore.actions;
   const navigate = useNavigate();
+  const location = useLocation();
 
   const validateForm = (): boolean => {
     let isValid = true;
@@ -58,7 +59,8 @@ const LoginForm = () => {
     setIsLoading(false);
 
     if (success) {
-      navigate('/notes');
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/notes';
+      navigate(from, { replace: true });
     }
   };
 
