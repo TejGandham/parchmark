@@ -196,5 +196,74 @@ describe('NoteContent Component', () => {
       // The component should still render without errors
       expect(screen.getByTestId('note-actions')).toBeInTheDocument();
     });
+
+    it('should extract title from edited content in edit mode', () => {
+      const editedContent = '# New Title\n\nSome edited content';
+
+      renderComponent({
+        isEditing: true,
+        editedContent,
+      });
+
+      expect(screen.getByDisplayValue('New Title')).toBeInTheDocument();
+    });
+
+    it('should show full content when editing', () => {
+      const editedContent = '# Test Note\n\nThis is edited content';
+
+      renderComponent({
+        isEditing: true,
+        editedContent,
+      });
+
+      const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
+      expect(textarea).toHaveValue(editedContent);
+    });
+
+    it('should remove H1 from content in view mode', () => {
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: '# Test Title\n\nThis content should be shown without the H1.',
+        },
+        isEditing: false,
+      });
+
+      // Should show the content without the H1 title
+      expect(screen.getByText(/This content should be shown without the H1/)).toBeInTheDocument();
+    });
+
+    it('should handle content with complex markdown', () => {
+      const complexContent = '# Main Title\n\n## Subtitle\n\n- Item 1\n- Item 2\n\n**Bold text**';
+
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: complexContent,
+        },
+        isEditing: false,
+      });
+
+      // Should render the content without errors
+      expect(screen.getByTestId('note-actions')).toBeInTheDocument();
+    });
+
+    it('should call setEditedContent on textarea change when creating new note', () => {
+      const mockSetEditedContent = jest.fn();
+      
+      renderComponent({
+        currentNote: null,
+        isEditing: true,
+        editedContent: '# New Note\n\nContent',
+        setEditedContent: mockSetEditedContent,
+      });
+
+      const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
+      fireEvent.change(textarea, {
+        target: { value: '# Changed Title\n\nChanged content' },
+      });
+
+      expect(mockSetEditedContent).toHaveBeenCalledWith('# Changed Title\n\nChanged content');
+    });
   });
 });
