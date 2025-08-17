@@ -7,6 +7,7 @@ describe('UI Store', () => {
     act(() => {
       useUIStore.setState({
         isSidebarOpen: true,
+        isDarkMode: false,
         actions: useUIStore.getState().actions,
       });
     });
@@ -15,7 +16,9 @@ describe('UI Store', () => {
   it('should initialize with the default state', () => {
     const state = useUIStore.getState();
     expect(state.isSidebarOpen).toBe(true);
+    expect(state.isDarkMode).toBe(false);
     expect(typeof state.actions.toggleSidebar).toBe('function');
+    expect(typeof state.actions.toggleDarkMode).toBe('function');
   });
 
   describe('toggleSidebar', () => {
@@ -69,6 +72,54 @@ describe('UI Store', () => {
         useUIStore.getState().actions.toggleSidebar();
       });
       expect(useUIStore.getState().isSidebarOpen).toBe(false);
+    });
+  });
+
+  describe('toggleDarkMode', () => {
+    it('should toggle dark mode from false to true', () => {
+      // Start with dark mode off
+      expect(useUIStore.getState().isDarkMode).toBe(false);
+
+      // Toggle dark mode
+      act(() => {
+        useUIStore.getState().actions.toggleDarkMode();
+      });
+
+      // Dark mode should now be on
+      expect(useUIStore.getState().isDarkMode).toBe(true);
+    });
+
+    it('should toggle dark mode from true to false', () => {
+      // First set dark mode to true
+      act(() => {
+        useUIStore.setState({ isDarkMode: true });
+      });
+      expect(useUIStore.getState().isDarkMode).toBe(true);
+
+      // Toggle dark mode
+      act(() => {
+        useUIStore.getState().actions.toggleDarkMode();
+      });
+
+      // Dark mode should now be off
+      expect(useUIStore.getState().isDarkMode).toBe(false);
+    });
+
+    it('should work with multiple dark mode toggles', () => {
+      // Start with dark mode off
+      expect(useUIStore.getState().isDarkMode).toBe(false);
+
+      // First toggle
+      act(() => {
+        useUIStore.getState().actions.toggleDarkMode();
+      });
+      expect(useUIStore.getState().isDarkMode).toBe(true);
+
+      // Second toggle
+      act(() => {
+        useUIStore.getState().actions.toggleDarkMode();
+      });
+      expect(useUIStore.getState().isDarkMode).toBe(false);
     });
   });
 

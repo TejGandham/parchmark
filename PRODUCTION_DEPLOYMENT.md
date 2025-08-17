@@ -168,6 +168,60 @@ The production compose file (`docker-compose.prod.yml`) has been created with:
    ☑️ I Agree to the Let's Encrypt Terms of Service
    ```
 
+## Security Hardening (TODO)
+
+To protect the application against brute-force login attacks and other common threats, apply the following custom Nginx configurations in the "Advanced" tab for the respective proxy hosts.
+
+### Backend Hardening (`assets-api.engen.tech`)
+
+This configuration applies rate limiting specifically to the `/token` authentication endpoint to prevent brute-force attacks.
+
+```nginx
+# --- ParchMark Backend Security ---
+
+# 1. Rate Limiting Zone
+# Creates a 10MB shared memory zone named 'login_limit_zone' to store IP addresses.
+# Allows an average of 10 requests per minute (r/m) per IP address.
+limit_req_zone $binary_remote_addr zone=login_limit_zone:10m rate=10r/m;
+
+# 2. Apply Rate Limiting to the Login Endpoint
+# Any requests to the /token path will be subject to the rate limit.
+location /token {
+    # Apply the 'login_limit_zone' limit.
+    # 'burst=20' allows a short burst of up to 20 requests before throttling.
+    # 'nodelay' ensures legitimate requests in the burst are not delayed.
+    limit_req zone=login_limit_zone burst=20 nodelay;
+
+    # Standard proxy settings (NPM adds these, but explicit is safer)
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_pass http://parchmark-backend:8000;
+}
+```
+
+### Frontend Hardening (`notes.engen.tech`)
+
+This configuration adds general rate limiting and important security headers to protect against scraping and common browser-based attacks.
+
+```nginx
+# --- ParchMark Frontend Security ---
+
+# 1. General Rate Limiting
+# Creates a zone to limit all visitors to 60 requests per minute.
+# This is a general protection against scraping or simple DoS attacks.
+limit_req_zone $binary_remote_addr zone=frontend_limit_zone:10m rate=60r/m;
+limit_req zone=frontend_limit_zone burst=100 nodelay;
+
+# 2. Security Headers
+# Adds headers to protect against common web vulnerabilities.
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "no-referrer-when-downgrade" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+```
+
 ## Step 6: Deployment
 
 1. **Upload/Clone your code to the server:**

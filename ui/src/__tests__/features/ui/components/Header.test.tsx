@@ -17,7 +17,7 @@ describe('Header Component', () => {
       </TestProvider>
     );
 
-    expect(screen.getByText(/parchmark/i)).toBeInTheDocument();
+    expect(screen.getByAltText(/ParchMark Logo/i)).toBeInTheDocument();
   });
 
   it('should call toggleSidebar when menu button is clicked', () => {
