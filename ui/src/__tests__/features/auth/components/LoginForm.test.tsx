@@ -90,7 +90,7 @@ describe('LoginForm', () => {
         'user',
         'password'
       );
-      expect(mockNavigate).toHaveBeenCalledWith('/notes');
+      expect(mockNavigate).toHaveBeenCalledWith('/notes', { replace: true });
     });
   });
 

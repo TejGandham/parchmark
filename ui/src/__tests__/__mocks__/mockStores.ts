@@ -31,6 +31,7 @@ export const mockNotesStore = {
   currentNoteId: 'note-1',
   editedContent: null,
   actions: {
+    fetchNotes: jest.fn(),
     createNote: jest.fn().mockReturnValue('note-3'),
     updateNote: jest.fn(),
     deleteNote: jest.fn(),
@@ -50,6 +51,7 @@ export const mockEmptyNotesStore = {
   currentNoteId: null,
   editedContent: null,
   actions: {
+    fetchNotes: jest.fn(),
     createNote: jest.fn().mockReturnValue('note-new'),
     updateNote: jest.fn(),
     deleteNote: jest.fn(),

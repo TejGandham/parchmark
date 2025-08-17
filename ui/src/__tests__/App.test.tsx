@@ -187,4 +187,42 @@ describe('App Component', () => {
       expect(fallback).toBeInTheDocument();
     });
   });
+
+  describe('RootRoute Navigation', () => {
+    it('should navigate to /login when user is not authenticated', async () => {
+      (useAuthStore as jest.Mock).mockImplementation((selector) => {
+        const state = { isAuthenticated: false };
+        return selector ? selector(state) : state;
+      });
+
+      await act(async () => {
+        render(
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        );
+      });
+
+      // Should render at least one navigate to login
+      expect(screen.getAllByTestId('navigate-/login')).toHaveLength(3);
+    });
+
+    it('should navigate to /notes when user is authenticated', async () => {
+      (useAuthStore as jest.Mock).mockImplementation((selector) => {
+        const state = { isAuthenticated: true };
+        return selector ? selector(state) : state;
+      });
+
+      await act(async () => {
+        render(
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        );
+      });
+
+      // Should render navigate to notes
+      expect(screen.getByTestId('navigate-/notes')).toBeInTheDocument();
+    });
+  });
 });
