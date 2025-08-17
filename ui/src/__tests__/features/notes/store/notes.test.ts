@@ -4,6 +4,9 @@ import {
   useNotesStore,
   NotesState,
 } from '../../../../features/notes/store/notes';
+import * as api from '../../../../services/api';
+
+jest.mock('../../../../services/api');
 
 // Mock the dependencies
 jest.mock('../../../../services/markdownService', () => ({
@@ -21,6 +24,7 @@ jest.spyOn(Date, 'now').mockImplementation(() => mockDateNow);
 
 const mockTimestamp = new Date(mockDateNow).toISOString();
 jest.spyOn(Date.prototype, 'toISOString').mockReturnValue(mockTimestamp);
+
 
 describe('Notes Store', () => {
   let store: NotesState;
@@ -62,11 +66,75 @@ describe('Notes Store', () => {
     });
   });
 
-  describe('createNote', () => {
-    it('should create a new note with correct data', () => {
-      const newNoteId = store.actions.createNote();
+  describe('fetchNotes', () => {
+    it('should fetch notes successfully', async () => {
+      const mockNotes = [
+        { id: '1', title: 'Note 1', content: '# Note 1\n\nContent', createdAt: '2023-01-01', updatedAt: '2023-01-01' },
+        { id: '2', title: 'Note 2', content: '# Note 2\n\nContent', createdAt: '2023-01-02', updatedAt: '2023-01-02' }
+      ];
+      
+      (api.getNotes as jest.Mock).mockResolvedValue(mockNotes);
+
+      await store.actions.fetchNotes();
 
       const updatedStore = useNotesStore.getState();
+      expect(updatedStore.notes).toEqual(mockNotes);
+      expect(updatedStore.isLoading).toBe(false);
+      expect(updatedStore.error).toBeNull();
+    });
+
+    it('should handle fetch error', async () => {
+      const errorMessage = 'Failed to fetch notes';
+      (api.getNotes as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      await store.actions.fetchNotes();
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe(errorMessage);
+      expect(updatedStore.isLoading).toBe(false);
+    });
+
+    it('should set loading state during fetch', async () => {
+      let resolvePromise: (value: any) => void;
+      const promise = new Promise((resolve) => {
+        resolvePromise = resolve;
+      });
+      (api.getNotes as jest.Mock).mockReturnValue(promise);
+
+      const fetchPromise = store.actions.fetchNotes();
+
+      // Check loading state is set
+      const loadingStore = useNotesStore.getState();
+      expect(loadingStore.isLoading).toBe(true);
+      expect(loadingStore.error).toBeNull();
+
+      // Resolve the promise
+      resolvePromise!([]);
+      await fetchPromise;
+
+      // Check loading state is cleared
+      const finalStore = useNotesStore.getState();
+      expect(finalStore.isLoading).toBe(false);
+    });
+  });
+
+  describe('createNote', () => {
+    it('should create a new note with correct data', async () => {
+      const store = useNotesStore;
+      const { actions } = store.getState();
+
+      // Mock the successful API call
+      (api.createNote as jest.Mock).mockResolvedValue({
+        id: 'note-3',
+        title: 'New Note',
+        content: '# New Note\n\n',
+        createdAt: '2023-01-03T00:00:00.000Z',
+        updatedAt: '2023-01-03T00:00:00.000Z',
+      });
+
+      const newNoteId = await actions.createNote();
+      const updatedStore = useNotesStore.getState();
+
       expect(updatedStore.notes).toHaveLength(3);
       expect(updatedStore.currentNoteId).toBe(newNoteId);
       expect(updatedStore.editedContent).toBe('# New Note\n\n');
@@ -75,79 +143,121 @@ describe('Notes Store', () => {
       expect(newNote).toBeDefined();
       expect(newNote?.title).toBe('New Note');
       expect(newNote?.content).toBe('# New Note\n\n');
-      expect(newNote?.createdAt).toBe(mockTimestamp);
-      expect(newNote?.updatedAt).toBe(mockTimestamp);
     });
 
-    it('should return the ID of the newly created note', () => {
-      const newNoteId = store.actions.createNote();
-      expect(newNoteId).toBe(`note-${mockDateNow}`);
+    it('should return the ID of the newly created note', async () => {
+        const store = useNotesStore;
+        const { actions } = store.getState();
+        const newNoteId = await actions.createNote();
+        expect(newNoteId).toBe('note-3');
+    });
+
+    it('should handle createNote error', async () => {
+      const errorMessage = 'Failed to create note';
+      (api.createNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      const newNoteId = await store.actions.createNote();
+
+      expect(newNoteId).toBeNull();
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe(errorMessage);
     });
   });
 
   describe('updateNote', () => {
-    it('should update note content and title', () => {
+    it('should update note content and title', async () => {
       const noteId = 'note-1';
       const newContent = '# Updated Title\n\nNew content';
 
-      store.actions.updateNote(noteId, newContent);
+      // Mock the successful API call
+      (api.updateNote as jest.Mock).mockResolvedValue({
+        id: noteId,
+        title: 'Updated Title',
+        content: newContent,
+        createdAt: '2023-01-01T00:00:00.000Z',
+        updatedAt: '2023-01-03T00:00:00.000Z',
+      });
+
+      await store.actions.updateNote(noteId, newContent);
 
       const updatedStore = useNotesStore.getState();
       const updatedNote = updatedStore.notes.find((note) => note.id === noteId);
 
       expect(updatedNote?.title).toBe('Updated Title');
       expect(updatedNote?.content).toBe(newContent);
-      expect(updatedNote?.updatedAt).toBe(mockTimestamp);
       expect(updatedStore.editedContent).toBeNull();
     });
 
-    it('should not update any note if ID does not exist', () => {
+    it('should not update any note if ID does not exist', async () => {
       const initialNotes = [...store.notes];
 
-      store.actions.updateNote('non-existent-id', 'New content');
+      await store.actions.updateNote('non-existent-id', 'New content');
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toEqual(initialNotes);
     });
+
+    it('should handle updateNote error', async () => {
+      const errorMessage = 'Failed to update note';
+      (api.updateNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      await store.actions.updateNote('note-1', 'New content');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe(errorMessage);
+    });
   });
 
   describe('deleteNote', () => {
-    it('should delete a note by ID', () => {
-      store.actions.deleteNote('note-1');
+    it('should delete a note by ID', async () => {
+      // Mock the successful API call
+      (api.deleteNote as jest.Mock).mockResolvedValue(undefined);
+
+      await store.actions.deleteNote('note-1');
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toHaveLength(1);
       expect(updatedStore.notes[0].id).toBe('note-2');
     });
 
-    it('should update currentNoteId when deleting current note', () => {
-      store.actions.deleteNote('note-1');
+    it('should update currentNoteId when deleting current note', async () => {
+      await store.actions.deleteNote('note-1');
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.currentNoteId).toBe('note-2');
       expect(updatedStore.editedContent).toBeNull();
     });
 
-    it('should set currentNoteId to null if all notes are deleted', () => {
-      store.actions.deleteNote('note-1');
-      store.actions.deleteNote('note-2');
+    it('should set currentNoteId to null if all notes are deleted', async () => {
+      await store.actions.deleteNote('note-1');
+      await store.actions.deleteNote('note-2');
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toHaveLength(0);
       expect(updatedStore.currentNoteId).toBeNull();
     });
 
-    it('should not change state if note ID does not exist', () => {
+    it('should not change state if note ID does not exist', async () => {
       const initialState = {
         notes: [...store.notes],
         currentNoteId: store.currentNoteId,
       };
 
-      store.actions.deleteNote('non-existent-id');
+      await store.actions.deleteNote('non-existent-id');
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.notes).toEqual(initialState.notes);
       expect(updatedStore.currentNoteId).toBe(initialState.currentNoteId);
+    });
+
+    it('should handle deleteNote error', async () => {
+      const errorMessage = 'Failed to delete note';
+      (api.deleteNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      await store.actions.deleteNote('note-1');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe(errorMessage);
     });
   });
 

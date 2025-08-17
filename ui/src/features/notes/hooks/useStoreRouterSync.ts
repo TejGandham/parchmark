@@ -17,7 +17,7 @@ export const useStoreRouterSync = () => {
   const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && storeActions) {
       storeActions.fetchNotes();
     }
   }, [isAuthenticated, storeActions]);

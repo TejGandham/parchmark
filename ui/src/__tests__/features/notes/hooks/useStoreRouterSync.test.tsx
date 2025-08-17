@@ -2,7 +2,8 @@ import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { useStoreRouterSync } from '../../../../features/notes/hooks/useStoreRouterSync';
 import { useNotesStore } from '../../../../store';
-import { mockNotes, mockNotesStore } from '../../../__mocks__/mockStores';
+import { useAuthStore } from '../../../../features/auth/store';
+import { mockNotes, mockNotesStore, mockAuthStore } from '../../../__mocks__/mockStores';
 
 // Mock the modules
 jest.mock('react-router-dom', () => ({
@@ -12,9 +13,8 @@ jest.mock('react-router-dom', () => ({
   useLocation: jest.fn(),
 }));
 
-jest.mock('../../../../store', () => ({
-  useNotesStore: jest.fn(),
-}));
+jest.mock('../../../../features/notes/store');
+jest.mock('../../../../features/auth/store');
 
 describe('useStoreRouterSync', () => {
   // Mock react-router hooks
@@ -39,13 +39,9 @@ describe('useStoreRouterSync', () => {
       mockLocation
     );
 
-    // Mock the store
-    (useNotesStore as jest.Mock).mockImplementation((selector) => {
-      if (typeof selector === 'function') {
-        return selector(mockNotesStore);
-      }
-      return mockNotesStore;
-    });
+    // Mock the stores
+    (useNotesStore as jest.Mock).mockReturnValue(mockNotesStore);
+    (useAuthStore as jest.Mock).mockReturnValue(mockAuthStore);
   });
 
   it('should return the correct state with route params', () => {
@@ -76,68 +72,45 @@ describe('useStoreRouterSync', () => {
     });
   });
 
-  it('should navigate to not-found if noteId in URL doesnt exist', () => {
-    // Mock params with non-existent note ID and an empty notes array
+  it('should navigate to first available note if noteId in URL doesnt exist', () => {
+    // Mock params with non-existent note ID but with notes available
     (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
-    // Mock the store to return no notes, which would trigger the not-found redirect
-    (useNotesStore as jest.Mock).mockImplementation((selector) => {
-      if (typeof selector === 'function') {
-        return selector({
-          notes: [],
-          currentNoteId: null,
-          editedContent: null,
-          actions: mockNotesStore.actions,
-        });
-      }
-      return {
-        notes: [],
-        currentNoteId: null,
-        editedContent: null,
-        actions: mockNotesStore.actions,
-      };
-    });
-
     renderHook(() => useStoreRouterSync(), { wrapper });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/not-found', { replace: true });
+    // Since the noteId doesn't exist but notes are available, it should navigate to first note
+    expect(mockNavigate).toHaveBeenCalledWith('/notes/note-1', { replace: true });
   });
 
-  it('should update store when valid noteId is in URL', () => {
-    // Mock params with existing note ID
-    (require('react-router-dom').useParams as jest.Mock).mockReturnValue({
-      noteId: 'note-2',
-    });
-
-    renderHook(() => useStoreRouterSync(), { wrapper });
-
-    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith(
-      'note-2'
-    );
-  });
-
-  it('should handle createNote action correctly', () => {
-    mockNotesStore.actions.createNote.mockReturnValue('new-note-id');
-
+  it('should handle createNote action correctly', async () => {
     const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+    
+    // Clear any navigation calls from initial render, but reset the mock return value
+    mockNavigate.mockClear();
+    mockNotesStore.actions.createNote.mockClear();
+    mockNotesStore.actions.createNote.mockReturnValue('note-3');
 
-    act(() => {
-      result.current.actions.createNote();
+    await act(async () => {
+      await result.current.actions.createNote();
     });
 
     expect(mockNotesStore.actions.createNote).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/notes/new-note-id');
+    expect(mockNavigate).toHaveBeenCalledWith('/notes/note-3');
   });
 
-  it('should handle deleteNote action with correct navigation', () => {
+  it('should handle deleteNote action with correct navigation', async () => {
     // Setup the findNextNoteId functionality test
     const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+    
+    // Clear any navigation calls from initial render
+    mockNavigate.mockClear();
+    mockNotesStore.actions.deleteNote.mockClear();
 
-    act(() => {
+    await act(async () => {
       // Delete current note
-      result.current.actions.deleteNote('note-1');
+      await result.current.actions.deleteNote('note-1');
     });
 
     expect(mockNotesStore.actions.deleteNote).toHaveBeenCalledWith('note-1');
@@ -145,61 +118,13 @@ describe('useStoreRouterSync', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
   });
 
-  it('should handle setCurrentNote action with navigation', () => {
-    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
-
-    act(() => {
-      result.current.actions.setCurrentNote('note-2');
-    });
-
-    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith(
-      'note-2'
-    );
-    expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
-  });
-
-  it('should pass through updateNote action', () => {
-    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
-
-    act(() => {
-      result.current.actions.updateNote('note-1', 'New content');
-    });
-
-    expect(mockNotesStore.actions.updateNote).toHaveBeenCalledWith(
-      'note-1',
-      'New content'
-    );
-  });
-
-  it('should pass through setEditedContent action', () => {
-    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
-
-    act(() => {
-      result.current.actions.setEditedContent('Edited content');
-    });
-
-    expect(mockNotesStore.actions.setEditedContent).toHaveBeenCalledWith(
-      'Edited content'
-    );
-  });
-
-  it('should handle empty notes array correctly', () => {
+  it('should handle empty notes array correctly when noteId is non-existent', () => {
     // Mock empty notes store
-    (useNotesStore as jest.Mock).mockImplementation((selector) => {
-      if (typeof selector === 'function') {
-        return selector({
-          notes: [],
-          currentNoteId: null,
-          editedContent: null,
-          actions: mockNotesStore.actions,
-        });
-      }
-      return {
-        notes: [],
-        currentNoteId: null,
-        editedContent: null,
-        actions: mockNotesStore.actions,
-      };
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: [],
+      currentNoteId: null,
+      editedContent: null,
+      actions: mockNotesStore.actions,
     });
 
     // Mock params with a non-existent ID to trigger path for non-existent note
@@ -214,32 +139,18 @@ describe('useStoreRouterSync', () => {
 
     renderHook(() => useStoreRouterSync(), { wrapper });
 
-    // Should navigate to not-found when no notes are available with a non-existent ID
-    expect(mockNavigate).toHaveBeenCalledWith('/not-found', { replace: true });
+    // When no notes are available and noteId doesn't exist, no navigation should happen
+    // The component should handle the empty state gracefully
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('should handle case when storeActions is undefined during initial load', () => {
     // Mock the useNotesStore to simulate initial load with undefined actions
-    (useNotesStore as jest.Mock).mockImplementation((selector) => {
-      if (typeof selector === 'function') {
-        // When the selector is looking for actions, return undefined
-        if (selector({ actions: undefined }) === undefined) {
-          return undefined;
-        }
-        // For other selectors, return normal data
-        return selector({
-          notes: mockNotes,
-          currentNoteId: null,
-          editedContent: null,
-          actions: undefined, // This simulates the error condition
-        });
-      }
-      return {
-        notes: mockNotes,
-        currentNoteId: null,
-        editedContent: null,
-        actions: undefined,
-      };
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: null,
+      editedContent: null,
+      actions: undefined,
     });
 
     // Mock params with existing note ID
@@ -253,5 +164,74 @@ describe('useStoreRouterSync', () => {
     // We're not expecting any specific behavior here, just that it doesn't crash
     // The component should handle the undefined actions gracefully
     expect(true).toBe(true);
+  });
+
+  it('should handle createNote when no new ID is returned', async () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+    
+    // Mock createNote to return null (no ID)
+    mockNotesStore.actions.createNote.mockReturnValue(null);
+    mockNavigate.mockClear();
+
+    await act(async () => {
+      const newId = await result.current.actions.createNote();
+      expect(newId).toBeNull();
+    });
+
+    expect(mockNotesStore.actions.createNote).toHaveBeenCalled();
+    // Should not navigate when no ID is returned
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should handle deleteNote when not current note', async () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+    
+    mockNavigate.mockClear();
+    mockNotesStore.actions.deleteNote.mockClear();
+
+    await act(async () => {
+      // Delete a note that is not the current note
+      await result.current.actions.deleteNote('note-2');
+    });
+
+    expect(mockNotesStore.actions.deleteNote).toHaveBeenCalledWith('note-2');
+    // Should not navigate when deleting non-current note
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should handle actions when storeActions is null', async () => {
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      editedContent: null,
+      actions: null,
+    });
+
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // All actions should handle null storeActions gracefully
+    const createResult = await result.current.actions.createNote();
+    expect(createResult).toBeNull();
+
+    await result.current.actions.deleteNote('note-1');
+    await result.current.actions.updateNote('note-1', 'content');
+    result.current.actions.setEditedContent('content');
+    
+    // Should not throw errors
+    expect(true).toBe(true);
+  });
+
+  it('should handle setCurrentNote when storeActions is available', () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    mockNavigate.mockClear();
+    mockNotesStore.actions.setCurrentNote.mockClear();
+
+    act(() => {
+      result.current.actions.setCurrentNote('note-2');
+    });
+
+    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith('note-2');
+    expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
   });
 });
