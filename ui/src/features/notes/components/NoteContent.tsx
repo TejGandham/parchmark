@@ -21,6 +21,8 @@ import '../styles/notes.css';
 import '../styles/markdown.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import Mermaid from '../../../components/Mermaid';
 
 interface NoteContentProps {
   currentNote: Note | null | undefined;
@@ -164,7 +166,26 @@ const NoteContent = ({
           <>
             <Box className="decorative-divider" mb={5}></Box>
             <Box className="markdown-preview" p={4}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+                components={{
+                  code({ node, inline, className, children, ...props }) {{
+                    const match = /language-(\w+)/.exec(className || '');
+                    if (match && match[1] === 'mermaid') {
+                      return (
+                        <Mermaid chart={String(children).replace(/\n$/, '')} />
+                      );
+                    }
+                    // Render other code blocks as usual
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  }},
+                }}
+              >
                 {renderContent()}
               </ReactMarkdown>
             </Box>

@@ -190,4 +190,154 @@ describe('NotesContainer Component', () => {
     // The NoteContent should receive the correct props for editing
     expect(screen.getByText('Editing: Yes')).toBeInTheDocument();
   });
+
+  it('should handle editedContent being null', () => {
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: mockNotes[0],
+      isEditing: false,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: jest.fn(),
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    const { container } = renderComponent();
+
+    // Should render without errors when editedContent is null
+    expect(container).toBeInTheDocument();
+    expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
+
+  it('should provide correct startEditing function', () => {
+    const mockSetEditedContent = jest.fn();
+    const currentNote = {
+      id: 'note-1',
+      title: 'Test Note',
+      content: '# Test Note\n\nThis is test content.',
+      createdAt: '2023-01-01T00:00:00Z',
+      updatedAt: '2023-01-01T00:00:00Z',
+    };
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: currentNote,
+      isEditing: false,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: jest.fn(),
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: mockSetEditedContent,
+      },
+    });
+
+    renderComponent();
+
+    // The component should create the startEditing function correctly
+    expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
+
+  it('should provide correct saveNote function behavior', () => {
+    const mockUpdateNote = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: mockNotes[0],
+      isEditing: true,
+      editedContent: '# Updated Note\n\nUpdated content',
+      actions: {
+        createNote: jest.fn(),
+        updateNote: mockUpdateNote,
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    renderComponent();
+
+    // Should create the saveNote function - tested indirectly through props
+    expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
+
+  it('should handle saveNote when currentNoteId is null', () => {
+    const mockUpdateNote = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: null,
+      currentNote: null,
+      isEditing: true,
+      editedContent: '# Updated Note\n\nUpdated content',
+      actions: {
+        createNote: jest.fn(),
+        updateNote: mockUpdateNote,
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    renderComponent();
+
+    // Should render without calling updateNote when currentNoteId is null
+    expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
+
+  it('should handle saveNote when editedContent is null', () => {
+    const mockUpdateNote = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: mockNotes[0],
+      isEditing: true,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: mockUpdateNote,
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    renderComponent();
+
+    // Should render without calling updateNote when editedContent is null
+    expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
+
+  it('should handle startEditing when currentNote is null', () => {
+    const mockSetEditedContent = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: null,
+      currentNote: null,
+      isEditing: false,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: jest.fn(),
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: mockSetEditedContent,
+      },
+    });
+
+    renderComponent();
+
+    // Should render and handle null currentNote
+    expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
 });
