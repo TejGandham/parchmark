@@ -66,10 +66,10 @@ describe('NotesContainer Component', () => {
     (useUIStore as jest.Mock).mockReturnValue({
       isSidebarOpen: true,
       isDarkMode: false,
-      actions: { 
+      actions: {
         toggleSidebar: mockToggleSidebar,
-        toggleDarkMode: jest.fn()
-      }
+        toggleDarkMode: jest.fn(),
+      },
     });
 
     // Mock useStoreRouterSync
@@ -110,10 +110,10 @@ describe('NotesContainer Component', () => {
     (useUIStore as jest.Mock).mockReturnValue({
       isSidebarOpen: false,
       isDarkMode: false,
-      actions: { 
+      actions: {
         toggleSidebar: mockToggleSidebar,
-        toggleDarkMode: jest.fn()
-      }
+        toggleDarkMode: jest.fn(),
+      },
     });
 
     renderComponent();

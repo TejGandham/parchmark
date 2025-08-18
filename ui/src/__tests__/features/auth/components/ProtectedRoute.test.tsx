@@ -58,7 +58,7 @@ describe('ProtectedRoute', () => {
       error: null,
       actions: mockUnauthenticatedStore.actions,
     };
-    
+
     (useAuthStore as jest.Mock).mockImplementation((selector) =>
       selector ? selector(undefinedAuthStore) : undefinedAuthStore
     );

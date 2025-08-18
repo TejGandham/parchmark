@@ -78,7 +78,9 @@ export const useStoreRouterSync = () => {
       action: T | undefined,
       fallback: any = undefined
     ) => {
-      return async (...args: Parameters<T>): Promise<ReturnType<T> | undefined> => {
+      return async (
+        ...args: Parameters<T>
+      ): Promise<ReturnType<T> | undefined> => {
         if (typeof action === 'function') {
           return await action(...args);
         }
@@ -98,7 +100,8 @@ export const useStoreRouterSync = () => {
         return null;
       },
       deleteNote: async (id: string) => {
-        if (!storeActions || typeof storeActions.deleteNote !== 'function') return;
+        if (!storeActions || typeof storeActions.deleteNote !== 'function')
+          return;
         const isCurrentNote = id === currentNoteId;
         const nextId = isCurrentNote ? findNextNoteId(id) : null;
         await storeActions.deleteNote(id);

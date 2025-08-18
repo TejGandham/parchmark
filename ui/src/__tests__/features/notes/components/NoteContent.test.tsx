@@ -224,17 +224,21 @@ describe('NoteContent Component', () => {
       renderComponent({
         currentNote: {
           ...mockNotes[0],
-          content: '# Test Title\n\nThis content should be shown without the H1.',
+          content:
+            '# Test Title\n\nThis content should be shown without the H1.',
         },
         isEditing: false,
       });
 
       // Should show the content without the H1 title
-      expect(screen.getByText(/This content should be shown without the H1/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/This content should be shown without the H1/)
+      ).toBeInTheDocument();
     });
 
     it('should handle content with complex markdown', () => {
-      const complexContent = '# Main Title\n\n## Subtitle\n\n- Item 1\n- Item 2\n\n**Bold text**';
+      const complexContent =
+        '# Main Title\n\n## Subtitle\n\n- Item 1\n- Item 2\n\n**Bold text**';
 
       renderComponent({
         currentNote: {
@@ -250,7 +254,7 @@ describe('NoteContent Component', () => {
 
     it('should call setEditedContent on textarea change when creating new note', () => {
       const mockSetEditedContent = jest.fn();
-      
+
       renderComponent({
         currentNote: null,
         isEditing: true,
@@ -263,7 +267,9 @@ describe('NoteContent Component', () => {
         target: { value: '# Changed Title\n\nChanged content' },
       });
 
-      expect(mockSetEditedContent).toHaveBeenCalledWith('# Changed Title\n\nChanged content');
+      expect(mockSetEditedContent).toHaveBeenCalledWith(
+        '# Changed Title\n\nChanged content'
+      );
     });
   });
 });

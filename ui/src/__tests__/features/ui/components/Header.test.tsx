@@ -10,7 +10,9 @@ jest.mock('../../../../features/auth/store', () => ({
   useAuthStore: jest.fn(),
 }));
 
-const mockUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore>;
+const mockUseAuthStore = useAuthStore as jest.MockedFunction<
+  typeof useAuthStore
+>;
 
 // Mock useBreakpointValue hook for UserInfo component
 const mockUseBreakpointValue = jest.fn();
@@ -25,9 +27,7 @@ jest.mock('@chakra-ui/react', () => {
 const renderWithProviders = (component: React.ReactNode) => {
   return render(
     <ChakraProvider>
-      <BrowserRouter>
-        {component}
-      </BrowserRouter>
+      <BrowserRouter>{component}</BrowserRouter>
     </ChakraProvider>
   );
 };
@@ -80,7 +80,9 @@ describe('Header Component', () => {
     renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
     // Should render the sign in button when not authenticated
-    const signInButton = screen.getByRole('button', { name: /sign in to your account/i });
+    const signInButton = screen.getByRole('button', {
+      name: /sign in to your account/i,
+    });
     expect(signInButton).toBeInTheDocument();
   });
 
@@ -88,10 +90,10 @@ describe('Header Component', () => {
     // Mock authenticated user
     const mockUser = { username: 'testuser', password: '' };
     mockUseAuthStore.mockImplementation((selector) => {
-      const state = { 
-        isAuthenticated: true, 
-        user: mockUser, 
-        actions: { logout: jest.fn() } 
+      const state = {
+        isAuthenticated: true,
+        user: mockUser,
+        actions: { logout: jest.fn() },
       };
       return selector(state);
     });
@@ -99,7 +101,9 @@ describe('Header Component', () => {
     renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
     // Should render user button when authenticated
-    const userButton = screen.getByRole('button', { name: /user menu for testuser/i });
+    const userButton = screen.getByRole('button', {
+      name: /user menu for testuser/i,
+    });
     expect(userButton).toBeInTheDocument();
   });
 });

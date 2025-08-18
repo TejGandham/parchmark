@@ -43,14 +43,20 @@ describe('Mermaid Component', () => {
 
   it('should render different chart types', () => {
     const flowchartContent = 'flowchart TD; Start --> Stop;';
-    const { rerender, container } = render(<Mermaid chart={flowchartContent} />);
+    const { rerender, container } = render(
+      <Mermaid chart={flowchartContent} />
+    );
 
-    expect(container.querySelector('.mermaid')).toHaveTextContent(flowchartContent);
+    expect(container.querySelector('.mermaid')).toHaveTextContent(
+      flowchartContent
+    );
 
     const sequenceContent = 'sequenceDiagram; Alice->>Bob: Hello Bob;';
     rerender(<Mermaid chart={sequenceContent} />);
 
-    expect(container.querySelector('.mermaid')).toHaveTextContent(sequenceContent);
+    expect(container.querySelector('.mermaid')).toHaveTextContent(
+      sequenceContent
+    );
   });
 
   it('should handle empty chart content', () => {
@@ -63,13 +69,13 @@ describe('Mermaid Component', () => {
 
   it('should initialize mermaid only once per component instance', () => {
     const { rerender } = render(<Mermaid chart="graph TD; A-->B;" />);
-    
+
     expect(mermaidMock.initialize).toHaveBeenCalledTimes(1);
     expect(mermaidMock.contentLoaded).toHaveBeenCalledTimes(1);
 
     // Rerender with different chart - should not call initialize again
     rerender(<Mermaid chart="graph TD; B-->C;" />);
-    
+
     expect(mermaidMock.initialize).toHaveBeenCalledTimes(1);
     expect(mermaidMock.contentLoaded).toHaveBeenCalledTimes(1);
   });

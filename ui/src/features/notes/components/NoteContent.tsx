@@ -170,20 +170,24 @@ const NoteContent = ({
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw]}
                 components={{
-                  code({ node, inline, className, children, ...props }) {{
-                    const match = /language-(\w+)/.exec(className || '');
-                    if (match && match[1] === 'mermaid') {
+                  code({ node, inline, className, children, ...props }) {
+                    {
+                      const match = /language-(\w+)/.exec(className || '');
+                      if (match && match[1] === 'mermaid') {
+                        return (
+                          <Mermaid
+                            chart={String(children).replace(/\n$/, '')}
+                          />
+                        );
+                      }
+                      // Render other code blocks as usual
                       return (
-                        <Mermaid chart={String(children).replace(/\n$/, '')} />
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
                       );
                     }
-                    // Render other code blocks as usual
-                    return (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  }},
+                  },
                 }}
               >
                 {renderContent()}

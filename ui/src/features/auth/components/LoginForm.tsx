@@ -59,7 +59,9 @@ const LoginForm = () => {
     setIsLoading(false);
 
     if (success) {
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/notes';
+      const from =
+        (location.state as { from?: { pathname: string } })?.from?.pathname ||
+        '/notes';
       navigate(from, { replace: true });
     }
   };

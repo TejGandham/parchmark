@@ -16,7 +16,7 @@ import UserDropdown from './UserDropdown';
 /**
  * User info component displayed when user is authenticated.
  * Shows user avatar, username (on desktop), and dropdown menu on click.
- * 
+ *
  * Features:
  * - Responsive: shows username on desktop, avatar only on mobile
  * - Click to open/close dropdown menu
@@ -56,7 +56,10 @@ const UserInfo: React.FC = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         closeDropdown();
       }
     };
@@ -145,9 +148,7 @@ const UserInfo: React.FC = () => {
       </Flex>
 
       {/* Dropdown Menu */}
-      {isDropdownOpen && (
-        <UserDropdown onClose={closeDropdown} />
-      )}
+      {isDropdownOpen && <UserDropdown onClose={closeDropdown} />}
     </Box>
   );
 };

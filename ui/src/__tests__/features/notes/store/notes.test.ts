@@ -25,7 +25,6 @@ jest.spyOn(Date, 'now').mockImplementation(() => mockDateNow);
 const mockTimestamp = new Date(mockDateNow).toISOString();
 jest.spyOn(Date.prototype, 'toISOString').mockReturnValue(mockTimestamp);
 
-
 describe('Notes Store', () => {
   let store: NotesState;
 
@@ -69,10 +68,22 @@ describe('Notes Store', () => {
   describe('fetchNotes', () => {
     it('should fetch notes successfully', async () => {
       const mockNotes = [
-        { id: '1', title: 'Note 1', content: '# Note 1\n\nContent', createdAt: '2023-01-01', updatedAt: '2023-01-01' },
-        { id: '2', title: 'Note 2', content: '# Note 2\n\nContent', createdAt: '2023-01-02', updatedAt: '2023-01-02' }
+        {
+          id: '1',
+          title: 'Note 1',
+          content: '# Note 1\n\nContent',
+          createdAt: '2023-01-01',
+          updatedAt: '2023-01-01',
+        },
+        {
+          id: '2',
+          title: 'Note 2',
+          content: '# Note 2\n\nContent',
+          createdAt: '2023-01-02',
+          updatedAt: '2023-01-02',
+        },
       ];
-      
+
       (api.getNotes as jest.Mock).mockResolvedValue(mockNotes);
 
       await store.actions.fetchNotes();
@@ -146,10 +157,10 @@ describe('Notes Store', () => {
     });
 
     it('should return the ID of the newly created note', async () => {
-        const store = useNotesStore;
-        const { actions } = store.getState();
-        const newNoteId = await actions.createNote();
-        expect(newNoteId).toBe('note-3');
+      const store = useNotesStore;
+      const { actions } = store.getState();
+      const newNoteId = await actions.createNote();
+      expect(newNoteId).toBe('note-3');
     });
 
     it('should handle createNote error', async () => {
