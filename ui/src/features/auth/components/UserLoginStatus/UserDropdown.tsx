@@ -32,7 +32,12 @@ interface DropdownItemProps {
 /**
  * Dropdown menu item component with consistent styling and hover states
  */
-const DropdownItem: React.FC<DropdownItemProps> = ({ icon, label, onClick, isLogout }) => (
+const DropdownItem: React.FC<DropdownItemProps> = ({
+  icon,
+  label,
+  onClick,
+  isLogout,
+}) => (
   <Box
     as="button"
     w="100%"
@@ -68,7 +73,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({ icon, label, onClick, isLog
 
 /**
  * User dropdown menu component with navigation options and logout functionality.
- * 
+ *
  * Features:
  * - Profile, Settings, Help & Support, Logout options
  * - Smooth animations and hover states
@@ -139,7 +144,12 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ onClose }) => {
             <Text fontSize="xs" color="gray.500" fontWeight="medium">
               Signed in as
             </Text>
-            <Text fontSize="sm" color={COLORS.primaryColor} fontWeight="bold" isTruncated>
+            <Text
+              fontSize="sm"
+              color={COLORS.primaryColor}
+              fontWeight="bold"
+              isTruncated
+            >
               {user.username}
             </Text>
           </Box>
@@ -149,24 +159,16 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ onClose }) => {
 
       {/* Menu Items */}
       <VStack spacing={0} py={2}>
-        <DropdownItem
-          icon={faUser}
-          label="Profile"
-          onClick={handleProfile}
-        />
-        <DropdownItem
-          icon={faCog}
-          label="Settings"
-          onClick={handleSettings}
-        />
+        <DropdownItem icon={faUser} label="Profile" onClick={handleProfile} />
+        <DropdownItem icon={faCog} label="Settings" onClick={handleSettings} />
         <DropdownItem
           icon={faQuestionCircle}
           label="Help & Support"
           onClick={handleHelp}
         />
-        
+
         <Divider my={2} />
-        
+
         <DropdownItem
           icon={faSignOutAlt}
           label="Logout"

@@ -77,7 +77,7 @@ describe('Auth Store', () => {
     expect(newState.error).toBe('Login failed');
   });
 
-    it('should logout successfully', async () => {
+  it('should logout successfully', async () => {
     const { actions } = store;
 
     // First login

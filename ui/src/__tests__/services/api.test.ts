@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom';
-import api, { 
-  login, 
-  getNotes, 
-  createNote, 
-  updateNote, 
-  deleteNote 
+import api, {
+  login,
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
 } from '../../services/api';
 
 // Mock fetch
@@ -31,7 +31,7 @@ describe('API Service', () => {
   describe('getAuthToken', () => {
     it('should return null when no auth state in localStorage', async () => {
       localStorageMock.getItem.mockReturnValue(null);
-      
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -49,7 +49,7 @@ describe('API Service', () => {
 
     it('should return null when auth state is invalid JSON', async () => {
       localStorageMock.getItem.mockReturnValue('invalid-json');
-      
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -66,10 +66,12 @@ describe('API Service', () => {
     });
 
     it('should return null when auth state has no token', async () => {
-      localStorageMock.getItem.mockReturnValue(JSON.stringify({
-        state: { user: 'test' }
-      }));
-      
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          state: { user: 'test' },
+        })
+      );
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -87,10 +89,12 @@ describe('API Service', () => {
 
     it('should return token when auth state is valid', async () => {
       const token = 'test-token-123';
-      localStorageMock.getItem.mockReturnValue(JSON.stringify({
-        state: { token }
-      }));
-      
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          state: { token },
+        })
+      );
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -102,7 +106,7 @@ describe('API Service', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/notes/', {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
     });
@@ -167,7 +171,9 @@ describe('API Service', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        json: async () => { throw new Error('Invalid JSON'); },
+        json: async () => {
+          throw new Error('Invalid JSON');
+        },
       } as Response);
 
       await expect(getNotes()).rejects.toThrow('HTTP error! status: 500');
@@ -219,8 +225,13 @@ describe('API Service', () => {
   describe('createNote', () => {
     it('should make POST request to notes endpoint', async () => {
       const noteData = { title: 'New Note', content: 'New content' };
-      const createdNote = { id: '2', ...noteData, createdAt: '2023-01-01', updatedAt: '2023-01-01' };
-      
+      const createdNote = {
+        id: '2',
+        ...noteData,
+        createdAt: '2023-01-01',
+        updatedAt: '2023-01-01',
+      };
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => createdNote,
@@ -243,8 +254,14 @@ describe('API Service', () => {
   describe('updateNote', () => {
     it('should make PUT request to specific note endpoint', async () => {
       const noteUpdate = { content: 'Updated content' };
-      const updatedNote = { id: '1', title: 'Test', content: 'Updated content', createdAt: '2023-01-01', updatedAt: '2023-01-02' };
-      
+      const updatedNote = {
+        id: '1',
+        title: 'Test',
+        content: 'Updated content',
+        createdAt: '2023-01-01',
+        updatedAt: '2023-01-02',
+      };
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => updatedNote,

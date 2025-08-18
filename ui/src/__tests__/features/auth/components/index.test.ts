@@ -14,8 +14,8 @@ describe('Auth Components Index', () => {
   it('should export all expected components', () => {
     const expectedExports = ['LoginForm', 'ProtectedRoute'];
     const actualExports = Object.keys(AuthComponents);
-    
-    expectedExports.forEach(exportName => {
+
+    expectedExports.forEach((exportName) => {
       expect(actualExports).toContain(exportName);
     });
   });
