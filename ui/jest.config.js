@@ -27,6 +27,7 @@ export default {
     '!src/**/*.d.ts',
     '!src/vite-env.d.ts',
     '!src/main.tsx',
+    '!src/**/index.{ts,tsx}',
   ],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   verbose: true,
