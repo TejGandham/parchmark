@@ -282,7 +282,7 @@ describe('NoteContent Component', () => {
 
     it('should render editedContent when in editing mode', () => {
       const editedContent = '# Test Title\n\nThis is edited content';
-      
+
       renderComponent({
         isEditing: true,
         editedContent,
@@ -295,7 +295,7 @@ describe('NoteContent Component', () => {
 
     it('should call renderContent function with editedContent in edit mode', () => {
       const editedContent = '# Test Title\n\nThis is edited content';
-      
+
       // Use a note with different content to ensure we're getting editedContent, not note content
       renderComponent({
         currentNote: {
@@ -314,7 +314,7 @@ describe('NoteContent Component', () => {
 
     it('should render mermaid diagrams when code block has language-mermaid', () => {
       const contentWithMermaid = '# Note\n\n```mermaid\ngraph TD\nA-->B\n```';
-      
+
       renderComponent({
         currentNote: {
           ...mockNotes[0],
@@ -328,8 +328,9 @@ describe('NoteContent Component', () => {
     });
 
     it('should render regular code blocks when not mermaid', () => {
-      const contentWithCode = '# Note\n\n```javascript\nconsole.log("hello");\n```';
-      
+      const contentWithCode =
+        '# Note\n\n```javascript\nconsole.log("hello");\n```';
+
       renderComponent({
         currentNote: {
           ...mockNotes[0],
@@ -344,7 +345,7 @@ describe('NoteContent Component', () => {
 
     it('should handle code blocks without className', () => {
       const contentWithPlainCode = '# Note\n\n`inline code`';
-      
+
       renderComponent({
         currentNote: {
           ...mockNotes[0],

@@ -1,6 +1,5 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
-import { ChakraProvider } from '@chakra-ui/react';
 import { render } from '../../../../../../test-utils/render';
 import UserInfo from '../../../../../features/auth/components/UserLoginStatus/UserInfo';
 import { useAuthStore } from '../../../../../features/auth/store';
@@ -34,7 +33,7 @@ describe('UserInfo', () => {
 
   it('should render user info when user is provided', () => {
     const mockUser = { username: 'testuser', password: '' };
-    
+
     // Mock the store to return a user
     (useAuthStore as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -42,7 +41,7 @@ describe('UserInfo', () => {
       };
       return selector(state);
     });
-    
+
     render(<UserInfo />);
 
     const userButton = screen.getByRole('button', {

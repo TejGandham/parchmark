@@ -249,7 +249,7 @@ describe('useStoreRouterSync', () => {
     (useParams as jest.Mock).mockReturnValue({
       noteId: 'note-2',
     });
-    
+
     (useLocation as jest.Mock).mockReturnValue({
       pathname: '/notes/note-2',
     });
@@ -260,7 +260,9 @@ describe('useStoreRouterSync', () => {
     renderHook(() => useStoreRouterSync(), { wrapper });
 
     // Should call setCurrentNote with the noteId from URL
-    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith('note-2');
+    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith(
+      'note-2'
+    );
     // Should not navigate since note exists
     expect(mockNavigate).not.toHaveBeenCalled();
   });
@@ -330,10 +332,14 @@ describe('useStoreRouterSync', () => {
     const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
 
     // These should not throw errors even when the functions are undefined
-    const updateResult = await result.current.actions.updateNote('note-1', 'content');
+    const updateResult = await result.current.actions.updateNote(
+      'note-1',
+      'content'
+    );
     expect(updateResult).toBeUndefined();
 
-    const setContentResult = await result.current.actions.setEditedContent('content');
+    const setContentResult =
+      await result.current.actions.setEditedContent('content');
     expect(setContentResult).toBeUndefined();
   });
 
