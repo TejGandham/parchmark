@@ -105,6 +105,17 @@ describe('Notes Store', () => {
       expect(updatedStore.isLoading).toBe(false);
     });
 
+    it('should handle non-Error rejection', async () => {
+      // Test when the promise rejects with a non-Error value
+      (api.getNotes as jest.Mock).mockRejectedValue('String error');
+
+      await store.actions.fetchNotes();
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe('An error occurred');
+      expect(updatedStore.isLoading).toBe(false);
+    });
+
     it('should set loading state during fetch', async () => {
       let resolvePromise: (value: unknown[]) => void;
       const promise = new Promise<unknown[]>((resolve) => {
@@ -320,6 +331,80 @@ describe('Notes Store', () => {
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.editedContent).toBeNull();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle createNote error with non-Error object', async () => {
+      const store = useNotesStore;
+      const { actions } = store.getState();
+
+      // Mock API to throw a non-Error object
+      (api.createNote as jest.Mock).mockRejectedValue('String error');
+
+      const result = await actions.createNote();
+
+      expect(result).toBeNull();
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe('An error occurred');
+    });
+
+    it('should handle updateNote error with Error object', async () => {
+      const store = useNotesStore;
+      const { actions } = store.getState();
+
+      // Mock API to throw an Error object
+      const errorMessage = 'Update failed';
+      (api.updateNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      await actions.updateNote('note-1', 'Updated content');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe(errorMessage);
+    });
+
+    it('should handle updateNote error with non-Error object', async () => {
+      const store = useNotesStore;
+      const { actions } = store.getState();
+
+      // Mock API to throw a non-Error object
+      (api.updateNote as jest.Mock).mockRejectedValue('String error');
+
+      await actions.updateNote('note-1', 'Updated content');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe('An error occurred');
+    });
+
+    it('should handle deleteNote error with Error object', async () => {
+      const store = useNotesStore;
+      const { actions } = store.getState();
+
+      // Mock API to throw an Error object
+      const errorMessage = 'Delete failed';
+      (api.deleteNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+
+      await actions.deleteNote('note-1');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe(errorMessage);
+      // Notes should not be modified when error occurs
+      expect(updatedStore.notes).toHaveLength(2);
+    });
+
+    it('should handle deleteNote error with non-Error object', async () => {
+      const store = useNotesStore;
+      const { actions } = store.getState();
+
+      // Mock API to throw a non-Error object
+      (api.deleteNote as jest.Mock).mockRejectedValue('String error');
+
+      await actions.deleteNote('note-1');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.error).toBe('An error occurred');
+      // Notes should not be modified when error occurs
+      expect(updatedStore.notes).toHaveLength(2);
     });
   });
 });

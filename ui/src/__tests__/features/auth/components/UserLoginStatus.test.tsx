@@ -408,4 +408,93 @@ describe('UserLoginStatus', () => {
       });
     });
   });
+
+  describe('dropdown menu interactions', () => {
+    it('should handle profile menu item click', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const mockUser = { username: 'testuser', password: '' };
+      mockUseAuthStore.mockImplementation((selector) => {
+        const state = {
+          isAuthenticated: true,
+          user: mockUser,
+          actions: { logout: jest.fn() },
+        };
+        return selector(state);
+      });
+
+      renderWithProviders(<UserLoginStatus />);
+
+      // Open dropdown
+      const userButton = screen.getByRole('button', {
+        name: /user menu for testuser/i,
+      });
+      await user.click(userButton);
+
+      // Click profile item
+      const profileItem = screen.getByText('Profile');
+      await user.click(profileItem);
+
+      expect(consoleSpy).toHaveBeenCalledWith('Navigate to profile');
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle settings menu item click', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const mockUser = { username: 'testuser', password: '' };
+      mockUseAuthStore.mockImplementation((selector) => {
+        const state = {
+          isAuthenticated: true,
+          user: mockUser,
+          actions: { logout: jest.fn() },
+        };
+        return selector(state);
+      });
+
+      renderWithProviders(<UserLoginStatus />);
+
+      // Open dropdown
+      const userButton = screen.getByRole('button', {
+        name: /user menu for testuser/i,
+      });
+      await user.click(userButton);
+
+      // Click settings item
+      const settingsItem = screen.getByText('Settings');
+      await user.click(settingsItem);
+
+      expect(consoleSpy).toHaveBeenCalledWith('Navigate to settings');
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle help menu item click', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const mockUser = { username: 'testuser', password: '' };
+      mockUseAuthStore.mockImplementation((selector) => {
+        const state = {
+          isAuthenticated: true,
+          user: mockUser,
+          actions: { logout: jest.fn() },
+        };
+        return selector(state);
+      });
+
+      renderWithProviders(<UserLoginStatus />);
+
+      // Open dropdown
+      const userButton = screen.getByRole('button', {
+        name: /user menu for testuser/i,
+      });
+      await user.click(userButton);
+
+      // Click help item
+      const helpItem = screen.getByText('Help & Support');
+      await user.click(helpItem);
+
+      expect(consoleSpy).toHaveBeenCalledWith('Navigate to help & support');
+      consoleSpy.mockRestore();
+    });
+  });
 });

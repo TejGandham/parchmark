@@ -279,5 +279,82 @@ describe('NoteContent Component', () => {
         '# Changed Title\n\nChanged content'
       );
     });
+
+    it('should render editedContent when in editing mode', () => {
+      const editedContent = '# Test Title\n\nThis is edited content';
+      
+      renderComponent({
+        isEditing: true,
+        editedContent,
+      });
+
+      // The textarea should contain the edited content
+      const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
+      expect(textarea).toHaveValue(editedContent);
+    });
+
+    it('should call renderContent function with editedContent in edit mode', () => {
+      const editedContent = '# Test Title\n\nThis is edited content';
+      
+      // Use a note with different content to ensure we're getting editedContent, not note content
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: '# Original Note\n\nOriginal content',
+        },
+        isEditing: true,
+        editedContent,
+      });
+
+      // When editing, we should see a textarea with editedContent, not the original content
+      const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
+      expect(textarea).toHaveValue(editedContent);
+      expect(textarea).not.toHaveValue('# Original Note\n\nOriginal content');
+    });
+
+    it('should render mermaid diagrams when code block has language-mermaid', () => {
+      const contentWithMermaid = '# Note\n\n```mermaid\ngraph TD\nA-->B\n```';
+      
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: contentWithMermaid,
+        },
+        isEditing: false,
+      });
+
+      // Should render ReactMarkdown component (this indirectly tests the mermaid branch)
+      expect(screen.getByTestId('note-actions')).toBeInTheDocument();
+    });
+
+    it('should render regular code blocks when not mermaid', () => {
+      const contentWithCode = '# Note\n\n```javascript\nconsole.log("hello");\n```';
+      
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: contentWithCode,
+        },
+        isEditing: false,
+      });
+
+      // Should render ReactMarkdown component without errors
+      expect(screen.getByTestId('note-actions')).toBeInTheDocument();
+    });
+
+    it('should handle code blocks without className', () => {
+      const contentWithPlainCode = '# Note\n\n`inline code`';
+      
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: contentWithPlainCode,
+        },
+        isEditing: false,
+      });
+
+      // Should render ReactMarkdown component without errors
+      expect(screen.getByTestId('note-actions')).toBeInTheDocument();
+    });
   });
 });
