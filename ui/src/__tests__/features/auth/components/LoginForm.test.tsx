@@ -1,5 +1,5 @@
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { render } from '../../../../../test-utils/render';
 import LoginForm from '../../../../features/auth/components/LoginForm';
 import { useAuthStore } from '../../../../features/auth/store';
@@ -11,10 +11,11 @@ import {
 // Mock the zustand hook
 jest.mock('../../../../features/auth/store');
 
-// Mock react-router's useNavigate
+// Mock react-router's useNavigate and useLocation
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
+  useLocation: jest.fn(),
 }));
 
 describe('LoginForm', () => {
@@ -72,7 +73,9 @@ describe('LoginForm', () => {
     // Should show only username validation error
     await waitFor(() => {
       expect(screen.getByText('Username is required')).toBeInTheDocument();
-      expect(screen.queryByText('Password is required')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Password is required')
+      ).not.toBeInTheDocument();
     });
 
     // Login should not be called
@@ -95,7 +98,9 @@ describe('LoginForm', () => {
 
     // Should show only password validation error
     await waitFor(() => {
-      expect(screen.queryByText('Username is required')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Username is required')
+      ).not.toBeInTheDocument();
       expect(screen.getByText('Password is required')).toBeInTheDocument();
     });
 
@@ -180,7 +185,6 @@ describe('LoginForm', () => {
     });
   });
 
-
   it('redirects to custom location from state', async () => {
     const mockSuccessfulStore = {
       ...mockUnauthenticatedStore,
@@ -194,15 +198,14 @@ describe('LoginForm', () => {
     render(<LoginForm />, {
       routerOptions: {
         initialEntries: ['/login'],
-        initialIndex: 0
-      }
+        initialIndex: 0,
+      },
     });
 
     // Mock location state with custom 'from' path
-    const mockLocation = {
-      state: { from: { pathname: '/custom-path' } }
-    };
-    jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue(mockLocation);
+    (useLocation as jest.Mock).mockReturnValue({
+      state: { from: { pathname: '/custom-path' } },
+    });
 
     // Fill and submit form
     fireEvent.change(screen.getByTestId('username-input'), {
@@ -214,7 +217,9 @@ describe('LoginForm', () => {
     fireEvent.click(screen.getByTestId('login-button'));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/custom-path', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/custom-path', {
+        replace: true,
+      });
     });
   });
 });

@@ -61,8 +61,12 @@ jest.mock('../../../../features/notes/components/NoteContent', () => {
       <div data-testid="note-content">
         <div>Note: {props.currentNote?.title || 'None'}</div>
         <div>Editing: {props.isEditing ? 'Yes' : 'No'}</div>
-        <button data-testid="mock-save" onClick={props.saveNote}>Save</button>
-        <button data-testid="mock-start-edit" onClick={props.startEditing}>Start Edit</button>
+        <button data-testid="mock-save" onClick={props.saveNote}>
+          Save
+        </button>
+        <button data-testid="mock-start-edit" onClick={props.startEditing}>
+          Start Edit
+        </button>
       </div>
     );
   };
@@ -373,11 +377,14 @@ describe('NotesContainer Component', () => {
     });
 
     renderComponent();
-    
+
     // Trigger the saveNote function through the mock button
     fireEvent.click(screen.getByTestId('mock-save'));
 
-    expect(mockUpdateNote).toHaveBeenCalledWith('note-1', '# Updated Note\n\nUpdated content');
+    expect(mockUpdateNote).toHaveBeenCalledWith(
+      'note-1',
+      '# Updated Note\n\nUpdated content'
+    );
   });
 
   it('should not call updateNote when saveNote is triggered without currentNoteId', () => {
@@ -399,7 +406,7 @@ describe('NotesContainer Component', () => {
     });
 
     renderComponent();
-    
+
     // Trigger the saveNote function through the mock button
     fireEvent.click(screen.getByTestId('mock-save'));
 
@@ -425,7 +432,7 @@ describe('NotesContainer Component', () => {
     });
 
     renderComponent();
-    
+
     // Trigger the saveNote function through the mock button
     fireEvent.click(screen.getByTestId('mock-save'));
 
@@ -458,11 +465,13 @@ describe('NotesContainer Component', () => {
     });
 
     renderComponent();
-    
+
     // Trigger the startEditing function through the mock button
     fireEvent.click(screen.getByTestId('mock-start-edit'));
 
-    expect(mockSetEditedContent).toHaveBeenCalledWith('# Test Note\n\nThis is test content.');
+    expect(mockSetEditedContent).toHaveBeenCalledWith(
+      '# Test Note\n\nThis is test content.'
+    );
   });
 
   it('should call setEditedContent with empty string when startEditing is triggered without currentNote', () => {
@@ -484,7 +493,7 @@ describe('NotesContainer Component', () => {
     });
 
     renderComponent();
-    
+
     // Trigger the startEditing function through the mock button
     fireEvent.click(screen.getByTestId('mock-start-edit'));
 
