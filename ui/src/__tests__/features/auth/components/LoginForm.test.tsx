@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, useNavigate } from 'react-router-dom';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { useNavigate } from 'react-router-dom';
+import { render } from '../../../../../test-utils/render';
 import LoginForm from '../../../../features/auth/components/LoginForm';
 import { useAuthStore } from '../../../../features/auth/store';
 import {
@@ -27,11 +28,7 @@ describe('LoginForm', () => {
   });
 
   it('renders the login form correctly', () => {
-    render(
-      <MemoryRouter>
-        <LoginForm />
-      </MemoryRouter>
-    );
+    render(<LoginForm />);
 
     expect(screen.getByText('Login to Parchmark')).toBeInTheDocument();
     expect(screen.getByTestId('username-input')).toBeInTheDocument();
@@ -39,20 +36,71 @@ describe('LoginForm', () => {
     expect(screen.getByTestId('login-button')).toBeInTheDocument();
   });
 
-  it('does not call login when form is invalid', async () => {
-    render(
-      <MemoryRouter>
-        <LoginForm />
-      </MemoryRouter>
-    );
+  it('shows validation errors when submitting empty form', async () => {
+    render(<LoginForm />);
 
-    // Submit with empty fields
-    fireEvent.click(screen.getByTestId('login-button'));
+    const loginButton = screen.getByTestId('login-button');
+    const form = loginButton.closest('form');
+
+    // Submit the form by firing submit event on the form element
+    fireEvent.submit(form!);
+
+    // Should show validation errors
+    await waitFor(() => {
+      expect(screen.getByText('Username is required')).toBeInTheDocument();
+      expect(screen.getByText('Password is required')).toBeInTheDocument();
+    });
 
     // Login should not be called
-    await waitFor(() => {
-      expect(mockUnauthenticatedStore.actions.login).not.toHaveBeenCalled();
+    expect(mockUnauthenticatedStore.actions.login).not.toHaveBeenCalled();
+  });
+
+  it('shows username validation error when only username is empty', async () => {
+    render(<LoginForm />);
+
+    // Fill only password
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'password' },
     });
+
+    const loginButton = screen.getByTestId('login-button');
+    const form = loginButton.closest('form');
+
+    // Submit the form
+    fireEvent.submit(form!);
+
+    // Should show only username validation error
+    await waitFor(() => {
+      expect(screen.getByText('Username is required')).toBeInTheDocument();
+      expect(screen.queryByText('Password is required')).not.toBeInTheDocument();
+    });
+
+    // Login should not be called
+    expect(mockUnauthenticatedStore.actions.login).not.toHaveBeenCalled();
+  });
+
+  it('shows password validation error when only password is empty', async () => {
+    render(<LoginForm />);
+
+    // Fill only username
+    fireEvent.change(screen.getByTestId('username-input'), {
+      target: { value: 'user' },
+    });
+
+    const loginButton = screen.getByTestId('login-button');
+    const form = loginButton.closest('form');
+
+    // Submit the form
+    fireEvent.submit(form!);
+
+    // Should show only password validation error
+    await waitFor(() => {
+      expect(screen.queryByText('Username is required')).not.toBeInTheDocument();
+      expect(screen.getByText('Password is required')).toBeInTheDocument();
+    });
+
+    // Login should not be called
+    expect(mockUnauthenticatedStore.actions.login).not.toHaveBeenCalled();
   });
 
   it('calls login action and redirects on successful login', async () => {
@@ -66,11 +114,7 @@ describe('LoginForm', () => {
     };
     (useAuthStore as jest.Mock).mockReturnValue(mockSuccessfulStore);
 
-    render(
-      <MemoryRouter>
-        <LoginForm />
-      </MemoryRouter>
-    );
+    render(<LoginForm />);
 
     // Fill the form
     fireEvent.change(screen.getByTestId('username-input'), {
@@ -97,11 +141,7 @@ describe('LoginForm', () => {
     // Mock login with error
     (useAuthStore as jest.Mock).mockReturnValue(mockAuthStoreWithError);
 
-    render(
-      <MemoryRouter>
-        <LoginForm />
-      </MemoryRouter>
-    );
+    render(<LoginForm />);
 
     // Error should be displayed
     expect(
@@ -120,11 +160,7 @@ describe('LoginForm', () => {
     };
     (useAuthStore as jest.Mock).mockReturnValue(mockFailedLoginStore);
 
-    render(
-      <MemoryRouter>
-        <LoginForm />
-      </MemoryRouter>
-    );
+    render(<LoginForm />);
 
     // Fill the form
     fireEvent.change(screen.getByTestId('username-input'), {
@@ -141,6 +177,44 @@ describe('LoginForm', () => {
     await waitFor(() => {
       expect(mockFailedLoginStore.actions.login).toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+
+  it('redirects to custom location from state', async () => {
+    const mockSuccessfulStore = {
+      ...mockUnauthenticatedStore,
+      actions: {
+        ...mockUnauthenticatedStore.actions,
+        login: jest.fn().mockReturnValue(true),
+      },
+    };
+    (useAuthStore as jest.Mock).mockReturnValue(mockSuccessfulStore);
+
+    render(<LoginForm />, {
+      routerOptions: {
+        initialEntries: ['/login'],
+        initialIndex: 0
+      }
+    });
+
+    // Mock location state with custom 'from' path
+    const mockLocation = {
+      state: { from: { pathname: '/custom-path' } }
+    };
+    jest.spyOn(require('react-router-dom'), 'useLocation').mockReturnValue(mockLocation);
+
+    // Fill and submit form
+    fireEvent.change(screen.getByTestId('username-input'), {
+      target: { value: 'user' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'password' },
+    });
+    fireEvent.click(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/custom-path', { replace: true });
     });
   });
 });

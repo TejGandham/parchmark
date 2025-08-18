@@ -243,4 +243,150 @@ describe('useStoreRouterSync', () => {
     );
     expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
   });
+
+  it('should call setCurrentNote when navigating to existing note via URL', () => {
+    // Setup with valid noteId in params that exists in notes
+    (useParams as jest.Mock).mockReturnValue({
+      noteId: 'note-2',
+    });
+    
+    (useLocation as jest.Mock).mockReturnValue({
+      pathname: '/notes/note-2',
+    });
+
+    mockNavigate.mockClear();
+    mockNotesStore.actions.setCurrentNote.mockClear();
+
+    renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // Should call setCurrentNote with the noteId from URL
+    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith('note-2');
+    // Should not navigate since note exists
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should not process navigation when notes is not an array', () => {
+    // Mock notes store with non-array notes to trigger early return
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: null, // Not an array
+      currentNoteId: 'note-1',
+      editedContent: null,
+      actions: mockNotesStore.actions,
+    });
+
+    (useParams as jest.Mock).mockReturnValue({
+      noteId: 'note-1',
+    });
+
+    mockNavigate.mockClear();
+
+    renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // Should not navigate when notes is not an array
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should not call setCurrentNote when storeActions is undefined', () => {
+    // Mock the useNotesStore to simulate undefined actions
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: null,
+      editedContent: null,
+      actions: undefined,
+    });
+
+    // Mock params with existing note ID
+    (useParams as jest.Mock).mockReturnValue({
+      noteId: 'note-1',
+    });
+
+    (useLocation as jest.Mock).mockReturnValue({
+      pathname: '/notes/note-1',
+    });
+
+    mockNavigate.mockClear();
+
+    renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // Should not attempt to call setCurrentNote when actions are undefined
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should handle safeStoreAction with functions that are not defined', async () => {
+    // Mock store with missing functions in actions
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      editedContent: null,
+      actions: {
+        // Missing updateNote and setEditedContent
+        fetchNotes: mockNotesStore.actions.fetchNotes,
+        createNote: mockNotesStore.actions.createNote,
+        deleteNote: mockNotesStore.actions.deleteNote,
+        setCurrentNote: mockNotesStore.actions.setCurrentNote,
+      },
+    });
+
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // These should not throw errors even when the functions are undefined
+    const updateResult = await result.current.actions.updateNote('note-1', 'content');
+    expect(updateResult).toBeUndefined();
+
+    const setContentResult = await result.current.actions.setEditedContent('content');
+    expect(setContentResult).toBeUndefined();
+  });
+
+  it('should handle setCurrentNote with null ID', () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    mockNavigate.mockClear();
+    mockNotesStore.actions.setCurrentNote.mockClear();
+
+    act(() => {
+      result.current.actions.setCurrentNote(null);
+    });
+
+    expect(mockNotesStore.actions.setCurrentNote).toHaveBeenCalledWith(null);
+    expect(mockNavigate).toHaveBeenCalledWith('/notes');
+  });
+
+  it('should handle async store actions that return values', async () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // Mock createNote to return a promise with an ID
+    mockNotesStore.actions.createNote.mockResolvedValue('new-note-id');
+
+    const noteId = await act(async () => {
+      return await result.current.actions.createNote();
+    });
+
+    expect(noteId).toBe('new-note-id');
+    expect(mockNotesStore.actions.createNote).toHaveBeenCalled();
+  });
+
+  it('should handle setCurrentNote when storeActions setCurrentNote is not a function', () => {
+    // Mock store with invalid setCurrentNote
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      editedContent: null,
+      actions: {
+        ...mockNotesStore.actions,
+        fetchNotes: mockNotesStore.actions.fetchNotes,
+        setCurrentNote: 'not-a-function', // Invalid function
+      },
+    });
+
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    mockNavigate.mockClear();
+
+    act(() => {
+      result.current.actions.setCurrentNote('note-2');
+    });
+
+    // Should still navigate even if store setCurrentNote fails
+    expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
+  });
 });

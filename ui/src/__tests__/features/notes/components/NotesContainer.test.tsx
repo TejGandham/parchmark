@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import NotesContainer from '../../../../features/notes/components/NotesContainer';
 import { useUIStore } from '../../../../store';
@@ -61,6 +61,8 @@ jest.mock('../../../../features/notes/components/NoteContent', () => {
       <div data-testid="note-content">
         <div>Note: {props.currentNote?.title || 'None'}</div>
         <div>Editing: {props.isEditing ? 'Yes' : 'No'}</div>
+        <button data-testid="mock-save" onClick={props.saveNote}>Save</button>
+        <button data-testid="mock-start-edit" onClick={props.startEditing}>Start Edit</button>
       </div>
     );
   };
@@ -350,5 +352,142 @@ describe('NotesContainer Component', () => {
 
     // Should render and handle null currentNote
     expect(screen.getByTestId('note-content')).toBeInTheDocument();
+  });
+
+  it('should call updateNote when saveNote is triggered with valid data', () => {
+    const mockUpdateNote = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: mockNotes[0],
+      isEditing: true,
+      editedContent: '# Updated Note\n\nUpdated content',
+      actions: {
+        createNote: jest.fn(),
+        updateNote: mockUpdateNote,
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    renderComponent();
+    
+    // Trigger the saveNote function through the mock button
+    fireEvent.click(screen.getByTestId('mock-save'));
+
+    expect(mockUpdateNote).toHaveBeenCalledWith('note-1', '# Updated Note\n\nUpdated content');
+  });
+
+  it('should not call updateNote when saveNote is triggered without currentNoteId', () => {
+    const mockUpdateNote = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: null,
+      currentNote: null,
+      isEditing: true,
+      editedContent: '# Updated Note\n\nUpdated content',
+      actions: {
+        createNote: jest.fn(),
+        updateNote: mockUpdateNote,
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    renderComponent();
+    
+    // Trigger the saveNote function through the mock button
+    fireEvent.click(screen.getByTestId('mock-save'));
+
+    expect(mockUpdateNote).not.toHaveBeenCalled();
+  });
+
+  it('should not call updateNote when saveNote is triggered without editedContent', () => {
+    const mockUpdateNote = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: mockNotes[0],
+      isEditing: true,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: mockUpdateNote,
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: jest.fn(),
+      },
+    });
+
+    renderComponent();
+    
+    // Trigger the saveNote function through the mock button
+    fireEvent.click(screen.getByTestId('mock-save'));
+
+    expect(mockUpdateNote).not.toHaveBeenCalled();
+  });
+
+  it('should call setEditedContent with current note content when startEditing is triggered', () => {
+    const mockSetEditedContent = jest.fn();
+    const currentNote = {
+      id: 'note-1',
+      title: 'Test Note',
+      content: '# Test Note\n\nThis is test content.',
+      createdAt: '2023-01-01T00:00:00Z',
+      updatedAt: '2023-01-01T00:00:00Z',
+    };
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'note-1',
+      currentNote: currentNote,
+      isEditing: false,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: jest.fn(),
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: mockSetEditedContent,
+      },
+    });
+
+    renderComponent();
+    
+    // Trigger the startEditing function through the mock button
+    fireEvent.click(screen.getByTestId('mock-start-edit'));
+
+    expect(mockSetEditedContent).toHaveBeenCalledWith('# Test Note\n\nThis is test content.');
+  });
+
+  it('should call setEditedContent with empty string when startEditing is triggered without currentNote', () => {
+    const mockSetEditedContent = jest.fn();
+
+    (useStoreRouterSync as jest.Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: null,
+      currentNote: null,
+      isEditing: false,
+      editedContent: null,
+      actions: {
+        createNote: jest.fn(),
+        updateNote: jest.fn(),
+        deleteNote: jest.fn(),
+        setCurrentNote: jest.fn(),
+        setEditedContent: mockSetEditedContent,
+      },
+    });
+
+    renderComponent();
+    
+    // Trigger the startEditing function through the mock button
+    fireEvent.click(screen.getByTestId('mock-start-edit'));
+
+    expect(mockSetEditedContent).toHaveBeenCalledWith('');
   });
 });
