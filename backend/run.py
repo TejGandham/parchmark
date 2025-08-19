@@ -4,9 +4,10 @@ ParchMark Backend Server Startup Script
 Starts the FastAPI server with proper configuration and database initialization.
 """
 
-import uvicorn
 import os
 import sys
+
+import uvicorn
 from dotenv import load_dotenv
 
 # Add the backend directory to Python path

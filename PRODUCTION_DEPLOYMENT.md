@@ -4,7 +4,7 @@ This guide provides step-by-step instructions for deploying ParchMark to a produ
 
 ## Overview
 
-**Frontend URL:** `https://notes.engen.tech`  
+**Frontend URL:** `https://notes.engen.tech`
 **Backend API URL:** `https://assets-api.engen.tech`
 
 **Architecture:**
@@ -107,10 +107,10 @@ The production compose file (`docker-compose.prod.yml`) has been created with:
 3. **Advanced Tab:**
    ```
    ☑️ Cache Assets
-   ☑️ Block Common Exploits  
+   ☑️ Block Common Exploits
    ☑️ Websockets Support
    ☐ Access List (None)
-   
+
    Custom Nginx Configuration: (leave empty)
    ```
 
@@ -148,7 +148,7 @@ The production compose file (`docker-compose.prod.yml`) has been created with:
    ☑️ Block Common Exploits
    ☐ Websockets Support (not needed for API)
    ☐ Access List (None)
-   
+
    Custom Nginx Configuration: (leave empty)
    ```
 
@@ -249,7 +249,7 @@ add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
    ```bash
    # Frontend logs
    docker compose -f docker-compose.prod.yml logs frontend
-   
+
    # Backend logs
    docker compose -f docker-compose.prod.yml logs backend
    ```
@@ -281,7 +281,7 @@ add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
 ### Security
 - SSL certificates automatically managed by Let's Encrypt
-- CORS configured for production domains only  
+- CORS configured for production domains only
 - JWT tokens for API authentication
 - Database isolated within Docker network
 

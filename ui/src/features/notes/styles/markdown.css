@@ -27,13 +27,13 @@
   padding-bottom: 0.3em;
 }
 
-.markdown-preview ul, 
+.markdown-preview ul,
 .markdown-preview ol {
   padding-left: 2em;
   margin: 1em 0;
 }
 
-.markdown-preview ul li, 
+.markdown-preview ul li,
 .markdown-preview ol li {
   margin: 0.2em 0;
 }
@@ -89,7 +89,7 @@
   margin: 1em 0;
 }
 
-.markdown-preview table th, 
+.markdown-preview table th,
 .markdown-preview table td {
   border: 1px solid rgba(88, 12, 36, 0.3);
   padding: 6px 13px;

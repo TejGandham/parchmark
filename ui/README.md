@@ -58,7 +58,7 @@ A modern, fast, and intuitive markdown note-taking application built with React,
    ```bash
    npm run dev
    ```
-   
+
    The app will open automatically at `http://localhost:5173`
 
 ### Docker Deployment

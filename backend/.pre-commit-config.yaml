@@ -1,11 +1,11 @@
 repos:
-  # Ruff linting and formatting - disabled for now
-  # - repo: https://github.com/astral-sh/ruff-pre-commit
-  #   rev: v0.8.5
-  #   hooks:
-  #     - id: ruff
-  #       args: [--fix]
-  #     - id: ruff-format
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.5
+    hooks:
+      - id: ruff
+        args: [--no-fix]  # Only check, don't auto-fix
+      - id: ruff-format
+        args: [--check]  # Only check formatting, don't auto-format
 
   # MyPy type checking - disabled for now
   # - repo: https://github.com/pre-commit/mirrors-mypy
@@ -15,7 +15,7 @@ repos:
   #       additional_dependencies: [types-all]
   #       args: [--ignore-missing-imports]
   #       files: ^app/
-        
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -24,6 +24,7 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-json
+        exclude: 'tsconfig.*\.json$'  # Exclude tsconfig files which allow comments
       - id: check-merge-conflict
       - id: check-toml
       - id: debug-statements
