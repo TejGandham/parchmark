@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Default user credentials (matches frontend demo user)
-DEFAULT_USER = {"username": "user", "password": "password"}
+DEFAULT_USER = {"username": "demouser", "password": "demopass"}
 
 # Default notes content (matches frontend DEFAULT_NOTES from constants.ts)
 DEFAULT_NOTES_DATA = [

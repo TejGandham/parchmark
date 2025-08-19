@@ -3,7 +3,7 @@ Pydantic schemas for ParchMark backend API.
 Defines request/response models for validation matching frontend data structures.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
 
@@ -12,16 +12,16 @@ class UserCreate(BaseModel):
     """Schema for user registration/creation requests."""
 
     username: str = Field(
-        ..., min_length=1, max_length=50, description="Username for the new user"
+        ..., min_length=4, max_length=50, description="Username for the new user"
     )
-    password: str = Field(..., min_length=1, description="Password for the new user")
+    password: str = Field(..., min_length=4, description="Password for the new user")
 
 
 class UserLogin(BaseModel):
     """Schema for user login requests."""
 
-    username: str = Field(..., description="Username for authentication")
-    password: str = Field(..., description="Password for authentication")
+    username: str = Field(..., min_length=4, description="Username for authentication")
+    password: str = Field(..., min_length=4, description="Password for authentication")
 
 
 class UserResponse(BaseModel):
@@ -29,8 +29,7 @@ class UserResponse(BaseModel):
 
     username: str = Field(..., description="Username of the user")
 
-    class Config:
-        from_attributes = True  # Allows conversion from SQLAlchemy models
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Token Schemas
@@ -52,19 +51,19 @@ class NoteCreate(BaseModel):
     """Schema for note creation requests."""
 
     title: str = Field(
-        ..., min_length=1, max_length=255, description="Title of the note"
+        ..., min_length=4, max_length=255, description="Title of the note"
     )
-    content: str = Field(..., description="Markdown content of the note")
+    content: str = Field(..., min_length=4, description="Markdown content of the note")
 
 
 class NoteUpdate(BaseModel):
     """Schema for note update requests."""
 
     title: Optional[str] = Field(
-        None, min_length=1, max_length=255, description="Updated title of the note"
+        None, min_length=4, max_length=255, description="Updated title of the note"
     )
     content: Optional[str] = Field(
-        None, description="Updated markdown content of the note"
+        None, min_length=4, description="Updated markdown content of the note"
     )
 
 
@@ -82,8 +81,7 @@ class NoteResponse(BaseModel):
         ..., description="ISO timestamp when the note was last updated"
     )
 
-    class Config:
-        from_attributes = True  # Allows conversion from SQLAlchemy models
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Error Response Schemas
