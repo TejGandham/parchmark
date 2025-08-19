@@ -1,6 +1,7 @@
 import { Note } from '../types';
 
-const API_BASE_URL = '/api';
+// Use environment variable for production, fallback to proxy for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 type ApiErrorResponse = {
   detail?: string | { msg: string }[];
