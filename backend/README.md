@@ -6,28 +6,40 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- pip (Python package installer)
+- Python 3.11 or higher
+- [uv](https://docs.astral.sh/uv/) - Fast Python package manager
 
 ### Installation & Setup
 
-1. **Navigate to the backend directory:**
+1. **Install uv (if not already installed):**
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Navigate to the backend directory:**
    ```bash
    cd backend
    ```
 
-2. **Install dependencies:**
+3. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
+   uv sync --dev
    ```
 
-3. **Configure environment variables:**
+4. **Install pre-commit hooks:**
+   ```bash
+   uv run pre-commit install
+   ```
+
+5. **Configure environment variables:**
    - Copy `.env` file and update the `SECRET_KEY` for production use
    - The default configuration works for development
 
-4. **Start the server:**
+6. **Start the server:**
    ```bash
-   python run.py
+   make run
+   # or
+   uv run python run.py
    ```
 
 The server will start at `http://localhost:8000` with the following endpoints available:
@@ -60,9 +72,15 @@ backend/
 │   └── schemas/
 │       ├── __init__.py
 │       └── schemas.py       # Pydantic schemas
+├── tests/                   # Test suite
+│   ├── unit/               # Unit tests
+│   └── integration/        # Integration tests
 ├── .env                     # Environment configuration
+├── .pre-commit-config.yaml  # Pre-commit hooks configuration
 ├── main.py                  # FastAPI application
-├── requirements.txt         # Python dependencies
+├── Makefile                 # Common development commands
+├── pyproject.toml           # Python project configuration and dependencies
+├── pytest.ini               # Pytest configuration
 ├── run.py                   # Server startup script
 └── README.md               # This file
 ```
@@ -382,6 +400,63 @@ This starts the server with:
 - Debug logging
 - CORS configured for local development
 - Database auto-initialization
+
+## 🧪 Testing
+
+### Running Tests
+
+The project uses pytest with pytest-xdist for parallel test execution:
+
+```bash
+# Run all tests with coverage (parallel execution)
+make test
+
+# Run tests without coverage (faster)
+make test-fast
+
+# Generate HTML coverage report
+make test-cov
+
+# Run specific test file
+uv run pytest tests/unit/auth/test_auth.py
+
+# Run with verbose output
+uv run pytest -vv
+```
+
+### Code Quality
+
+The project uses ruff for linting/formatting and mypy for type checking:
+
+```bash
+# Run linting
+make lint
+
+# Format code
+make format
+
+# Check formatting without changes
+make format-check
+
+# Run type checking
+make typecheck
+
+# Run all pre-commit hooks
+make pre-commit
+```
+
+### Pre-commit Hooks
+
+Pre-commit hooks run automatically on git commit. They include:
+- Ruff linting and formatting
+- MyPy type checking
+- Trailing whitespace removal
+- YAML/JSON/TOML validation
+
+To run manually:
+```bash
+uv run pre-commit run --all-files
+```
 
 ### Testing the API
 
