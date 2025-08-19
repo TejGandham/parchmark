@@ -39,7 +39,7 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
    ```bash
    make run
    # or
-   uv run python run.py
+   uv run python -m app
    ```
 
 The server will start at `http://localhost:8000` with the following endpoints available:
@@ -81,7 +81,7 @@ backend/
 ├── Makefile                 # Common development commands
 ├── pyproject.toml           # Python project configuration and dependencies
 ├── pytest.ini               # Pytest configuration
-├── run.py                   # Server startup script
+├── app/__main__.py          # Application entry point
 └── README.md               # This file
 ```
 
@@ -392,7 +392,7 @@ python -c "from app.database.seed import reset_and_seed_database; reset_and_seed
 ### Running in Development Mode
 
 ```bash
-python run.py
+python -m app
 ```
 
 This starts the server with:

@@ -46,7 +46,7 @@ clean:  ## Clean up cache and build files
 	rm -rf build dist *.egg-info
 
 run:  ## Run the development server
-	uv run python run.py
+	uv run python -m app
 
 migrate:  ## Initialize database
 	uv run python -c "from app.database.init_db import init_db; init_db()"
