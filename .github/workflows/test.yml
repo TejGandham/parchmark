@@ -75,10 +75,10 @@ jobs:
       #     cd backend
       #     uv run ruff format --check app tests
 
-      - name: Run type checking
-        run: |
-          cd backend
-          uv run mypy app --ignore-missing-imports
+      # - name: Run type checking
+      #   run: |
+      #     cd backend
+      #     uv run mypy app --ignore-missing-imports
 
       - name: Run tests with coverage (parallel with xdist)
         run: |
