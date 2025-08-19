@@ -6,25 +6,24 @@ WORKDIR /app
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Create a virtual environment and install dependencies
-RUN uv venv && uv pip compile pyproject.toml -o requirements.txt
-
-# Build wheels for all dependencies
-RUN uv pip wheel -r requirements.txt --wheel-dir /wheels
+# Install dependencies and the project using uv
+# This creates a virtual environment with all dependencies
+RUN uv sync --frozen --no-dev
 
 # Stage 2: Final stage using matching Python version
 FROM python:3.13-slim-trixie
 
 WORKDIR /app
 
-# Copy wheels from builder
-COPY --from=builder /wheels /wheels
-
-# Install dependencies from wheels (no network needed, no build tools needed)
-RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* && rm -rf /wheels
+# Copy the virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy the application code
 COPY . .
+
+# Activate the virtual environment by adding it to PATH
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
 
 # Expose the port the app runs on
 EXPOSE 8000
