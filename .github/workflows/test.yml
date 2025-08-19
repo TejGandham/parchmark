@@ -65,15 +65,15 @@ jobs:
           cd backend
           uv sync --dev
 
-      # - name: Run ruff linting
-      #   run: |
-      #     cd backend
-      #     uv run ruff check app tests
+      - name: Run ruff linting check
+        run: |
+          cd backend
+          uv run ruff check app tests --no-fix  # Check only, no auto-fix
 
-      # - name: Run ruff formatting check
-      #   run: |
-      #     cd backend
-      #     uv run ruff format --check app tests
+      - name: Run ruff formatting check
+        run: |
+          cd backend
+          uv run ruff format --check app tests  # Check only, no auto-format
 
       # - name: Run type checking
       #   run: |

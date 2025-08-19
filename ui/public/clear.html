@@ -39,9 +39,9 @@
 <body>
   <h1>ParchMark Storage Utility</h1>
   <p>This utility will clear the localStorage for ParchMark, which can help resolve issues after code changes.</p>
-  
+
   <button id="clearBtn">Clear Storage</button>
-  
+
   <div id="message" class="message success">
     Storage cleared successfully! You can now return to the app.
   </div>
@@ -50,11 +50,11 @@
     document.getElementById('clearBtn').addEventListener('click', () => {
       localStorage.removeItem('parchmark-notes');
       localStorage.removeItem('parchmark-ui');
-      
+
       // Show success message
       const message = document.getElementById('message');
       message.style.display = 'block';
-      
+
       console.log('ParchMark storage cleared');
     });
   </script>

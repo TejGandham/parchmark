@@ -1,15 +1,16 @@
-
 import argparse
 import os
 import sys
+
 from sqlalchemy.orm import Session
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.auth.auth import get_password_hash
 from app.database.database import SessionLocal
 from app.models.models import User
-from app.auth.auth import get_password_hash
+
 
 def create_user(db: Session, username: str, password: str):
     """Creates a new user in the database."""
@@ -17,12 +18,13 @@ def create_user(db: Session, username: str, password: str):
     if user:
         print(f"Error: User '{username}' already exists.")
         return
-    
+
     hashed_password = get_password_hash(password)
     new_user = User(username=username, password_hash=hashed_password)
     db.add(new_user)
     db.commit()
     print(f"User '{username}' created successfully.")
+
 
 def update_password(db: Session, username: str, password: str):
     """Updates the password for an existing user."""
@@ -30,11 +32,12 @@ def update_password(db: Session, username: str, password: str):
     if not user:
         print(f"Error: User '{username}' not found.")
         return
-    
+
     hashed_password = get_password_hash(password)
     user.password_hash = hashed_password
     db.commit()
     print(f"Password for user '{username}' updated successfully.")
+
 
 def delete_user(db: Session, username: str):
     """Deletes a user from the database."""
@@ -42,10 +45,11 @@ def delete_user(db: Session, username: str):
     if not user:
         print(f"Error: User '{username}' not found.")
         return
-    
+
     db.delete(user)
     db.commit()
     print(f"User '{username}' deleted successfully.")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Manage ParchMark users.")
@@ -66,7 +70,7 @@ def main():
     parser_delete.add_argument("username", help="The username of the user to delete.")
 
     args = parser.parse_args()
-    
+
     db = SessionLocal()
     try:
         if args.command == "create":
@@ -77,6 +81,7 @@ def main():
             delete_user(db, args.username)
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()

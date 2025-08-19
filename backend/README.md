@@ -470,7 +470,7 @@ uv run pre-commit run --all-files
    curl -X POST "http://localhost:8000/auth/login" \
         -H "Content-Type: application/json" \
         -d '{"username": "user", "password": "password"}'
-   
+
    # Get notes (replace TOKEN with actual token)
    curl -X GET "http://localhost:8000/notes" \
         -H "Authorization: Bearer TOKEN"

@@ -3,17 +3,18 @@ FastAPI main application entry point for ParchMark backend.
 Configures CORS, routers, database initialization, and exception handlers.
 """
 
-from fastapi import FastAPI, Request, HTTPException
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-import logging
-
-# Import routers
-from app.routers import auth, notes
 
 # Import database initialization
 from app.database.init_db import init_database
+
+# Import routers
+from app.routers import auth, notes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
