@@ -76,7 +76,7 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
     return current_user
 
 
-def get_user_by_username(db: Session, username: str) -> User:
+def get_user_by_username(db: Session, username: str) -> User | None:
     """
     Helper function to get a user by username from the database.
 

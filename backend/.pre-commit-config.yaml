@@ -7,14 +7,20 @@ repos:
       - id: ruff-format
         args: [--check]  # Only check formatting, don't auto-format
 
-  # MyPy type checking - disabled for now
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.8.0
-  #   hooks:
-  #     - id: mypy
-  #       additional_dependencies: [types-all]
-  #       args: [--ignore-missing-imports]
-  #       files: ^app/
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        args: [--config-file=pyproject.toml]
+        files: ^app/.*\.py$
+        additional_dependencies: [
+          "fastapi==0.104.1",
+          "sqlalchemy>=2.0.32",
+          "pydantic>=2.0",
+          "python-jose[cryptography]==3.3.0",
+          "passlib[bcrypt]==1.7.4",
+          "python-multipart==0.0.6",
+        ]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

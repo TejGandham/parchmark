@@ -71,18 +71,18 @@ async def get_notes(current_user: User = Depends(get_current_user), db: Session 
     # Query notes for the current user
     notes = db.query(Note).filter(Note.user_id == current_user.id).all()
 
-    # Convert to response format with proper field mapping
+    # Convert to response format using Pydantic's model_validate
     note_responses = []
     for note in notes:
-        note_responses.append(
-            NoteResponse(
-                id=note.id,
-                title=note.title,
-                content=note.content,
-                createdAt=note.created_at.isoformat(),
-                updatedAt=note.updated_at.isoformat(),
-            )
-        )
+        # Create a dict with proper field mapping for Pydantic
+        note_dict = {
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "createdAt": note.created_at.isoformat(),
+            "updatedAt": note.updated_at.isoformat(),
+        }
+        note_responses.append(NoteResponse.model_validate(note_dict))
 
     return note_responses
 
@@ -128,12 +128,14 @@ async def create_note(
     db.commit()
     db.refresh(db_note)
 
-    return NoteResponse(
-        id=db_note.id,
-        title=db_note.title,
-        content=db_note.content,
-        createdAt=db_note.created_at.isoformat(),
-        updatedAt=db_note.updated_at.isoformat(),
+    return NoteResponse.model_validate(
+        {
+            "id": db_note.id,
+            "title": db_note.title,
+            "content": db_note.content,
+            "createdAt": db_note.created_at.isoformat(),
+            "updatedAt": db_note.updated_at.isoformat(),
+        }
     )
 
 
@@ -176,21 +178,23 @@ async def update_note(
         formatted_content = format_note_content(note_data.content)
         extracted_title = extract_title_from_markdown(formatted_content)
 
-        db_note.content = formatted_content
-        db_note.title = extracted_title
+        db_note.content = formatted_content  # type: ignore[assignment]
+        db_note.title = extracted_title  # type: ignore[assignment]
     elif note_data.title is not None:
         # If only title is provided, update it directly
-        db_note.title = note_data.title
+        db_note.title = note_data.title  # type: ignore[assignment]
 
     db.commit()
     db.refresh(db_note)
 
-    return NoteResponse(
-        id=db_note.id,
-        title=db_note.title,
-        content=db_note.content,
-        createdAt=db_note.created_at.isoformat(),
-        updatedAt=db_note.updated_at.isoformat(),
+    return NoteResponse.model_validate(
+        {
+            "id": db_note.id,
+            "title": db_note.title,
+            "content": db_note.content,
+            "createdAt": db_note.created_at.isoformat(),
+            "updatedAt": db_note.updated_at.isoformat(),
+        }
     )
 
 
@@ -257,12 +261,14 @@ async def get_note(
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
-    return NoteResponse(
-        id=db_note.id,
-        title=db_note.title,
-        content=db_note.content,
-        createdAt=db_note.created_at.isoformat(),
-        updatedAt=db_note.updated_at.isoformat(),
+    return NoteResponse.model_validate(
+        {
+            "id": db_note.id,
+            "title": db_note.title,
+            "content": db_note.content,
+            "createdAt": db_note.created_at.isoformat(),
+            "updatedAt": db_note.updated_at.isoformat(),
+        }
     )
 
 
