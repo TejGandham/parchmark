@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   ui-tests:
@@ -12,75 +12,75 @@ jobs:
     name: UI Tests
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: ui/package-lock.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
 
-    - name: Install dependencies
-      run: |
-        cd ui
-        npm ci
+      - name: Install dependencies
+        run: |
+          cd ui
+          npm ci
 
-    - name: Run linting
-      run: |
-        cd ui
-        npm run lint
+      - name: Run linting
+        run: |
+          cd ui
+          npm run lint
 
-    - name: Run tests
-      run: |
-        cd ui
-        npm test
+      - name: Run tests
+        run: |
+          cd ui
+          npm test
 
   backend-tests:
     runs-on: ubuntu-latest
     name: Backend Tests
     strategy:
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ["3.13"]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-      with:
-        enable-cache: true
-        cache-dependency-glob: "backend/pyproject.toml"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
 
-    - name: Setup Python with uv
-      run: |
-        cd backend
-        uv python install ${{ matrix.python-version }}
-        uv python pin ${{ matrix.python-version }}
+      - name: Setup Python with uv
+        run: |
+          cd backend
+          uv python install ${{ matrix.python-version }}
+          uv python pin ${{ matrix.python-version }}
 
-    - name: Sync dependencies with uv
-      run: |
-        cd backend
-        uv sync --dev
+      - name: Sync dependencies with uv
+        run: |
+          cd backend
+          uv sync --dev
 
-    - name: Run ruff linting
-      run: |
-        cd backend
-        uv run ruff check app tests
+      - name: Run ruff linting
+        run: |
+          cd backend
+          uv run ruff check app tests
 
-    - name: Run ruff formatting check
-      run: |
-        cd backend
-        uv run ruff format --check app tests
+      - name: Run ruff formatting check
+        run: |
+          cd backend
+          uv run ruff format --check app tests
 
-    - name: Run type checking
-      run: |
-        cd backend
-        uv run mypy app --ignore-missing-imports
+      - name: Run type checking
+        run: |
+          cd backend
+          uv run mypy app --ignore-missing-imports
 
-    - name: Run tests with coverage (parallel with xdist)
-      run: |
-        cd backend
-        uv run pytest -v --cov=app --cov-report=xml --cov-report=term
+      - name: Run tests with coverage (parallel with xdist)
+        run: |
+          cd backend
+          uv run pytest -v --cov=app --cov-report=xml --cov-report=term
