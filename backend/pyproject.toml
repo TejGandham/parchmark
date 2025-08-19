@@ -1,0 +1,104 @@
+[project]
+name = "parchmark-backend"
+version = "1.0.0"
+description = "Backend API for ParchMark note-taking application"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi==0.104.1",
+    "uvicorn[standard]==0.24.0",
+    "sqlalchemy>=2.0.32",
+    "python-jose[cryptography]==3.3.0",
+    "passlib[bcrypt]==1.7.4",
+    "bcrypt==3.2.0",
+    "python-multipart==0.0.6",
+    "python-dotenv==1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black==23.12.1",
+    "flake8==7.0.0",
+    "pytest==7.4.4",
+    "pytest-cov==4.1.0",
+    "pytest-mock==3.12.0",
+    "pytest-asyncio==0.23.2",
+    "pytest-xdist==3.5.0",
+    "httpx==0.26.0",
+    "mypy==1.8.0",
+    "faker==20.1.0",
+    "factory-boy==3.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+minversion = "7.0"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=app",
+    "--cov-report=html:coverage_html",
+    "--cov-report=xml:coverage.xml",
+    "--cov-report=term-missing",
+    "--cov-fail-under=90",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests for individual functions and classes",
+    "integration: Integration tests for API endpoints",
+    "slow: Tests that run slowly (mark with @pytest.mark.slow)",
+    "auth: Authentication related tests",
+    "notes: Notes management related tests",
+    "database: Database related tests",
+]
+console_output_style = "progress"
+log_level = "INFO"
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "coverage_html"
+
+[dependency-groups]
+dev = [
+    "black>=23.12.1",
+    "factory-boy>=3.3.0",
+    "faker>=20.1.0",
+    "flake8>=7.0.0",
+    "freezegun>=1.5.5",
+    "httpx>=0.26.0",
+    "mypy>=1.8.0",
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.23.2",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.5.0",
+]

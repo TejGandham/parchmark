@@ -18,4 +18,4 @@ parchmark.db-journal
 *.db
 *.db-journal
 *.log
-backend/parchmark.db
+parchmark.db
