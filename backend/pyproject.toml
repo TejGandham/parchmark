@@ -117,10 +117,17 @@ line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = true
+# Pragmatic configuration - catch real bugs, not style issues
+warn_return_any = false  # Too noisy with third-party libs like passlib/jose
 warn_unused_configs = true
-disallow_untyped_defs = false
-ignore_missing_imports = true
+disallow_untyped_defs = false  # Allow gradual typing
+check_untyped_defs = true  # Still type-check untyped functions
+ignore_missing_imports = true  # Many deps lack type stubs
+no_implicit_optional = true  # Catch None-related bugs
+strict_optional = true  # Catch None-related bugs
+exclude = ["tests/"]  # Tests intentionally break type rules for validation testing
+# SQLAlchemy plugin would help but adds complexity
+# Use # type: ignore for specific SQLAlchemy Column issues
 
 [dependency-groups]
 dev = [

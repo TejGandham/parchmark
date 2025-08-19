@@ -114,7 +114,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     Returns:
         UserResponse: User information (without password)
     """
-    return UserResponse(username=current_user.username)
+    return UserResponse.model_validate(current_user)
 
 
 # Health check endpoint for authentication service

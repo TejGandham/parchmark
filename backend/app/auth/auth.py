@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+from app.models.models import User
 from app.schemas.schemas import TokenData
 
 # Load environment variables from .env file
@@ -99,7 +100,7 @@ def verify_token(token: str, credentials_exception: HTTPException) -> TokenData:
         raise credentials_exception from e
 
 
-def authenticate_user(username: str, password: str, user_db_check_func) -> dict | None:
+def authenticate_user(username: str, password: str, user_db_check_func) -> User | None:
     """
     Authenticate a user with username and password.
 
@@ -109,7 +110,7 @@ def authenticate_user(username: str, password: str, user_db_check_func) -> dict 
         user_db_check_func: Function to get user from database by username
 
     Returns:
-        dict: User data if authentication successful, None otherwise
+        User: User model if authentication successful, None otherwise
     """
     user = user_db_check_func(username)
     if not user:
