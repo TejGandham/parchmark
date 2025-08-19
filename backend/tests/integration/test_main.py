@@ -172,7 +172,6 @@ class TestExceptionHandlers:
         # This is harder to test without creating an actual unhandled exception
         # We'll test that the handler exists and is configured
         from fastapi import Request
-
         from main import general_exception_handler
 
         mock_request = Mock(spec=Request)
