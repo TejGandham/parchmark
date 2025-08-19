@@ -3,17 +3,19 @@ FROM ghcr.io/astral-sh/uv:python3.13-trixie as builder
 
 WORKDIR /app
 
-# Copy all application files needed to build the wheel
+# Copy dependency files and lockfile
 COPY pyproject.toml ./
+COPY uv.lock ./
+
+# Copy application files needed to build the wheel
 COPY app ./app
 COPY main.py ./
 
 # Build the application wheel (includes the app code itself)
 RUN uv build --wheel --out-dir /wheels
 
-# Install the wheel with all dependencies
-# uv sync automatically creates .venv if it doesn't exist
-RUN uv sync --frozen --no-dev --find-links /wheels
+# Install the application and all dependencies using uv sync
+RUN uv sync --frozen --no-dev
 
 # Stage 2: Final stage using matching Python version
 FROM python:3.13-slim-trixie
