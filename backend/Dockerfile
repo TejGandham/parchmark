@@ -3,18 +3,20 @@ FROM ghcr.io/astral-sh/uv:python3.13-trixie as builder
 
 WORKDIR /app
 
-# Copy dependency files and lockfile
+# Copy dependency files and lockfile first for better caching
 COPY pyproject.toml ./
 COPY uv.lock ./
 
-# Copy application files needed to build the wheel
+# First sync: Install dependencies only (without the project itself)
+# This layer is cached when only app code changes
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy application code
 COPY app ./app
 
-# Build the application wheel (includes the app code itself)
-RUN uv build --wheel --out-dir /wheels
-
-# Install the application and all dependencies using uv sync
-RUN uv sync --frozen --no-dev
+# Second sync: Install the project itself in non-editable mode
+# --no-editable ensures files are copied to site-packages instead of using .pth file
+RUN uv sync --frozen --no-dev --no-editable
 
 # Stage 2: Final stage using matching Python version
 FROM python:3.13-slim-trixie
