@@ -9,7 +9,6 @@ COPY uv.lock ./
 
 # Copy application files needed to build the wheel
 COPY app ./app
-COPY main.py ./
 
 # Build the application wheel (includes the app code itself)
 RUN uv build --wheel --out-dir /wheels
@@ -35,6 +34,6 @@ ENV VIRTUAL_ENV="/app/.venv"
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application
-# The app is installed in the venv, no source code needed
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Command to run the application as a Python module
+# The app is installed in the venv and can be run as a module
+CMD ["python", "-m", "app"]
