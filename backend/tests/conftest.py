@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,7 +18,6 @@ from app.auth.auth import create_access_token, get_password_hash
 # Import application components
 from app.database.database import Base, get_db
 from app.models.models import Note, User
-from main import app
 from tests.factories import (
     MarkdownContentFactory,
     NoteDataFactory,
