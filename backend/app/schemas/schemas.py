@@ -3,17 +3,14 @@ Pydantic schemas for ParchMark backend API.
 Defines request/response models for validation matching frontend data structures.
 """
 
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # User Schemas
 class UserCreate(BaseModel):
     """Schema for user registration/creation requests."""
 
-    username: str = Field(
-        ..., min_length=4, max_length=50, description="Username for the new user"
-    )
+    username: str = Field(..., min_length=4, max_length=50, description="Username for the new user")
     password: str = Field(..., min_length=4, description="Password for the new user")
 
 
@@ -43,28 +40,22 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     """Schema for token payload data."""
 
-    username: Optional[str] = None
+    username: str | None = None
 
 
 # Note Schemas
 class NoteCreate(BaseModel):
     """Schema for note creation requests."""
 
-    title: str = Field(
-        ..., min_length=4, max_length=255, description="Title of the note"
-    )
+    title: str = Field(..., min_length=4, max_length=255, description="Title of the note")
     content: str = Field(..., min_length=4, description="Markdown content of the note")
 
 
 class NoteUpdate(BaseModel):
     """Schema for note update requests."""
 
-    title: Optional[str] = Field(
-        None, min_length=4, max_length=255, description="Updated title of the note"
-    )
-    content: Optional[str] = Field(
-        None, min_length=4, description="Updated markdown content of the note"
-    )
+    title: str | None = Field(None, min_length=4, max_length=255, description="Updated title of the note")
+    content: str | None = Field(None, min_length=4, description="Updated markdown content of the note")
 
 
 class NoteResponse(BaseModel):
@@ -77,9 +68,7 @@ class NoteResponse(BaseModel):
     title: str = Field(..., description="Title of the note")
     content: str = Field(..., description="Markdown content of the note")
     createdAt: str = Field(..., description="ISO timestamp when the note was created")
-    updatedAt: str = Field(
-        ..., description="ISO timestamp when the note was last updated"
-    )
+    updatedAt: str = Field(..., description="ISO timestamp when the note was last updated")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -95,9 +84,7 @@ class ValidationErrorResponse(BaseModel):
     """Schema for validation error responses."""
 
     detail: str = Field(..., description="Validation error message")
-    errors: Optional[list] = Field(
-        None, description="List of specific validation errors"
-    )
+    errors: list | None = Field(None, description="List of specific validation errors")
 
 
 # Success Response Schemas

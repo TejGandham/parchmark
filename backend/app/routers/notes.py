@@ -3,21 +3,21 @@ Notes CRUD routes for ParchMark backend API.
 Handles note creation, reading, updating, and deletion with user authorization.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List
 import re
 from datetime import datetime
 
-from app.database.database import get_db
-from app.models.models import User, Note
-from app.schemas.schemas import (
-    NoteCreate,
-    NoteUpdate,
-    NoteResponse,
-    DeleteResponse,
-)
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
 from app.auth.dependencies import get_current_user
+from app.database.database import get_db
+from app.models.models import Note, User
+from app.schemas.schemas import (
+    DeleteResponse,
+    NoteCreate,
+    NoteResponse,
+    NoteUpdate,
+)
 
 # Create router for notes endpoints
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -53,10 +53,8 @@ def create_empty_note_content(title: str = "New Note") -> str:
     return f"# {title}\n\n"
 
 
-@router.get("/", response_model=List[NoteResponse])
-async def get_notes(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
+@router.get("/", response_model=list[NoteResponse])
+async def get_notes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Get all notes for the authenticated user.
 
@@ -167,16 +165,10 @@ async def update_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    db_note = (
-        db.query(Note)
-        .filter(Note.id == note_id, Note.user_id == current_user.id)
-        .first()
-    )
+    db_note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
 
     if not db_note:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     # Update fields if provided
     if note_data.content is not None:
@@ -227,16 +219,10 @@ async def delete_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    db_note = (
-        db.query(Note)
-        .filter(Note.id == note_id, Note.user_id == current_user.id)
-        .first()
-    )
+    db_note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
 
     if not db_note:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     # Delete the note
     db.delete(db_note)
@@ -266,16 +252,10 @@ async def get_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    db_note = (
-        db.query(Note)
-        .filter(Note.id == note_id, Note.user_id == current_user.id)
-        .first()
-    )
+    db_note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
 
     if not db_note:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     return NoteResponse(
         id=db_note.id,

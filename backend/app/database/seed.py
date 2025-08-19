@@ -3,11 +3,13 @@ Database seeding module for ParchMark backend.
 Creates default user and seeds with default notes for testing purposes.
 """
 
-from sqlalchemy.orm import Session
-from app.database.database import SessionLocal, engine
-from app.models.models import User, Note
-from app.auth.auth import get_password_hash
 import logging
+
+from sqlalchemy.orm import Session
+
+from app.auth.auth import get_password_hash
+from app.database.database import SessionLocal, engine
+from app.models.models import Note, User
 
 logger = logging.getLogger(__name__)
 
@@ -52,18 +54,14 @@ def create_default_user(db: Session) -> User:
         User: The created user object
     """
     # Check if default user already exists
-    existing_user = (
-        db.query(User).filter(User.username == DEFAULT_USER["username"]).first()
-    )
+    existing_user = db.query(User).filter(User.username == DEFAULT_USER["username"]).first()
     if existing_user:
         logger.info(f"Default user '{DEFAULT_USER['username']}' already exists")
         return existing_user
 
     # Create new default user
     hashed_password = get_password_hash(DEFAULT_USER["password"])
-    default_user = User(
-        username=DEFAULT_USER["username"], password_hash=hashed_password
-    )
+    default_user = User(username=DEFAULT_USER["username"], password_hash=hashed_password)
 
     db.add(default_user)
     db.commit()
@@ -88,11 +86,7 @@ def create_default_notes(db: Session, user: User) -> list[Note]:
 
     for note_data in DEFAULT_NOTES_DATA:
         # Check if note already exists
-        existing_note = (
-            db.query(Note)
-            .filter(Note.id == note_data["id"], Note.user_id == user.id)
-            .first()
-        )
+        existing_note = db.query(Note).filter(Note.id == note_data["id"], Note.user_id == user.id).first()
 
         if existing_note:
             logger.info(f"Default note '{note_data['title']}' already exists")
@@ -198,25 +192,20 @@ def check_seeding_status() -> dict:
 
         try:
             # Check for default user
-            default_user = (
-                db.query(User).filter(User.username == DEFAULT_USER["username"]).first()
-            )
+            default_user = db.query(User).filter(User.username == DEFAULT_USER["username"]).first()
             user_exists = default_user is not None
 
             # Check for default notes
             notes_count = 0
             if default_user:
-                notes_count = (
-                    db.query(Note).filter(Note.user_id == default_user.id).count()
-                )
+                notes_count = db.query(Note).filter(Note.user_id == default_user.id).count()
 
             return {
                 "default_user_exists": user_exists,
                 "default_user_id": default_user.id if default_user else None,
                 "default_notes_count": notes_count,
                 "expected_notes_count": len(DEFAULT_NOTES_DATA),
-                "seeding_complete": user_exists
-                and notes_count == len(DEFAULT_NOTES_DATA),
+                "seeding_complete": user_exists and notes_count == len(DEFAULT_NOTES_DATA),
             }
 
         finally:

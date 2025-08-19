@@ -3,11 +3,11 @@ SQLAlchemy database configuration for ParchMark backend.
 Configures SQLite database engine and session management.
 """
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
 import os
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,9 +17,7 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./parchmark.db")
 
 # Create SQLAlchemy engine
 # connect_args={"check_same_thread": False} is needed for SQLite
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 
 # Create SessionLocal class for database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -3,9 +3,10 @@ SQLAlchemy models for ParchMark backend.
 Defines User and Note models matching the frontend data structures.
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.database.database import Base
 
 
@@ -19,12 +20,8 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    password_hash = Column(
-        String(255), nullable=False
-    )  # Store hashed password, not plain text
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    password_hash = Column(String(255), nullable=False)  # Store hashed password, not plain text
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationship to notes
     notes = relationship("Note", back_populates="owner", cascade="all, delete-orphan")
@@ -38,15 +35,11 @@ class Note(Base):
 
     __tablename__ = "notes"
 
-    id = Column(
-        String(50), primary_key=True, index=True
-    )  # Using string ID to match frontend
+    id = Column(String(50), primary_key=True, index=True)  # Using string ID to match frontend
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -3,14 +3,15 @@ JWT authentication utilities for ParchMark backend.
 Handles JWT token creation/validation and password hashing using bcrypt.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+import os
+from datetime import UTC, datetime, timedelta
+
+from dotenv import load_dotenv
+from fastapi import HTTPException, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+
 from app.schemas.schemas import TokenData
-import os
-from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -51,7 +52,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
     Create a JWT access token.
 
@@ -64,9 +65,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -94,13 +95,11 @@ def verify_token(token: str, credentials_exception: HTTPException) -> TokenData:
             raise credentials_exception
         token_data = TokenData(username=username)
         return token_data
-    except JWTError:
-        raise credentials_exception
+    except JWTError as e:
+        raise credentials_exception from e
 
 
-def authenticate_user(
-    username: str, password: str, user_db_check_func
-) -> Optional[dict]:
+def authenticate_user(username: str, password: str, user_db_check_func) -> dict | None:
     """
     Authenticate a user with username and password.
 
