@@ -3,20 +3,21 @@ Authentication routes for ParchMark backend API.
 Handles user login and logout operations with JWT token management.
 """
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
-from datetime import timedelta
 
-from app.database.database import get_db
-from app.models.models import User
-from app.schemas.schemas import UserLogin, Token, UserResponse, MessageResponse
 from app.auth.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     authenticate_user,
     create_access_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from app.auth.dependencies import get_user_by_username, get_current_user
+from app.auth.dependencies import get_current_user, get_user_by_username
+from app.database.database import get_db
+from app.models.models import User
+from app.schemas.schemas import MessageResponse, Token, UserLogin, UserResponse
 
 # Create router for authentication endpoints
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -69,9 +70,7 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 
     # Create JWT token with user's username as subject
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
 
     return {"access_token": access_token, "token_type": "bearer"}
 

@@ -4,7 +4,7 @@ Creates database tables and handles initial database setup.
 """
 
 from app.database.database import Base, engine
-from app.database.seed import seed_database, check_seeding_status
+from app.database.seed import check_seeding_status, seed_database
 
 
 def create_tables():

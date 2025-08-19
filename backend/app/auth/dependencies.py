@@ -4,11 +4,12 @@ Provides dependency functions for protected routes and user authentication.
 """
 
 from fastapi import Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+
+from app.auth.auth import credentials_exception, verify_token
 from app.database.database import get_db
 from app.models.models import User
-from app.auth.auth import verify_token, credentials_exception
 from app.schemas.schemas import TokenData
 
 # HTTP Bearer token scheme for FastAPI
