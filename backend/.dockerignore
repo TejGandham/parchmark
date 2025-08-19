@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+coverage_html/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Development
+.env
+.env.*
+!.env.docker
+*.log
+*.db
+*.sqlite3
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# CI/CD
+.github/
+.pre-commit-config.yaml
+
+# Build artifacts
+requirements.txt.old
+requirements.archived.txt
+
+# Makefile (not needed in container)
+Makefile

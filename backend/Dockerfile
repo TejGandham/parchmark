@@ -1,27 +1,27 @@
-# Stage 1: Builder stage to create wheel files for dependencies
-FROM python:3.11 as builder
+# Stage 1: Builder stage using official uv image with Python 3.13 on Debian Trixie
+FROM ghcr.io/astral-sh/uv:python3.13-trixie as builder
 
 WORKDIR /app
 
-# Copy the requirements file
-COPY requirements.txt .
+# Copy dependency files
+COPY pyproject.toml ./
 
-# Create wheel files for all dependencies
-# This allows for faster and offline installation in the final stage
-RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+# Create a virtual environment and install dependencies
+RUN uv venv && uv pip compile pyproject.toml -o requirements.txt
 
+# Build wheels for all dependencies
+RUN uv pip wheel -r requirements.txt --wheel-dir /wheels
 
-# Stage 2: Final stage to run the application
-FROM python:3.11-slim
+# Stage 2: Final stage using matching Python version
+FROM python:3.13-slim-trixie
 
 WORKDIR /app
 
-# Copy the wheel files from the builder stage
+# Copy wheels from builder
 COPY --from=builder /wheels /wheels
 
-# Install the dependencies from the wheel files
-# This is faster and doesn't require network access
-RUN pip install --no-cache --no-index --find-links=/wheels /wheels/*
+# Install dependencies from wheels (no network needed, no build tools needed)
+RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* && rm -rf /wheels
 
 # Copy the application code
 COPY . .
@@ -30,5 +30,4 @@ COPY . .
 EXPOSE 8000
 
 # Command to run the application
-# Use run.py to ensure all environment variables and paths are set correctly
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
