@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Mock the constants module to avoid import.meta.env issues
+jest.mock('./src/config/constants');
+
 // Polyfill for TextEncoder/TextDecoder which is required by React Router v7
 if (typeof global.TextEncoder === 'undefined') {
   global.TextEncoder = require('util').TextEncoder;
