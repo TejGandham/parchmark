@@ -165,14 +165,15 @@ class TestExceptionHandlers:
         assert "detail" in data
         assert isinstance(data["detail"], list)
 
-    @patch("main.logger.error")
+    @patch("app.main.logger.error")
     @pytest.mark.asyncio
     async def test_general_exception_handler(self, mock_logger, client: TestClient):
         """Test general exception handler."""
         # This is harder to test without creating an actual unhandled exception
         # We'll test that the handler exists and is configured
         from fastapi import Request
-        from main import general_exception_handler
+
+        from app.main import general_exception_handler
 
         mock_request = Mock(spec=Request)
         mock_request.url.path = "/test/path"
@@ -285,14 +286,14 @@ class TestRouterRegistration:
 class TestApplicationLifespan:
     """Test application lifespan events."""
 
-    @patch("main.init_database")
-    @patch("main.logger")
+    @patch("app.main.init_database")
+    @patch("app.main.logger")
     def test_lifespan_startup(self, mock_logger, mock_init_db):
         """Test application startup lifespan event."""
         mock_init_db.return_value = True
 
         # Import and test lifespan function
-        from main import app, lifespan
+        from app.main import app, lifespan
 
         # Create a mock app context for testing
         async def test_lifespan():
@@ -310,13 +311,13 @@ class TestApplicationLifespan:
         # Verify logging
         assert mock_logger.info.call_count >= 2  # Startup and completion messages
 
-    @patch("main.init_database")
-    @patch("main.logger")
+    @patch("app.main.init_database")
+    @patch("app.main.logger")
     def test_lifespan_database_init_failure(self, mock_logger, mock_init_db):
         """Test lifespan handling when database initialization fails."""
         mock_init_db.return_value = False
 
-        from main import app, lifespan
+        from app.main import app, lifespan
 
         async def test_lifespan():
             async with lifespan(app):
@@ -330,13 +331,13 @@ class TestApplicationLifespan:
         mock_init_db.assert_called_once()
         mock_logger.error.assert_called()
 
-    @patch("main.init_database")
-    @patch("main.logger")
+    @patch("app.main.init_database")
+    @patch("app.main.logger")
     def test_lifespan_database_init_exception(self, mock_logger, mock_init_db):
         """Test lifespan handling when database initialization raises exception."""
         mock_init_db.side_effect = Exception("Database error")
 
-        from main import app, lifespan
+        from app.main import app, lifespan
 
         async def test_lifespan():
             async with lifespan(app):
