@@ -12,6 +12,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+# Set test environment variables BEFORE importing app
+os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+os.environ["ALGORITHM"] = "HS256"
+os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
+os.environ["ALLOWED_ORIGINS"] = (
+    "http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:8080"
+)
+
 from app.auth.auth import create_access_token, get_password_hash
 
 # Import application components
@@ -253,16 +261,14 @@ class TestDataFactory:
 # Pytest configuration
 def pytest_configure(config):
     """Configure pytest with custom settings."""
-    # Set environment variables for testing
-    os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
-    os.environ["ALGORITHM"] = "HS256"
-    os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
+    # Environment variables are now set at module level before app import
+    pass
 
 
 def pytest_unconfigure(config):
     """Clean up after pytest runs."""
     # Clean up environment variables
-    test_env_vars = ["SECRET_KEY", "ALGORITHM", "ACCESS_TOKEN_EXPIRE_MINUTES"]
+    test_env_vars = ["SECRET_KEY", "ALGORITHM", "ACCESS_TOKEN_EXPIRE_MINUTES", "ALLOWED_ORIGINS"]
     for var in test_env_vars:
         if var in os.environ:
             del os.environ[var]
