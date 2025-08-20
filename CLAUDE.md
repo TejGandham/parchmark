@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run Commands
 
+### Frontend (UI)
 - **Dev server**: `npm run dev` - Starts Vite dev server (auto-opens browser, proxy to API on :8000)
 - **Build**: `npm run build` - Runs TypeScript compiler and builds for production
 - **Lint**: `npm run lint` - Runs ESLint on TypeScript/TSX files
@@ -12,7 +13,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Test coverage**: `npm run test:coverage` - Runs tests with detailed coverage report
 - **Test watch**: `npm run test:watch` - Runs tests in watch mode for development
 - **Test single file**: `npm test -- --testNamePattern="ComponentName"` or `npm test -- ComponentName.test.tsx`
-- **Docker**: `docker-compose up -d` - Builds and runs the app in Docker
+
+### Backend
+- **Dev server**: `uv run uvicorn app.main:app --reload` - Starts FastAPI dev server on :8000
+- **Lint**: `uv run ruff check` - Runs Ruff linter on Python files
+- **Format**: `uv run ruff format` - Formats Python code with Ruff
+- **Test**: `uv run pytest` - Runs pytest with coverage
+- **Test single file**: `uv run pytest tests/path/to/test.py`
+
+### Docker
+- **Development**: `docker-compose up -d` - Builds and runs both frontend and backend
+- **Production**: `docker-compose -f docker-compose.production.yml up -d` - Production deployment
 
 ## Application Architecture
 
@@ -39,6 +50,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **React Markdown** with RemarkGFM for markdown rendering with GitHub flavored markdown
 
 ### Testing Infrastructure
+
+#### Frontend (UI)
 - **Jest + jsdom** environment with comprehensive browser API mocks
 - **React Testing Library** for component testing with custom render utilities
 - **90% coverage threshold** enforced for branches, functions, lines, statements
@@ -46,6 +59,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Test files mirror src structure in `src/__tests__/`
 - **Form testing**: Use `fireEvent.submit(form)` for form submissions, not button clicks
 - **Mocking**: Mock Zustand stores and Chakra UI hooks in component tests
+- **Environment Variables**: Abstracted through `src/config/constants.ts` for Jest compatibility
+
+#### Backend
+- **Pytest** with fixtures for database and authentication testing
+- **Test environment**: Environment variables set at module level in `conftest.py`
+- **CORS testing**: Requires `ALLOWED_ORIGINS` env var set before app import
+- **Test structure**: Tests organized by feature (auth, notes) and type (unit, integration)
+- **Database**: Uses temporary SQLite database for testing with automatic rollback
 
 ## Code Style Guidelines
 
@@ -98,10 +119,17 @@ src/features/{domain}/
 
 ## Docker Configuration
 
+### Frontend (UI)
 - Multi-stage build with Node.js 18
 - Nginx reverse proxy for production
 - Environment-specific nginx configs (HTTP/HTTPS)
 - Health checks and proper container networking
+
+### Backend
+- Multi-stage build with Python 3.13
+- Uses `uv` package manager for fast dependency installation
+- Production deployment requires `--no-editable` flag for `uv sync`
+- Entry point: `python -m app` (runs `app/__main__.py`)
 
 ** DO NOT ADD CLAUDE RELATED COMMIT INFORMATION TO THE COMMIT MESSAGE.**
 ** DO NOT ADD COMMENTS TO GENERATED CODE UNLESS THEY ARE ABSOLUTELY REQUIRED BECAUSE THEY POINT OUT AN IMPORTANT MESSAGE NOT APPARENT FROM THE CODE.**
