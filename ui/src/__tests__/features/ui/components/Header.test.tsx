@@ -1,45 +1,64 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TestProvider } from '../../../__mocks__/testUtils';
+import { BrowserRouter } from 'react-router-dom';
+import { ChakraProvider } from '@chakra-ui/react';
 import Header from '../../../../features/ui/components/Header';
+import { useAuthStore } from '../../../../features/auth/store';
+
+// Mock the auth store
+jest.mock('../../../../features/auth/store', () => ({
+  useAuthStore: jest.fn(),
+}));
+
+const mockUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore>;
+
+// Mock useBreakpointValue hook for UserInfo component
+const mockUseBreakpointValue = jest.fn();
+jest.mock('@chakra-ui/react', () => {
+  const actual = jest.requireActual('@chakra-ui/react');
+  return {
+    ...actual,
+    useBreakpointValue: (...args: any[]) => mockUseBreakpointValue(...args),
+  };
+});
+
+const renderWithProviders = (component: React.ReactNode) => {
+  return render(
+    <ChakraProvider>
+      <BrowserRouter>
+        {component}
+      </BrowserRouter>
+    </ChakraProvider>
+  );
+};
 
 describe('Header Component', () => {
   const toggleSidebar = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseBreakpointValue.mockReturnValue(true); // Default to desktop view
+    mockUseAuthStore.mockReturnValue(false); // Default to not authenticated
   });
 
   it('should render the app title', () => {
-    render(
-      <TestProvider>
-        <Header toggleSidebar={toggleSidebar} />
-      </TestProvider>
-    );
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
     expect(screen.getByAltText(/ParchMark Logo/i)).toBeInTheDocument();
   });
 
   it('should call toggleSidebar when menu button is clicked', () => {
-    render(
-      <TestProvider>
-        <Header toggleSidebar={toggleSidebar} />
-      </TestProvider>
-    );
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
-    // Find the button (might be a button with an icon)
-    const menuButton = screen.getByRole('button');
+    // Find the toggle sidebar button (there should be multiple buttons now due to UserLoginStatus)
+    const menuButton = screen.getByLabelText(/toggle sidebar/i);
     fireEvent.click(menuButton);
 
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
   });
 
   it('should have the correct styling', () => {
-    render(
-      <TestProvider>
-        <Header toggleSidebar={toggleSidebar} />
-      </TestProvider>
-    );
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
@@ -50,14 +69,37 @@ describe('Header Component', () => {
   });
 
   it('should be accessible', () => {
-    render(
-      <TestProvider>
-        <Header toggleSidebar={toggleSidebar} />
-      </TestProvider>
-    );
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
-    // Check if the button has accessible attributes
-    const menuButton = screen.getByRole('button');
+    // Check if the toggle sidebar button has accessible attributes
+    const menuButton = screen.getByLabelText(/toggle sidebar/i);
     expect(menuButton).toHaveAttribute('aria-label');
+  });
+
+  it('should render UserLoginStatus component', () => {
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+
+    // Should render the sign in button when not authenticated
+    const signInButton = screen.getByRole('button', { name: /sign in to your account/i });
+    expect(signInButton).toBeInTheDocument();
+  });
+
+  it('should render user info when authenticated', () => {
+    // Mock authenticated user
+    const mockUser = { username: 'testuser', password: '' };
+    mockUseAuthStore.mockImplementation((selector) => {
+      const state = { 
+        isAuthenticated: true, 
+        user: mockUser, 
+        actions: { logout: jest.fn() } 
+      };
+      return selector(state);
+    });
+
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+
+    // Should render user button when authenticated
+    const userButton = screen.getByRole('button', { name: /user menu for testuser/i });
+    expect(userButton).toBeInTheDocument();
   });
 });

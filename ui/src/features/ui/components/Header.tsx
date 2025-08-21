@@ -1,7 +1,8 @@
-import { Flex, HStack, Heading, IconButton, Box } from '@chakra-ui/react';
+import { Flex, HStack, Heading, IconButton } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
 import { COLORS } from '../../../utils/constants';
+import { UserLoginStatus } from '../../auth/components';
 import Logo from '../../../../assets/images/parchmark.svg';
 
 interface HeaderProps {
@@ -37,7 +38,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
           />
         </Heading>
       </HStack>
-      <Box></Box>
+      <UserLoginStatus />
     </Flex>
   );
 };
