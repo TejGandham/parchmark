@@ -1,138 +1,399 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with the ParchMark codebase.
+
+## Project Overview
+
+**ParchMark** is a full-stack markdown note-taking application with a React frontend and FastAPI backend.
+
+### Tech Stack
+- **Frontend**: React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7
+- **Backend**: FastAPI, Python 3.13, SQLAlchemy, JWT Auth, SQLite
+- **Deployment**: Docker, Nginx, uv package manager
+
+## Directory Structure
+
+```
+parchmark/
+├── ui/                      # Frontend React application
+│   ├── src/                 # Source code
+│   │   ├── features/        # Feature-based organization
+│   │   │   ├── auth/        # Authentication (LoginForm, ProtectedRoute, UserLoginStatus)
+│   │   │   ├── notes/       # Notes management (NoteContent, NoteActions, NotesContainer)
+│   │   │   └── ui/          # UI components (Header, Sidebar, NotFoundPage)
+│   │   ├── services/        # API and markdown services
+│   │   ├── styles/          # Theme and global styles
+│   │   ├── config/          # Constants and environment configuration
+│   │   └── __tests__/       # Jest test files mirroring src structure
+│   ├── public/              # Static assets
+│   └── Dockerfile           # Frontend container configuration
+├── backend/                 # Backend FastAPI application
+│   ├── app/                 # Application code
+│   │   ├── auth/            # Authentication logic (JWT, password hashing)
+│   │   ├── database/        # Database configuration and initialization
+│   │   ├── models/          # SQLAlchemy models (User, Note)
+│   │   ├── routers/         # API endpoints (auth, notes)
+│   │   ├── schemas/         # Pydantic schemas for validation
+│   │   └── main.py          # FastAPI application entry point
+│   ├── tests/               # Pytest test files
+│   └── Dockerfile           # Backend container configuration
+└── docker-compose.yml       # Docker orchestration
+
+```
 
 ## Build & Run Commands
 
 ### Frontend (UI)
-- **Dev server**: `npm run dev` - Starts Vite dev server (auto-opens browser, proxy to API on :8000)
-- **Build**: `npm run build` - Runs TypeScript compiler and builds for production
-- **Lint**: `npm run lint` - Runs ESLint on TypeScript/TSX files
-- **Format**: `npm run format` - Formats code with Prettier
-- **Test**: `npm test` - Runs Jest tests with coverage
-- **Test coverage**: `npm run test:coverage` - Runs tests with detailed coverage report
-- **Test watch**: `npm run test:watch` - Runs tests in watch mode for development
-- **Test single file**: `npm test -- --testNamePattern="ComponentName"` or `npm test -- ComponentName.test.tsx`
+```bash
+cd ui
+npm install                  # Install dependencies
+npm run dev                  # Start Vite dev server (auto-opens browser at :5173)
+npm run build                # Build for production
+npm run lint                 # Run ESLint
+npm run format               # Format with Prettier
+npm test                     # Run Jest tests
+npm run test:coverage        # Generate coverage report
+npm run test:watch           # Watch mode for development
+```
 
 ### Backend
-- **Dev server**: `uv run uvicorn app.main:app --reload` - Starts FastAPI dev server on :8000
-- **Lint**: `uv run ruff check` - Runs Ruff linter on Python files
-- **Format**: `uv run ruff format` - Formats Python code with Ruff
-- **Test**: `uv run pytest` - Runs pytest with coverage
-- **Test single file**: `uv run pytest tests/path/to/test.py`
+```bash
+cd backend
+uv sync                      # Install dependencies
+uv run uvicorn app.main:app --reload  # Start dev server on :8000
+uv run ruff check            # Run Ruff linter
+uv run ruff format           # Format Python code
+uv run pytest                # Run tests with coverage
+uv run pytest tests/unit     # Run unit tests only
+uv run pytest tests/integration  # Run integration tests only
+```
 
 ### Docker
-- **Development**: `docker-compose up -d` - Builds and runs both frontend and backend
-- **Production**: `docker-compose -f docker-compose.production.yml up -d` - Production deployment
+```bash
+# Development
+docker-compose up -d         # Start both services
+docker-compose logs -f       # View logs
+docker-compose down          # Stop services
+
+# Production
+docker-compose -f docker-compose.prod.yml up -d
+```
 
 ## Application Architecture
 
-**ParchMark** is a markdown note-taking application with the following core architecture:
-
 ### Authentication & Security
-- JWT-based authentication with Zustand persistence
-- Protected routes using React Router v7
-- User sessions persist across browser restarts via localStorage
-- API proxy configuration: `/api` routes proxy to `localhost:8000`
+- **JWT-based authentication** with 30-minute token expiration
+- **Bcrypt password hashing** for secure storage
+- **Protected routes** using React Router v7 guards
+- **Persistent sessions** via localStorage (Zustand persist middleware)
+- **CORS configuration** for frontend-backend communication
+- **User isolation**: Each user can only access their own notes
 
-### State Management Pattern
-- **Zustand stores** with Immer middleware for immutable updates
-- **Persistence middleware** for auth and UI state using localStorage
-- **Feature-based stores**: `auth`, `notes`, `ui` each manage their specific domain
-- Router sync hooks maintain URL/state consistency for notes navigation
-- Store actions embedded in store object under `actions` key
+### Frontend Architecture
 
-### Component Architecture
-- **Feature-based organization**: `features/{auth,notes,ui}/components/`
-- **Chakra UI v2** component library with custom theme system and color tokens
-- **React Router v7** for navigation and route protection
-- **FontAwesome icons** for consistent iconography throughout app
-- **React Markdown** with RemarkGFM for markdown rendering with GitHub flavored markdown
+#### State Management (Zustand)
+```typescript
+// Three main stores with specific responsibilities:
+useAuthStore   // Authentication state, login/logout actions
+useNotesStore  // Notes CRUD operations, current note tracking
+useUIStore     // Sidebar state, dark mode toggle
+```
 
-### Testing Infrastructure
+#### Component Organization
+```
+features/{domain}/
+├── components/     # React components
+├── store/          # Zustand store
+├── hooks/          # Custom hooks (e.g., useStoreRouterSync)
+└── styles/         # Feature-specific CSS
+```
 
-#### Frontend (UI)
-- **Jest + jsdom** environment with comprehensive browser API mocks
-- **React Testing Library** for component testing with custom render utilities
-- **90% coverage threshold** enforced for branches, functions, lines, statements
-- **Custom test utilities** with ChakraProvider wrapper in `test-utils/render.tsx`
-- Test files mirror src structure in `src/__tests__/`
-- **Form testing**: Use `fireEvent.submit(form)` for form submissions, not button clicks
-- **Mocking**: Mock Zustand stores and Chakra UI hooks in component tests
-- **Environment Variables**: Abstracted through `src/config/constants.ts` for Jest compatibility
+#### Key Libraries
+- **Chakra UI v2**: Component library with custom theme
+- **React Markdown + RemarkGFM**: Markdown rendering with GitHub flavored markdown
+- **FontAwesome**: Icon system throughout the app
+- **Mermaid**: Diagram rendering support
+- **Immer**: Immutable state updates in Zustand
 
-#### Backend
-- **Pytest** with fixtures for database and authentication testing
-- **Test environment**: Environment variables set at module level in `conftest.py`
-- **CORS testing**: Requires `ALLOWED_ORIGINS` env var set before app import
-- **Test structure**: Tests organized by feature (auth, notes) and type (unit, integration)
-- **Database**: Uses temporary SQLite database for testing with automatic rollback
+### Backend Architecture
+
+#### API Structure
+- **RESTful endpoints** with OpenAPI documentation
+- **Automatic title extraction** from markdown H1 headers
+- **Pydantic models** for request/response validation
+- **SQLAlchemy ORM** for database operations
+- **Dependency injection** for database sessions and auth
+
+#### Database Schema
+```python
+User:
+  - id: Integer (Primary Key)
+  - username: String (Unique)
+  - password_hash: String
+  - created_at: DateTime
+  - notes: Relationship
+
+Note:
+  - id: String (Primary Key, format: "note-{timestamp}")
+  - user_id: Integer (Foreign Key)
+  - title: String
+  - content: Text
+  - created_at: DateTime
+  - updated_at: DateTime
+```
+
+## Testing Infrastructure
+
+### Frontend Testing
+- **Framework**: Jest + React Testing Library
+- **Coverage**: 90% threshold enforced
+- **Environment**: jsdom with browser API mocks
+- **Structure**: Tests in `src/__tests__/` mirroring source
+- **Key Patterns**:
+  ```javascript
+  // Use custom render with providers
+  import { render } from 'test-utils/render';
+  
+  // Mock stores for isolated testing
+  jest.mock('../features/auth/store');
+  
+  // Form submissions
+  fireEvent.submit(form);  // Not button.click()
+  ```
+
+### Backend Testing
+- **Framework**: Pytest with fixtures
+- **Coverage**: 90% threshold enforced
+- **Database**: Temporary SQLite with rollback
+- **Structure**: 
+  - `tests/unit/` - Function and class tests
+  - `tests/integration/` - API endpoint tests
+- **Key Fixtures**:
+  - `client`: TestClient with DB override
+  - `sample_user`: User with hashed password
+  - `auth_headers`: JWT Bearer token headers
 
 ## Code Style Guidelines
 
-- **Typing**: Use strong TypeScript typing; avoid `any` type when possible
-- **Imports**: Group imports by external libs, then internal modules
-- **Components**: Use functional components with React hooks
-- **State**: Use Zustand stores for global state, avoid prop drilling
-- **Styling**: Use Chakra UI components and theme system, avoid inline styles
-- **Icons**: Use FontAwesome React components consistently
-- **Routing**: Use React Router with protected route patterns
-- **Testing**: Write Jest tests mirroring src structure in `__tests__/`
-- **Error Handling**: Use try/catch for async operations with user feedback
+### TypeScript/React
+- **Strong typing**: Avoid `any`, use interfaces
+- **Functional components** with hooks
+- **Zustand stores** for global state
+- **Chakra UI** components, avoid inline styles
+- **Import order**: External libs, then internal
 
-## Allowed URLs
+### Python
+- **Type hints** where beneficial
+- **Docstrings** for functions and classes
+- **Ruff** for linting and formatting
+- **Import sorting** with isort rules
+- **Line length**: 120 characters max
 
-- http://localhost:5173/ - Dev server (Vite)
-- http://localhost:8080/ - Docker deployment
-- http://localhost:8000/ - Backend API (proxied as `/api`)
+## API Endpoints
 
-## Key Implementation Patterns
-
-### Component Structure
+### Authentication
 ```
-src/features/{domain}/
-├── components/           # React components
-├── store/               # Zustand store with actions
-├── hooks/               # Custom hooks (e.g., router sync)
-└── styles/              # Feature-specific CSS
+POST /api/auth/login     - User login (returns JWT)
+POST /api/auth/logout    - User logout
+GET  /api/auth/me        - Current user info
 ```
 
-### Store Pattern
-- Use `create()` with `immer` and `persist` middleware
-- Actions embedded in store object under `actions` key
-- Type stores with clear interfaces for better development experience
-- Persist auth and UI state, notes managed server-side
+### Notes
+```
+GET    /api/notes/       - List user's notes
+POST   /api/notes/       - Create new note
+GET    /api/notes/{id}   - Get specific note
+PUT    /api/notes/{id}   - Update note
+DELETE /api/notes/{id}   - Delete note
+```
 
-### Testing Pattern
-- Tests in `src/__tests__/` mirroring source structure exactly
-- Use custom render utility from `test-utils/render.tsx` with ChakraProvider wrapper
-- Mock browser APIs in `jest.setup.js` for Chakra UI compatibility
-- Test both authenticated and unauthenticated states for auth-related features
-- Use React Testing Library queries and user-event for interactions
-- Coverage targets: 90%+ for statements, branches, functions, and lines
-- Mock `useAuthStore` and `useNotesStore` when testing components that use them directly
+## Environment Variables
 
-### Markdown Processing
-- Central `markdownService.ts` handles title extraction and content formatting
-- Custom CSS in `features/notes/styles/` for markdown rendering
-- Mermaid component for diagram rendering support
+### Frontend (.env)
+```bash
+VITE_API_URL=/api        # API base URL (proxied in dev)
+```
+
+### Backend (.env)
+```bash
+DATABASE_URL=sqlite:///./parchmark.db
+SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
+HOST=0.0.0.0
+PORT=8000
+ENVIRONMENT=development  # or production
+```
 
 ## Docker Configuration
 
-### Frontend (UI)
-- Multi-stage build with Node.js 18
-- Nginx reverse proxy for production
-- Environment-specific nginx configs (HTTP/HTTPS)
-- Health checks and proper container networking
+### Frontend Container
+- **Multi-stage build** with Node.js 23 Alpine
+- **Nginx** for serving static files
+- **Dynamic config** switching (HTTP/HTTPS)
+- **API proxy** to backend service
+
+### Backend Container
+- **Multi-stage build** with Python 3.13
+- **uv package manager** for fast dependency installation
+- **Non-editable install** for production
+- **Module execution**: `python -m app`
+
+### Docker Compose
+- **Networks**: Internal communication between services
+- **Health checks** for monitoring
+- **Environment files**: `.env.docker` for dev, `.env.production` for prod
+- **Volume mounting**: Persistent database storage in production
+
+## Key Implementation Patterns
+
+### Markdown Processing
+```javascript
+// Frontend: Extract title from H1
+extractTitleFromMarkdown(content) // "# Title" -> "Title"
+
+// Backend: Same logic in Python
+extract_title_from_markdown(content)
+```
+
+### Note ID Generation
+```javascript
+// Unique IDs with timestamp
+`note-${Date.now()}`  // "note-1703123456789"
+```
+
+### Store Actions Pattern
+```javascript
+// Actions embedded in store
+const store = create((set) => ({
+  state: value,
+  actions: {
+    doSomething: () => set(...)
+  }
+}));
+```
+
+### Router Sync Hook
+```javascript
+// Sync URL params with store state
+useStoreRouterSync() // In NotesContainer
+```
+
+## Development Workflow
+
+### Local Development
+1. Start backend: `cd backend && uv run uvicorn app.main:app --reload`
+2. Start frontend: `cd ui && npm run dev`
+3. Access app at `http://localhost:5173`
+4. API docs at `http://localhost:8000/docs`
+
+### Testing Changes
+1. Frontend: `npm test` or `npm run test:watch`
+2. Backend: `uv run pytest` or specific tests
+3. Check coverage reports in `coverage_html/`
+
+### Docker Development
+1. Build: `docker-compose build`
+2. Run: `docker-compose up -d`
+3. Access at `http://localhost:8080`
+4. Logs: `docker-compose logs -f`
+
+## Common Tasks
+
+### Add a New Feature
+1. Create feature directory: `features/newfeature/`
+2. Add components, store, hooks as needed
+3. Write tests in `__tests__/features/newfeature/`
+4. Update router if new routes needed
+5. Add backend endpoints if required
+
+### Update Dependencies
+- Frontend: `npm update` then test thoroughly
+- Backend: `uv lock --upgrade` then `uv sync`
+
+### Database Migrations
+- Currently using SQLite with auto-migration
+- For production, consider Alembic for migrations
+
+## Security Considerations
+
+- **Never commit** `.env` files with real secrets
+- **JWT secrets** must be strong and unique in production
+- **Password requirements** enforced at API level
+- **CORS origins** strictly configured
+- **SQL injection** prevented via SQLAlchemy ORM
+- **XSS protection** via React's built-in escaping
+
+## Performance Optimization
+
+### Frontend
+- **Code splitting** with React.lazy()
+- **Memoization** where beneficial
+- **Virtualization** for long lists (if needed)
+- **Bundle analysis** with Vite
 
 ### Backend
-- Multi-stage build with Python 3.13
-- Uses `uv` package manager for fast dependency installation
-- Production deployment requires `--no-editable` flag for `uv sync`
-- Entry point: `python -m app` (runs `app/__main__.py`)
+- **Database indexes** on frequently queried fields
+- **Connection pooling** for production
+- **Async operations** throughout
+- **Response caching** where appropriate
 
-** DO NOT ADD CLAUDE RELATED COMMIT INFORMATION TO THE COMMIT MESSAGE.**
-** DO NOT ADD COMMENTS TO GENERATED CODE UNLESS THEY ARE ABSOLUTELY REQUIRED BECAUSE THEY POINT OUT AN IMPORTANT MESSAGE NOT APPARENT FROM THE CODE.**
-** ASSUME NPM RUN DEV IS ALREADY RUNNING WHEN MAKING CHANGES.**
-** THIS IS IMPORTANT Always add commit date for commits to be a few days after the last committed commit date. NO EXCEPTIONS.**
-** DO NOT ADD CLAUDE RELATED COMMIT INFORMATION TO THE COMMIT MESSAGE.**
+## Troubleshooting
+
+### Common Issues
+
+#### Frontend won't start
+- Check Node version (18+)
+- Clear node_modules and reinstall
+- Check for port conflicts (5173)
+
+#### Backend API errors
+- Check Python version (3.13)
+- Verify .env file exists
+- Check database file permissions
+
+#### Docker issues
+- Ensure Docker daemon running
+- Check port availability (8080, 8000)
+- Review container logs
+
+#### Test failures
+- Mock environment variables properly
+- Clear test database between runs
+- Check for timing issues in async tests
+
+## Allowed URLs
+
+Development:
+- http://localhost:5173/ - Frontend dev server
+- http://localhost:8000/ - Backend API
+- http://localhost:8080/ - Docker deployment
+
+Production:
+- Configure based on deployment environment
+
+## Important Guidelines
+
+1. **Always test** before committing changes
+2. **Follow existing patterns** in the codebase
+3. **Write tests** for new functionality
+4. **Update documentation** when adding features
+5. **Use strong typing** in TypeScript
+6. **Handle errors gracefully** with user feedback
+7. **Keep components focused** and reusable
+8. **Optimize for readability** over cleverness
+
+## Additional Notes
+
+- The application uses a **feature-first** organization pattern
+- **State persistence** is handled via localStorage for auth/UI
+- **Markdown title extraction** is synchronized between frontend and backend
+- **Real-time updates** are not implemented (consider WebSockets for future)
+- **File uploads** are not supported (markdown text only)
+- **Multi-language support** is not implemented
+- **Backup functionality** should be added for production use
+
+---
+
+Last Updated: 2025-08-23
