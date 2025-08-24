@@ -3,7 +3,7 @@ Unit tests for authentication utilities (app.auth.auth).
 Tests JWT token creation/validation, password hashing, and user authentication.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from unittest.mock import Mock, patch
 
 import pytest
@@ -117,10 +117,10 @@ class TestJWTTokens:
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         exp_timestamp = payload["exp"]
-        exp_datetime = datetime.utcfromtimestamp(exp_timestamp)
+        exp_datetime = datetime.fromtimestamp(exp_timestamp, UTC)
 
         # Check that expiration is approximately 60 minutes from now
-        expected_exp = datetime.utcnow() + expires_delta
+        expected_exp = datetime.now(UTC) + expires_delta
         assert abs((exp_datetime - expected_exp).total_seconds()) < 5
 
     def test_create_access_token_default_expiration(self):
@@ -130,10 +130,10 @@ class TestJWTTokens:
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         exp_timestamp = payload["exp"]
-        exp_datetime = datetime.utcfromtimestamp(exp_timestamp)
+        exp_datetime = datetime.fromtimestamp(exp_timestamp, UTC)
 
         # Check that expiration is approximately ACCESS_TOKEN_EXPIRE_MINUTES from now
-        expected_exp = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expected_exp = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         assert abs((exp_datetime - expected_exp).total_seconds()) < 5
 
     def test_verify_token_valid(self):
