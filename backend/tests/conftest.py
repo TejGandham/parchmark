@@ -39,7 +39,7 @@ from tests.factories import (
 def test_db_engine():
     """Create a PostgreSQL test database for testing."""
     # Use PostgreSQL with testcontainers (requires Docker)
-    with PostgresContainer("postgres:16-alpine") as postgres:
+    with PostgresContainer("postgres:17.2-alpine") as postgres:
         database_url = postgres.get_connection_url()
         engine = create_engine(database_url)
         Base.metadata.create_all(bind=engine)

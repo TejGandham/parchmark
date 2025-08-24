@@ -79,7 +79,7 @@ The backend API will be available at `http://localhost:8000`
 - API Documentation: `http://localhost:8000/docs`
 - Alternative Docs: `http://localhost:8000/redoc`
 
-#### 3. Frontend Setup
+#### 4. Frontend Setup
 
 Open a new terminal window:
 
@@ -113,7 +113,7 @@ The database initialization creates two default users:
 - **Username**: `demouser`
 - **Password**: `demopass`
 
-### Option 2: Docker Deployment
+### Option 2: Full Docker Deployment
 
 #### 1. Clone and Setup
 

@@ -7,9 +7,10 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
 ### Prerequisites
 
 - Python 3.13 or higher
-- PostgreSQL 14+ (REQUIRED - SQLite is NOT supported)
-- Docker (required for running tests with testcontainers)
+- Docker and Docker Compose (REQUIRED for PostgreSQL and tests)
 - [uv](https://docs.astral.sh/uv/) - Fast Python package manager
+
+Note: PostgreSQL runs in a Docker container. No local installation needed.
 
 ### Installation & Setup
 
@@ -33,10 +34,13 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
    uv run pre-commit install
    ```
 
-5. **Set up PostgreSQL database:**
+5. **Start PostgreSQL in Docker:**
    ```bash
-   # Create the database
-   createdb parchmark
+   # From the project root directory
+   docker compose -f docker-compose.dev.yml up -d
+   
+   # Or if you're in the backend directory
+   docker compose -f ../docker-compose.dev.yml up -d
    ```
 
 6. **Configure environment variables:**
@@ -297,7 +301,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Database Configuration (PostgreSQL REQUIRED)
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parchmark
+DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
 
 # Server Configuration
 HOST=0.0.0.0

@@ -43,10 +43,11 @@ parchmark/
 
 ## Prerequisites
 
-- **PostgreSQL 14+** (required for all environments)
-- **Docker** (required for running tests with testcontainers)
+- **Docker & Docker Compose** (required for PostgreSQL and tests)
 - **Node.js 18+** for frontend
 - **Python 3.13** for backend
+
+Note: PostgreSQL runs exclusively in Docker containers. No local PostgreSQL installation is needed.
 
 ## Build & Run Commands
 
@@ -65,6 +66,10 @@ npm run test:watch           # Watch mode for development
 
 ### Backend
 ```bash
+# First, start PostgreSQL container (from project root)
+docker compose -f docker-compose.dev.yml up -d
+
+# Then start backend
 cd backend
 uv sync                      # Install dependencies
 uv run uvicorn app.main:app --reload  # Start dev server on :8000
@@ -224,8 +229,8 @@ VITE_API_URL=/api        # API base URL (proxied in dev)
 
 ### Backend (.env)
 ```bash
-# PostgreSQL is REQUIRED (no SQLite support)
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parchmark
+# PostgreSQL in Docker container (no local install needed)
+DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
