@@ -8,7 +8,7 @@ This file provides comprehensive guidance to Claude Code (claude.ai/code) when w
 
 ### Tech Stack
 - **Frontend**: React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7
-- **Backend**: FastAPI, Python 3.13, SQLAlchemy, JWT Auth, SQLite
+- **Backend**: FastAPI, Python 3.13, SQLAlchemy, JWT Auth, PostgreSQL
 - **Deployment**: Docker, Nginx, uv package manager
 
 ## Directory Structure
@@ -164,7 +164,7 @@ Note:
 ### Backend Testing
 - **Framework**: Pytest with fixtures
 - **Coverage**: 90% threshold enforced
-- **Database**: Temporary SQLite with rollback
+- **Database**: Temporary PostgreSQL with rollback
 - **Structure**: 
   - `tests/unit/` - Function and class tests
   - `tests/integration/` - API endpoint tests
@@ -216,7 +216,7 @@ VITE_API_URL=/api        # API base URL (proxied in dev)
 
 ### Backend (.env)
 ```bash
-DATABASE_URL=sqlite:///./parchmark.db
+DATABASE_URL=postgresql://username:password@localhost:5432/parchmark
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -313,8 +313,8 @@ useStoreRouterSync() // In NotesContainer
 - Backend: `uv lock --upgrade` then `uv sync`
 
 ### Database Migrations
-- Currently using SQLite with auto-migration
-- For production, consider Alembic for migrations
+- Currently using PostgreSQL with auto-migration
+- For production, use Alembic for migrations
 
 ## Security Considerations
 
@@ -351,7 +351,7 @@ useStoreRouterSync() // In NotesContainer
 #### Backend API errors
 - Check Python version (3.13)
 - Verify .env file exists
-- Check database file permissions
+- Check database connection and permissions
 
 #### Docker issues
 - Ensure Docker daemon running

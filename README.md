@@ -48,7 +48,7 @@ uv sync
 
 # Create .env file
 cat > .env << EOF
-DATABASE_URL=sqlite:///./parchmark.db
+DATABASE_URL=postgresql://username:password@localhost:5432/parchmark
 SECRET_KEY=your-secret-key-here-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -117,7 +117,7 @@ cd parchmark
 Backend environment file (`backend/.env.docker`):
 ```bash
 cat > backend/.env.docker << EOF
-DATABASE_URL=sqlite:///./data/parchmark.db
+DATABASE_URL=postgresql://username:password@postgres:5432/parchmark
 SECRET_KEY=your-secret-key-here-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -269,7 +269,7 @@ uv run python scripts/manage_users.py create-admin
 
 ```bash
 cd backend
-rm parchmark.db  # Delete existing database
+# Drop and recreate PostgreSQL database tables
 uv run python -m app.database.init_db  # Recreate
 ```
 
@@ -287,7 +287,7 @@ uv run python -m app.database.init_db  # Recreate
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy** ORM with SQLite database
+- **SQLAlchemy** ORM with PostgreSQL database
 - **Pydantic** for data validation
 - **JWT** for stateless authentication
 - **Bcrypt** for password hashing
@@ -387,7 +387,7 @@ Create `.env.production` files:
 
 Backend (`backend/.env.production`):
 ```env
-DATABASE_URL=sqlite:///./data/parchmark.db
+DATABASE_URL=postgresql://username:password@postgres:5432/parchmark
 SECRET_KEY=strong-random-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -415,7 +415,7 @@ USE_HTTPS=true
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `sqlite:///./parchmark.db` |
+| `DATABASE_URL` | Database connection string | `postgresql://username:password@localhost:5432/parchmark` |
 | `SECRET_KEY` | JWT signing key | (must be set) |
 | `ALGORITHM` | JWT algorithm | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration | `30` |
@@ -470,11 +470,12 @@ lsof -i :8000  # Backend
 kill -9 PID
 ```
 
-#### Database Lock Error
+#### Database Connection Error
 ```bash
-# Remove database lock
-cd backend
-rm parchmark.db-journal
+# Check PostgreSQL service status
+sudo systemctl status postgresql
+# Restart if needed
+sudo systemctl restart postgresql
 ```
 
 #### Docker Build Fails

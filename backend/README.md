@@ -288,7 +288,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Database Configuration
-DATABASE_URL=sqlite:///./parchmark.db
+DATABASE_URL=postgresql://username:password@localhost:5432/parchmark
 
 # Server Configuration
 HOST=0.0.0.0
