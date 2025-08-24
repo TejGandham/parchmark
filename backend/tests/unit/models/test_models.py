@@ -92,14 +92,10 @@ class TestUserModel:
         user = User(username=too_long_username, password_hash=get_password_hash("password123"))
         test_db_session.add(user)
 
-        # SQLite might allow this, so we'll just test it doesn't crash
-        try:
+        # PostgreSQL will enforce column length constraint
+        with pytest.raises(Exception):  # Could be DataError or other database-specific error
             test_db_session.commit()
-            # If it succeeds, check username was stored (might be truncated)
-            assert len(user.username) <= 51
-        except (IntegrityError, Exception):
-            # This is also acceptable behavior
-            test_db_session.rollback()
+        test_db_session.rollback()
 
     def test_user_password_hash_length(self, test_db_session: Session):
         """Test password hash storage."""
@@ -223,14 +219,10 @@ class TestNoteModel:
         )
         test_db_session.add(note)
 
-        # SQLite with foreign keys disabled might allow this
-        try:
+        # PostgreSQL will enforce foreign key constraint
+        with pytest.raises(IntegrityError):
             test_db_session.commit()
-            # If it succeeds, that's okay for SQLite
-            assert note.user_id == 99999
-        except IntegrityError:
-            # This is the expected behavior with foreign keys enabled
-            test_db_session.rollback()
+        test_db_session.rollback()
 
     def test_note_created_at_auto_generated(self, test_db_session: Session, sample_user: User):
         """Test that created_at is automatically generated."""
