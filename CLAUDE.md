@@ -41,6 +41,13 @@ parchmark/
 
 ```
 
+## Prerequisites
+
+- **PostgreSQL 14+** (required for all environments)
+- **Docker** (required for running tests with testcontainers)
+- **Node.js 18+** for frontend
+- **Python 3.13** for backend
+
 ## Build & Run Commands
 
 ### Frontend (UI)
@@ -164,7 +171,8 @@ Note:
 ### Backend Testing
 - **Framework**: Pytest with fixtures
 - **Coverage**: 90% threshold enforced
-- **Database**: Temporary PostgreSQL with rollback
+- **Database**: PostgreSQL via testcontainers (requires Docker)
+- **Test Isolation**: TRUNCATE CASCADE before/after each test
 - **Structure**: 
   - `tests/unit/` - Function and class tests
   - `tests/integration/` - API endpoint tests
@@ -216,7 +224,8 @@ VITE_API_URL=/api        # API base URL (proxied in dev)
 
 ### Backend (.env)
 ```bash
-DATABASE_URL=postgresql://username:password@localhost:5432/parchmark
+# PostgreSQL is REQUIRED (no SQLite support)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parchmark
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -313,7 +322,8 @@ useStoreRouterSync() // In NotesContainer
 - Backend: `uv lock --upgrade` then `uv sync`
 
 ### Database Migrations
-- Currently using PostgreSQL with auto-migration
+- PostgreSQL is the only supported database (SQLite removed)
+- Currently using auto-migration via SQLAlchemy
 - For production, use Alembic for migrations
 
 ## Security Considerations

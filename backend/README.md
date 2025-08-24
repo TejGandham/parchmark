@@ -7,6 +7,8 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
 ### Prerequisites
 
 - Python 3.13 or higher
+- PostgreSQL 14+ (REQUIRED - SQLite is NOT supported)
+- Docker (required for running tests with testcontainers)
 - [uv](https://docs.astral.sh/uv/) - Fast Python package manager
 
 ### Installation & Setup
@@ -31,11 +33,18 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
    uv run pre-commit install
    ```
 
-5. **Configure environment variables:**
-   - Copy `.env` file and update the `SECRET_KEY` for production use
-   - The default configuration works for development
+5. **Set up PostgreSQL database:**
+   ```bash
+   # Create the database
+   createdb parchmark
+   ```
 
-6. **Start the server:**
+6. **Configure environment variables:**
+   - Copy `.env.example` to `.env` and update the `DATABASE_URL` if needed
+   - Default uses: `postgresql://postgres:postgres@localhost:5432/parchmark`
+   - Update the `SECRET_KEY` for production use
+
+7. **Start the server:**
    ```bash
    make run
    # or
@@ -59,7 +68,7 @@ backend/
 │   │   └── dependencies.py  # Authentication dependencies
 │   ├── database/
 │   │   ├── __init__.py
-│   │   ├── database.py      # SQLAlchemy configuration
+│   │   ├── database.py      # PostgreSQL configuration
 │   │   ├── init_db.py       # Database initialization
 │   │   └── seed.py          # Database seeding utilities
 │   ├── models/
@@ -287,8 +296,8 @@ SECRET_KEY=your-secret-key-here-change-in-production-32-chars-minimum-for-securi
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost:5432/parchmark
+# Database Configuration (PostgreSQL REQUIRED)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parchmark
 
 # Server Configuration
 HOST=0.0.0.0
@@ -352,6 +361,8 @@ Common HTTP status codes:
 
 ## 🗄️ Database
 
+**PostgreSQL is the only supported database.** SQLite support has been removed.
+
 ### Models
 
 **User Model:**
@@ -402,6 +413,8 @@ This starts the server with:
 - Database auto-initialization
 
 ## 🧪 Testing
+
+**Important:** Tests require PostgreSQL and Docker to be running. The test suite uses testcontainers to create isolated PostgreSQL instances for each test.
 
 ### Running Tests
 
@@ -503,7 +516,7 @@ uv run pre-commit run --all-files
 - Change the default `SECRET_KEY` in production
 - Use HTTPS in production
 - Configure proper CORS origins
-- Consider using a production database (PostgreSQL, MySQL)
+- Ensure PostgreSQL is properly configured and secured
 - Implement rate limiting for production use
 - Set up proper logging and monitoring
 

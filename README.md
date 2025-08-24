@@ -22,7 +22,8 @@ A modern, full-stack markdown note-taking application built with React and FastA
 
 - **Node.js** 18+ and npm
 - **Python** 3.13+
-- **Docker** and Docker Compose (optional)
+- **PostgreSQL** 14+ (REQUIRED - SQLite is not supported)
+- **Docker** and Docker Compose (required for testing and optional for deployment)
 - **Git**
 
 ### Option 1: Local Development
@@ -43,12 +44,21 @@ cd backend
 # Install uv package manager (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# Ensure PostgreSQL is running
+# On Ubuntu/Debian:
+sudo systemctl start postgresql
+# On macOS with Homebrew:
+brew services start postgresql@14
+
+# Create the database
+createdb parchmark
+
 # Install dependencies
 uv sync
 
 # Create .env file
 cat > .env << EOF
-DATABASE_URL=postgresql://username:password@localhost:5432/parchmark
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parchmark
 SECRET_KEY=your-secret-key-here-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -251,6 +261,8 @@ uv run pytest -m "auth"                 # Run marked tests
 
 ### Database Management
 
+**Note: PostgreSQL is required. SQLite is not supported.**
+
 #### Initialize Database
 
 ```bash
@@ -269,7 +281,7 @@ uv run python scripts/manage_users.py create-admin
 
 ```bash
 cd backend
-# Drop and recreate PostgreSQL database tables
+# Drop and recreate PostgreSQL tables (data will be lost)
 uv run python -m app.database.init_db  # Recreate
 ```
 
@@ -287,7 +299,7 @@ uv run python -m app.database.init_db  # Recreate
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy** ORM with PostgreSQL database
+- **SQLAlchemy** ORM with PostgreSQL database (exclusive)
 - **Pydantic** for data validation
 - **JWT** for stateless authentication
 - **Bcrypt** for password hashing
@@ -297,7 +309,7 @@ uv run python -m app.database.init_db  # Recreate
 
 1. **Feature-First Organization**: Code organized by features rather than file types
 2. **Store Pattern**: Centralized state management with Zustand
-3. **Repository Pattern**: Database operations abstracted in models
+3. **Repository Pattern**: Database operations abstracted in models (PostgreSQL-only)
 4. **Dependency Injection**: FastAPI's dependency system for clean code
 5. **Type Safety**: Full TypeScript and Python type hints
 
@@ -432,6 +444,8 @@ The frontend uses Nginx for production serving. Configuration files:
 
 ## 🧪 Testing
 
+**Important:** Backend tests require PostgreSQL and Docker to be running. Tests use testcontainers to create isolated PostgreSQL instances.
+
 ### Test Coverage Requirements
 
 Both frontend and backend enforce 90% test coverage:
@@ -472,6 +486,7 @@ kill -9 PID
 
 #### Database Connection Error
 ```bash
+# PostgreSQL is REQUIRED - ensure it's installed and running
 # Check PostgreSQL service status
 sudo systemctl status postgresql
 # Restart if needed
