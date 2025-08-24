@@ -616,7 +616,7 @@ class TestNotesRouterErrorHandling:
                 method,
                 endpoint,
                 headers=auth_headers,
-                data="invalid json",
+                content="invalid json",
                 # Note: not setting content-type to application/json
             )
 
