@@ -53,10 +53,20 @@ cd backend
 # Install dependencies
 uv sync
 
-# Create .env file
+# Generate a secure 128-bit secret key (choose one method):
+# Method 1: Using Python
+SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(16))")
+
+# Method 2: Using OpenSSL
+# SECRET_KEY=$(openssl rand -hex 16)
+
+# Method 3: Using /dev/urandom (Linux/Mac)
+# SECRET_KEY=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+
+# Create .env file with the generated secret key
 cat > .env << EOF
 DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
-SECRET_KEY=your-secret-key-here-change-in-production
+SECRET_KEY=$SECRET_KEY
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
