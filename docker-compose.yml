@@ -1,6 +1,10 @@
+# Full Stack Docker Compose - All services in containers
+# Use this for running the entire application in Docker
+# For development with only PostgreSQL in container, use docker-compose.dev.yml
+
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17.2-alpine
     container_name: parchmark-postgres
     environment:
       POSTGRES_USER: parchmark_user

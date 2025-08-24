@@ -1,0 +1,34 @@
+# Development Docker Compose - PostgreSQL only
+# This file runs only PostgreSQL in a container for local development
+# The backend and frontend run directly on the host
+
+services:
+  postgres:
+    image: postgres:17.2-alpine
+    container_name: parchmark-postgres-dev
+    environment:
+      POSTGRES_USER: parchmark_user
+      POSTGRES_PASSWORD: parchmark_password
+      POSTGRES_DB: parchmark_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parchmark_user -d parchmark_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - parchmark-dev
+
+volumes:
+  postgres_dev_data:
+    name: parchmark_postgres_dev_data
+
+networks:
+  parchmark-dev:
+    name: parchmark-dev
+    driver: bridge
