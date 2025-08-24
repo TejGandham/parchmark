@@ -420,11 +420,23 @@ Create `.env.production` files:
 Backend (`backend/.env.production`):
 ```env
 DATABASE_URL=postgresql://username:password@postgres:5432/parchmark
-SECRET_KEY=strong-random-secret-key-here
+SECRET_KEY=<generate-128-bit-key-see-instructions-below>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ALLOWED_ORIGINS=https://notes.example.com
 ENVIRONMENT=production
+```
+
+**Generating a Secure 128-bit Secret Key:**
+```bash
+# Method 1: Python (recommended)
+python -c "import secrets; print(secrets.token_hex(16))"
+
+# Method 2: OpenSSL
+openssl rand -hex 16
+
+# Method 3: /dev/urandom (Linux/Mac)
+head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'
 ```
 
 Frontend (`ui/.env.production`):
