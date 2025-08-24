@@ -1,4 +1,44 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: parchmark-postgres-prod
+    environment:
+      POSTGRES_USER: parchmark_user
+      POSTGRES_PASSWORD: parchmark_password
+      POSTGRES_DB: parchmark_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parchmark_user -d parchmark_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - parchmark-internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: parchmark-backend
+    env_file:
+      - ./backend/.env.production
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - proxiable
+      - parchmark-internal
+    labels:
+      # Nginx Proxy Manager labels for API
+      - "npm.enable=true"
+      - "npm.host=assets-api.engen.tech"
+      - "npm.port=8000"
+      - "npm.proto=http"
+
   frontend:
     build:
       context: ./ui
@@ -21,29 +61,8 @@ services:
       - "npm.port=80"
       - "npm.proto=http"
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: parchmark-backend
-    env_file:
-      - ./backend/.env.production
-    restart: unless-stopped
-    volumes:
-      # Persist database and uploads
-      - parchmark-data:/app/data
-    networks:
-      - proxiable
-      - parchmark-internal
-    labels:
-      # Nginx Proxy Manager labels for API
-      - "npm.enable=true"
-      - "npm.host=assets-api.engen.tech"
-      - "npm.port=8000"
-      - "npm.proto=http"
-
 volumes:
-  parchmark-data:
+  postgres_data:
 
 networks:
   # Connect to existing proxiable network for Nginx Proxy Manager

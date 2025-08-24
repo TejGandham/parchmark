@@ -14,10 +14,7 @@ from app.models.models import Note, User
 logger = logging.getLogger(__name__)
 
 # Default user credentials (matches frontend demo user)
-DEFAULT_USERS = [
-    {"username": "demouser", "password": "demopass"},
-    {"username": "testuser", "password": "testpass123"}
-]
+DEFAULT_USERS = [{"username": "demouser", "password": "demopass"}, {"username": "testuser", "password": "testpass123"}]
 
 # Default notes content (matches frontend DEFAULT_NOTES from constants.ts)
 DEFAULT_NOTES_DATA = [
@@ -59,24 +56,24 @@ DEFAULT_NOTES_DATA = [
             "## System Architecture Diagram\n\n"
             "```mermaid\n"
             "graph TB\n"
-            "    subgraph Client[\"Client Browser\"]\n"
+            '    subgraph Client["Client Browser"]\n'
             "        UI[React UI<br/>TypeScript + Vite]\n"
             "        Store[Zustand Store<br/>State Management]\n"
             "    end\n"
             "    \n"
-            "    subgraph Frontend[\"Frontend Layer\"]\n"
+            '    subgraph Frontend["Frontend Layer"]\n'
             "        Nginx[Nginx<br/>Static Server]\n"
             "        Router[React Router v7<br/>Navigation]\n"
             "    end\n"
             "    \n"
-            "    subgraph Backend[\"Backend API\"]\n"
+            '    subgraph Backend["Backend API"]\n'
             "        FastAPI[FastAPI<br/>REST API]\n"
             "        Auth[JWT Auth<br/>Bcrypt]\n"
             "        ORM[SQLAlchemy<br/>ORM]\n"
             "    end\n"
             "    \n"
-            "    subgraph Data[\"Data Layer\"]\n"
-            "        DB[(SQLite<br/>Database)]\n"
+            '    subgraph Data["Data Layer"]\n'
+            "        DB[(PostgreSQL<br/>Database)]\n"
             "    end\n"
             "    \n"
             "    UI --> Store\n"
@@ -104,7 +101,7 @@ DEFAULT_NOTES_DATA = [
             "- **Python 3.13** - Runtime\n"
             "- **SQLAlchemy** - ORM\n"
             "- **JWT** - Authentication\n"
-            "- **SQLite** - Database\n\n"
+            "- **PostgreSQL** - Database\n\n"
             "### DevOps\n"
             "- **Docker** - Containerization\n"
             "- **Nginx** - Reverse proxy\n"
@@ -125,7 +122,7 @@ def create_default_users(db: Session) -> list[User]:
         list[User]: List of created user objects
     """
     created_users = []
-    
+
     for user_data in DEFAULT_USERS:
         # Check if user already exists
         existing_user = db.query(User).filter(User.username == user_data["username"]).first()
@@ -141,14 +138,14 @@ def create_default_users(db: Session) -> list[User]:
         db.add(default_user)
         created_users.append(default_user)
         logger.info(f"Creating default user: {user_data['username']}")
-    
+
     db.commit()
-    
+
     # Refresh all users
     for user in created_users:
         db.refresh(user)
         logger.info(f"Created default user: {user.username}")
-    
+
     return created_users
 
 
@@ -280,7 +277,7 @@ def check_seeding_status() -> dict:
                 if not user:
                     users_exist = False
                     break
-            
+
             # Check for default notes on first user (demouser)
             first_user = db.query(User).filter(User.username == DEFAULT_USERS[0]["username"]).first()
             notes_count = 0

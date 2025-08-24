@@ -4,13 +4,13 @@ Provides common test fixtures, database setup, and authentication utilities.
 """
 
 import os
-import tempfile
 from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from testcontainers.postgres import PostgresContainer
 
 # Set test environment variables BEFORE importing app
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
@@ -37,38 +37,38 @@ from tests.factories import (
 
 @pytest.fixture(scope="session")
 def test_db_engine():
-    """Create a temporary SQLite database for testing."""
-    # Create temporary database file
-    db_fd, db_path = tempfile.mkstemp(suffix=".db")
-    database_url = f"sqlite:///{db_path}"
-
-    # Create engine for test database
-    engine = create_engine(database_url, connect_args={"check_same_thread": False})
-
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
-
-    yield engine
-
-    # Cleanup
-    os.close(db_fd)
-    os.unlink(db_path)
+    """Create a PostgreSQL test database for testing."""
+    # Use PostgreSQL with testcontainers (requires Docker)
+    with PostgresContainer("postgres:16-alpine") as postgres:
+        database_url = postgres.get_connection_url()
+        engine = create_engine(database_url)
+        Base.metadata.create_all(bind=engine)
+        yield engine
 
 
 @pytest.fixture(scope="function")
 def test_db_session(test_db_engine):
-    """Create a database session for testing with automatic rollback."""
+    """Create a database session for testing with automatic cleanup."""
+    from sqlalchemy import text
+
+    # Clean tables before each test to ensure clean state
+    with test_db_engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
 
-    connection = test_db_engine.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+    # Create a new session for the test
+    session = TestingSessionLocal()
 
-    yield session
+    try:
+        yield session
+    finally:
+        # Ensure session is closed
+        session.close()
 
-    session.close()
-    transaction.rollback()
-    connection.close()
+        # Clean up all data after the test
+        with test_db_engine.begin() as conn:
+            conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture(scope="function")

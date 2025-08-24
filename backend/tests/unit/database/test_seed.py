@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.database.seed import (
     DEFAULT_NOTES_DATA,
-    DEFAULT_USER,
+    DEFAULT_USERS,
     check_seeding_status,
     create_default_notes,
-    create_default_user,
+    create_default_users,
     reset_and_seed_database,
     seed_database,
 )
@@ -23,13 +23,19 @@ from app.models.models import Note, User
 class TestDefaultData:
     """Test default data constants."""
 
-    def test_default_user_data(self):
-        """Test default user data configuration."""
-        assert isinstance(DEFAULT_USER, dict)
-        assert "username" in DEFAULT_USER
-        assert "password" in DEFAULT_USER
-        assert DEFAULT_USER["username"] == "demouser"
-        assert DEFAULT_USER["password"] == "demopass"
+    def test_default_users_data(self):
+        """Test default users data configuration."""
+        assert isinstance(DEFAULT_USERS, list)
+        assert len(DEFAULT_USERS) >= 1
+
+        for user_data in DEFAULT_USERS:
+            assert isinstance(user_data, dict)
+            assert "username" in user_data
+            assert "password" in user_data
+
+        # Check first default user
+        assert DEFAULT_USERS[0]["username"] == "demouser"
+        assert DEFAULT_USERS[0]["password"] == "demopass"
 
     def test_default_notes_data(self):
         """Test default notes data configuration."""
@@ -51,69 +57,79 @@ class TestDefaultData:
         assert len(ids) == len(set(ids))  # All IDs should be unique
 
 
-class TestCreateDefaultUser:
-    """Test create_default_user function."""
+class TestCreateDefaultUsers:
+    """Test create_default_users function."""
 
-    def test_create_default_user_success(self, test_db_session: Session):
-        """Test successful default user creation."""
-        user = create_default_user(test_db_session)
+    def test_create_default_users_success(self, test_db_session: Session):
+        """Test successful default users creation."""
+        users = create_default_users(test_db_session)
 
-        assert isinstance(user, User)
-        assert user.username == DEFAULT_USER["username"]
-        assert user.password_hash is not None
-        assert len(user.password_hash) > 0
-        assert user.id is not None
+        assert isinstance(users, list)
+        assert len(users) == len(DEFAULT_USERS)
 
-        # Verify user exists in database
-        db_user = test_db_session.query(User).filter(User.username == DEFAULT_USER["username"]).first()
-        assert db_user is not None
-        assert db_user.id == user.id
+        for i, user in enumerate(users):
+            assert isinstance(user, User)
+            assert user.username == DEFAULT_USERS[i]["username"]
+            assert user.password_hash is not None
+            assert len(user.password_hash) > 0
+            assert user.id is not None
 
-    def test_create_default_user_already_exists(self, test_db_session: Session):
-        """Test creating default user when user already exists."""
-        # Create user first time
-        user1 = create_default_user(test_db_session)
+            # Verify user exists in database
+            db_user = test_db_session.query(User).filter(User.username == DEFAULT_USERS[i]["username"]).first()
+            assert db_user is not None
+            assert db_user.id == user.id
 
-        # Create user second time
-        user2 = create_default_user(test_db_session)
+    def test_create_default_users_already_exist(self, test_db_session: Session):
+        """Test creating default users when users already exist."""
+        # Create users first time
+        users1 = create_default_users(test_db_session)
 
-        # Should return the existing user
-        assert user1.id == user2.id
-        assert user1.username == user2.username
+        # Create users second time
+        users2 = create_default_users(test_db_session)
 
-        # Should only be one user in database
-        user_count = test_db_session.query(User).filter(User.username == DEFAULT_USER["username"]).count()
-        assert user_count == 1
+        # Should return the existing users
+        assert len(users1) == len(users2)
+        for user1, user2 in zip(users1, users2, strict=False):
+            assert user1.id == user2.id
+            assert user1.username == user2.username
 
-    def test_create_default_user_password_hashing(self, test_db_session: Session):
-        """Test that default user password is properly hashed."""
+        # Should only have expected number of users in database
+        for user_data in DEFAULT_USERS:
+            user_count = test_db_session.query(User).filter(User.username == user_data["username"]).count()
+            assert user_count == 1
+
+    def test_create_default_users_password_hashing(self, test_db_session: Session):
+        """Test that default users passwords are properly hashed."""
         from app.auth.auth import verify_password
 
-        user = create_default_user(test_db_session)
+        users = create_default_users(test_db_session)
 
-        # Password should be hashed, not plain text
-        assert user.password_hash != DEFAULT_USER["password"]
+        for i, user in enumerate(users):
+            # Password should be hashed, not plain text
+            assert user.password_hash != DEFAULT_USERS[i]["password"]
 
-        # But should verify correctly
-        assert verify_password(DEFAULT_USER["password"], user.password_hash)
+            # But should verify correctly
+            assert verify_password(DEFAULT_USERS[i]["password"], user.password_hash)
 
-    def test_create_default_user_database_error(self, test_db_session: Session):
-        """Test create_default_user with database error."""
+    def test_create_default_users_database_error(self, test_db_session: Session):
+        """Test create_default_users with database error."""
         # Mock the session to raise an exception
         test_db_session.add = Mock(side_effect=Exception("Database error"))
 
         with pytest.raises(Exception):
-            create_default_user(test_db_session)
+            create_default_users(test_db_session)
 
     @patch("app.database.seed.get_password_hash")
-    def test_create_default_user_password_hash_called(self, mock_hash, test_db_session: Session):
+    def test_create_default_users_password_hash_called(self, mock_hash, test_db_session: Session):
         """Test that password hashing function is called."""
         mock_hash.return_value = "hashed_password"
 
-        user = create_default_user(test_db_session)
+        users = create_default_users(test_db_session)
 
-        mock_hash.assert_called_once_with(DEFAULT_USER["password"])
-        assert user.password_hash == "hashed_password"
+        # Should be called for each user
+        assert mock_hash.call_count == len(DEFAULT_USERS)
+        for user in users:
+            assert user.password_hash == "hashed_password"
 
 
 class TestCreateDefaultNotes:
@@ -226,34 +242,34 @@ class TestSeedDatabase:
     """Test seed_database function."""
 
     @patch("app.database.seed.SessionLocal")
-    @patch("app.database.seed.create_default_user")
+    @patch("app.database.seed.create_default_users")
     @patch("app.database.seed.create_default_notes")
-    def test_seed_database_success(self, mock_create_notes, mock_create_user, mock_session_local):
+    def test_seed_database_success(self, mock_create_notes, mock_create_users, mock_session_local):
         """Test successful database seeding."""
         # Mock database session
         mock_session = Mock()
         mock_session_local.return_value = mock_session
 
-        # Mock user and notes creation
-        mock_user = Mock()
+        # Mock users and notes creation
+        mock_users = [Mock(), Mock()]
         mock_notes = [Mock(), Mock()]
-        mock_create_user.return_value = mock_user
+        mock_create_users.return_value = mock_users
         mock_create_notes.return_value = mock_notes
 
         result = seed_database()
 
         assert result is True
-        mock_create_user.assert_called_once_with(mock_session)
-        mock_create_notes.assert_called_once_with(mock_session, mock_user)
+        mock_create_users.assert_called_once_with(mock_session)
+        mock_create_notes.assert_called_once_with(mock_session, mock_users[0])  # First user gets notes
         mock_session.close.assert_called_once()
 
     @patch("app.database.seed.SessionLocal")
-    @patch("app.database.seed.create_default_user")
-    def test_seed_database_user_creation_error(self, mock_create_user, mock_session_local):
+    @patch("app.database.seed.create_default_users")
+    def test_seed_database_user_creation_error(self, mock_create_users, mock_session_local):
         """Test seed_database when user creation fails."""
         mock_session = Mock()
         mock_session_local.return_value = mock_session
-        mock_create_user.side_effect = Exception("User creation failed")
+        mock_create_users.side_effect = Exception("User creation failed")
 
         result = seed_database()
 
@@ -262,14 +278,14 @@ class TestSeedDatabase:
         mock_session.close.assert_called_once()
 
     @patch("app.database.seed.SessionLocal")
-    @patch("app.database.seed.create_default_user")
+    @patch("app.database.seed.create_default_users")
     @patch("app.database.seed.create_default_notes")
-    def test_seed_database_notes_creation_error(self, mock_create_notes, mock_create_user, mock_session_local):
+    def test_seed_database_notes_creation_error(self, mock_create_notes, mock_create_users, mock_session_local):
         """Test seed_database when notes creation fails."""
         mock_session = Mock()
         mock_session_local.return_value = mock_session
-        mock_user = Mock()
-        mock_create_user.return_value = mock_user
+        mock_users = [Mock()]
+        mock_create_users.return_value = mock_users
         mock_create_notes.side_effect = Exception("Notes creation failed")
 
         result = seed_database()
@@ -308,7 +324,8 @@ class TestSeedDatabase:
                 session = TestSessionLocal()
 
                 try:
-                    user = session.query(User).filter(User.username == DEFAULT_USER["username"]).first()
+                    # Check first default user
+                    user = session.query(User).filter(User.username == DEFAULT_USERS[0]["username"]).first()
                     assert user is not None
 
                     notes = session.query(Note).filter(Note.user_id == user.id).all()
@@ -322,18 +339,22 @@ class TestResetAndSeedDatabase:
     """Test reset_and_seed_database function."""
 
     @patch("app.database.seed.seed_database")
-    def test_reset_and_seed_success(self, mock_seed):
+    @patch("app.database.database.Base")
+    @patch("app.database.seed.engine")
+    def test_reset_and_seed_success(self, mock_engine, mock_base, mock_seed):
         """Test successful database reset and seeding."""
         mock_seed.return_value = True
 
-        # Base is imported inside the function, so we don't need to patch it
         result = reset_and_seed_database()
 
         assert result is True
+        mock_base.metadata.drop_all.assert_called_once_with(bind=mock_engine)
+        mock_base.metadata.create_all.assert_called_once_with(bind=mock_engine)
         mock_seed.assert_called_once()
 
     @patch("app.database.database.Base")
-    def test_reset_and_seed_drop_error(self, mock_base):
+    @patch("app.database.seed.engine")
+    def test_reset_and_seed_drop_error(self, mock_engine, mock_base):
         """Test reset_and_seed_database when drop fails."""
         mock_base.metadata.drop_all.side_effect = Exception("Drop failed")
 
@@ -342,7 +363,8 @@ class TestResetAndSeedDatabase:
         assert result is False
 
     @patch("app.database.database.Base")
-    def test_reset_and_seed_create_error(self, mock_base):
+    @patch("app.database.seed.engine")
+    def test_reset_and_seed_create_error(self, mock_engine, mock_base):
         """Test reset_and_seed_database when create fails."""
         mock_base.metadata.create_all.side_effect = Exception("Create failed")
 
@@ -351,7 +373,9 @@ class TestResetAndSeedDatabase:
         assert result is False
 
     @patch("app.database.seed.seed_database")
-    def test_reset_and_seed_seeding_error(self, mock_seed):
+    @patch("app.database.database.Base")
+    @patch("app.database.seed.engine")
+    def test_reset_and_seed_seeding_error(self, mock_engine, mock_base, mock_seed):
         """Test reset_and_seed_database when seeding fails."""
         mock_seed.return_value = False
 
@@ -370,7 +394,7 @@ class TestCheckSeedingStatus:
         mock_session = Mock()
         mock_session_local.return_value = mock_session
 
-        # Mock user exists
+        # Mock users exist
         mock_user = Mock()
         mock_user.id = 1
         mock_session.query.return_value.filter.return_value.first.return_value = mock_user
@@ -380,8 +404,8 @@ class TestCheckSeedingStatus:
 
         status = check_seeding_status()
 
-        assert status["default_user_exists"] is True
-        assert status["default_user_id"] == 1
+        assert status["default_users_exist"] is True
+        assert status["default_users_count"] == len(DEFAULT_USERS)
         assert status["default_notes_count"] == len(DEFAULT_NOTES_DATA)
         assert status["expected_notes_count"] == len(DEFAULT_NOTES_DATA)
         assert status["seeding_complete"] is True
@@ -398,8 +422,8 @@ class TestCheckSeedingStatus:
 
         status = check_seeding_status()
 
-        assert status["default_user_exists"] is False
-        assert status["default_user_id"] is None
+        assert status["default_users_exist"] is False
+        assert status["default_users_count"] == len(DEFAULT_USERS)
         assert status["default_notes_count"] == 0
         assert status["seeding_complete"] is False
 
@@ -419,8 +443,8 @@ class TestCheckSeedingStatus:
 
         status = check_seeding_status()
 
-        assert status["default_user_exists"] is True
-        assert status["default_user_id"] == 1
+        assert status["default_users_exist"] is True
+        assert status["default_users_count"] == len(DEFAULT_USERS)
         assert status["default_notes_count"] == len(DEFAULT_NOTES_DATA) - 1
         assert status["seeding_complete"] is False
 
@@ -468,7 +492,7 @@ class TestCheckSeedingStatus:
             assert "seeding_complete" in status
             # If seeding was successful, it should be complete
             if seed_result:
-                assert status["default_user_exists"] is True
+                assert status["default_users_exist"] is True
                 assert status["default_notes_count"] > 0
 
 
@@ -505,9 +529,9 @@ class TestSeedingScript:
         import app.database.seed
 
         # Verify all necessary imports and constants are available
-        assert hasattr(app.database.seed, "DEFAULT_USER")
+        assert hasattr(app.database.seed, "DEFAULT_USERS")
         assert hasattr(app.database.seed, "DEFAULT_NOTES_DATA")
-        assert hasattr(app.database.seed, "create_default_user")
+        assert hasattr(app.database.seed, "create_default_users")
         assert hasattr(app.database.seed, "create_default_notes")
         assert hasattr(app.database.seed, "seed_database")
         assert hasattr(app.database.seed, "reset_and_seed_database")

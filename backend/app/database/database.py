@@ -1,6 +1,6 @@
 """
 SQLAlchemy database configuration for ParchMark backend.
-Configures SQLite database engine and session management.
+Configures PostgreSQL database engine and session management.
 """
 
 import os
@@ -12,12 +12,18 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 # Load environment variables from .env file
 load_dotenv()
 
-# Database URL - can be configured via environment variable
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./parchmark.db")
+# Database URL - PostgreSQL required
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/parchmark")
 
-# Create SQLAlchemy engine
-# connect_args={"check_same_thread": False} is needed for SQLite
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Validate that we're using PostgreSQL
+if not SQLALCHEMY_DATABASE_URL.startswith(("postgresql://", "postgresql+psycopg2://")):
+    raise ValueError(
+        f"PostgreSQL database URL required. Got: {SQLALCHEMY_DATABASE_URL.split('://')[0]}://"
+        "\nPlease set DATABASE_URL to a valid PostgreSQL connection string."
+    )
+
+# Create SQLAlchemy engine for PostgreSQL
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Create SessionLocal class for database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
