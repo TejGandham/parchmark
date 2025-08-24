@@ -28,10 +28,10 @@ coverage.xml
 # Development
 .env
 .env.*
-!.env.docker
 *.log
 *.db
 *.sqlite3
+parchmark.db
 
 # Git
 .git/

@@ -1,0 +1,58 @@
+# Production Dockerfile for ParchMark Backend
+# Optimized multi-stage build for minimal image size and security
+
+# Stage 1: Builder stage using official uv image with Python 3.13
+FROM ghcr.io/astral-sh/uv:python3.13-trixie as builder
+
+WORKDIR /app
+
+# Copy dependency files and lockfile first for better caching
+COPY pyproject.toml ./
+COPY uv.lock ./
+
+# Install production dependencies only (no dev dependencies)
+# This layer is cached when only app code changes
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy application code
+COPY app ./app
+
+# Install the project itself in non-editable mode
+# --no-editable ensures files are copied to site-packages
+RUN uv sync --frozen --no-dev --no-editable
+
+# Stage 2: Final production stage using slim Python image
+FROM python:3.13-slim-trixie
+
+# Create non-root user for security
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
+WORKDIR /app
+
+# Install PostgreSQL client libraries (required for psycopg2)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the complete virtual environment from builder
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Activate the virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Switch to non-root user
+USER appuser
+
+# Health check for container orchestration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Expose the application port
+EXPOSE 8000
+
+# Run the application as a Python module
+CMD ["python", "-m", "app"]
