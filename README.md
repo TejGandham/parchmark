@@ -133,9 +133,12 @@ cd parchmark
 
 Backend environment file (`backend/.env.docker`):
 ```bash
+# Generate a secure 128-bit secret key
+SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(16))")
+
 cat > backend/.env.docker << EOF
 DATABASE_URL=postgresql://parchmark_user:parchmark_password@postgres:5432/parchmark_db
-SECRET_KEY=your-secret-key-here-change-in-production
+SECRET_KEY=$SECRET_KEY
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ALLOWED_ORIGINS=http://localhost:8080,http://localhost:80
