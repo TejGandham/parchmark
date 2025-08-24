@@ -22,9 +22,10 @@ A modern, full-stack markdown note-taking application built with React and FastA
 
 - **Node.js** 18+ and npm
 - **Python** 3.13+
-- **PostgreSQL** 14+ (REQUIRED - SQLite is not supported)
-- **Docker** and Docker Compose (required for testing and optional for deployment)
+- **Docker** and Docker Compose (REQUIRED for PostgreSQL and testing)
 - **Git**
+
+**Note:** PostgreSQL runs exclusively in Docker containers. No local PostgreSQL installation is needed.
 
 ### Option 1: Local Development
 
@@ -44,21 +45,17 @@ cd backend
 # Install uv package manager (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Ensure PostgreSQL is running
-# On Ubuntu/Debian:
-sudo systemctl start postgresql
-# On macOS with Homebrew:
-brew services start postgresql@14
-
-# Create the database
-createdb parchmark
+# Start PostgreSQL in Docker container (from project root)
+cd ..
+docker compose -f docker-compose.dev.yml up -d
+cd backend
 
 # Install dependencies
 uv sync
 
 # Create .env file
 cat > .env << EOF
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parchmark
+DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
 SECRET_KEY=your-secret-key-here-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -127,7 +124,7 @@ cd parchmark
 Backend environment file (`backend/.env.docker`):
 ```bash
 cat > backend/.env.docker << EOF
-DATABASE_URL=postgresql://username:password@postgres:5432/parchmark
+DATABASE_URL=postgresql://parchmark_user:parchmark_password@postgres:5432/parchmark_db
 SECRET_KEY=your-secret-key-here-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -261,7 +258,17 @@ uv run pytest -m "auth"                 # Run marked tests
 
 ### Database Management
 
-**Note: PostgreSQL is required. SQLite is not supported.**
+**Note: PostgreSQL runs exclusively in Docker containers. No local installation needed.**
+
+#### Start PostgreSQL Container
+
+```bash
+# For local development (PostgreSQL only)
+docker compose -f docker-compose.dev.yml up -d
+
+# Check container status
+docker compose -f docker-compose.dev.yml ps
+```
 
 #### Initialize Database
 
@@ -299,7 +306,7 @@ uv run python -m app.database.init_db  # Recreate
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy** ORM with PostgreSQL database (exclusive)
+- **SQLAlchemy** ORM with PostgreSQL (via Docker)
 - **Pydantic** for data validation
 - **JWT** for stateless authentication
 - **Bcrypt** for password hashing
@@ -309,7 +316,7 @@ uv run python -m app.database.init_db  # Recreate
 
 1. **Feature-First Organization**: Code organized by features rather than file types
 2. **Store Pattern**: Centralized state management with Zustand
-3. **Repository Pattern**: Database operations abstracted in models (PostgreSQL-only)
+3. **Repository Pattern**: Database operations abstracted in models
 4. **Dependency Injection**: FastAPI's dependency system for clean code
 5. **Type Safety**: Full TypeScript and Python type hints
 
@@ -486,11 +493,15 @@ kill -9 PID
 
 #### Database Connection Error
 ```bash
-# PostgreSQL is REQUIRED - ensure it's installed and running
-# Check PostgreSQL service status
-sudo systemctl status postgresql
-# Restart if needed
-sudo systemctl restart postgresql
+# PostgreSQL runs in Docker - ensure container is running
+# Check container status
+docker compose -f docker-compose.dev.yml ps
+
+# Restart container if needed
+docker compose -f docker-compose.dev.yml restart postgres
+
+# View container logs for issues
+docker compose -f docker-compose.dev.yml logs postgres
 ```
 
 #### Docker Build Fails
