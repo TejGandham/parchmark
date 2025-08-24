@@ -460,7 +460,7 @@ USE_HTTPS=true
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | Database connection string | `postgresql://username:password@localhost:5432/parchmark` |
-| `SECRET_KEY` | JWT signing key | (must be set) |
+| `SECRET_KEY` | JWT signing key (128-bit hex string) | (must be set - see generation instructions) |
 | `ALGORITHM` | JWT algorithm | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration | `30` |
 | `ALLOWED_ORIGINS` | CORS origins | `http://localhost:5173` |
