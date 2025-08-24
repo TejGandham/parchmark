@@ -26,8 +26,8 @@ WORKDIR /app
 # Copy the complete virtual environment with app and all dependencies
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy only runtime configuration files if needed
-COPY .env.docker ./.env
+# Don't copy env files in production - they should be mounted or provided via env_file
+# For development, you can mount .env.docker or .env.production at runtime
 
 # Activate the virtual environment by adding it to PATH
 ENV PATH="/app/.venv/bin:$PATH"
