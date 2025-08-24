@@ -3,10 +3,11 @@ Unit tests for SQLAlchemy models (app.models.models).
 Tests User and Note models, relationships, and database constraints.
 """
 
+import warnings
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SAWarning
 from sqlalchemy.orm import Session
 
 from app.auth.auth import get_password_hash
@@ -179,11 +180,15 @@ class TestNoteModel:
 
     def test_note_id_not_null(self, test_db_session: Session, sample_user: User):
         """Test that note ID cannot be null."""
-        note = Note(id=None, user_id=sample_user.id, title="Test Note", content="Test content")
-        test_db_session.add(note)
+        # Suppress warning about primary key column having no default generator
+        # We're intentionally testing NULL constraint violation
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*primary key column.*", category=SAWarning)
+            note = Note(id=None, user_id=sample_user.id, title="Test Note", content="Test content")
+            test_db_session.add(note)
 
-        with pytest.raises(IntegrityError):
-            test_db_session.commit()
+            with pytest.raises(IntegrityError):
+                test_db_session.commit()
 
     def test_note_user_id_not_null(self, test_db_session: Session):
         """Test that user_id cannot be null."""
@@ -329,12 +334,16 @@ class TestNoteModel:
         test_db_session.add(note1)
         test_db_session.commit()
 
-        # Try to create second note with same ID
-        note2 = Note(id="duplicate-id", user_id=sample_user.id, title="Second Note", content="Second content")
-        test_db_session.add(note2)
+        # Suppress warning about conflicting instances with same identity key
+        # We're intentionally testing duplicate ID constraint violation
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*conflicts with persistent instance.*", category=SAWarning)
+            # Try to create second note with same ID
+            note2 = Note(id="duplicate-id", user_id=sample_user.id, title="Second Note", content="Second content")
+            test_db_session.add(note2)
 
-        with pytest.raises(IntegrityError):
-            test_db_session.commit()
+            with pytest.raises(IntegrityError):
+                test_db_session.commit()
 
 
 class TestUserNoteRelationship:
