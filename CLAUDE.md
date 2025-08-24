@@ -81,14 +81,36 @@ uv run pytest tests/integration  # Run integration tests only
 ```
 
 ### Docker
+
+#### Two Docker Compose Files Explained
+
+**`docker-compose.dev.yml`** - PostgreSQL-only for local development:
+- Runs ONLY PostgreSQL in a container
+- Backend and frontend run directly on your host machine
+- Faster development with hot-reload and easier debugging
+- Direct access to code changes without rebuilding containers
+- Use this for day-to-day development work
+
+**`docker-compose.yml`** - Full containerized stack:
+- Runs ALL services (PostgreSQL, backend, frontend) in containers
+- Mimics production environment exactly
+- Used for testing the complete Docker deployment
+- Ensures everything works together in containers before deployment
+- Use this to verify production readiness
+
 ```bash
-# Development
-docker-compose up -d         # Start both services
-docker-compose logs -f       # View logs
-docker-compose down          # Stop services
+# Local Development (PostgreSQL only in Docker)
+docker compose -f docker-compose.dev.yml up -d  # Start PostgreSQL container
+docker compose -f docker-compose.dev.yml down    # Stop PostgreSQL container
+# Then run backend/frontend directly on host as shown above
+
+# Full Stack in Docker (all services containerized)
+docker compose up -d         # Start all services in containers
+docker compose logs -f       # View logs from all containers
+docker compose down          # Stop all containers
 
 # Production
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## Application Architecture
@@ -296,22 +318,27 @@ useStoreRouterSync() // In NotesContainer
 
 ## Development Workflow
 
-### Local Development
-1. Start backend: `cd backend && uv run uvicorn app.main:app --reload`
-2. Start frontend: `cd ui && npm run dev`
-3. Access app at `http://localhost:5173`
-4. API docs at `http://localhost:8000/docs`
+### Local Development (Recommended)
+1. Start PostgreSQL: `docker compose -f docker-compose.dev.yml up -d`
+2. Start backend: `cd backend && uv run uvicorn app.main:app --reload`
+3. Start frontend: `cd ui && npm run dev`
+4. Access app at `http://localhost:5173`
+5. API docs at `http://localhost:8000/docs`
+
+This approach uses PostgreSQL in Docker but runs backend/frontend on host for faster development.
 
 ### Testing Changes
 1. Frontend: `npm test` or `npm run test:watch`
 2. Backend: `uv run pytest` or specific tests
 3. Check coverage reports in `coverage_html/`
 
-### Docker Development
-1. Build: `docker-compose build`
-2. Run: `docker-compose up -d`
+### Full Stack Docker Development
+1. Build: `docker compose build`
+2. Run: `docker compose up -d`
 3. Access at `http://localhost:8080`
-4. Logs: `docker-compose logs -f`
+4. Logs: `docker compose logs -f`
+
+This runs all services in containers, useful for testing production-like environment.
 
 ## Common Tasks
 
