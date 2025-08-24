@@ -3,7 +3,7 @@ Unit tests for authentication utilities (app.auth.auth).
 Tests JWT token creation/validation, password hashing, and user authentication.
 """
 
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
 
 import pytest
