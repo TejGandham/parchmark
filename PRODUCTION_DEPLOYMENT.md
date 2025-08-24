@@ -9,7 +9,7 @@ This guide provides step-by-step instructions for deploying ParchMark to a produ
 
 **Architecture:**
 - Frontend: React app served via Nginx container
-- Backend: FastAPI application with SQLite database
+- Backend: FastAPI application with PostgreSQL database
 - Nginx Proxy Manager: SSL termination and reverse proxy
 - Docker Network: `proxiable` (shared with NPM)
 
@@ -52,8 +52,8 @@ SECRET_KEY=CHANGE_THIS_SECRET_KEY_IN_PRODUCTION
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# Database Configuration
-DATABASE_URL=sqlite:///./data/parchmark.db
+# Database Configuration (PostgreSQL in Docker)
+DATABASE_URL=postgresql://parchmark_user:parchmark_password@postgres:5432/parchmark_db
 
 # Application Configuration
 APP_NAME=ParchMark API
@@ -272,7 +272,7 @@ add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 ### Why Both Frontend and Backend?
 - **Frontend:** Serves the React application and handles routing
 - **Backend:** Provides JWT authentication, note storage, and API endpoints
-- **Database:** SQLite database persisted in Docker volume for user data
+- **Database:** PostgreSQL database running in Docker container with persistent volume
 
 ### Network Communication
 - **External Access:** Nginx Proxy Manager → Frontend/Backend containers
