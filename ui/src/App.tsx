@@ -5,6 +5,7 @@ import theme from './styles/theme';
 import { Box, Spinner, Center } from '@chakra-ui/react';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import { useAuthStore } from './features/auth/store';
+import { useTokenExpirationMonitor } from './features/auth/hooks/useTokenExpirationMonitor';
 
 // Keep lazy loading only for the main route components
 const NotesContainer = lazy(
@@ -31,6 +32,9 @@ const RootRoute = () => {
 };
 
 function App() {
+  // Monitor JWT token expiration
+  useTokenExpirationMonitor();
+  
   return (
     <ChakraProvider theme={theme}>
       <Suspense fallback={<LoadingFallback />}>
