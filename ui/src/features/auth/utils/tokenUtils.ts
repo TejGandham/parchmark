@@ -1,3 +1,5 @@
+import { TOKEN_WARNING_SECONDS } from '../../../config/constants';
+
 // JWT Payload structure
 interface JWTPayload {
   exp?: number; // Expiration time (NumericDate)
@@ -48,8 +50,7 @@ export function getTokenExpiration(token: string | null): number | null {
  * @returns Warning threshold in seconds (default: 60)
  */
 export function getTokenExpirationWarningSeconds(): number {
-  const configValue = import.meta.env.VITE_TOKEN_WARNING_SECONDS;
-  const parsed = parseInt(configValue, 10);
+  const parsed = parseInt(TOKEN_WARNING_SECONDS, 10);
   return isNaN(parsed) ? 60 : parsed;
 }
 
