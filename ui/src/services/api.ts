@@ -1,5 +1,6 @@
 import { Note } from '../types';
 import { API_BASE_URL } from '../config/constants';
+import { useAuthStore } from '../features/auth/store/auth';
 
 type ApiErrorResponse = {
   detail?: string | { msg: string }[];
@@ -47,6 +48,15 @@ const request = async <T>(
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired or invalid
+    if (response.status === 401) {
+      // Don't trigger logout for login endpoint failures
+      if (!endpoint.includes('/auth/login')) {
+        const authStore = useAuthStore.getState();
+        authStore.actions.logout();
+      }
+    }
+    
     const errorData: ApiErrorResponse = await response.json().catch(() => ({}));
     let errorMessage = `HTTP error! status: ${response.status}`;
     if (errorData.detail) {
