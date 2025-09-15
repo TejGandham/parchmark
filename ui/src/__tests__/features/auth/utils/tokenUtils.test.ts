@@ -91,21 +91,25 @@ describe('tokenUtils', () => {
   describe('getTokenExpirationWarningSeconds', () => {
     beforeEach(() => {
       // Reset mock to undefined before each test
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS = undefined;
+      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
+        undefined;
     });
 
     it('should return default 60 seconds when env variable is not set', () => {
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS = undefined;
+      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
+        undefined;
       expect(getTokenExpirationWarningSeconds()).toBe(60);
     });
 
     it('should return configured value from env variable', () => {
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS = '120';
+      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
+        '120';
       expect(getTokenExpirationWarningSeconds()).toBe(120);
     });
 
     it('should return default for invalid env variable', () => {
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS = 'invalid';
+      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
+        'invalid';
       expect(getTokenExpirationWarningSeconds()).toBe(60);
     });
   });
