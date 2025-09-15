@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>()(
             state.error = null;
           });
         },
-        
+
         checkTokenExpiration: () => {
           const state = useAuthStore.getState();
           if (isTokenExpiringSoon(state.token)) {

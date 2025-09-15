@@ -116,7 +116,9 @@ describe('Auth Store', () => {
       const { actions } = store;
 
       // First login to set a token
-      (api.login as jest.Mock).mockResolvedValue({ access_token: 'test-token' });
+      (api.login as jest.Mock).mockResolvedValue({
+        access_token: 'test-token',
+      });
       await actions.login('user', 'password');
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
       expect(useAuthStore.getState().token).toBe('test-token');
@@ -138,7 +140,9 @@ describe('Auth Store', () => {
       const { actions } = store;
 
       // First login to set a token
-      (api.login as jest.Mock).mockResolvedValue({ access_token: 'test-token' });
+      (api.login as jest.Mock).mockResolvedValue({
+        access_token: 'test-token',
+      });
       await actions.login('user', 'password');
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
 
@@ -189,9 +193,9 @@ describe('Auth Store', () => {
       };
 
       // Access the persist configuration
-      const persistConfig = (useAuthStore as any).persist;
+      const persistConfig = (useAuthStore as unknown as { persist: { onRehydrateStorage: () => (state: AuthState | null) => void } }).persist;
       const onRehydrateCallback = persistConfig.onRehydrateStorage();
-      
+
       // Call the rehydration callback
       act(() => {
         onRehydrateCallback(mockState);
@@ -217,9 +221,9 @@ describe('Auth Store', () => {
       };
 
       // Access the persist configuration
-      const persistConfig = (useAuthStore as any).persist;
+      const persistConfig = (useAuthStore as unknown as { persist: { onRehydrateStorage: () => (state: AuthState | null) => void } }).persist;
       const onRehydrateCallback = persistConfig.onRehydrateStorage();
-      
+
       // Call the rehydration callback
       act(() => {
         onRehydrateCallback(mockState);
@@ -242,9 +246,9 @@ describe('Auth Store', () => {
       };
 
       // Access the persist configuration
-      const persistConfig = (useAuthStore as any).persist;
+      const persistConfig = (useAuthStore as unknown as { persist: { onRehydrateStorage: () => (state: AuthState | null) => void } }).persist;
       const onRehydrateCallback = persistConfig.onRehydrateStorage();
-      
+
       // Call the rehydration callback
       act(() => {
         onRehydrateCallback(mockState);

@@ -7,7 +7,9 @@ import { useAuthStore } from '../store';
  */
 export function useTokenExpirationMonitor() {
   const token = useAuthStore((state) => state.token);
-  const checkTokenExpiration = useAuthStore((state) => state.actions.checkTokenExpiration);
+  const checkTokenExpiration = useAuthStore(
+    (state) => state.actions.checkTokenExpiration
+  );
 
   useEffect(() => {
     if (!token) return;
