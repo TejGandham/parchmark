@@ -1,5 +1,6 @@
 import { Note } from '../types';
 import { API_BASE_URL } from '../config/constants';
+import { useAuthStore } from '../features/auth/store';
 
 type ApiErrorResponse = {
   detail?: string | { msg: string }[];
@@ -51,8 +52,6 @@ const request = async <T>(
     
     // Handle 401 errors by logging out (except for login endpoint)
     if (response.status === 401 && !endpoint.includes('/auth/login')) {
-      // Dynamically import to avoid circular dependency
-      const { useAuthStore } = await import('../features/auth/store');
       useAuthStore.getState().actions.logout();
     }
     
