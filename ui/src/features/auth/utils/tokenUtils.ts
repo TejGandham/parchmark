@@ -26,12 +26,12 @@ export function getTokenExpiration(token: string): number | null {
     // Simple JWT decoding - extract payload
     const base64Url = token.split('.')[1];
     if (!base64Url) return null;
-    
+
     // Convert base64url to base64
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     // Decode and parse
     const payload: JWTPayload = JSON.parse(atob(base64));
-    
+
     return payload.exp || null;
   } catch (error) {
     // Log error for debugging malformed tokens
@@ -51,19 +51,22 @@ export function getTokenExpirationWarningSeconds(): number {
 
 /**
  * Check if token expires within the given seconds
- * @param token - JWT token string  
+ * @param token - JWT token string
  * @param withinSeconds - Check if expires within this many seconds (uses env var or default: 60)
  * @returns true if token is expired or expires soon
  */
-export function isTokenExpiringSoon(token: string | null, withinSeconds?: number): boolean {
+export function isTokenExpiringSoon(
+  token: string | null,
+  withinSeconds?: number
+): boolean {
   if (!token) return true;
-  
+
   const exp = getTokenExpiration(token);
   if (!exp) return true;
-  
+
   // Use provided value, environment variable, or default
   const threshold = withinSeconds ?? getTokenExpirationWarningSeconds();
-  
+
   // Add clock skew buffer to account for time differences
   const now = Math.floor(Date.now() / 1000);
   return exp <= now + threshold + CLOCK_SKEW_BUFFER_SECONDS;

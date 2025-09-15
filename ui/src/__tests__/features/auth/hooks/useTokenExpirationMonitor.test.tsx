@@ -11,7 +11,8 @@ describe('useTokenExpirationMonitor', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockCheckTokenExpiration = jest.fn();
-    
+
+
     // Default mock implementation
     (useAuthStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -31,22 +32,26 @@ describe('useTokenExpirationMonitor', () => {
 
   it('should check token expiration immediately when token exists', () => {
     renderHook(() => useTokenExpirationMonitor());
-    
+
+
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
   });
 
   it('should set up interval to check token expiration every 3 minutes', () => {
     renderHook(() => useTokenExpirationMonitor());
-    
+
+
     // Initial check
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
-    
+
+
     // Fast-forward 3 minutes
     act(() => {
       jest.advanceTimersByTime(180000);
     });
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(2);
-    
+
+
     // Fast-forward another 3 minutes
     act(() => {
       jest.advanceTimersByTime(180000);
@@ -65,11 +70,14 @@ describe('useTokenExpirationMonitor', () => {
       };
       return selector ? selector(state) : state;
     });
-    
+
+
     renderHook(() => useTokenExpirationMonitor());
-    
+
+
     expect(mockCheckTokenExpiration).not.toHaveBeenCalled();
-    
+
+
     // Fast-forward time to ensure no interval calls
     act(() => {
       jest.advanceTimersByTime(360000); // 6 minutes
@@ -79,28 +87,34 @@ describe('useTokenExpirationMonitor', () => {
 
   it('should clean up interval on unmount', () => {
     const { unmount } = renderHook(() => useTokenExpirationMonitor());
-    
+
+
     // Initial check
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
-    
+
+
     // Unmount the hook
     unmount();
-    
+
+
     // Fast-forward time after unmount
     act(() => {
       jest.advanceTimersByTime(360000); // 6 minutes
     });
-    
+
+
     // Should still only have the initial call
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
   });
 
   it('should restart interval when token changes', () => {
     const { rerender } = renderHook(() => useTokenExpirationMonitor());
-    
+
+
     // Initial check with first token
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
-    
+
+
     // Change the token
     (useAuthStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -111,12 +125,15 @@ describe('useTokenExpirationMonitor', () => {
       };
       return selector ? selector(state) : state;
     });
-    
+
+
     rerender();
-    
+
+
     // Should check again immediately with new token
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(2);
-    
+
+
     // Fast-forward to ensure new interval is working
     act(() => {
       jest.advanceTimersByTime(180000);
@@ -126,10 +143,12 @@ describe('useTokenExpirationMonitor', () => {
 
   it('should stop checking when token is removed', () => {
     const { rerender } = renderHook(() => useTokenExpirationMonitor());
-    
+
+
     // Initial check
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
-    
+
+
     // Remove the token
     (useAuthStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
@@ -140,14 +159,17 @@ describe('useTokenExpirationMonitor', () => {
       };
       return selector ? selector(state) : state;
     });
-    
+
+
     rerender();
-    
+
+
     // Fast-forward time
     act(() => {
       jest.advanceTimersByTime(360000); // 6 minutes
     });
-    
+
+
     // Should still only have the initial call
     expect(mockCheckTokenExpiration).toHaveBeenCalledTimes(1);
   });

@@ -34,7 +34,7 @@ const RootRoute = () => {
 function App() {
   // Monitor JWT token expiration
   useTokenExpirationMonitor();
-  
+
   return (
     <ChakraProvider theme={theme}>
       <Suspense fallback={<LoadingFallback />}>
