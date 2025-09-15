@@ -48,6 +48,14 @@ const request = async <T>(
 
   if (!response.ok) {
     const errorData: ApiErrorResponse = await response.json().catch(() => ({}));
+    
+    // Handle 401 errors by logging out (except for login endpoint)
+    if (response.status === 401 && !endpoint.includes('/auth/login')) {
+      // Dynamically import to avoid circular dependency
+      const { useAuthStore } = await import('../features/auth/store');
+      useAuthStore.getState().actions.logout();
+    }
+    
     let errorMessage = `HTTP error! status: ${response.status}`;
     if (errorData.detail) {
       if (typeof errorData.detail === 'string') {
