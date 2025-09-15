@@ -34,6 +34,7 @@ class Token(BaseModel):
     """Schema for JWT token responses."""
 
     access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
     token_type: str = Field(default="bearer", description="Token type")
 
 
@@ -41,6 +42,12 @@ class TokenData(BaseModel):
     """Schema for token payload data."""
 
     username: str | None = None
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema for refresh token request."""
+
+    refresh_token: str = Field(..., description="JWT refresh token")
 
 
 # Note Schemas
