@@ -193,7 +193,13 @@ describe('Auth Store', () => {
       };
 
       // Access the persist configuration
-      const persistConfig = (useAuthStore as unknown as { persist: { onRehydrateStorage: () => (state: AuthState | null) => void } }).persist;
+      const persistConfig = (
+        useAuthStore as unknown as {
+          persist: {
+            onRehydrateStorage: () => (state: AuthState | null) => void;
+          };
+        }
+      ).persist;
       const onRehydrateCallback = persistConfig.onRehydrateStorage();
 
       // Call the rehydration callback
@@ -221,7 +227,13 @@ describe('Auth Store', () => {
       };
 
       // Access the persist configuration
-      const persistConfig = (useAuthStore as unknown as { persist: { onRehydrateStorage: () => (state: AuthState | null) => void } }).persist;
+      const persistConfig = (
+        useAuthStore as unknown as {
+          persist: {
+            onRehydrateStorage: () => (state: AuthState | null) => void;
+          };
+        }
+      ).persist;
       const onRehydrateCallback = persistConfig.onRehydrateStorage();
 
       // Call the rehydration callback
@@ -246,7 +258,13 @@ describe('Auth Store', () => {
       };
 
       // Access the persist configuration
-      const persistConfig = (useAuthStore as unknown as { persist: { onRehydrateStorage: () => (state: AuthState | null) => void } }).persist;
+      const persistConfig = (
+        useAuthStore as unknown as {
+          persist: {
+            onRehydrateStorage: () => (state: AuthState | null) => void;
+          };
+        }
+      ).persist;
       const onRehydrateCallback = persistConfig.onRehydrateStorage();
 
       // Call the rehydration callback
