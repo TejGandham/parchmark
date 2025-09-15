@@ -4,6 +4,14 @@ import {
   getTokenExpirationWarningSeconds,
 } from '../../../../features/auth/utils/tokenUtils';
 
+// Mock the constants module
+jest.mock('../../../../config/constants', () => ({
+  TOKEN_WARNING_SECONDS: undefined, // Default to undefined
+}));
+
+// Import after mocking so we can manipulate it
+import * as constants from '../../../../config/constants';
+
 describe('tokenUtils', () => {
   describe('getTokenExpiration', () => {
     it('should decode valid JWT and return expiration time', () => {
@@ -81,34 +89,23 @@ describe('tokenUtils', () => {
   });
 
   describe('getTokenExpirationWarningSeconds', () => {
-    let originalEnv: string | undefined;
-
     beforeEach(() => {
-      // Save original value
-      originalEnv = import.meta.env.VITE_TOKEN_WARNING_SECONDS;
-    });
-
-    afterEach(() => {
-      // Restore original value
-      if (originalEnv !== undefined) {
-        import.meta.env.VITE_TOKEN_WARNING_SECONDS = originalEnv;
-      } else {
-        delete import.meta.env.VITE_TOKEN_WARNING_SECONDS;
-      }
+      // Reset mock to undefined before each test
+      (constants as any).TOKEN_WARNING_SECONDS = undefined;
     });
 
     it('should return default 60 seconds when env variable is not set', () => {
-      delete import.meta.env.VITE_TOKEN_WARNING_SECONDS;
+      (constants as any).TOKEN_WARNING_SECONDS = undefined;
       expect(getTokenExpirationWarningSeconds()).toBe(60);
     });
 
     it('should return configured value from env variable', () => {
-      import.meta.env.VITE_TOKEN_WARNING_SECONDS = '120';
+      (constants as any).TOKEN_WARNING_SECONDS = '120';
       expect(getTokenExpirationWarningSeconds()).toBe(120);
     });
 
     it('should return default for invalid env variable', () => {
-      import.meta.env.VITE_TOKEN_WARNING_SECONDS = 'invalid';
+      (constants as any).TOKEN_WARNING_SECONDS = 'invalid';
       expect(getTokenExpirationWarningSeconds()).toBe(60);
     });
   });
