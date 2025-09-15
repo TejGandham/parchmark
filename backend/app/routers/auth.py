@@ -11,13 +11,16 @@ from sqlalchemy.orm import Session
 
 from app.auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
     authenticate_user,
     create_access_token,
+    create_refresh_token,
+    verify_refresh_token,
 )
 from app.auth.dependencies import get_current_user, get_user_by_username
 from app.database.database import get_db
 from app.models.models import User
-from app.schemas.schemas import MessageResponse, Token, UserLogin, UserResponse
+from app.schemas.schemas import MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
 
 # Create router for authentication endpoints
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -68,11 +71,58 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Create JWT token with user's username as subject
+    # Create JWT tokens with user's username as subject
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    
     access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    refresh_token = create_refresh_token(data={"sub": user.username}, expires_delta=refresh_token_expires)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(refresh_request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """
+    Refresh an access token using a valid refresh token.
+
+    This endpoint:
+    1. Validates the provided refresh token
+    2. Generates a new access token with a fresh expiration
+    3. Returns both new access and refresh tokens
+
+    Args:
+        refresh_request: RefreshTokenRequest with refresh_token
+        db: Database session dependency
+
+    Returns:
+        Token: New JWT access and refresh tokens
+
+    Raises:
+        HTTPException: 401 if refresh token is invalid or expired
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    # Verify the refresh token
+    token_data = verify_refresh_token(refresh_request.refresh_token, credentials_exception)
+    
+    # Get the user from database
+    user = get_user_by_username(db, token_data.username)
+    if not user:
+        raise credentials_exception
+    
+    # Create new tokens
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    
+    new_access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    new_refresh_token = create_refresh_token(data={"sub": user.username}, expires_delta=refresh_token_expires)
+    
+    return {"access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
 
 
 @router.post("/logout", response_model=MessageResponse)
