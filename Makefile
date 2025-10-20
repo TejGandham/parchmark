@@ -145,8 +145,8 @@ test-backend-types: ## Run mypy type checking
 
 .PHONY: test-backend-pytest
 test-backend-pytest: ## Run pytest with coverage
-	@echo "$(BLUE)Running backend tests with coverage...$(NC)"
-	cd backend && uv run pytest -v --cov=app --cov-report=xml --cov-report=term
+	@echo "$(BLUE)Running backend tests with coverage (parallel execution)...$(NC)"
+	cd backend && uv run pytest -v -n auto --dist worksteal --cov=app --cov-report=xml --cov-report=term
 	@echo "$(GREEN)✓ Backend tests passed$(NC)"
 
 .PHONY: test-backend-all
