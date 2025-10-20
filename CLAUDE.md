@@ -423,13 +423,52 @@ The `backend/scripts/manage_users.py` script provides user management commands:
 - `create <username> <password>` - Create a new user
 - `update-password <username> <password>` - Update user password
 - `delete <username>` - Delete a user
+- `list` - List all users
 
-Example:
+#### Local Development (PostgreSQL in Docker, backend on host)
 ```bash
+# Using Makefile targets (recommended)
+make user-create USERNAME=admin PASSWORD=SecurePassword123
+make user-update-password USERNAME=admin PASSWORD=NewPassword456
+make user-delete USERNAME=olduser
+make user-list
+
+# Or run directly from backend directory
 cd backend
 uv run python scripts/manage_users.py create admin SecurePassword123
 uv run python scripts/manage_users.py update-password admin NewPassword456
 uv run python scripts/manage_users.py delete olduser
+uv run python scripts/manage_users.py list
+```
+
+#### Docker Development (all services in containers)
+```bash
+# Using Makefile targets (recommended)
+make user-create-docker USERNAME=admin PASSWORD=SecurePassword123
+make user-update-password-docker USERNAME=admin PASSWORD=NewPassword456
+make user-delete-docker USERNAME=olduser
+make user-list-docker
+
+# Or run docker compose exec directly
+docker compose exec backend python scripts/manage_users.py create admin SecurePassword123
+docker compose exec backend python scripts/manage_users.py update-password admin NewPassword456
+docker compose exec backend python scripts/manage_users.py delete olduser
+docker compose exec backend python scripts/manage_users.py list
+```
+
+#### Production (Docker with production config)
+```bash
+# Using Makefile targets (recommended)
+make user-create-prod USERNAME=admin PASSWORD=SecurePassword123
+make user-update-password-prod USERNAME=admin PASSWORD=NewPassword456
+make user-delete-prod USERNAME=olduser
+make user-list-prod
+
+# Or run docker compose with production file
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py create admin SecurePassword123
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py update-password admin NewPassword456
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py delete olduser
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py list
 ```
 
 ### Database Migrations
