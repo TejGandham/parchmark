@@ -48,6 +48,14 @@ help: ## Display this help message
 	@echo "  make docker-dev         - Start PostgreSQL container for local development"
 	@echo "  make docker-dev-down    - Stop PostgreSQL development container"
 	@echo ""
+	@echo "$(GREEN)🐳 Docker Commands:$(NC)"
+	@echo "  make docker-build       - Build Docker images (full stack)"
+	@echo "  make docker-up          - Start all services in Docker"
+	@echo "  make docker-down        - Stop all Docker services"
+	@echo "  make docker-build-prod  - Build production Docker images"
+	@echo "  make docker-up-prod     - Start production services"
+	@echo "  make docker-down-prod   - Stop production services"
+	@echo ""
 	@echo "$(GREEN)📦 Installation & Cleanup:$(NC)"
 	@echo "  make install-all        - Install all dependencies (UI + Backend)"
 	@echo "  make clean              - Clean test artifacts and cache files"
@@ -77,7 +85,7 @@ help: ## Display this help message
 	@echo "  make user-list-prod                                   - List all users"
 	@echo ""
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(YELLOW)Total Commands Available: 31$(NC)"
+	@echo "$(YELLOW)Total Commands Available: 37$(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 
@@ -211,6 +219,42 @@ docker-dev-down: ## Stop PostgreSQL development container
 	@echo "$(BLUE)Stopping PostgreSQL container...$(NC)"
 	docker compose -f docker-compose.dev.yml down
 	@echo "$(GREEN)✓ PostgreSQL stopped$(NC)"
+
+.PHONY: docker-build
+docker-build: ## Build Docker images (full stack)
+	@echo "$(BLUE)Building Docker images...$(NC)"
+	docker compose build
+	@echo "$(GREEN)✓ Docker images built$(NC)"
+
+.PHONY: docker-build-prod
+docker-build-prod: ## Build Docker images for production
+	@echo "$(BLUE)Building production Docker images...$(NC)"
+	docker compose -f docker-compose.prod.yml build
+	@echo "$(GREEN)✓ Production Docker images built$(NC)"
+
+.PHONY: docker-up
+docker-up: ## Start all services in Docker (full stack)
+	@echo "$(BLUE)Starting all Docker services...$(NC)"
+	docker compose up -d
+	@echo "$(GREEN)✓ All services running$(NC)"
+
+.PHONY: docker-down
+docker-down: ## Stop all Docker services (full stack)
+	@echo "$(BLUE)Stopping all Docker services...$(NC)"
+	docker compose down
+	@echo "$(GREEN)✓ All services stopped$(NC)"
+
+.PHONY: docker-up-prod
+docker-up-prod: ## Start production Docker services
+	@echo "$(BLUE)Starting production Docker services...$(NC)"
+	docker compose -f docker-compose.prod.yml up -d
+	@echo "$(GREEN)✓ Production services running$(NC)"
+
+.PHONY: docker-down-prod
+docker-down-prod: ## Stop production Docker services
+	@echo "$(BLUE)Stopping production Docker services...$(NC)"
+	docker compose -f docker-compose.prod.yml down
+	@echo "$(GREEN)✓ Production services stopped$(NC)"
 
 # ============================================================================
 # USER MANAGEMENT

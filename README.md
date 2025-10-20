@@ -160,13 +160,13 @@ EOF
 
 ```bash
 # Build and start the containers
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop the containers
-docker-compose down
+docker compose down
 ```
 
 Access the application at `http://localhost:8080`
@@ -312,6 +312,10 @@ uv run python scripts/manage_users.py delete olduser
 
 **Docker Development** (all services in containers):
 ```bash
+# First, build and start services (if not already running)
+make docker-build
+make docker-up
+
 # Using Makefile (recommended)
 make user-create-docker USERNAME=admin PASSWORD=SecurePassword123
 make user-list-docker
@@ -323,6 +327,10 @@ docker compose exec backend python scripts/manage_users.py list
 
 **Production** (Docker with production config):
 ```bash
+# First, build and start production services (if not already running)
+make docker-build-prod
+make docker-up-prod
+
 # Using Makefile (recommended)
 make user-create-prod USERNAME=admin PASSWORD=SecurePassword123
 make user-list-prod
@@ -331,6 +339,8 @@ make user-list-prod
 docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py create admin SecurePassword123
 docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py list
 ```
+
+**Important**: After any changes to the backend Dockerfile, you must rebuild the Docker images using `make docker-build` or `make docker-build-prod` before user management commands will work.
 
 See `make help` for all available user management commands.
 
@@ -426,30 +436,30 @@ curl -X POST http://localhost:8000/api/notes/ \
 
 ```bash
 # Build images
-docker-compose build
+docker compose build
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f frontend
-docker-compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f backend
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Remove volumes (reset data)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Production Deployment
 
 ```bash
 # Use production compose file
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # With custom domain
-DOMAIN=notes.example.com docker-compose -f docker-compose.prod.yml up -d
+DOMAIN=notes.example.com docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Docker Environment Variables
@@ -572,7 +582,7 @@ docker compose -f docker-compose.dev.yml logs postgres
 ```bash
 # Clean Docker cache
 docker system prune -a
-docker-compose build --no-cache
+docker compose build --no-cache
 ```
 
 #### Node Modules Issues
