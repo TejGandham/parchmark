@@ -74,7 +74,10 @@ describe('App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default to unauthenticated state
-    (useAuthStore as jest.Mock).mockReturnValue(mockUnauthenticatedStore);
+    (useAuthStore as jest.Mock).mockImplementation((selector) => {
+      const state = mockUnauthenticatedStore;
+      return selector ? selector(state) : state;
+    });
   });
 
   it('should render the ChakraProvider', async () => {
@@ -107,7 +110,10 @@ describe('App Component', () => {
 
   it('should render notes when user is authenticated', async () => {
     // Mock authenticated state
-    (useAuthStore as jest.Mock).mockReturnValue(mockAuthStore);
+    (useAuthStore as jest.Mock).mockImplementation((selector) => {
+      const state = mockAuthStore;
+      return selector ? selector(state) : state;
+    });
 
     await act(async () => {
       render(
@@ -191,7 +197,7 @@ describe('App Component', () => {
   describe('RootRoute Navigation', () => {
     it('should navigate to /login when user is not authenticated', async () => {
       (useAuthStore as jest.Mock).mockImplementation((selector) => {
-        const state = { isAuthenticated: false };
+        const state = mockUnauthenticatedStore;
         return selector ? selector(state) : state;
       });
 
@@ -209,7 +215,7 @@ describe('App Component', () => {
 
     it('should navigate to /notes when user is authenticated', async () => {
       (useAuthStore as jest.Mock).mockImplementation((selector) => {
-        const state = { isAuthenticated: true };
+        const state = mockAuthStore;
         return selector ? selector(state) : state;
       });
 

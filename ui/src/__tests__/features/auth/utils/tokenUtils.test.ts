@@ -9,9 +9,6 @@ jest.mock('../../../../config/constants', () => ({
   TOKEN_WARNING_SECONDS: undefined, // Default to undefined
 }));
 
-// Import after mocking so we can manipulate it
-import * as constants from '../../../../config/constants';
-
 describe('tokenUtils', () => {
   describe('getTokenExpiration', () => {
     it('should decode valid JWT and return expiration time', () => {
@@ -94,7 +91,7 @@ describe('tokenUtils', () => {
       expect(getTokenExpirationWarningSeconds()).toBe(60);
     });
 
-    it('should return configured value from env variable', () => {
+    it('should return configured value from env variable', async () => {
       // Re-mock with a specific value
       jest.resetModules();
       jest.doMock('../../../../config/constants', () => ({
@@ -102,23 +99,21 @@ describe('tokenUtils', () => {
       }));
 
       // Re-import the function to pick up the new mock
-      const {
-        getTokenExpirationWarningSeconds: getWarningSeconds,
-      } = require('../../../../features/auth/utils/tokenUtils');
+      const { getTokenExpirationWarningSeconds: getWarningSeconds } =
+        await import('../../../../features/auth/utils/tokenUtils');
 
       expect(getWarningSeconds()).toBe(120);
     });
 
-    it('should return default for invalid env variable', () => {
+    it('should return default for invalid env variable', async () => {
       // Re-mock with invalid value
       jest.resetModules();
       jest.doMock('../../../../config/constants', () => ({
         TOKEN_WARNING_SECONDS: 'invalid',
       }));
 
-      const {
-        getTokenExpirationWarningSeconds: getWarningSeconds,
-      } = require('../../../../features/auth/utils/tokenUtils');
+      const { getTokenExpirationWarningSeconds: getWarningSeconds } =
+        await import('../../../../features/auth/utils/tokenUtils');
 
       expect(getWarningSeconds()).toBe(60);
     });
