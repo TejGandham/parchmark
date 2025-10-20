@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
 import { User } from '../../../types';
 import * as api from '../../../services/api';
+import { isTokenExpiringSoon } from '../utils/tokenUtils';
 
 export type AuthState = {
   isAuthenticated: boolean;
@@ -13,6 +14,7 @@ export type AuthState = {
     login: (username: string, password: string) => Promise<boolean>;
     logout: () => void;
     clearError: () => void;
+    checkTokenExpiration: () => void;
   };
 };
 
@@ -61,6 +63,13 @@ export const useAuthStore = create<AuthState>()(
             state.error = null;
           });
         },
+
+        checkTokenExpiration: () => {
+          const state = useAuthStore.getState();
+          if (isTokenExpiringSoon(state.token)) {
+            state.actions.logout();
+          }
+        },
       },
     })),
     {
@@ -70,12 +79,11 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
       }),
-      merge: (persistedState, currentState) => {
-        return {
-          ...currentState,
-          ...persistedState,
-          error: null, // Don't persist errors
-        };
+      onRehydrateStorage: () => (state) => {
+        // Check token expiration after rehydration
+        if (state?.token && isTokenExpiringSoon(state.token)) {
+          state.actions.logout();
+        }
       },
     }
   )

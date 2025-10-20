@@ -4,11 +4,7 @@ dist
 .env
 *.local
 private/
-coverage/
 __pycache__
-ui/coverage
-ui/dist/**
-private/**
 api
 .obsidian
 parchmark.db
@@ -18,4 +14,19 @@ parchmark.db-journal
 *.db
 *.db-journal
 *.log
-parchmark.db
+
+# Coverage reports and artifacts
+coverage/
+ui/coverage/
+ui/coverage_html/
+backend/coverage_html/
+backend/htmlcov/
+backend/coverage.xml
+backend/.coverage
+*.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
