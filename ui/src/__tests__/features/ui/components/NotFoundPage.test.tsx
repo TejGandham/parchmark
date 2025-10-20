@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -5,8 +6,8 @@ import { TestProvider } from '../../../__mocks__/testUtils';
 import NotFoundPage from '../../../../features/ui/components/NotFoundPage';
 
 // Mock react-router-dom
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
+vi.mock('react-router-dom', async () => ({
+  ...(await import('react-router-dom')),
   Link: ({ to, children }) => (
     <a href={to} data-testid={`link-to-${to}`}>
       {children}
@@ -16,7 +17,7 @@ jest.mock('react-router-dom', () => ({
 
 describe('NotFoundPage Component', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderComponent = () => {

@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
@@ -7,12 +8,12 @@ import { COLORS } from '../../../../utils/constants';
 describe('NoteActions Component', () => {
   const defaultProps = {
     isEditing: false,
-    onEdit: jest.fn(),
-    onSave: jest.fn(),
+    onEdit: vi.fn(),
+    onSave: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderComponent = (props = {}) => {

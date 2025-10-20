@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { render } from '../../../../../test-utils/render';
@@ -9,28 +10,28 @@ import {
 } from '../../../__mocks__/mockStores';
 
 // Mock the zustand hook
-jest.mock('../../../../features/auth/store');
+vi.mock('../../../../features/auth/store');
 
 // Mock react-router's useNavigate and useLocation
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: jest.fn(),
-  useLocation: jest.fn(),
+vi.mock('react-router-dom', async () => ({
+  ...(await import('react-router-dom')),
+  useNavigate: vi.fn(),
+  useLocation: vi.fn(),
 }));
 
 describe('LoginForm', () => {
-  const mockNavigate = jest.fn();
+  const mockNavigate = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    vi.clearAllMocks();
+    (useNavigate as Mock).mockReturnValue(mockNavigate);
     // Mock useLocation with default state
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       pathname: '/login',
       state: null,
     });
     // Mock the auth store for direct access pattern
-    (useAuthStore as jest.Mock).mockReturnValue(mockUnauthenticatedStore);
+    (useAuthStore as Mock).mockReturnValue(mockUnauthenticatedStore);
   });
 
   it('renders the login form correctly', () => {
@@ -119,10 +120,10 @@ describe('LoginForm', () => {
       ...mockUnauthenticatedStore,
       actions: {
         ...mockUnauthenticatedStore.actions,
-        login: jest.fn().mockReturnValue(true),
+        login: vi.fn().mockReturnValue(true),
       },
     };
-    (useAuthStore as jest.Mock).mockReturnValue(mockSuccessfulStore);
+    (useAuthStore as Mock).mockReturnValue(mockSuccessfulStore);
 
     render(<LoginForm />);
 
@@ -149,7 +150,7 @@ describe('LoginForm', () => {
 
   it('shows error message on failed login', async () => {
     // Mock login with error
-    (useAuthStore as jest.Mock).mockReturnValue(mockAuthStoreWithError);
+    (useAuthStore as Mock).mockReturnValue(mockAuthStoreWithError);
 
     render(<LoginForm />);
 
@@ -165,10 +166,10 @@ describe('LoginForm', () => {
       ...mockUnauthenticatedStore,
       actions: {
         ...mockUnauthenticatedStore.actions,
-        login: jest.fn().mockReturnValue(false),
+        login: vi.fn().mockReturnValue(false),
       },
     };
-    (useAuthStore as jest.Mock).mockReturnValue(mockFailedLoginStore);
+    (useAuthStore as Mock).mockReturnValue(mockFailedLoginStore);
 
     render(<LoginForm />);
 
@@ -195,10 +196,10 @@ describe('LoginForm', () => {
       ...mockUnauthenticatedStore,
       actions: {
         ...mockUnauthenticatedStore.actions,
-        login: jest.fn().mockReturnValue(true),
+        login: vi.fn().mockReturnValue(true),
       },
     };
-    (useAuthStore as jest.Mock).mockReturnValue(mockSuccessfulStore);
+    (useAuthStore as Mock).mockReturnValue(mockSuccessfulStore);
 
     render(<LoginForm />, {
       routerOptions: {
@@ -208,7 +209,7 @@ describe('LoginForm', () => {
     });
 
     // Mock location state with custom 'from' path
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       state: { from: { pathname: '/custom-path' } },
     });
 

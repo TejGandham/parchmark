@@ -27,7 +27,7 @@ help: ## Display this help message
 	@echo "$(GREEN)🧪 UI Tests (Frontend):$(NC)"
 	@echo "  make test-ui-install    - Install UI dependencies (npm ci)"
 	@echo "  make test-ui-lint       - Run ESLint on frontend code"
-	@echo "  make test-ui-test       - Run Jest tests with coverage"
+	@echo "  make test-ui-test       - Run Vitest tests with coverage"
 	@echo "  make test-ui-all        - Run all UI tests (lint + tests)"
 	@echo ""
 	@echo "$(GREEN)🐍 Backend Tests (Python):$(NC)"
@@ -106,7 +106,7 @@ test-ui-lint: ## Run ESLint on frontend code
 	@echo "$(GREEN)✓ UI linting passed$(NC)"
 
 .PHONY: test-ui-test
-test-ui-test: ## Run Jest tests with coverage
+test-ui-test: ## Run Vitest tests with coverage
 	@echo "$(BLUE)Running UI tests...$(NC)"
 	cd ui && npm test
 	@echo "$(GREEN)✓ UI tests passed$(NC)"

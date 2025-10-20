@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 import React from 'react';
 import { screen } from '@testing-library/react';
 import { render } from '../../../../../../test-utils/render';
@@ -5,18 +6,18 @@ import UserInfo from '../../../../../features/auth/components/UserLoginStatus/Us
 import { useAuthStore } from '../../../../../features/auth/store';
 
 // Mock useBreakpointValue hook
-jest.mock('@chakra-ui/react', () => ({
-  ...jest.requireActual('@chakra-ui/react'),
-  useBreakpointValue: jest.fn().mockReturnValue(true),
+vi.mock('@chakra-ui/react', async () => ({
+  ...(await import('@chakra-ui/react')),
+  useBreakpointValue: vi.fn().mockReturnValue(true),
 }));
 
 // Mock the auth store
-jest.mock('../../../../../features/auth/store');
+vi.mock('../../../../../features/auth/store');
 
 describe('UserInfo', () => {
   it('should return null when user is not provided', () => {
     // Mock the store to return null user
-    (useAuthStore as jest.Mock).mockImplementation((selector) => {
+    (useAuthStore as Mock).mockImplementation((selector) => {
       const state = {
         user: null,
       };
@@ -35,7 +36,7 @@ describe('UserInfo', () => {
     const mockUser = { username: 'testuser', password: '' };
 
     // Mock the store to return a user
-    (useAuthStore as jest.Mock).mockImplementation((selector) => {
+    (useAuthStore as Mock).mockImplementation((selector) => {
       const state = {
         user: mockUser,
       };

@@ -1,3 +1,4 @@
+import { vi, MockedFunction } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,25 +8,23 @@ import UserLoginStatus from '../../../../features/auth/components/UserLoginStatu
 import { useAuthStore } from '../../../../features/auth/store';
 
 // Mock the auth store
-jest.mock('../../../../features/auth/store', () => ({
-  useAuthStore: jest.fn(),
+vi.mock('../../../../features/auth/store', () => ({
+  useAuthStore: vi.fn(),
 }));
 
-const mockUseAuthStore = useAuthStore as jest.MockedFunction<
-  typeof useAuthStore
->;
+const mockUseAuthStore = useAuthStore as MockedFunction<typeof useAuthStore>;
 
 // Mock navigate function
-const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => ({
+  ...(await import('react-router-dom')),
   useNavigate: () => mockNavigate,
 }));
 
 // Mock useBreakpointValue hook
-const mockUseBreakpointValue = jest.fn();
-jest.mock('@chakra-ui/react', () => {
-  const actual = jest.requireActual('@chakra-ui/react');
+const mockUseBreakpointValue = vi.fn();
+vi.mock('@chakra-ui/react', async () => {
+  const actual = await import('@chakra-ui/react');
   return {
     ...actual,
     useBreakpointValue: (...args: unknown[]) => mockUseBreakpointValue(...args),
@@ -42,7 +41,7 @@ const renderWithProviders = (component: React.ReactNode) => {
 
 describe('UserLoginStatus', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockUseBreakpointValue.mockReturnValue(true); // Default to desktop view
   });
 
@@ -74,7 +73,7 @@ describe('UserLoginStatus', () => {
   });
 
   describe('when user is authenticated', () => {
-    const mockLogout = jest.fn();
+    const mockLogout = vi.fn();
     const mockUser = { username: 'testuser', password: '' };
 
     beforeEach(() => {
@@ -250,7 +249,7 @@ describe('UserLoginStatus', () => {
   });
 
   describe('dropdown menu', () => {
-    const mockLogout = jest.fn();
+    const mockLogout = vi.fn();
     const mockUser = { username: 'testuser', password: '' };
 
     beforeEach(() => {
@@ -362,7 +361,7 @@ describe('UserLoginStatus', () => {
         const state = {
           isAuthenticated: true,
           user: mockUser,
-          actions: { logout: jest.fn() },
+          actions: { logout: vi.fn() },
         };
         return selector(state);
       });
@@ -389,7 +388,7 @@ describe('UserLoginStatus', () => {
         const state = {
           isAuthenticated: true,
           user: mockUser,
-          actions: { logout: jest.fn() },
+          actions: { logout: vi.fn() },
         };
         return selector(state);
       });
@@ -412,13 +411,13 @@ describe('UserLoginStatus', () => {
   describe('dropdown menu interactions', () => {
     it('should handle profile menu item click', async () => {
       const user = userEvent.setup();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation();
       const mockUser = { username: 'testuser', password: '' };
       mockUseAuthStore.mockImplementation((selector) => {
         const state = {
           isAuthenticated: true,
           user: mockUser,
-          actions: { logout: jest.fn() },
+          actions: { logout: vi.fn() },
         };
         return selector(state);
       });
@@ -441,13 +440,13 @@ describe('UserLoginStatus', () => {
 
     it('should handle settings menu item click', async () => {
       const user = userEvent.setup();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation();
       const mockUser = { username: 'testuser', password: '' };
       mockUseAuthStore.mockImplementation((selector) => {
         const state = {
           isAuthenticated: true,
           user: mockUser,
-          actions: { logout: jest.fn() },
+          actions: { logout: vi.fn() },
         };
         return selector(state);
       });
@@ -470,13 +469,13 @@ describe('UserLoginStatus', () => {
 
     it('should handle help menu item click', async () => {
       const user = userEvent.setup();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation();
       const mockUser = { username: 'testuser', password: '' };
       mockUseAuthStore.mockImplementation((selector) => {
         const state = {
           isAuthenticated: true,
           user: mockUser,
-          actions: { logout: jest.fn() },
+          actions: { logout: vi.fn() },
         };
         return selector(state);
       });
