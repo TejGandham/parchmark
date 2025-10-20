@@ -2,9 +2,7 @@
 Integration tests for refresh token functionality.
 """
 
-import pytest
 from fastapi import status
-from sqlalchemy.orm import Session
 
 
 def test_login_returns_refresh_token(client, sample_user):
