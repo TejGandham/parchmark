@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 import React, { act } from 'react';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -9,31 +10,37 @@ import {
 } from './__mocks__/mockStores';
 
 // Mock the lazy-loaded components
-jest.mock('../features/notes/components/NotesContainer', () => {
-  return function MockNotesContainer() {
-    return <div data-testid="notes-container">Notes Container</div>;
+vi.mock('../features/notes/components/NotesContainer', async () => {
+  return {
+    default: function MockNotesContainer() {
+      return <div data-testid="notes-container">Notes Container</div>;
+    },
   };
 });
 
-jest.mock('../features/ui/components/NotFoundPage', () => {
-  return function MockNotFoundPage() {
-    return <div data-testid="not-found-page">404 Not Found</div>;
+vi.mock('../features/ui/components/NotFoundPage', async () => {
+  return {
+    default: function MockNotFoundPage() {
+      return <div data-testid="not-found-page">404 Not Found</div>;
+    },
   };
 });
 
-jest.mock('../features/auth/components/LoginForm', () => {
-  return function MockLoginForm() {
-    return <div data-testid="login-form">Login Form</div>;
+vi.mock('../features/auth/components/LoginForm', async () => {
+  return {
+    default: function MockLoginForm() {
+      return <div data-testid="login-form">Login Form</div>;
+    },
   };
 });
 
 // Mock the auth store
-jest.mock('../features/auth/store');
+vi.mock('../features/auth/store');
 
 // Create a complete mock of react-router-dom
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => jest.fn(),
+vi.mock('react-router-dom', async () => ({
+  ...(await import('react-router-dom')),
+  useNavigate: () => vi.fn(),
   useParams: () => ({}),
   useLocation: () => ({ pathname: '/notes' }),
   Routes: ({ children }: { children: React.ReactNode }) => (
@@ -51,8 +58,8 @@ jest.mock('react-router-dom', () => ({
 }));
 
 // Mock Suspense to avoid lazy loading issues
-jest.mock('react', () => {
-  const originalReact = jest.requireActual('react');
+vi.mock('react', async () => {
+  const originalReact = await import('react');
   return {
     ...originalReact,
     Suspense: ({
@@ -72,9 +79,9 @@ jest.mock('react', () => {
 
 describe('App Component', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Default to unauthenticated state
-    (useAuthStore as jest.Mock).mockImplementation((selector) => {
+    (useAuthStore as Mock).mockImplementation((selector) => {
       const state = mockUnauthenticatedStore;
       return selector ? selector(state) : state;
     });
@@ -110,7 +117,7 @@ describe('App Component', () => {
 
   it('should render notes when user is authenticated', async () => {
     // Mock authenticated state
-    (useAuthStore as jest.Mock).mockImplementation((selector) => {
+    (useAuthStore as Mock).mockImplementation((selector) => {
       const state = mockAuthStore;
       return selector ? selector(state) : state;
     });
@@ -196,7 +203,7 @@ describe('App Component', () => {
 
   describe('RootRoute Navigation', () => {
     it('should navigate to /login when user is not authenticated', async () => {
-      (useAuthStore as jest.Mock).mockImplementation((selector) => {
+      (useAuthStore as Mock).mockImplementation((selector) => {
         const state = mockUnauthenticatedStore;
         return selector ? selector(state) : state;
       });
@@ -214,7 +221,7 @@ describe('App Component', () => {
     });
 
     it('should navigate to /notes when user is authenticated', async () => {
-      (useAuthStore as jest.Mock).mockImplementation((selector) => {
+      (useAuthStore as Mock).mockImplementation((selector) => {
         const state = mockAuthStore;
         return selector ? selector(state) : state;
       });

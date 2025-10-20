@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { render, RenderOptions } from '@testing-library/react';
@@ -44,27 +45,27 @@ export const mockBreakpoint = (
     '(min-width: 80em)': breakpoint === 'xl', // xl and up (1280px)
   };
 
-  (window.matchMedia as jest.Mock).mockImplementation((query: string) => ({
+  (window.matchMedia as Mock).mockImplementation((query: string) => ({
     matches: matchMediaQueries[query] || false,
     media: query,
     onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
   }));
 };
 
 // Mock Chakra UI's useBreakpointValue hook directly
-export const mockUseBreakpointValue = (
+export const mockUseBreakpointValue = async (
   values: Record<string, string | number | boolean>,
   currentBreakpoint: string
 ) => {
-  const chakraUI = jest.requireActual('@chakra-ui/react');
+  const chakraUI = await import('@chakra-ui/react');
   return {
     ...chakraUI,
-    useBreakpointValue: jest.fn().mockImplementation((responsiveValues) => {
+    useBreakpointValue: vi.fn().mockImplementation((responsiveValues) => {
       if (typeof responsiveValues === 'object' && responsiveValues !== null) {
         // Find the appropriate value for the current breakpoint
         if (currentBreakpoint === 'base') return responsiveValues.base;

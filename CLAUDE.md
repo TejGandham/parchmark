@@ -24,7 +24,7 @@ parchmark/
 │   │   ├── services/        # API and markdown services
 │   │   ├── styles/          # Theme and global styles
 │   │   ├── config/          # Constants and environment configuration
-│   │   └── __tests__/       # Jest test files mirroring src structure
+│   │   └── __tests__/       # Vitest test files mirroring src structure
 │   ├── public/              # Static assets
 │   └── Dockerfile           # Frontend container configuration
 ├── backend/                 # Backend FastAPI application
@@ -64,7 +64,7 @@ npm run dev                  # Start Vite dev server (auto-opens browser at :517
 npm run build                # Build for production
 npm run lint                 # Run ESLint
 npm run format               # Format with Prettier
-npm test                     # Run Jest tests
+npm test                     # Run Vitest tests
 npm run test:coverage        # Generate coverage report
 npm run test:watch           # Watch mode for development
 ```
@@ -101,7 +101,7 @@ make test-backend-all        # Run all backend tests (lint + format + types + py
 
 # Granular testing
 make test-ui-lint            # ESLint only
-make test-ui-test            # Jest tests only
+make test-ui-test            # Vitest tests only
 make test-backend-lint       # Ruff linting check
 make test-backend-format     # Ruff formatting check
 make test-backend-types      # Mypy type checking
@@ -225,7 +225,7 @@ Note:
 ## Testing Infrastructure
 
 ### Frontend Testing
-- **Framework**: Jest + React Testing Library
+- **Framework**: Vitest + React Testing Library
 - **Coverage**: 90% threshold enforced
 - **Environment**: jsdom with browser API mocks
 - **Structure**: Tests in `src/__tests__/` mirroring source
@@ -235,7 +235,7 @@ Note:
   import { render } from 'test-utils/render';
   
   // Mock stores for isolated testing
-  jest.mock('../features/auth/store');
+  vi.mock('../features/auth/store');
   
   // Form submissions
   fireEvent.submit(form);  // Not button.click()

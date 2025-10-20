@@ -1,3 +1,4 @@
+import { vi, MockedFunction } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -6,18 +7,16 @@ import Header from '../../../../features/ui/components/Header';
 import { useAuthStore } from '../../../../features/auth/store';
 
 // Mock the auth store
-jest.mock('../../../../features/auth/store', () => ({
-  useAuthStore: jest.fn(),
+vi.mock('../../../../features/auth/store', () => ({
+  useAuthStore: vi.fn(),
 }));
 
-const mockUseAuthStore = useAuthStore as jest.MockedFunction<
-  typeof useAuthStore
->;
+const mockUseAuthStore = useAuthStore as MockedFunction<typeof useAuthStore>;
 
 // Mock useBreakpointValue hook for UserInfo component
-const mockUseBreakpointValue = jest.fn();
-jest.mock('@chakra-ui/react', () => {
-  const actual = jest.requireActual('@chakra-ui/react');
+const mockUseBreakpointValue = vi.fn();
+vi.mock('@chakra-ui/react', async () => {
+  const actual = await import('@chakra-ui/react');
   return {
     ...actual,
     useBreakpointValue: (...args: unknown[]) => mockUseBreakpointValue(...args),
@@ -33,10 +32,10 @@ const renderWithProviders = (component: React.ReactNode) => {
 };
 
 describe('Header Component', () => {
-  const toggleSidebar = jest.fn();
+  const toggleSidebar = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockUseBreakpointValue.mockReturnValue(true); // Default to desktop view
     mockUseAuthStore.mockReturnValue(false); // Default to not authenticated
   });
@@ -93,7 +92,7 @@ describe('Header Component', () => {
       const state = {
         isAuthenticated: true,
         user: mockUser,
-        actions: { logout: jest.fn() },
+        actions: { logout: vi.fn() },
       };
       return selector(state);
     });

@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
@@ -5,29 +6,31 @@ import Sidebar from '../../../../features/ui/components/Sidebar';
 import { mockNotes } from '../../../__mocks__/mockStores';
 
 // Mock NoteItem component
-jest.mock('../../../../features/notes/components/NoteItem', () => {
-  return function MockNoteItem({ note, isActive, onSelect, onDelete }) {
-    return (
-      <li>
-        <button
-          onClick={() => onSelect(note.id)}
-          aria-selected={isActive}
-          data-testid={`note-item-${note.id}`}
-        >
-          {note.title}
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(note.id);
-          }}
-          aria-label={`Delete ${note.title}`}
-        >
-          Delete
-        </button>
-        <span data-testid="note-date">Jan 1, 2023</span>
-      </li>
-    );
+vi.mock('../../../../features/notes/components/NoteItem', () => {
+  return {
+    default: function MockNoteItem({ note, isActive, onSelect, onDelete }) {
+      return (
+        <li>
+          <button
+            onClick={() => onSelect(note.id)}
+            aria-selected={isActive}
+            data-testid={`note-item-${note.id}`}
+          >
+            {note.title}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(note.id);
+            }}
+            aria-label={`Delete ${note.title}`}
+          >
+            Delete
+          </button>
+          <span data-testid="note-date">Jan 1, 2023</span>
+        </li>
+      );
+    },
   };
 });
 
@@ -36,13 +39,13 @@ describe('Sidebar Component', () => {
   const defaultProps = {
     notes: mockNotes,
     currentNoteId: 'note-1',
-    onSelectNote: jest.fn(),
-    onCreateNote: jest.fn(),
-    onDeleteNote: jest.fn(),
+    onSelectNote: vi.fn(),
+    onCreateNote: vi.fn(),
+    onDeleteNote: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderComponent = (props = {}) => {

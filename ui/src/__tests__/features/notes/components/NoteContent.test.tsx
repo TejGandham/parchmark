@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
@@ -5,40 +6,46 @@ import NoteContent from '../../../../features/notes/components/NoteContent';
 import { mockNotes } from '../../../__mocks__/mockStores';
 
 // Mock the components that NoteContent uses
-jest.mock('../../../../features/notes/components/NoteActions', () => {
-  return function MockNoteActions({
-    isEditing,
-    onEdit,
-    onSave,
-  }: {
-    isEditing: boolean;
-    onEdit: () => void;
-    onSave: () => void;
-  }) {
-    return (
-      <div data-testid="note-actions">
-        <button data-testid="edit-button" onClick={onEdit} disabled={isEditing}>
-          Edit
-        </button>
-        <button
-          data-testid="save-button"
-          onClick={onSave}
-          disabled={!isEditing}
-        >
-          Save
-        </button>
-      </div>
-    );
+vi.mock('../../../../features/notes/components/NoteActions', () => {
+  return {
+    default: function MockNoteActions({
+      isEditing,
+      onEdit,
+      onSave,
+    }: {
+      isEditing: boolean;
+      onEdit: () => void;
+      onSave: () => void;
+    }) {
+      return (
+        <div data-testid="note-actions">
+          <button
+            data-testid="edit-button"
+            onClick={onEdit}
+            disabled={isEditing}
+          >
+            Edit
+          </button>
+          <button
+            data-testid="save-button"
+            onClick={onSave}
+            disabled={!isEditing}
+          >
+            Save
+          </button>
+        </div>
+      );
+    },
   };
 });
 
 // Mock the markdown service
-jest.mock('../../../../services/markdownService', () => ({
-  extractTitleFromMarkdown: jest.fn().mockImplementation((content) => {
+vi.mock('../../../../services/markdownService', () => ({
+  extractTitleFromMarkdown: vi.fn().mockImplementation((content) => {
     const match = content.match(/^#\s+(.+)$/m);
     return match ? match[1].trim() : 'Untitled Note';
   }),
-  removeH1FromContent: jest.fn().mockImplementation((content) => {
+  removeH1FromContent: vi.fn().mockImplementation((content) => {
     return content.replace(/^#\s+(.+)($|\n)/, '').trim();
   }),
 }));
@@ -49,10 +56,10 @@ describe('NoteContent Component', () => {
     currentNote: mockNotes[0],
     isEditing: false,
     editedContent: '',
-    setEditedContent: jest.fn(),
-    startEditing: jest.fn(),
-    saveNote: jest.fn(),
-    createNewNote: jest.fn(),
+    setEditedContent: vi.fn(),
+    startEditing: vi.fn(),
+    saveNote: vi.fn(),
+    createNewNote: vi.fn(),
   };
 
   const renderComponent = (props = {}) => {
@@ -261,7 +268,7 @@ describe('NoteContent Component', () => {
     });
 
     it('should call setEditedContent on textarea change when creating new note', () => {
-      const mockSetEditedContent = jest.fn();
+      const mockSetEditedContent = vi.fn();
 
       renderComponent({
         currentNote: null,

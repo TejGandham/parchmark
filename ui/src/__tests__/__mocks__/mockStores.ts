@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { Note } from '../../../types';
 
 export const mockNotes: Note[] = [
@@ -21,8 +22,8 @@ export const mockUIStore = {
   isSidebarOpen: true,
   isDarkMode: false,
   actions: {
-    toggleSidebar: jest.fn(),
-    toggleDarkMode: jest.fn(),
+    toggleSidebar: vi.fn(),
+    toggleDarkMode: vi.fn(),
   },
 };
 
@@ -31,12 +32,12 @@ export const mockNotesStore = {
   currentNoteId: 'note-1',
   editedContent: null,
   actions: {
-    fetchNotes: jest.fn(),
-    createNote: jest.fn().mockReturnValue('note-3'),
-    updateNote: jest.fn(),
-    deleteNote: jest.fn(),
-    setCurrentNote: jest.fn(),
-    setEditedContent: jest.fn(),
+    fetchNotes: vi.fn(),
+    createNote: vi.fn().mockReturnValue('note-3'),
+    updateNote: vi.fn(),
+    deleteNote: vi.fn(),
+    setCurrentNote: vi.fn(),
+    setEditedContent: vi.fn(),
   },
 };
 
@@ -51,12 +52,12 @@ export const mockEmptyNotesStore = {
   currentNoteId: null,
   editedContent: null,
   actions: {
-    fetchNotes: jest.fn(),
-    createNote: jest.fn().mockReturnValue('note-new'),
-    updateNote: jest.fn(),
-    deleteNote: jest.fn(),
-    setCurrentNote: jest.fn(),
-    setEditedContent: jest.fn(),
+    fetchNotes: vi.fn(),
+    createNote: vi.fn().mockReturnValue('note-new'),
+    updateNote: vi.fn(),
+    deleteNote: vi.fn(),
+    setCurrentNote: vi.fn(),
+    setEditedContent: vi.fn(),
   },
 };
 
@@ -67,10 +68,10 @@ export const mockAuthStore = {
   token: 'mock-token',
   error: null,
   actions: {
-    login: jest.fn().mockReturnValue(true),
-    logout: jest.fn(),
-    clearError: jest.fn(),
-    checkTokenExpiration: jest.fn(),
+    login: vi.fn().mockReturnValue(true),
+    logout: vi.fn(),
+    clearError: vi.fn(),
+    checkTokenExpiration: vi.fn(),
   },
 };
 
@@ -80,10 +81,10 @@ export const mockUnauthenticatedStore = {
   token: null,
   error: null,
   actions: {
-    login: jest.fn().mockReturnValue(false),
-    logout: jest.fn(),
-    clearError: jest.fn(),
-    checkTokenExpiration: jest.fn(),
+    login: vi.fn().mockReturnValue(false),
+    logout: vi.fn(),
+    clearError: vi.fn(),
+    checkTokenExpiration: vi.fn(),
   },
 };
 
@@ -93,9 +94,9 @@ export const mockAuthStoreWithError = {
   token: null,
   error: 'Invalid username or password',
   actions: {
-    login: jest.fn().mockReturnValue(false),
-    logout: jest.fn(),
-    clearError: jest.fn(),
-    checkTokenExpiration: jest.fn(),
+    login: vi.fn().mockReturnValue(false),
+    logout: vi.fn(),
+    clearError: vi.fn(),
+    checkTokenExpiration: vi.fn(),
   },
 };
