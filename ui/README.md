@@ -130,7 +130,10 @@ The frontend integrates with a RESTful backend API:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/auth/login` | POST | User authentication |
+| `/api/auth/login` | POST | User authentication (returns access & refresh tokens) |
+| `/api/auth/refresh` | POST | Refresh access token using refresh token |
+| `/api/auth/logout` | POST | User logout |
+| `/api/auth/me` | GET | Get current user info |
 | `/api/notes` | GET | Fetch all notes |
 | `/api/notes` | POST | Create new note |
 | `/api/notes/:id` | PUT | Update note |

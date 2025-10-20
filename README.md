@@ -108,7 +108,7 @@ npm run dev
 
 The frontend will automatically open in your browser at `http://localhost:5173`
 
-#### 4. Default Login Credentials
+#### 5. Default Login Credentials
 
 The database initialization creates two default users:
 
@@ -290,11 +290,24 @@ cd backend
 uv run python -m app.database.init_db
 ```
 
-#### Create Admin User
+#### User Management
+
+The `manage_users.py` script provides commands for user management:
 
 ```bash
 cd backend
-uv run python scripts/manage_users.py create-admin
+
+# Create a new user
+uv run python scripts/manage_users.py create <username> <password>
+# Example: uv run python scripts/manage_users.py create admin SecurePassword123
+
+# Update a user's password
+uv run python scripts/manage_users.py update-password <username> <new_password>
+# Example: uv run python scripts/manage_users.py update-password admin NewPassword456
+
+# Delete a user
+uv run python scripts/manage_users.py delete <username>
+# Example: uv run python scripts/manage_users.py delete olduser
 ```
 
 #### Reset Database
@@ -339,7 +352,8 @@ uv run python -m app.database.init_db  # Recreate
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/login` | User login, returns JWT token |
+| POST | `/api/auth/login` | User login, returns access & refresh tokens |
+| POST | `/api/auth/refresh` | Refresh access token using refresh token |
 | POST | `/api/auth/logout` | User logout |
 | GET | `/api/auth/me` | Get current user info |
 
@@ -366,6 +380,7 @@ Response:
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
   "token_type": "bearer"
 }
 ```

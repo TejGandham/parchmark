@@ -78,6 +78,37 @@ uv run ruff format           # Format Python code
 uv run pytest                # Run tests with coverage
 uv run pytest tests/unit     # Run unit tests only
 uv run pytest tests/integration  # Run integration tests only
+uv run mypy app              # Run type checking
+```
+
+### CI/CD Testing with Makefile
+```bash
+# From project root - mirrors GitHub Actions CI pipeline
+make help                    # Show all available commands
+make test                    # Run ALL tests (UI + Backend)
+make test-all                # Same as 'make test'
+
+# Individual test suites
+make test-ui-all             # Run all UI tests (lint + tests)
+make test-backend-all        # Run all backend tests (lint + format + types + pytest)
+
+# Granular testing
+make test-ui-lint            # ESLint only
+make test-ui-test            # Jest tests only
+make test-backend-lint       # Ruff linting check
+make test-backend-format     # Ruff formatting check
+make test-backend-types      # Mypy type checking
+make test-backend-pytest     # Pytest with coverage
+
+# Development convenience
+make dev-ui                  # Start UI dev server
+make dev-backend             # Start backend dev server
+make docker-dev              # Start PostgreSQL container
+make docker-dev-down         # Stop PostgreSQL container
+
+# Maintenance
+make install-all             # Install all dependencies
+make clean                   # Clean test artifacts and cache
 ```
 
 ### Docker
@@ -349,9 +380,12 @@ isTokenExpiringSoon(token, withinSeconds) // Checks if token expires soon
 This approach uses PostgreSQL in Docker but runs backend/frontend on host for faster development.
 
 ### Testing Changes
-1. Frontend: `npm test` or `npm run test:watch`
-2. Backend: `uv run pytest` or specific tests
-3. Check coverage reports in `coverage_html/`
+1. **Recommended**: Use `make test` to run the full CI pipeline locally
+2. Frontend only: `npm test` or `npm run test:watch` (in `ui/` directory)
+3. Backend only: `uv run pytest` or specific tests (in `backend/` directory)
+4. Check coverage reports:
+   - Frontend: `ui/coverage/`
+   - Backend: `backend/htmlcov/`
 
 ### Full Stack Docker Development
 1. Build: `docker compose build`
@@ -373,6 +407,20 @@ This runs all services in containers, useful for testing production-like environ
 ### Update Dependencies
 - Frontend: `npm update` then test thoroughly
 - Backend: `uv lock --upgrade` then `uv sync`
+
+### User Management
+The `backend/scripts/manage_users.py` script provides user management commands:
+- `create <username> <password>` - Create a new user
+- `update-password <username> <password>` - Update user password
+- `delete <username>` - Delete a user
+
+Example:
+```bash
+cd backend
+uv run python scripts/manage_users.py create admin SecurePassword123
+uv run python scripts/manage_users.py update-password admin NewPassword456
+uv run python scripts/manage_users.py delete olduser
+```
 
 ### Database Migrations
 - PostgreSQL is the only supported database (SQLite removed)
@@ -438,14 +486,15 @@ Production:
 
 ## Important Guidelines
 
-1. **Always test** before committing changes
+1. **Always test** before committing changes - use `make test` to run full CI pipeline
 2. **Follow existing patterns** in the codebase
 3. **Write tests** for new functionality
 4. **Update documentation** when adding features
-5. **Use strong typing** in TypeScript
+5. **Use strong typing** in TypeScript and Python
 6. **Handle errors gracefully** with user feedback
 7. **Keep components focused** and reusable
 8. **Optimize for readability** over cleverness
+9. **Run linting and formatting** before commits (enforced in Makefile)
 
 ## Additional Notes
 
@@ -453,12 +502,15 @@ Production:
 - **State persistence** is handled via localStorage for auth/UI
 - **JWT token monitoring** proactively prevents expired token usage with automatic logout
 - **Token expiration resilience** with clock skew protection and dual-layer verification
+- **Refresh token support** enables seamless session extension without re-authentication
 - **Markdown title extraction** is synchronized between frontend and backend
+- **CI/CD testing** can be replicated locally using the Makefile
 - **Real-time updates** are not implemented (consider WebSockets for future)
 - **File uploads** are not supported (markdown text only)
 - **Multi-language support** is not implemented
 - **Backup functionality** should be added for production use
+- **Token revocation** is not yet implemented (consider Redis-based blacklist for future)
 
 ---
 
-Last Updated: 2025-01-15
+Last Updated: 2025-10-20
