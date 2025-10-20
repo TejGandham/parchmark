@@ -64,32 +64,38 @@ export const mockEmptyNotesStore = {
 export const mockAuthStore = {
   isAuthenticated: true,
   user: { username: 'user', password: '' },
+  token: 'mock-token',
   error: null,
   actions: {
     login: jest.fn().mockReturnValue(true),
     logout: jest.fn(),
     clearError: jest.fn(),
+    checkTokenExpiration: jest.fn(),
   },
 };
 
 export const mockUnauthenticatedStore = {
   isAuthenticated: false,
   user: null,
+  token: null,
   error: null,
   actions: {
     login: jest.fn().mockReturnValue(false),
     logout: jest.fn(),
     clearError: jest.fn(),
+    checkTokenExpiration: jest.fn(),
   },
 };
 
 export const mockAuthStoreWithError = {
   isAuthenticated: false,
   user: null,
+  token: null,
   error: 'Invalid username or password',
   actions: {
     login: jest.fn().mockReturnValue(false),
     logout: jest.fn(),
     clearError: jest.fn(),
+    checkTokenExpiration: jest.fn(),
   },
 };

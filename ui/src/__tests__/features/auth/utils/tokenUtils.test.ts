@@ -89,28 +89,38 @@ describe('tokenUtils', () => {
   });
 
   describe('getTokenExpirationWarningSeconds', () => {
-    beforeEach(() => {
-      // Reset mock to undefined before each test
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
-        undefined;
-    });
-
     it('should return default 60 seconds when env variable is not set', () => {
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
-        undefined;
+      // The mock already sets TOKEN_WARNING_SECONDS to undefined
       expect(getTokenExpirationWarningSeconds()).toBe(60);
     });
 
     it('should return configured value from env variable', () => {
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
-        '120';
-      expect(getTokenExpirationWarningSeconds()).toBe(120);
+      // Re-mock with a specific value
+      jest.resetModules();
+      jest.doMock('../../../../config/constants', () => ({
+        TOKEN_WARNING_SECONDS: '120',
+      }));
+
+      // Re-import the function to pick up the new mock
+      const {
+        getTokenExpirationWarningSeconds: getWarningSeconds,
+      } = require('../../../../features/auth/utils/tokenUtils');
+
+      expect(getWarningSeconds()).toBe(120);
     });
 
     it('should return default for invalid env variable', () => {
-      (constants as { TOKEN_WARNING_SECONDS?: string }).TOKEN_WARNING_SECONDS =
-        'invalid';
-      expect(getTokenExpirationWarningSeconds()).toBe(60);
+      // Re-mock with invalid value
+      jest.resetModules();
+      jest.doMock('../../../../config/constants', () => ({
+        TOKEN_WARNING_SECONDS: 'invalid',
+      }));
+
+      const {
+        getTokenExpirationWarningSeconds: getWarningSeconds,
+      } = require('../../../../features/auth/utils/tokenUtils');
+
+      expect(getWarningSeconds()).toBe(60);
     });
   });
 
