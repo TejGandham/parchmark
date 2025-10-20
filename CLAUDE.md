@@ -116,7 +116,10 @@ docker compose -f docker-compose.prod.yml up -d
 ## Application Architecture
 
 ### Authentication & Security
-- **JWT-based authentication** with 30-minute token expiration
+- **JWT-based authentication** with refresh token support
+  - Access tokens: 30-minute expiration
+  - Refresh tokens: 7-day expiration
+  - Token refresh endpoint for seamless session extension
 - **Proactive token expiration monitoring**: Automatically logs out users 1 minute before token expires
 - **Token expiration checking**: Monitors tokens every 3 minutes with configurable warning threshold
 - **Clock skew protection**: 10-second buffer to handle client/server time differences
@@ -233,7 +236,8 @@ Note:
 
 ### Authentication
 ```
-POST /api/auth/login     - User login (returns JWT)
+POST /api/auth/login     - User login (returns access & refresh tokens)
+POST /api/auth/refresh   - Refresh access token using refresh token
 POST /api/auth/logout    - User logout
 GET  /api/auth/me        - Current user info
 ```
@@ -262,6 +266,7 @@ DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parch
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
 HOST=0.0.0.0
 PORT=8000
