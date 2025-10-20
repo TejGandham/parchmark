@@ -110,6 +110,10 @@ async def refresh_token(refresh_request: RefreshTokenRequest, db: Session = Depe
     # Verify the refresh token
     token_data = verify_refresh_token(refresh_request.refresh_token, credentials_exception)
 
+    # Ensure username is present in token
+    if not token_data.username:
+        raise credentials_exception
+
     # Get the user from database
     user = get_user_by_username(db, token_data.username)
     if not user:
