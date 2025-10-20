@@ -402,7 +402,10 @@ describe('useStoreRouterSync', () => {
 
     // Mock store with editedContent set (as if createNote was just called)
     (useNotesStore as jest.Mock).mockReturnValue({
-      notes: [...mockNotes, { id: 'note-3', title: 'New Note', content: '# New Note\n\n' }],
+      notes: [
+        ...mockNotes,
+        { id: 'note-3', title: 'New Note', content: '# New Note\n\n' },
+      ],
       currentNoteId: 'note-3', // Already set as current by createNote
       editedContent: '# New Note\n\n', // Set by createNote
       actions: mockNotesStore.actions,

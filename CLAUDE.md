@@ -53,6 +53,11 @@ Note: PostgreSQL runs exclusively in Docker containers. No local PostgreSQL inst
 
 ### Frontend (UI)
 ```bash
+# Preferred: Use Makefile from project root
+make dev-ui                  # Start Vite dev server (auto-opens browser at :5173)
+make test-ui-all             # Run all UI tests (lint + tests)
+
+# Or run commands directly from ui directory
 cd ui
 npm install                  # Install dependencies
 npm run dev                  # Start Vite dev server (auto-opens browser at :5173)
@@ -66,10 +71,12 @@ npm run test:watch           # Watch mode for development
 
 ### Backend
 ```bash
-# First, start PostgreSQL container (from project root)
-docker compose -f docker-compose.dev.yml up -d
+# Preferred: Use Makefile from project root
+make docker-dev              # Start PostgreSQL container
+make dev-backend             # Start backend dev server on :8000
+make test-backend-all        # Run all backend tests (lint + format + types + pytest)
 
-# Then start backend
+# Or run commands directly from backend directory
 cd backend
 uv sync                      # Install dependencies
 uv run uvicorn app.main:app --reload  # Start dev server on :8000
@@ -131,9 +138,9 @@ make clean                   # Clean test artifacts and cache
 
 ```bash
 # Local Development (PostgreSQL only in Docker)
-docker compose -f docker-compose.dev.yml up -d  # Start PostgreSQL container
-docker compose -f docker-compose.dev.yml down    # Stop PostgreSQL container
-# Then run backend/frontend directly on host as shown above
+make docker-dev              # Start PostgreSQL container
+make docker-dev-down         # Stop PostgreSQL container
+# Then run backend/frontend directly on host using make dev-backend / make dev-ui
 
 # Full Stack in Docker (all services containerized)
 docker compose up -d         # Start all services in containers
@@ -371,19 +378,22 @@ isTokenExpiringSoon(token, withinSeconds) // Checks if token expires soon
 ## Development Workflow
 
 ### Local Development (Recommended)
-1. Start PostgreSQL: `docker compose -f docker-compose.dev.yml up -d`
-2. Start backend: `cd backend && uv run uvicorn app.main:app --reload`
-3. Start frontend: `cd ui && npm run dev`
+1. Start PostgreSQL: `make docker-dev` (from project root)
+2. Start backend: `make dev-backend` (from project root)
+3. Start frontend: `make dev-ui` (from project root)
 4. Access app at `http://localhost:5173`
 5. API docs at `http://localhost:8000/docs`
 
 This approach uses PostgreSQL in Docker but runs backend/frontend on host for faster development.
 
 ### Testing Changes
-1. **Recommended**: Use `make test` to run the full CI pipeline locally
-2. Frontend only: `npm test` or `npm run test:watch` (in `ui/` directory)
-3. Backend only: `uv run pytest` or specific tests (in `backend/` directory)
-4. Check coverage reports:
+1. **Recommended**: Use `make test` to run the full CI pipeline locally (both UI + Backend)
+2. Frontend only: `make test-ui-all` (or `make test-ui-lint` / `make test-ui-test` for specific checks)
+3. Backend only: `make test-backend-all` (or specific targets like `make test-backend-pytest`)
+4. Quick development testing:
+   - Frontend watch mode: `npm run test:watch` (in `ui/` directory)
+   - Backend specific tests: `uv run pytest tests/path/to/test.py` (in `backend/` directory)
+5. Check coverage reports:
    - Frontend: `ui/coverage/`
    - Backend: `backend/htmlcov/`
 
@@ -486,15 +496,16 @@ Production:
 
 ## Important Guidelines
 
-1. **Always test** before committing changes - use `make test` to run full CI pipeline
-2. **Follow existing patterns** in the codebase
-3. **Write tests** for new functionality
-4. **Update documentation** when adding features
-5. **Use strong typing** in TypeScript and Python
-6. **Handle errors gracefully** with user feedback
-7. **Keep components focused** and reusable
-8. **Optimize for readability** over cleverness
-9. **Run linting and formatting** before commits (enforced in Makefile)
+1. **Use Makefile commands** from project root instead of manual commands (see `make help` for all options)
+2. **Always test** before committing changes - use `make test` to run full CI pipeline
+3. **Follow existing patterns** in the codebase
+4. **Write tests** for new functionality (add regression tests for bugs)
+5. **Update documentation** when adding features
+6. **Use strong typing** in TypeScript and Python
+7. **Handle errors gracefully** with user feedback
+8. **Keep components focused** and reusable
+9. **Optimize for readability** over cleverness
+10. **Run linting and formatting** before commits (enforced in Makefile)
 
 ## Additional Notes
 
