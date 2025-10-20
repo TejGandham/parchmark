@@ -395,4 +395,34 @@ describe('useStoreRouterSync', () => {
     // Should still navigate even if store setCurrentNote fails
     expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
   });
+
+  it('should preserve edit mode when creating a new note', async () => {
+    // This test ensures that the bug where new notes don't launch in edit mode is fixed
+    // The bug was: routing effect called setCurrentNote which cleared editedContent
+
+    // Mock store with editedContent set (as if createNote was just called)
+    (useNotesStore as jest.Mock).mockReturnValue({
+      notes: [...mockNotes, { id: 'note-3', title: 'New Note', content: '# New Note\n\n' }],
+      currentNoteId: 'note-3', // Already set as current by createNote
+      editedContent: '# New Note\n\n', // Set by createNote
+      actions: mockNotesStore.actions,
+    });
+
+    // Mock params to show we're navigating to the new note
+    (useParams as jest.Mock).mockReturnValue({
+      noteId: 'note-3',
+    });
+
+    (useLocation as jest.Mock).mockReturnValue({
+      pathname: '/notes/note-3',
+    });
+
+    mockNotesStore.actions.setCurrentNote.mockClear();
+
+    renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // The key fix: setCurrentNote should NOT be called because note-3 is already current
+    // This prevents editedContent from being cleared
+    expect(mockNotesStore.actions.setCurrentNote).not.toHaveBeenCalled();
+  });
 });
