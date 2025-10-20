@@ -51,6 +51,21 @@ def delete_user(db: Session, username: str):
     print(f"User '{username}' deleted successfully.")
 
 
+def list_users(db: Session):
+    """Lists all users in the database."""
+    users = db.query(User).order_by(User.created_at).all()
+    if not users:
+        print("No users found.")
+        return
+
+    print(f"\nTotal users: {len(users)}\n")
+    print(f"{'Username':<20} {'Created At':<25}")
+    print("-" * 45)
+    for user in users:
+        created_at_str = user.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{user.username:<20} {created_at_str:<25}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Manage ParchMark users.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -69,6 +84,9 @@ def main():
     parser_delete = subparsers.add_parser("delete", help="Delete a user.")
     parser_delete.add_argument("username", help="The username of the user to delete.")
 
+    # List users command
+    subparsers.add_parser("list", help="List all users.")
+
     args = parser.parse_args()
 
     db = SessionLocal()
@@ -79,6 +97,8 @@ def main():
             update_password(db, args.username, args.password)
         elif args.command == "delete":
             delete_user(db, args.username)
+        elif args.command == "list":
+            list_users(db)
     finally:
         db.close()
 
