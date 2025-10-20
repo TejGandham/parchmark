@@ -243,10 +243,11 @@ Note:
 
 ### Backend Testing
 - **Framework**: Pytest with fixtures
+- **Parallel Execution**: pytest-xdist with auto-detection (`-n auto`) and worksteal distribution
 - **Coverage**: 90% threshold enforced
 - **Database**: PostgreSQL via testcontainers (requires Docker)
 - **Test Isolation**: TRUNCATE CASCADE before/after each test
-- **Structure**: 
+- **Structure**:
   - `tests/unit/` - Function and class tests
   - `tests/integration/` - API endpoint tests
 - **Key Fixtures**:
