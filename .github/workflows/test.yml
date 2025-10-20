@@ -23,19 +23,13 @@ jobs:
           cache-dependency-path: ui/package-lock.json
 
       - name: Install dependencies
-        run: |
-          cd ui
-          npm ci
+        run: make test-ui-install
 
       - name: Run linting
-        run: |
-          cd ui
-          npm run lint
+        run: make test-ui-lint
 
       - name: Run tests
-        run: |
-          cd ui
-          npm test
+        run: make test-ui-test
 
   backend-tests:
     runs-on: ubuntu-latest
@@ -61,26 +55,16 @@ jobs:
           uv python pin ${{ matrix.python-version }}
 
       - name: Sync dependencies with uv
-        run: |
-          cd backend
-          uv sync --dev
+        run: make test-backend-install
 
       - name: Run ruff linting check
-        run: |
-          cd backend
-          uv run ruff check app tests --no-fix  # Check only, no auto-fix
+        run: make test-backend-lint
 
       - name: Run ruff formatting check
-        run: |
-          cd backend
-          uv run ruff format --check app tests  # Check only, no auto-format
+        run: make test-backend-format
 
       - name: Run type checking
-        run: |
-          cd backend
-          uv run mypy app
+        run: make test-backend-types
 
-      - name: Run tests with coverage (parallel with xdist)
-        run: |
-          cd backend
-          uv run pytest -v --cov=app --cov-report=xml --cov-report=term
+      - name: Run tests with coverage
+        run: make test-backend-pytest

@@ -1,8 +1,10 @@
 import { act } from 'react';
 import { useAuthStore, AuthState } from '../../../../features/auth/store/auth';
 import * as api from '../../../../services/api';
+import * as tokenUtils from '../../../../features/auth/utils/tokenUtils';
 
 jest.mock('../../../../services/api');
+jest.mock('../../../../features/auth/utils/tokenUtils');
 
 describe('Auth Store', () => {
   let store: AuthState;
@@ -107,5 +109,151 @@ describe('Auth Store', () => {
     // Then clear the error
     actions.clearError();
     expect(useAuthStore.getState().error).toBeNull();
+  });
+
+  describe('checkTokenExpiration', () => {
+    it('should logout when token is expiring soon', async () => {
+      const { actions } = store;
+
+      // First login to set a token
+      (api.login as jest.Mock).mockResolvedValue({
+        access_token: 'test-token',
+      });
+      await actions.login('user', 'password');
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().token).toBe('test-token');
+
+      // Mock token as expiring soon
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
+
+      // Check token expiration
+      actions.checkTokenExpiration();
+
+      // Should logout
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(false);
+      expect(newState.user).toBeNull();
+      expect(newState.token).toBeNull();
+    });
+
+    it('should not logout when token is not expiring soon', async () => {
+      const { actions } = store;
+
+      // First login to set a token
+      (api.login as jest.Mock).mockResolvedValue({
+        access_token: 'test-token',
+      });
+      await actions.login('user', 'password');
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+
+      // Mock token as not expiring soon
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
+
+      // Check token expiration
+      actions.checkTokenExpiration();
+
+      // Should remain logged in
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(true);
+      expect(newState.user).toEqual({ username: 'user', password: '' });
+      expect(newState.token).toBe('test-token');
+    });
+
+    it('should handle null token gracefully', () => {
+      const { actions } = store;
+
+      // Ensure no token is set
+      expect(useAuthStore.getState().token).toBeNull();
+
+      // Mock isTokenExpiringSoon to return true for null
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
+
+      // Check token expiration
+      actions.checkTokenExpiration();
+
+      // Should call logout but state is already logged out
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(false);
+      expect(newState.token).toBeNull();
+    });
+  });
+
+  describe('Token Rehydration (via checkTokenExpiration)', () => {
+    it('should logout when checking an expiring token', () => {
+      // Mock isTokenExpiringSoon to return true
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
+
+      // Set up authenticated state with a token
+      act(() => {
+        useAuthStore.setState({
+          isAuthenticated: true,
+          user: { username: 'testuser', password: '' },
+          token: 'expiring-token',
+          error: null,
+        });
+      });
+
+      // Manually trigger the token expiration check (simulates rehydration)
+      act(() => {
+        useAuthStore.getState().actions.checkTokenExpiration();
+      });
+
+      // Verify that logout was triggered
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(false);
+      expect(newState.token).toBeNull();
+      expect(newState.user).toBeNull();
+    });
+
+    it('should not logout when checking a valid token', () => {
+      // Mock isTokenExpiringSoon to return false
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
+
+      // Set up authenticated state with a valid token
+      act(() => {
+        useAuthStore.setState({
+          isAuthenticated: true,
+          user: { username: 'testuser', password: '' },
+          token: 'valid-token',
+          error: null,
+        });
+      });
+
+      // Manually trigger the token expiration check
+      act(() => {
+        useAuthStore.getState().actions.checkTokenExpiration();
+      });
+
+      // Verify that state remains unchanged
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(true);
+      expect(newState.token).toBe('valid-token');
+      expect(newState.user).toEqual({ username: 'testuser', password: '' });
+    });
+
+    it('should handle null token when checking expiration', () => {
+      // Mock isTokenExpiringSoon to return false for null
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
+
+      // Set up state with no token
+      act(() => {
+        useAuthStore.setState({
+          isAuthenticated: false,
+          user: null,
+          token: null,
+          error: null,
+        });
+      });
+
+      // Check expiration should not throw
+      expect(() => {
+        act(() => {
+          useAuthStore.getState().actions.checkTokenExpiration();
+        });
+      }).not.toThrow();
+
+      // Verify that isTokenExpiringSoon was still called with null
+      expect(tokenUtils.isTokenExpiringSoon).toHaveBeenCalledWith(null);
+    });
   });
 });

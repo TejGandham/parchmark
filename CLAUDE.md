@@ -120,6 +120,10 @@ docker compose -f docker-compose.prod.yml up -d
   - Access tokens: 30-minute expiration
   - Refresh tokens: 7-day expiration
   - Token refresh endpoint for seamless session extension
+- **Proactive token expiration monitoring**: Automatically logs out users 1 minute before token expires
+- **Token expiration checking**: Monitors tokens every 3 minutes with configurable warning threshold
+- **Clock skew protection**: 10-second buffer to handle client/server time differences
+- **Dual-layer security**: Proactive monitoring + 401 interceptor as fallback
 - **Bcrypt password hashing** for secure storage
 - **Protected routes** using React Router v7 guards
 - **Persistent sessions** via localStorage (Zustand persist middleware)
@@ -141,7 +145,8 @@ useUIStore     // Sidebar state, dark mode toggle
 features/{domain}/
 ├── components/     # React components
 ├── store/          # Zustand store
-├── hooks/          # Custom hooks (e.g., useStoreRouterSync)
+├── hooks/          # Custom hooks (e.g., useStoreRouterSync, useTokenExpirationMonitor)
+├── utils/          # Utility functions (e.g., tokenUtils for JWT handling)
 └── styles/         # Feature-specific CSS
 ```
 
@@ -250,7 +255,8 @@ DELETE /api/notes/{id}   - Delete note
 
 ### Frontend (.env)
 ```bash
-VITE_API_URL=/api        # API base URL (proxied in dev)
+VITE_API_URL=/api                    # API base URL (proxied in dev)
+VITE_TOKEN_WARNING_SECONDS=60        # Optional: Seconds before token expiration to trigger logout (default: 60)
 ```
 
 ### Backend (.env)
@@ -319,6 +325,16 @@ const store = create((set) => ({
 ```javascript
 // Sync URL params with store state
 useStoreRouterSync() // In NotesContainer
+```
+
+### JWT Token Monitoring Pattern
+```javascript
+// Frontend: Proactive token expiration monitoring
+useTokenExpirationMonitor() // In App.tsx, checks every 3 minutes
+
+// Token utilities for JWT handling
+getTokenExpiration(token) // Returns expiration timestamp or null
+isTokenExpiringSoon(token, withinSeconds) // Checks if token expires soon
 ```
 
 ## Development Workflow
@@ -435,6 +451,8 @@ Production:
 
 - The application uses a **feature-first** organization pattern
 - **State persistence** is handled via localStorage for auth/UI
+- **JWT token monitoring** proactively prevents expired token usage with automatic logout
+- **Token expiration resilience** with clock skew protection and dual-layer verification
 - **Markdown title extraction** is synchronized between frontend and backend
 - **Real-time updates** are not implemented (consider WebSockets for future)
 - **File uploads** are not supported (markdown text only)
@@ -443,4 +461,4 @@ Production:
 
 ---
 
-Last Updated: 2025-08-23
+Last Updated: 2025-01-15
