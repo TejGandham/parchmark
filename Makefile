@@ -35,7 +35,8 @@ help: ## Display this help message
 	@echo "  make test-backend-lint     - Run ruff linting check (no auto-fix)"
 	@echo "  make test-backend-format   - Run ruff formatting check (no auto-format)"
 	@echo "  make test-backend-types    - Run mypy type checking"
-	@echo "  make test-backend-pytest   - Run pytest with coverage"
+	@echo "  make test-backend-pytest   - Run pytest with coverage (parallel with auto workers)"
+	@echo "  make test-backend-pytest-limited - Run pytest with 4 workers (resource-constrained)"
 	@echo "  make test-backend-all      - Run all backend tests (lint + format + types + pytest)"
 	@echo ""
 	@echo "$(GREEN)🔧 Combined Test Targets:$(NC)"
@@ -85,7 +86,7 @@ help: ## Display this help message
 	@echo "  make user-list-prod                                   - List all users"
 	@echo ""
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(YELLOW)Total Commands Available: 37$(NC)"
+	@echo "$(YELLOW)Total Commands Available: 38$(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 
@@ -144,9 +145,15 @@ test-backend-types: ## Run mypy type checking
 	@echo "$(GREEN)✓ Backend type checking passed$(NC)"
 
 .PHONY: test-backend-pytest
-test-backend-pytest: ## Run pytest with coverage
+test-backend-pytest: ## Run pytest with coverage (parallel execution with auto workers)
 	@echo "$(BLUE)Running backend tests with coverage (parallel execution)...$(NC)"
 	cd backend && uv run pytest -v -n auto --dist worksteal --cov=app --cov-report=xml --cov-report=term
+	@echo "$(GREEN)✓ Backend tests passed$(NC)"
+
+.PHONY: test-backend-pytest-limited
+test-backend-pytest-limited: ## Run pytest with limited workers (n=4, for resource-constrained environments)
+	@echo "$(BLUE)Running backend tests with coverage (4 workers)...$(NC)"
+	cd backend && uv run pytest -v -n 4 --dist worksteal --cov=app --cov-report=xml --cov-report=term
 	@echo "$(GREEN)✓ Backend tests passed$(NC)"
 
 .PHONY: test-backend-all

@@ -244,9 +244,13 @@ Note:
 ### Backend Testing
 - **Framework**: Pytest with fixtures
 - **Parallel Execution**: pytest-xdist with auto-detection (`-n auto`) and worksteal distribution
+  - Each worker gets its own PostgreSQL container for complete isolation
+  - No race conditions: workers operate on separate databases
+  - Resource usage: ~100-200MB per container, ~2-5s startup per worker
+  - Use `make test-backend-pytest-limited` (4 workers) for resource-constrained environments
 - **Coverage**: 90% threshold enforced
 - **Database**: PostgreSQL via testcontainers (requires Docker)
-- **Test Isolation**: TRUNCATE CASCADE before/after each test
+- **Test Isolation**: TRUNCATE CASCADE before/after each test (within each worker's database)
 - **Structure**:
   - `tests/unit/` - Function and class tests
   - `tests/integration/` - API endpoint tests
