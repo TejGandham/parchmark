@@ -5,8 +5,9 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx",
-    "module": "ESNext"
+    "module": "ESNext",
+    "types": ["vitest/globals"]
   },
-  "include": ["src", "jest.config.js", "jest.setup.js"],
+  "include": ["src", "vitest.config.ts", "vitest.setup.ts"],
   "exclude": ["node_modules"]
 }

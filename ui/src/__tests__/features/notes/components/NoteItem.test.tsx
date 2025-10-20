@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
@@ -14,12 +15,12 @@ describe('NoteItem Component', () => {
       updatedAt: '2023-01-01T00:00:00.000Z',
     },
     isActive: false,
-    onSelect: jest.fn(),
-    onDelete: jest.fn(),
+    onSelect: vi.fn(),
+    onDelete: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const renderComponent = (props = {}) => {

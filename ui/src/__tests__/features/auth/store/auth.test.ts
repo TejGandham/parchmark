@@ -1,10 +1,11 @@
+import { vi, Mock } from 'vitest';
 import { act } from 'react';
 import { useAuthStore, AuthState } from '../../../../features/auth/store/auth';
 import * as api from '../../../../services/api';
 import * as tokenUtils from '../../../../features/auth/utils/tokenUtils';
 
-jest.mock('../../../../services/api');
-jest.mock('../../../../features/auth/utils/tokenUtils');
+vi.mock('../../../../services/api');
+vi.mock('../../../../features/auth/utils/tokenUtils');
 
 describe('Auth Store', () => {
   let store: AuthState;
@@ -22,7 +23,7 @@ describe('Auth Store', () => {
     });
 
     store = useAuthStore.getState();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should initialize with unauthenticated state', () => {
@@ -36,7 +37,7 @@ describe('Auth Store', () => {
     const { actions } = store;
 
     // Mock the successful API call
-    (api.login as jest.Mock).mockResolvedValue({ access_token: 'test-token' });
+    (api.login as Mock).mockResolvedValue({ access_token: 'test-token' });
 
     const success = await actions.login('user', 'password');
     const newState = useAuthStore.getState();
@@ -51,7 +52,7 @@ describe('Auth Store', () => {
     const { actions } = store;
 
     // Mock the failed API call
-    (api.login as jest.Mock).mockRejectedValue(
+    (api.login as Mock).mockRejectedValue(
       new Error('Invalid username or password')
     );
 
@@ -68,7 +69,7 @@ describe('Auth Store', () => {
     const { actions } = store;
 
     // Mock the failed API call with error object without message
-    (api.login as jest.Mock).mockRejectedValue({});
+    (api.login as Mock).mockRejectedValue({});
 
     const success = await actions.login('user', 'wrongpassword');
     const newState = useAuthStore.getState();
@@ -83,7 +84,7 @@ describe('Auth Store', () => {
     const { actions } = store;
 
     // First login
-    (api.login as jest.Mock).mockResolvedValue({ access_token: 'test-token' });
+    (api.login as Mock).mockResolvedValue({ access_token: 'test-token' });
     await actions.login('user', 'password');
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
 
@@ -100,7 +101,7 @@ describe('Auth Store', () => {
     const { actions } = store;
 
     // First create an error
-    (api.login as jest.Mock).mockRejectedValue(
+    (api.login as Mock).mockRejectedValue(
       new Error('Invalid username or password')
     );
     await actions.login('user', 'wrongpassword');
@@ -116,7 +117,7 @@ describe('Auth Store', () => {
       const { actions } = store;
 
       // First login to set a token
-      (api.login as jest.Mock).mockResolvedValue({
+      (api.login as Mock).mockResolvedValue({
         access_token: 'test-token',
       });
       await actions.login('user', 'password');
@@ -124,7 +125,7 @@ describe('Auth Store', () => {
       expect(useAuthStore.getState().token).toBe('test-token');
 
       // Mock token as expiring soon
-      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);
 
       // Check token expiration
       actions.checkTokenExpiration();
@@ -140,14 +141,14 @@ describe('Auth Store', () => {
       const { actions } = store;
 
       // First login to set a token
-      (api.login as jest.Mock).mockResolvedValue({
+      (api.login as Mock).mockResolvedValue({
         access_token: 'test-token',
       });
       await actions.login('user', 'password');
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
 
       // Mock token as not expiring soon
-      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(false);
 
       // Check token expiration
       actions.checkTokenExpiration();
@@ -166,7 +167,7 @@ describe('Auth Store', () => {
       expect(useAuthStore.getState().token).toBeNull();
 
       // Mock isTokenExpiringSoon to return true for null
-      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);
 
       // Check token expiration
       actions.checkTokenExpiration();
@@ -181,7 +182,7 @@ describe('Auth Store', () => {
   describe('Token Rehydration (via checkTokenExpiration)', () => {
     it('should logout when checking an expiring token', () => {
       // Mock isTokenExpiringSoon to return true
-      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);
 
       // Set up authenticated state with a token
       act(() => {
@@ -207,7 +208,7 @@ describe('Auth Store', () => {
 
     it('should not logout when checking a valid token', () => {
       // Mock isTokenExpiringSoon to return false
-      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(false);
 
       // Set up authenticated state with a valid token
       act(() => {
@@ -233,7 +234,7 @@ describe('Auth Store', () => {
 
     it('should handle null token when checking expiration', () => {
       // Mock isTokenExpiringSoon to return false for null
-      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(false);
 
       // Set up state with no token
       act(() => {

@@ -1,19 +1,22 @@
+import { vi } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 import Mermaid from '../../components/Mermaid';
 
 // Mock mermaid library
-jest.mock('mermaid', () => ({
-  initialize: jest.fn(),
-  contentLoaded: jest.fn(),
+vi.mock('mermaid', () => ({
+  default: {
+    initialize: vi.fn(),
+    contentLoaded: vi.fn(),
+  },
 }));
 
 import mermaidMock from 'mermaid';
 
 describe('Mermaid Component', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render mermaid chart content', () => {

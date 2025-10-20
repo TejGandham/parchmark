@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import {
   getTokenExpiration,
   isTokenExpiringSoon,
@@ -5,7 +6,7 @@ import {
 } from '../../../../features/auth/utils/tokenUtils';
 
 // Mock the constants module
-jest.mock('../../../../config/constants', () => ({
+vi.mock('../../../../config/constants', () => ({
   TOKEN_WARNING_SECONDS: undefined, // Default to undefined
 }));
 
@@ -72,7 +73,7 @@ describe('tokenUtils', () => {
       const mockToken = `header.not-valid-base64!@#$.signature`;
 
       // Mock console.error to verify it's called
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
 
       const result = getTokenExpiration(mockToken);
       expect(result).toBeNull();
@@ -93,8 +94,8 @@ describe('tokenUtils', () => {
 
     it('should return configured value from env variable', async () => {
       // Re-mock with a specific value
-      jest.resetModules();
-      jest.doMock('../../../../config/constants', () => ({
+      vi.resetModules();
+      vi.doMock('../../../../config/constants', () => ({
         TOKEN_WARNING_SECONDS: '120',
       }));
 
@@ -107,8 +108,8 @@ describe('tokenUtils', () => {
 
     it('should return default for invalid env variable', async () => {
       // Re-mock with invalid value
-      jest.resetModules();
-      jest.doMock('../../../../config/constants', () => ({
+      vi.resetModules();
+      vi.doMock('../../../../config/constants', () => ({
         TOKEN_WARNING_SECONDS: 'invalid',
       }));
 

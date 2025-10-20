@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
 import { useAuthStore } from '../../../../features/auth/store';
@@ -7,10 +8,10 @@ import {
 } from '../../../__mocks__/mockStores';
 
 // Mock the auth store
-jest.mock('../../../../features/auth/store');
+vi.mock('../../../../features/auth/store');
 
 // Add a basic mock for Navigate
-jest.mock('react-router-dom', () => ({
+vi.mock('react-router-dom', () => ({
   Navigate: () => <div data-testid="navigate-mock">Navigate Mock</div>,
   useLocation: () => ({ pathname: '/protected' }),
 }));
@@ -20,11 +21,11 @@ import ProtectedRoute from '../../../../features/auth/components/ProtectedRoute'
 
 describe('ProtectedRoute', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders protected content when user is authenticated', () => {
-    (useAuthStore as jest.Mock).mockImplementation((selector) =>
+    (useAuthStore as Mock).mockImplementation((selector) =>
       selector ? selector(mockAuthStore) : mockAuthStore
     );
 
@@ -38,7 +39,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('redirects to login when user is not authenticated', () => {
-    (useAuthStore as jest.Mock).mockImplementation((selector) =>
+    (useAuthStore as Mock).mockImplementation((selector) =>
       selector ? selector(mockUnauthenticatedStore) : mockUnauthenticatedStore
     );
 
@@ -59,7 +60,7 @@ describe('ProtectedRoute', () => {
       actions: mockUnauthenticatedStore.actions,
     };
 
-    (useAuthStore as jest.Mock).mockImplementation((selector) =>
+    (useAuthStore as Mock).mockImplementation((selector) =>
       selector ? selector(undefinedAuthStore) : undefinedAuthStore
     );
 
@@ -74,7 +75,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('renders without errors when children is null', () => {
-    (useAuthStore as jest.Mock).mockImplementation((selector) =>
+    (useAuthStore as Mock).mockImplementation((selector) =>
       selector ? selector(mockAuthStore) : mockAuthStore
     );
 
