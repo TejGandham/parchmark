@@ -11,8 +11,9 @@ COPY uv.lock ./
 # This layer is cached when only app code changes
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Copy application code
+# Copy application code and scripts
 COPY app ./app
+COPY scripts ./scripts
 
 # Second sync: Install the project itself in non-editable mode
 # --no-editable ensures files are copied to site-packages instead of using .pth file
@@ -25,6 +26,9 @@ WORKDIR /app
 
 # Copy the complete virtual environment with app and all dependencies
 COPY --from=builder /app/.venv /app/.venv
+
+# Copy scripts directory for user management and other utilities
+COPY --from=builder /app/scripts /app/scripts
 
 # Don't copy env files in production - they should be mounted or provided via env_file
 # For development, you can mount .env.docker or .env.production at runtime
