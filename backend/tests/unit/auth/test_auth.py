@@ -113,27 +113,36 @@ class TestJWTTokens:
         """Test JWT token creation with custom expiration."""
         data = {"sub": "testuser"}
         expires_delta = timedelta(minutes=60)
+
+        # Capture "now" before creating token to avoid timing discrepancies
+        now = datetime.now(UTC)
         token = create_access_token(data, expires_delta)
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         exp_timestamp = payload["exp"]
         exp_datetime = datetime.fromtimestamp(exp_timestamp, UTC)
 
-        # Check that expiration is approximately 60 minutes from now
-        expected_exp = datetime.now(UTC) + expires_delta
+        # Check that expiration is approximately 60 minutes from the captured time
+        expected_exp = now + expires_delta
         assert abs((exp_datetime - expected_exp).total_seconds()) < 5
 
     def test_create_access_token_default_expiration(self):
         """Test JWT token creation with default expiration."""
         data = {"sub": "testuser"}
+
+        # Capture "now" before creating token to avoid timing discrepancies
+        now = datetime.now(UTC)
         token = create_access_token(data)
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         exp_timestamp = payload["exp"]
         exp_datetime = datetime.fromtimestamp(exp_timestamp, UTC)
 
-        # Check that expiration is approximately ACCESS_TOKEN_EXPIRE_MINUTES from now
-        expected_exp = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        # Check that expiration is approximately ACCESS_TOKEN_EXPIRE_MINUTES from the captured time
+        # Import dynamically to avoid stale value from module reloads in other tests
+        from app.auth.auth import ACCESS_TOKEN_EXPIRE_MINUTES as expire_minutes
+
+        expected_exp = now + timedelta(minutes=expire_minutes)
         assert abs((exp_datetime - expected_exp).total_seconds()) < 5
 
     def test_verify_token_valid(self):
