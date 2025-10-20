@@ -443,6 +443,12 @@ uv run python scripts/manage_users.py list
 
 #### Docker Development (all services in containers)
 ```bash
+# First, ensure Docker images are built (after any Dockerfile changes)
+make docker-build
+
+# Then start services
+make docker-up
+
 # Using Makefile targets (recommended)
 make user-create-docker USERNAME=admin PASSWORD=SecurePassword123
 make user-update-password-docker USERNAME=admin PASSWORD=NewPassword456
@@ -458,6 +464,12 @@ docker compose exec backend python scripts/manage_users.py list
 
 #### Production (Docker with production config)
 ```bash
+# First, ensure production Docker images are built (after any Dockerfile changes)
+make docker-build-prod
+
+# Then start production services
+make docker-up-prod
+
 # Using Makefile targets (recommended)
 make user-create-prod USERNAME=admin PASSWORD=SecurePassword123
 make user-update-password-prod USERNAME=admin PASSWORD=NewPassword456
@@ -470,6 +482,8 @@ docker compose -f docker-compose.prod.yml exec backend python scripts/manage_use
 docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py delete olduser
 docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py list
 ```
+
+**Note**: After updating the backend Dockerfile, you must rebuild the Docker images before user management commands will work in Docker/production environments.
 
 ### Database Migrations
 - PostgreSQL is the only supported database (SQLite removed)
