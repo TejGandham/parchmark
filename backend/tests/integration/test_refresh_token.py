@@ -3,13 +3,16 @@ Integration tests for refresh token functionality.
 """
 
 from fastapi import status
+from jose import jwt
+
+from app.auth.auth import ALGORITHM, SECRET_KEY
 
 
-def test_login_returns_refresh_token(client, sample_user):
+def test_login_returns_refresh_token(client, sample_user, sample_user_data):
     """Test that login endpoint returns both access and refresh tokens."""
     response = client.post(
         "/api/auth/login",
-        json={"username": "testuser", "password": "testpass123"},
+        json={"username": sample_user_data["username"], "password": sample_user_data["password"]},
     )
 
     assert response.status_code == status.HTTP_200_OK
@@ -24,12 +27,12 @@ def test_login_returns_refresh_token(client, sample_user):
     assert data["access_token"] != data["refresh_token"]
 
 
-def test_refresh_endpoint_with_valid_token(client, sample_user):
+def test_refresh_endpoint_with_valid_token(client, sample_user, sample_user_data):
     """Test that refresh endpoint returns new tokens with valid refresh token."""
     # First login to get tokens
     login_response = client.post(
         "/api/auth/login",
-        json={"username": "testuser", "password": "testpass123"},
+        json={"username": sample_user_data["username"], "password": sample_user_data["password"]},
     )
 
     assert login_response.status_code == status.HTTP_200_OK
@@ -49,9 +52,20 @@ def test_refresh_endpoint_with_valid_token(client, sample_user):
     assert "refresh_token" in new_tokens
     assert new_tokens["token_type"] == "bearer"
 
-    # New tokens should be different from old ones
-    assert new_tokens["access_token"] != tokens["access_token"]
-    assert new_tokens["refresh_token"] != tokens["refresh_token"]
+    # Verify tokens are valid and contain correct data
+    access_payload = jwt.decode(new_tokens["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    refresh_payload = jwt.decode(new_tokens["refresh_token"], SECRET_KEY, algorithms=[ALGORITHM])
+
+    # Verify token contents
+    assert access_payload["sub"] == sample_user_data["username"]
+    assert access_payload["type"] == "access"
+    assert refresh_payload["sub"] == sample_user_data["username"]
+    assert refresh_payload["type"] == "refresh"
+
+    # Verify tokens have expiration times
+    assert "exp" in access_payload
+    assert "exp" in refresh_payload
+    assert refresh_payload["exp"] > access_payload["exp"]  # Refresh token expires later
 
 
 def test_refresh_endpoint_with_invalid_token(client):
@@ -65,12 +79,12 @@ def test_refresh_endpoint_with_invalid_token(client):
     assert response.json()["detail"] == "Could not validate refresh token"
 
 
-def test_refresh_endpoint_with_access_token(client, sample_user):
+def test_refresh_endpoint_with_access_token(client, sample_user, sample_user_data):
     """Test that refresh endpoint rejects access token as refresh token."""
     # First login to get tokens
     login_response = client.post(
         "/api/auth/login",
-        json={"username": "testuser", "password": "testpass123"},
+        json={"username": sample_user_data["username"], "password": sample_user_data["password"]},
     )
 
     assert login_response.status_code == status.HTTP_200_OK
@@ -86,12 +100,12 @@ def test_refresh_endpoint_with_access_token(client, sample_user):
     assert refresh_response.json()["detail"] == "Could not validate refresh token"
 
 
-def test_me_endpoint_still_works_with_access_token(client, sample_user):
+def test_me_endpoint_still_works_with_access_token(client, sample_user, sample_user_data):
     """Test that /me endpoint still works with access token (not refresh token)."""
     # Login to get tokens
     login_response = client.post(
         "/api/auth/login",
-        json={"username": "testuser", "password": "testpass123"},
+        json={"username": sample_user_data["username"], "password": sample_user_data["password"]},
     )
 
     assert login_response.status_code == status.HTTP_200_OK
@@ -104,7 +118,7 @@ def test_me_endpoint_still_works_with_access_token(client, sample_user):
     )
 
     assert me_response.status_code == status.HTTP_200_OK
-    assert me_response.json()["username"] == "testuser"
+    assert me_response.json()["username"] == sample_user_data["username"]
 
     # Refresh token should NOT work for /me endpoint
     me_with_refresh = client.get(

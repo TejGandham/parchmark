@@ -234,14 +234,15 @@ class TestTokenSchemas:
 
         def test_token_valid(self):
             """Test valid token data."""
-            token = Token(access_token="abc123.def456.ghi789")
+            token = Token(access_token="abc123.def456.ghi789", refresh_token="xyz789.uvw456.rst123")
 
             assert token.access_token == "abc123.def456.ghi789"
+            assert token.refresh_token == "xyz789.uvw456.rst123"
             assert token.token_type == "bearer"  # Default value
 
         def test_token_custom_type(self):
             """Test token with custom token type."""
-            token = Token(access_token="abc123", token_type="custom")
+            token = Token(access_token="abc123", refresh_token="xyz789", token_type="custom")
 
             assert token.token_type == "custom"
 
@@ -255,10 +256,10 @@ class TestTokenSchemas:
 
         def test_token_json_serialization(self):
             """Test Token JSON serialization."""
-            token = Token(access_token="abc123")
+            token = Token(access_token="abc123", refresh_token="xyz789")
             json_data = token.model_dump()
 
-            assert json_data == {"access_token": "abc123", "token_type": "bearer"}
+            assert json_data == {"access_token": "abc123", "refresh_token": "xyz789", "token_type": "bearer"}
 
     class TestTokenData:
         """Test TokenData schema."""
