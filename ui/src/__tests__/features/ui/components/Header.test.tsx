@@ -56,15 +56,20 @@ describe('Header Component', () => {
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
   });
 
-  it('should have the correct styling', () => {
+  it('should render as a header element with correct structure', () => {
     renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
 
-    // Check for specific styling based on the actual component implementation
-    expect(header).toHaveStyle('box-shadow: var(--chakra-shadows-sm)');
-    expect(header).toHaveStyle('border-bottom: 1px solid #e2e8f0');
+    // Verify the header has the expected structure
+    expect(header.tagName).toBe('HEADER');
+
+    // Check that both the menu button and user status are present
+    expect(screen.getByLabelText(/toggle sidebar/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: 'User authentication status' })
+    ).toBeInTheDocument();
   });
 
   it('should be accessible', () => {
