@@ -14,8 +14,9 @@ COPY uv.lock ./
 # This layer is cached when only app code changes
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Copy application code
+# Copy application code and scripts
 COPY app ./app
+COPY scripts ./scripts
 
 # Install the project itself in non-editable mode
 # --no-editable ensures files are copied to site-packages
@@ -37,6 +38,9 @@ RUN apt-get update && \
 
 # Copy the complete virtual environment from builder
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Copy scripts directory for user management and other utilities
+COPY --from=builder --chown=appuser:appuser /app/scripts /app/scripts
 
 # Activate the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
