@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   MemoryRouter,
@@ -15,19 +16,19 @@ import {
 } from '../../../__mocks__/mockStores';
 
 // Mock the modules
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useParams: jest.fn(),
-  useNavigate: jest.fn(),
-  useLocation: jest.fn(),
+vi.mock('react-router-dom', async () => ({
+  ...(await import('react-router-dom')),
+  useParams: vi.fn(),
+  useNavigate: vi.fn(),
+  useLocation: vi.fn(),
 }));
 
-jest.mock('../../../../features/notes/store');
-jest.mock('../../../../features/auth/store');
+vi.mock('../../../../features/notes/store');
+vi.mock('../../../../features/auth/store');
 
 describe('useStoreRouterSync', () => {
   // Mock react-router hooks
-  const mockNavigate = jest.fn();
+  const mockNavigate = vi.fn();
   const mockParams = { noteId: undefined };
   const mockLocation = { pathname: '/notes' };
 
@@ -37,16 +38,16 @@ describe('useStoreRouterSync', () => {
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Setup default mocks
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    (useParams as jest.Mock).mockReturnValue(mockParams);
-    (useLocation as jest.Mock).mockReturnValue(mockLocation);
+    (useNavigate as Mock).mockReturnValue(mockNavigate);
+    (useParams as Mock).mockReturnValue(mockParams);
+    (useLocation as Mock).mockReturnValue(mockLocation);
 
     // Mock the stores
-    (useNotesStore as jest.Mock).mockReturnValue(mockNotesStore);
-    (useAuthStore as jest.Mock).mockReturnValue(mockAuthStore);
+    (useNotesStore as Mock).mockReturnValue(mockNotesStore);
+    (useAuthStore as Mock).mockReturnValue(mockAuthStore);
   });
 
   it('should return the correct state with route params', () => {
@@ -66,7 +67,7 @@ describe('useStoreRouterSync', () => {
 
   it('should navigate to first note when at /notes route with notes available', () => {
     // Mock location to trigger the navigation effect
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       pathname: '/notes',
     });
 
@@ -79,7 +80,7 @@ describe('useStoreRouterSync', () => {
 
   it('should navigate to first available note if noteId in URL doesnt exist', () => {
     // Mock params with non-existent note ID but with notes available
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
@@ -127,7 +128,7 @@ describe('useStoreRouterSync', () => {
 
   it('should handle empty notes array correctly when noteId is non-existent', () => {
     // Mock empty notes store
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: [],
       currentNoteId: null,
       editedContent: null,
@@ -135,12 +136,12 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with a non-existent ID to trigger path for non-existent note
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'non-existent',
     });
 
     // Mock location to trigger the navigation effect
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       pathname: '/notes/non-existent',
     });
 
@@ -153,7 +154,7 @@ describe('useStoreRouterSync', () => {
 
   it('should handle case when storeActions is undefined during initial load', () => {
     // Mock the useNotesStore to simulate initial load with undefined actions
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: mockNotes,
       currentNoteId: null,
       editedContent: null,
@@ -161,7 +162,7 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with existing note ID
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'note-1',
     });
 
@@ -207,7 +208,7 @@ describe('useStoreRouterSync', () => {
   });
 
   it('should handle actions when storeActions is null', async () => {
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: mockNotes,
       currentNoteId: 'note-1',
       editedContent: null,
@@ -246,11 +247,11 @@ describe('useStoreRouterSync', () => {
 
   it('should call setCurrentNote when navigating to existing note via URL', () => {
     // Setup with valid noteId in params that exists in notes
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'note-2',
     });
 
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       pathname: '/notes/note-2',
     });
 
@@ -269,14 +270,14 @@ describe('useStoreRouterSync', () => {
 
   it('should not process navigation when notes is not an array', () => {
     // Mock notes store with non-array notes to trigger early return
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: null, // Not an array
       currentNoteId: 'note-1',
       editedContent: null,
       actions: mockNotesStore.actions,
     });
 
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'note-1',
     });
 
@@ -290,7 +291,7 @@ describe('useStoreRouterSync', () => {
 
   it('should not call setCurrentNote when storeActions is undefined', () => {
     // Mock the useNotesStore to simulate undefined actions
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: mockNotes,
       currentNoteId: null,
       editedContent: null,
@@ -298,11 +299,11 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params with existing note ID
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'note-1',
     });
 
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       pathname: '/notes/note-1',
     });
 
@@ -316,7 +317,7 @@ describe('useStoreRouterSync', () => {
 
   it('should handle safeStoreAction with functions that are not defined', async () => {
     // Mock store with missing functions in actions
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: mockNotes,
       currentNoteId: 'note-1',
       editedContent: null,
@@ -373,7 +374,7 @@ describe('useStoreRouterSync', () => {
 
   it('should handle setCurrentNote when storeActions setCurrentNote is not a function', () => {
     // Mock store with invalid setCurrentNote
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: mockNotes,
       currentNoteId: 'note-1',
       editedContent: null,
@@ -401,7 +402,7 @@ describe('useStoreRouterSync', () => {
     // The bug was: routing effect called setCurrentNote which cleared editedContent
 
     // Mock store with editedContent set (as if createNote was just called)
-    (useNotesStore as jest.Mock).mockReturnValue({
+    (useNotesStore as Mock).mockReturnValue({
       notes: [
         ...mockNotes,
         { id: 'note-3', title: 'New Note', content: '# New Note\n\n' },
@@ -412,11 +413,11 @@ describe('useStoreRouterSync', () => {
     });
 
     // Mock params to show we're navigating to the new note
-    (useParams as jest.Mock).mockReturnValue({
+    (useParams as Mock).mockReturnValue({
       noteId: 'note-3',
     });
 
-    (useLocation as jest.Mock).mockReturnValue({
+    (useLocation as Mock).mockReturnValue({
       pathname: '/notes/note-3',
     });
 

@@ -1,29 +1,29 @@
+import { vi, Mock } from 'vitest';
 import { act } from 'react';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
   useNotesStore,
   NotesState,
 } from '../../../../features/notes/store/notes';
 import * as api from '../../../../services/api';
 
-jest.mock('../../../../services/api');
+vi.mock('../../../../services/api');
 
 // Mock the dependencies
-jest.mock('../../../../services/markdownService', () => ({
-  extractTitleFromMarkdown: jest.fn().mockImplementation((content) => {
+vi.mock('../../../../services/markdownService', () => ({
+  extractTitleFromMarkdown: vi.fn().mockImplementation((content) => {
     const match = content.match(/^#\s+(.+)$/m);
     return match ? match[1].trim() : 'Untitled Note';
   }),
-  formatNoteContent: jest.fn().mockImplementation((content) => content.trim()),
-  createEmptyNoteContent: jest.fn().mockReturnValue('# New Note\n\n'),
+  formatNoteContent: vi.fn().mockImplementation((content) => content.trim()),
+  createEmptyNoteContent: vi.fn().mockReturnValue('# New Note\n\n'),
 }));
 
 // Mock Date.now to return consistent values for testing
 const mockDateNow = 1234567890;
-jest.spyOn(Date, 'now').mockImplementation(() => mockDateNow);
+vi.spyOn(Date, 'now').mockImplementation(() => mockDateNow);
 
 const mockTimestamp = new Date(mockDateNow).toISOString();
-jest.spyOn(Date.prototype, 'toISOString').mockReturnValue(mockTimestamp);
+vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(mockTimestamp);
 
 describe('Notes Store', () => {
   let store: NotesState;
@@ -84,7 +84,7 @@ describe('Notes Store', () => {
         },
       ];
 
-      (api.getNotes as jest.Mock).mockResolvedValue(mockNotes);
+      (api.getNotes as Mock).mockResolvedValue(mockNotes);
 
       await store.actions.fetchNotes();
 
@@ -96,7 +96,7 @@ describe('Notes Store', () => {
 
     it('should handle fetch error', async () => {
       const errorMessage = 'Failed to fetch notes';
-      (api.getNotes as jest.Mock).mockRejectedValue(new Error(errorMessage));
+      (api.getNotes as Mock).mockRejectedValue(new Error(errorMessage));
 
       await store.actions.fetchNotes();
 
@@ -107,7 +107,7 @@ describe('Notes Store', () => {
 
     it('should handle non-Error rejection', async () => {
       // Test when the promise rejects with a non-Error value
-      (api.getNotes as jest.Mock).mockRejectedValue('String error');
+      (api.getNotes as Mock).mockRejectedValue('String error');
 
       await store.actions.fetchNotes();
 
@@ -121,7 +121,7 @@ describe('Notes Store', () => {
       const promise = new Promise<unknown[]>((resolve) => {
         resolvePromise = resolve;
       });
-      (api.getNotes as jest.Mock).mockReturnValue(promise);
+      (api.getNotes as Mock).mockReturnValue(promise);
 
       const fetchPromise = store.actions.fetchNotes();
 
@@ -146,7 +146,7 @@ describe('Notes Store', () => {
       const { actions } = store.getState();
 
       // Mock the successful API call
-      (api.createNote as jest.Mock).mockResolvedValue({
+      (api.createNote as Mock).mockResolvedValue({
         id: 'note-3',
         title: 'New Note',
         content: '# New Note\n\n',
@@ -176,7 +176,7 @@ describe('Notes Store', () => {
 
     it('should handle createNote error', async () => {
       const errorMessage = 'Failed to create note';
-      (api.createNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+      (api.createNote as Mock).mockRejectedValue(new Error(errorMessage));
 
       const newNoteId = await store.actions.createNote();
 
@@ -192,7 +192,7 @@ describe('Notes Store', () => {
       const newContent = '# Updated Title\n\nNew content';
 
       // Mock the successful API call
-      (api.updateNote as jest.Mock).mockResolvedValue({
+      (api.updateNote as Mock).mockResolvedValue({
         id: noteId,
         title: 'Updated Title',
         content: newContent,
@@ -221,7 +221,7 @@ describe('Notes Store', () => {
 
     it('should handle updateNote error', async () => {
       const errorMessage = 'Failed to update note';
-      (api.updateNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+      (api.updateNote as Mock).mockRejectedValue(new Error(errorMessage));
 
       await store.actions.updateNote('note-1', 'New content');
 
@@ -233,7 +233,7 @@ describe('Notes Store', () => {
   describe('deleteNote', () => {
     it('should delete a note by ID', async () => {
       // Mock the successful API call
-      (api.deleteNote as jest.Mock).mockResolvedValue(undefined);
+      (api.deleteNote as Mock).mockResolvedValue(undefined);
 
       await store.actions.deleteNote('note-1');
 
@@ -274,7 +274,7 @@ describe('Notes Store', () => {
 
     it('should handle deleteNote error', async () => {
       const errorMessage = 'Failed to delete note';
-      (api.deleteNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+      (api.deleteNote as Mock).mockRejectedValue(new Error(errorMessage));
 
       await store.actions.deleteNote('note-1');
 
@@ -340,7 +340,7 @@ describe('Notes Store', () => {
       const { actions } = store.getState();
 
       // Mock API to throw a non-Error object
-      (api.createNote as jest.Mock).mockRejectedValue('String error');
+      (api.createNote as Mock).mockRejectedValue('String error');
 
       const result = await actions.createNote();
 
@@ -355,7 +355,7 @@ describe('Notes Store', () => {
 
       // Mock API to throw an Error object
       const errorMessage = 'Update failed';
-      (api.updateNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+      (api.updateNote as Mock).mockRejectedValue(new Error(errorMessage));
 
       await actions.updateNote('note-1', 'Updated content');
 
@@ -368,7 +368,7 @@ describe('Notes Store', () => {
       const { actions } = store.getState();
 
       // Mock API to throw a non-Error object
-      (api.updateNote as jest.Mock).mockRejectedValue('String error');
+      (api.updateNote as Mock).mockRejectedValue('String error');
 
       await actions.updateNote('note-1', 'Updated content');
 
@@ -382,7 +382,7 @@ describe('Notes Store', () => {
 
       // Mock API to throw an Error object
       const errorMessage = 'Delete failed';
-      (api.deleteNote as jest.Mock).mockRejectedValue(new Error(errorMessage));
+      (api.deleteNote as Mock).mockRejectedValue(new Error(errorMessage));
 
       await actions.deleteNote('note-1');
 
@@ -397,7 +397,7 @@ describe('Notes Store', () => {
       const { actions } = store.getState();
 
       // Mock API to throw a non-Error object
-      (api.deleteNote as jest.Mock).mockRejectedValue('String error');
+      (api.deleteNote as Mock).mockRejectedValue('String error');
 
       await actions.deleteNote('note-1');
 
