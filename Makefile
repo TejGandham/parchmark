@@ -34,6 +34,30 @@ help: ## Display this help message
 	@echo "  make install-all        - Install all dependencies (UI + Backend)"
 	@echo "  make clean              - Clean test artifacts and cache files"
 	@echo ""
+	@echo "$(GREEN)Development:$(NC)"
+	@echo "  make dev-ui             - Start UI development server"
+	@echo "  make dev-backend        - Start backend development server"
+	@echo "  make docker-dev         - Start PostgreSQL for local development"
+	@echo "  make docker-dev-down    - Stop PostgreSQL development container"
+	@echo ""
+	@echo "$(GREEN)User Management (Local Dev):$(NC)"
+	@echo "  make user-create USERNAME=user PASSWORD=pass        - Create user"
+	@echo "  make user-update-password USERNAME=user PASSWORD=pass - Update password"
+	@echo "  make user-delete USERNAME=user                      - Delete user"
+	@echo "  make user-list                                      - List all users"
+	@echo ""
+	@echo "$(GREEN)User Management (Docker Dev):$(NC)"
+	@echo "  make user-create-docker USERNAME=user PASSWORD=pass - Create user"
+	@echo "  make user-update-password-docker USERNAME=user PASSWORD=pass"
+	@echo "  make user-delete-docker USERNAME=user               - Delete user"
+	@echo "  make user-list-docker                               - List all users"
+	@echo ""
+	@echo "$(GREEN)User Management (Production):$(NC)"
+	@echo "  make user-create-prod USERNAME=user PASSWORD=pass   - Create user"
+	@echo "  make user-update-password-prod USERNAME=user PASSWORD=pass"
+	@echo "  make user-delete-prod USERNAME=user                 - Delete user"
+	@echo "  make user-list-prod                                 - List all users"
+	@echo ""
 	@echo "$(YELLOW)Quick Commands:$(NC)"
 	@echo "  make test               - Alias for 'make test-all'"
 	@echo ""
@@ -168,6 +192,118 @@ docker-dev-down: ## Stop PostgreSQL development container
 	@echo "$(BLUE)Stopping PostgreSQL container...$(NC)"
 	docker compose -f docker-compose.dev.yml down
 	@echo "$(GREEN)✓ PostgreSQL stopped$(NC)"
+
+# ============================================================================
+# USER MANAGEMENT
+# ============================================================================
+
+# Local development (backend on host, PostgreSQL in Docker)
+.PHONY: user-create
+user-create: ## Create user (local dev) - Usage: make user-create USERNAME=admin PASSWORD=pass123
+	@if [ -z "$(USERNAME)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
+		echo "Usage: make user-create USERNAME=admin PASSWORD=pass123"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating user '$(USERNAME)' in local development...$(NC)"
+	cd backend && uv run python scripts/manage_users.py create $(USERNAME) $(PASSWORD)
+
+.PHONY: user-update-password
+user-update-password: ## Update user password (local dev) - Usage: make user-update-password USERNAME=admin PASSWORD=newpass
+	@if [ -z "$(USERNAME)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
+		echo "Usage: make user-update-password USERNAME=admin PASSWORD=newpass"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Updating password for user '$(USERNAME)' in local development...$(NC)"
+	cd backend && uv run python scripts/manage_users.py update-password $(USERNAME) $(PASSWORD)
+
+.PHONY: user-delete
+user-delete: ## Delete user (local dev) - Usage: make user-delete USERNAME=admin
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "$(RED)Error: USERNAME is required$(NC)"; \
+		echo "Usage: make user-delete USERNAME=admin"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Deleting user '$(USERNAME)' from local development...$(NC)"
+	cd backend && uv run python scripts/manage_users.py delete $(USERNAME)
+
+.PHONY: user-list
+user-list: ## List all users (local dev)
+	@echo "$(BLUE)Listing users in local development...$(NC)"
+	cd backend && uv run python scripts/manage_users.py list
+
+# Docker development (all services in containers)
+.PHONY: user-create-docker
+user-create-docker: ## Create user (docker dev) - Usage: make user-create-docker USERNAME=admin PASSWORD=pass123
+	@if [ -z "$(USERNAME)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
+		echo "Usage: make user-create-docker USERNAME=admin PASSWORD=pass123"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating user '$(USERNAME)' in Docker development...$(NC)"
+	docker compose exec backend python scripts/manage_users.py create $(USERNAME) $(PASSWORD)
+
+.PHONY: user-update-password-docker
+user-update-password-docker: ## Update user password (docker dev) - Usage: make user-update-password-docker USERNAME=admin PASSWORD=newpass
+	@if [ -z "$(USERNAME)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
+		echo "Usage: make user-update-password-docker USERNAME=admin PASSWORD=newpass"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Updating password for user '$(USERNAME)' in Docker development...$(NC)"
+	docker compose exec backend python scripts/manage_users.py update-password $(USERNAME) $(PASSWORD)
+
+.PHONY: user-delete-docker
+user-delete-docker: ## Delete user (docker dev) - Usage: make user-delete-docker USERNAME=admin
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "$(RED)Error: USERNAME is required$(NC)"; \
+		echo "Usage: make user-delete-docker USERNAME=admin"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Deleting user '$(USERNAME)' from Docker development...$(NC)"
+	docker compose exec backend python scripts/manage_users.py delete $(USERNAME)
+
+.PHONY: user-list-docker
+user-list-docker: ## List all users (docker dev)
+	@echo "$(BLUE)Listing users in Docker development...$(NC)"
+	docker compose exec backend python scripts/manage_users.py list
+
+# Production (Docker with production config)
+.PHONY: user-create-prod
+user-create-prod: ## Create user (production) - Usage: make user-create-prod USERNAME=admin PASSWORD=pass123
+	@if [ -z "$(USERNAME)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
+		echo "Usage: make user-create-prod USERNAME=admin PASSWORD=pass123"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating user '$(USERNAME)' in production...$(NC)"
+	docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py create $(USERNAME) $(PASSWORD)
+
+.PHONY: user-update-password-prod
+user-update-password-prod: ## Update user password (production) - Usage: make user-update-password-prod USERNAME=admin PASSWORD=newpass
+	@if [ -z "$(USERNAME)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
+		echo "Usage: make user-update-password-prod USERNAME=admin PASSWORD=newpass"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Updating password for user '$(USERNAME)' in production...$(NC)"
+	docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py update-password $(USERNAME) $(PASSWORD)
+
+.PHONY: user-delete-prod
+user-delete-prod: ## Delete user (production) - Usage: make user-delete-prod USERNAME=admin
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "$(RED)Error: USERNAME is required$(NC)"; \
+		echo "Usage: make user-delete-prod USERNAME=admin"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Deleting user '$(USERNAME)' from production...$(NC)"
+	docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py delete $(USERNAME)
+
+.PHONY: user-list-prod
+user-list-prod: ## List all users (production)
+	@echo "$(BLUE)Listing users in production...$(NC)"
+	docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py list
 
 # Default target
 .DEFAULT_GOAL := help

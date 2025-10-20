@@ -292,23 +292,47 @@ uv run python -m app.database.init_db
 
 #### User Management
 
-The `manage_users.py` script provides commands for user management:
+The `manage_users.py` script provides commands for user management across all environments.
 
+**Local Development** (backend on host, PostgreSQL in Docker):
 ```bash
+# Using Makefile (recommended)
+make user-create USERNAME=admin PASSWORD=SecurePassword123
+make user-list
+make user-update-password USERNAME=admin PASSWORD=NewPassword456
+make user-delete USERNAME=olduser
+
+# Or run directly
 cd backend
-
-# Create a new user
-uv run python scripts/manage_users.py create <username> <password>
-# Example: uv run python scripts/manage_users.py create admin SecurePassword123
-
-# Update a user's password
-uv run python scripts/manage_users.py update-password <username> <new_password>
-# Example: uv run python scripts/manage_users.py update-password admin NewPassword456
-
-# Delete a user
-uv run python scripts/manage_users.py delete <username>
-# Example: uv run python scripts/manage_users.py delete olduser
+uv run python scripts/manage_users.py create admin SecurePassword123
+uv run python scripts/manage_users.py list
+uv run python scripts/manage_users.py update-password admin NewPassword456
+uv run python scripts/manage_users.py delete olduser
 ```
+
+**Docker Development** (all services in containers):
+```bash
+# Using Makefile (recommended)
+make user-create-docker USERNAME=admin PASSWORD=SecurePassword123
+make user-list-docker
+
+# Or use docker compose exec
+docker compose exec backend python scripts/manage_users.py create admin SecurePassword123
+docker compose exec backend python scripts/manage_users.py list
+```
+
+**Production** (Docker with production config):
+```bash
+# Using Makefile (recommended)
+make user-create-prod USERNAME=admin PASSWORD=SecurePassword123
+make user-list-prod
+
+# Or use docker compose with production file
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py create admin SecurePassword123
+docker compose -f docker-compose.prod.yml exec backend python scripts/manage_users.py list
+```
+
+See `make help` for all available user management commands.
 
 #### Reset Database
 
