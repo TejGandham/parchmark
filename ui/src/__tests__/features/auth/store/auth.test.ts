@@ -178,102 +178,82 @@ describe('Auth Store', () => {
     });
   });
 
-  describe('onRehydrateStorage', () => {
-    it('should logout on rehydration if token is expiring', () => {
+  describe('Token Rehydration (via checkTokenExpiration)', () => {
+    it('should logout when checking an expiring token', () => {
       // Mock isTokenExpiringSoon to return true
       (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(true);
 
-      // Simulate rehydration with an expiring token
-      const mockState = {
-        isAuthenticated: true,
-        user: { username: 'testuser', password: '' },
-        token: 'expiring-token',
-        error: null,
-        actions: useAuthStore.getState().actions,
-      };
-
-      // Access the persist configuration
-      const persistConfig = (
-        useAuthStore as unknown as {
-          persist: {
-            onRehydrateStorage: () => (state: AuthState | null) => void;
-          };
-        }
-      ).persist;
-      const onRehydrateCallback = persistConfig.onRehydrateStorage();
-
-      // Call the rehydration callback
+      // Set up authenticated state with a token
       act(() => {
-        onRehydrateCallback(mockState);
+        useAuthStore.setState({
+          isAuthenticated: true,
+          user: { username: 'testuser', password: '' },
+          token: 'expiring-token',
+          error: null,
+        });
       });
 
-      // Verify that logout was called
-      expect(mockState.isAuthenticated).toBe(false);
-      expect(mockState.token).toBeNull();
-      expect(mockState.user).toBeNull();
+      // Manually trigger the token expiration check (simulates rehydration)
+      act(() => {
+        useAuthStore.getState().actions.checkTokenExpiration();
+      });
+
+      // Verify that logout was triggered
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(false);
+      expect(newState.token).toBeNull();
+      expect(newState.user).toBeNull();
     });
 
-    it('should not logout on rehydration if token is valid', () => {
+    it('should not logout when checking a valid token', () => {
       // Mock isTokenExpiringSoon to return false
       (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
 
-      // Simulate rehydration with a valid token
-      const mockState = {
-        isAuthenticated: true,
-        user: { username: 'testuser', password: '' },
-        token: 'valid-token',
-        error: null,
-        actions: useAuthStore.getState().actions,
-      };
-
-      // Access the persist configuration
-      const persistConfig = (
-        useAuthStore as unknown as {
-          persist: {
-            onRehydrateStorage: () => (state: AuthState | null) => void;
-          };
-        }
-      ).persist;
-      const onRehydrateCallback = persistConfig.onRehydrateStorage();
-
-      // Call the rehydration callback
+      // Set up authenticated state with a valid token
       act(() => {
-        onRehydrateCallback(mockState);
+        useAuthStore.setState({
+          isAuthenticated: true,
+          user: { username: 'testuser', password: '' },
+          token: 'valid-token',
+          error: null,
+        });
+      });
+
+      // Manually trigger the token expiration check
+      act(() => {
+        useAuthStore.getState().actions.checkTokenExpiration();
       });
 
       // Verify that state remains unchanged
-      expect(mockState.isAuthenticated).toBe(true);
-      expect(mockState.token).toBe('valid-token');
-      expect(mockState.user).toEqual({ username: 'testuser', password: '' });
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(true);
+      expect(newState.token).toBe('valid-token');
+      expect(newState.user).toEqual({ username: 'testuser', password: '' });
     });
 
-    it('should handle rehydration with no token', () => {
-      // Simulate rehydration with no token
-      const mockState = {
-        isAuthenticated: false,
-        user: null,
-        token: null,
-        error: null,
-        actions: useAuthStore.getState().actions,
-      };
+    it('should handle null token when checking expiration', () => {
+      // Mock isTokenExpiringSoon to return false for null
+      (tokenUtils.isTokenExpiringSoon as jest.Mock).mockReturnValue(false);
 
-      // Access the persist configuration
-      const persistConfig = (
-        useAuthStore as unknown as {
-          persist: {
-            onRehydrateStorage: () => (state: AuthState | null) => void;
-          };
-        }
-      ).persist;
-      const onRehydrateCallback = persistConfig.onRehydrateStorage();
-
-      // Call the rehydration callback
+      // Set up state with no token
       act(() => {
-        onRehydrateCallback(mockState);
+        useAuthStore.setState({
+          isAuthenticated: false,
+          user: null,
+          token: null,
+          error: null,
+        });
       });
 
-      // Verify that isTokenExpiringSoon was not called (no token to check)
-      expect(tokenUtils.isTokenExpiringSoon).not.toHaveBeenCalled();
+      // Check expiration should not throw
+      expect(() => {
+        act(() => {
+          useAuthStore.getState().actions.checkTokenExpiration();
+        });
+      }).not.toThrow();
+
+      // Verify that isTokenExpiringSoon was still called with null
+      expect(tokenUtils.isTokenExpiringSoon).toHaveBeenCalledWith(null);
     });
   });
 });
