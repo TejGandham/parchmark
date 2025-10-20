@@ -41,11 +41,11 @@ export const useStoreRouterSync = () => {
     if (noteId) {
       const noteExists = notes.some((note) => note.id === noteId);
 
-      if (noteExists) {
+      if (noteExists && currentNoteId !== noteId) {
         if (storeActions && typeof storeActions.setCurrentNote === 'function') {
           storeActions.setCurrentNote(noteId);
         }
-      } else if (notes.length > 0) {
+      } else if (!noteExists && notes.length > 0) {
         navigate(`/notes/${notes[0].id}`, { replace: true });
       } else {
         // Let it be handled by the no-notes case in the component
@@ -53,7 +53,14 @@ export const useStoreRouterSync = () => {
     } else if (pathname === '/notes' && notes.length > 0) {
       navigate(`/notes/${notes[0].id}`, { replace: true });
     }
-  }, [params.noteId, location.pathname, notes, storeActions, navigate]);
+  }, [
+    params.noteId,
+    location.pathname,
+    notes,
+    storeActions,
+    navigate,
+    currentNoteId,
+  ]);
 
   const navigateToNote = useCallback(
     (noteId: string | null) => {
