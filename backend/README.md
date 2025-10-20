@@ -100,11 +100,13 @@ backend/
 
 ## 🔐 Authentication
 
-The API uses JWT (JSON Web Tokens) for stateless authentication:
+The API uses JWT (JSON Web Tokens) for stateless authentication with refresh token support:
 
-- **Token Expiration:** 30 minutes (configurable)
+- **Access Token Expiration:** 30 minutes (configurable)
+- **Refresh Token Expiration:** 7 days (configurable)
 - **Algorithm:** HS256
 - **Password Hashing:** bcrypt
+- **Token Refresh:** Use refresh tokens to obtain new access tokens without re-authentication
 
 ### Default Test User
 
@@ -117,7 +119,7 @@ For development and testing purposes, a default user is automatically created:
 ### Authentication Endpoints
 
 #### POST `/auth/login`
-Authenticate user and receive JWT token.
+Authenticate user and receive JWT tokens (access and refresh).
 
 **Request Body:**
 ```json
@@ -131,12 +133,32 @@ Authenticate user and receive JWT token.
 ```json
 {
   "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
   "token_type": "bearer",
   "user": {
     "id": 1,
     "username": "user",
     "created_at": "2024-01-01T00:00:00"
   }
+}
+```
+
+#### POST `/auth/refresh`
+Refresh the access token using a valid refresh token.
+
+**Request Body:**
+```json
+{
+  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "token_type": "bearer"
 }
 ```
 
@@ -299,6 +321,7 @@ The application uses environment variables for configuration. Key settings in `.
 SECRET_KEY=your-secret-key-here-change-in-production-32-chars-minimum-for-security
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # Database Configuration (PostgreSQL REQUIRED)
 DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
@@ -324,9 +347,10 @@ The API is configured to accept requests from common frontend development server
 ### Authentication Flow
 
 1. **Login:** POST to `/auth/login` with username/password
-2. **Store Token:** Save the `access_token` from the response
-3. **Authenticated Requests:** Include `Authorization: Bearer <token>` header
-4. **Token Refresh:** Tokens expire after 30 minutes, re-authenticate as needed
+2. **Store Tokens:** Save both `access_token` and `refresh_token` from the response
+3. **Authenticated Requests:** Include `Authorization: Bearer <access_token>` header
+4. **Token Refresh:** When access token expires (30 min), use refresh token to get new tokens via `/auth/refresh`
+5. **Re-authentication:** If refresh token expires (7 days), user must log in again
 
 ### Frontend Store Integration
 
