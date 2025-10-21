@@ -37,7 +37,19 @@ from tests.factories import (
 
 @pytest.fixture(scope="session")
 def test_db_engine():
-    """Create a PostgreSQL test database for testing."""
+    """
+    Create a PostgreSQL test database for testing.
+
+    IMPORTANT: With pytest-xdist parallel execution (-n auto), each worker process
+    gets its own instance of this session-scoped fixture. This means:
+    - Running with -n 4 will spawn 4 separate PostgreSQL containers
+    - Each worker has complete database isolation (no race conditions)
+    - Resource usage: ~100-200MB per container, ~2-5s startup per worker
+    - This ensures test safety but increases memory usage with more workers
+
+    For resource-constrained environments, consider limiting workers (e.g., -n 4)
+    instead of -n auto.
+    """
     # Use PostgreSQL with testcontainers (requires Docker)
     with PostgresContainer("postgres:17.2-alpine") as postgres:
         database_url = postgres.get_connection_url()
@@ -48,7 +60,16 @@ def test_db_engine():
 
 @pytest.fixture(scope="function")
 def test_db_session(test_db_engine):
-    """Create a database session for testing with automatic cleanup."""
+    """
+    Create a database session for testing with automatic cleanup.
+
+    This fixture ensures test isolation by truncating all tables before and after
+    each test. With pytest-xdist parallel execution:
+    - Each worker has its own database (from test_db_engine)
+    - TRUNCATE operations only affect the worker's own database
+    - No race conditions between workers (databases are isolated)
+    - TRUNCATE acquires ACCESS EXCLUSIVE lock, ensuring isolation within worker
+    """
     from sqlalchemy import text
 
     # Clean tables before each test to ensure clean state
