@@ -22,8 +22,9 @@ parchmark/
 │   │   │   ├── notes/       # Notes management (NoteContent, NoteActions, NotesContainer)
 │   │   │   └── ui/          # UI components (Header, Sidebar, NotFoundPage)
 │   │   ├── services/        # API and markdown services
+│   │   ├── utils/           # **NEW** Shared utilities (errorHandler, markdown)
+│   │   ├── config/          # **NEW** Type-safe constants (api, storage)
 │   │   ├── styles/          # Theme and global styles
-│   │   ├── config/          # Constants and environment configuration
 │   │   └── __tests__/       # Vitest test files mirroring src structure
 │   ├── public/              # Static assets
 │   └── Dockerfile           # Frontend container configuration
@@ -34,6 +35,7 @@ parchmark/
 │   │   ├── models/          # SQLAlchemy models (User, Note)
 │   │   ├── routers/         # API endpoints (auth, notes)
 │   │   ├── schemas/         # Pydantic schemas for validation
+│   │   ├── utils/           # **NEW** Shared utilities (markdown)
 │   │   └── main.py          # FastAPI application entry point
 │   ├── tests/               # Pytest test files
 │   └── Dockerfile           # Backend container configuration
@@ -233,10 +235,10 @@ Note:
   ```javascript
   // Use custom render with providers
   import { render } from 'test-utils/render';
-  
+
   // Mock stores for isolated testing
   vi.mock('../features/auth/store');
-  
+
   // Form submissions
   fireEvent.submit(form);  // Not button.click()
   ```
@@ -338,13 +340,59 @@ ENVIRONMENT=development  # or production
 
 ## Key Implementation Patterns
 
-### Markdown Processing
-```javascript
-// Frontend: Extract title from H1
-extractTitleFromMarkdown(content) // "# Title" -> "Title"
+### Centralized Error Handling (Phase 1 Refactoring)
+```typescript
+// ui/src/utils/errorHandler.ts
+import { handleError, AppError, ERROR_CODES } from '../utils/errorHandler';
 
-// Backend: Same logic in Python
-extract_title_from_markdown(content)
+// Usage in stores and services
+try {
+  const notes = await api.getNotes();
+  set({ notes, isLoading: false });
+} catch (error: unknown) {
+  const appError = handleError(error);
+  set({ error: appError.message, isLoading: false });
+}
+
+// Error codes available:
+// UNKNOWN_ERROR, NETWORK_ERROR, TYPE_ERROR, PARSE_ERROR,
+// AUTHENTICATION_ERROR, AUTHORIZATION_ERROR, VALIDATION_ERROR,
+// NOT_FOUND, SERVER_ERROR
+```
+
+### Type-Safe Constants (Phase 1 Refactoring)
+```typescript
+// ui/src/config/storage.ts
+import { STORAGE_KEYS } from '../config/storage';
+localStorage.getItem(STORAGE_KEYS.AUTH); // Type-safe, autocomplete
+
+// ui/src/config/api.ts
+import { API_ENDPOINTS } from '../config/api';
+httpClient.get(API_ENDPOINTS.NOTES.LIST); // Type-safe endpoint URLs
+httpClient.put(API_ENDPOINTS.NOTES.UPDATE('note-123')); // Dynamic routes
+```
+
+### Markdown Processing (Phase 1 Refactoring - Synchronized Frontend/Backend)
+```typescript
+// Frontend: ui/src/utils/markdown.ts
+import { markdownService } from '../utils/markdown';
+
+const title = markdownService.extractTitle('# Hello\n\nContent'); // "Hello"
+const formatted = markdownService.formatContent('# Title'); // "# Title\n\n"
+const withoutH1 = markdownService.removeH1('# Title\n\nBody'); // "Body"
+const newNote = markdownService.createEmptyNote('My Note'); // "# My Note\n\n"
+
+// Backend: backend/app/utils/markdown.py (mirrors frontend exactly)
+from app.utils.markdown import markdown_service
+
+title = markdown_service.extract_title("# Hello\n\nContent")  # "Hello"
+formatted = markdown_service.format_content("# Title")  # "# Title\n\n"
+without_h1 = markdown_service.remove_h1("# Title\n\nBody")  # "Body"
+new_note = markdown_service.create_empty_note("My Note")  # "# My Note\n\n"
+
+// Both use same regex patterns:
+// H1_REGEX = /^#\s+(.+)$/m (TypeScript) or r"^#\s+(.+)$" (Python)
+// H1_REMOVE_REGEX removes ONLY the first H1 heading (not all)
 ```
 
 ### Note ID Generation
@@ -560,26 +608,49 @@ Production:
 4. **Write tests** for new functionality (add regression tests for bugs)
 5. **Update documentation** when adding features
 6. **Use strong typing** in TypeScript and Python
-7. **Handle errors gracefully** with user feedback
-8. **Keep components focused** and reusable
-9. **Optimize for readability** over cleverness
-10. **Run linting and formatting** before commits (enforced in Makefile)
+7. **Use centralized error handling** via `handleError()` for all error scenarios (see ui/src/utils/errorHandler.ts)
+8. **Use type-safe constants** from `config/` directory instead of magic strings
+9. **Use MarkdownService** for all markdown operations to maintain frontend/backend parity
+10. **Handle errors gracefully** with user feedback
+11. **Keep components focused** and reusable
+12. **Optimize for readability** over cleverness
+13. **Run linting and formatting** before commits (enforced in Makefile)
 
 ## Additional Notes
 
+### Architecture & Patterns
 - The application uses a **feature-first** organization pattern
+- **Centralized error handling** with 9 specific error codes (Phase 1 refactoring, 2025-10-25)
+- **Type-safe constants** for all API endpoints and storage keys (Phase 1 refactoring, 2025-10-25)
+- **Synchronized markdown utilities** between frontend/backend using Protocol/Interface pattern (Phase 1 refactoring, 2025-10-25)
+
+### State Management & Storage
 - **State persistence** is handled via localStorage for auth/UI
 - **JWT token monitoring** proactively prevents expired token usage with automatic logout
 - **Token expiration resilience** with clock skew protection and dual-layer verification
 - **Refresh token support** enables seamless session extension without re-authentication
-- **Markdown title extraction** is synchronized between frontend and backend
+
+### Testing & Quality
+- **Test coverage**: 90%+ enforced (293 UI tests + 467 backend tests = 760 total)
 - **CI/CD testing** can be replicated locally using the Makefile
+- **Phase 1 refactoring** (2025-10-25): Reduced code duplication from ~5% to <2%
+- **Critical bug fix** (Phase 1): removeH1() now correctly removes only first H1 heading
+
+### Known Limitations & Future Enhancements
 - **Real-time updates** are not implemented (consider WebSockets for future)
 - **File uploads** are not supported (markdown text only)
 - **Multi-language support** is not implemented
 - **Backup functionality** should be added for production use
 - **Token revocation** is not yet implemented (consider Redis-based blacklist for future)
 
+### Recent Changes
+- **2025-10-25**: Phase 1 refactoring completed on branch `refactor/phase1-quick-wins`
+  - Centralized error handling with AppError class and handleError()
+  - Type-safe constants in config/ directory (STORAGE_KEYS, API_ENDPOINTS)
+  - Synchronized MarkdownService between frontend and backend
+  - Fixed critical bug in removeH1() method
+  - Enhanced API service to use Zustand store directly
+
 ---
 
-Last Updated: 2025-10-20
+Last Updated: 2025-10-25

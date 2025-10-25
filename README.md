@@ -4,6 +4,8 @@ A modern, full-stack markdown note-taking application built with React and FastA
 
 ![ParchMark Logo](ui/assets/images/parchmark.svg)
 
+[![codecov](https://codecov.io/gh/TejGandham/parchmark/graph/badge.svg?token=HKRRJA432X)](https://codecov.io/gh/TejGandham/parchmark)
+
 ## ✨ Features
 
 - **Markdown Editor**: Full-featured markdown editor with live preview
@@ -83,6 +85,7 @@ uv run uvicorn app.main:app --reload
 ```
 
 The backend API will be available at `http://localhost:8000`
+
 - API Documentation: `http://localhost:8000/docs`
 - Alternative Docs: `http://localhost:8000/redoc`
 
@@ -113,10 +116,12 @@ The frontend will automatically open in your browser at `http://localhost:5173`
 The database initialization creates two default users:
 
 **Test User:**
+
 - **Username**: `testuser`
 - **Password**: `testpass123`
 
 **Demo User:**
+
 - **Username**: `demouser`
 - **Password**: `demopass`
 
@@ -132,6 +137,7 @@ cd parchmark
 #### 2. Create Environment Files
 
 Backend environment file (`backend/.env.docker`):
+
 ```bash
 # Generate a secure 128-bit secret key
 SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(16))")
@@ -149,6 +155,7 @@ EOF
 ```
 
 Frontend environment file (`ui/.env.docker`):
+
 ```bash
 cat > ui/.env.docker << EOF
 VITE_API_URL=/api
@@ -295,6 +302,7 @@ uv run python -m app.database.init_db
 The `manage_users.py` script provides commands for user management across all environments.
 
 **Local Development** (backend on host, PostgreSQL in Docker):
+
 ```bash
 # Using Makefile (recommended)
 make user-create USERNAME=admin PASSWORD=SecurePassword123
@@ -311,6 +319,7 @@ uv run python scripts/manage_users.py delete olduser
 ```
 
 **Docker Development** (all services in containers):
+
 ```bash
 # First, build and start services (if not already running)
 make docker-build
@@ -326,6 +335,7 @@ docker compose exec backend python scripts/manage_users.py list
 ```
 
 **Production** (Docker with production config):
+
 ```bash
 # First, build and start production services (if not already running)
 make docker-build-prod
@@ -384,26 +394,27 @@ uv run python -m app.database.init_db  # Recreate
 
 ### Authentication Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | User login, returns access & refresh tokens |
-| POST | `/api/auth/refresh` | Refresh access token using refresh token |
-| POST | `/api/auth/logout` | User logout |
-| GET | `/api/auth/me` | Get current user info |
+| Method | Endpoint            | Description                                 |
+| ------ | ------------------- | ------------------------------------------- |
+| POST   | `/api/auth/login`   | User login, returns access & refresh tokens |
+| POST   | `/api/auth/refresh` | Refresh access token using refresh token    |
+| POST   | `/api/auth/logout`  | User logout                                 |
+| GET    | `/api/auth/me`      | Get current user info                       |
 
 ### Notes Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/notes/` | List all user's notes |
-| POST | `/api/notes/` | Create a new note |
-| GET | `/api/notes/{id}` | Get specific note |
-| PUT | `/api/notes/{id}` | Update a note |
-| DELETE | `/api/notes/{id}` | Delete a note |
+| Method | Endpoint          | Description           |
+| ------ | ----------------- | --------------------- |
+| GET    | `/api/notes/`     | List all user's notes |
+| POST   | `/api/notes/`     | Create a new note     |
+| GET    | `/api/notes/{id}` | Get specific note     |
+| PUT    | `/api/notes/{id}` | Update a note         |
+| DELETE | `/api/notes/{id}` | Delete a note         |
 
 ### Request/Response Examples
 
 #### Login
+
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -411,6 +422,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 ```
 
 Response:
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -420,6 +432,7 @@ Response:
 ```
 
 #### Create Note
+
 ```bash
 curl -X POST http://localhost:8000/api/notes/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -467,6 +480,7 @@ DOMAIN=notes.example.com docker compose -f docker-compose.prod.yml up -d
 Create `.env.production` files:
 
 Backend (`backend/.env.production`):
+
 ```env
 DATABASE_URL=postgresql://username:password@postgres:5432/parchmark
 SECRET_KEY=<generate-128-bit-key-see-instructions-below>
@@ -477,6 +491,7 @@ ENVIRONMENT=production
 ```
 
 **Generating a Secure 128-bit Secret Key:**
+
 ```bash
 # Method 1: Python (recommended)
 python -c "import secrets; print(secrets.token_hex(16))"
@@ -489,6 +504,7 @@ head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'
 ```
 
 Frontend (`ui/.env.production`):
+
 ```env
 VITE_API_URL=https://api.example.com
 USE_HTTPS=true
@@ -500,26 +516,27 @@ USE_HTTPS=true
 
 #### Frontend Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `/api` |
+| Variable       | Description     | Default |
+| -------------- | --------------- | ------- |
+| `VITE_API_URL` | Backend API URL | `/api`  |
 
 #### Backend Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `postgresql://username:password@localhost:5432/parchmark` |
-| `SECRET_KEY` | JWT signing key (128-bit hex string) | (must be set - see generation instructions) |
-| `ALGORITHM` | JWT algorithm | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration | `30` |
-| `ALLOWED_ORIGINS` | CORS origins | `http://localhost:5173` |
-| `HOST` | Server host | `0.0.0.0` |
-| `PORT` | Server port | `8000` |
-| `ENVIRONMENT` | Environment mode | `development` |
+| Variable                      | Description                          | Default                                                   |
+| ----------------------------- | ------------------------------------ | --------------------------------------------------------- |
+| `DATABASE_URL`                | Database connection string           | `postgresql://username:password@localhost:5432/parchmark` |
+| `SECRET_KEY`                  | JWT signing key (128-bit hex string) | (must be set - see generation instructions)               |
+| `ALGORITHM`                   | JWT algorithm                        | `HS256`                                                   |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration                     | `30`                                                      |
+| `ALLOWED_ORIGINS`             | CORS origins                         | `http://localhost:5173`                                   |
+| `HOST`                        | Server host                          | `0.0.0.0`                                                 |
+| `PORT`                        | Server port                          | `8000`                                                    |
+| `ENVIRONMENT`                 | Environment mode                     | `development`                                             |
 
 ### Nginx Configuration
 
 The frontend uses Nginx for production serving. Configuration files:
+
 - `ui/nginx.http.conf` - HTTP configuration
 - `ui/nginx.https.conf` - HTTPS configuration
 
@@ -530,6 +547,7 @@ The frontend uses Nginx for production serving. Configuration files:
 ### Test Coverage Requirements
 
 Both frontend and backend enforce 90% test coverage:
+
 - Statements: 90%
 - Branches: 90%
 - Functions: 90%
@@ -538,6 +556,7 @@ Both frontend and backend enforce 90% test coverage:
 ### Running Coverage Reports
 
 Frontend:
+
 ```bash
 cd ui
 npm run test:coverage
@@ -545,6 +564,7 @@ npm run test:coverage
 ```
 
 Backend:
+
 ```bash
 cd backend
 uv run pytest --cov=app --cov-report=html
@@ -556,6 +576,7 @@ uv run pytest --cov=app --cov-report=html
 ### Common Issues
 
 #### Port Already in Use
+
 ```bash
 # Find process using port
 lsof -i :5173  # Frontend
@@ -566,6 +587,7 @@ kill -9 PID
 ```
 
 #### Database Connection Error
+
 ```bash
 # PostgreSQL runs in Docker - ensure container is running
 # Check container status
@@ -579,6 +601,7 @@ docker compose -f docker-compose.dev.yml logs postgres
 ```
 
 #### Docker Build Fails
+
 ```bash
 # Clean Docker cache
 docker system prune -a
@@ -586,6 +609,7 @@ docker compose build --no-cache
 ```
 
 #### Node Modules Issues
+
 ```bash
 cd ui
 rm -rf node_modules package-lock.json
@@ -593,6 +617,7 @@ npm install
 ```
 
 #### Python Dependencies Issues
+
 ```bash
 cd backend
 rm -rf .venv uv.lock
@@ -630,6 +655,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 For issues, questions, or suggestions:
+
 - Open an issue on GitHub
 - Check existing documentation in `/docs`
 - Review the [CLAUDE.md](CLAUDE.md) file for detailed technical information

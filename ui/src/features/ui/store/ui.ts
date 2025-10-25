@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
+import { STORAGE_KEYS } from '../../../config/storage';
 
 export type UIState = {
   isSidebarOpen: boolean;
@@ -45,7 +46,7 @@ export const useUIStore = create<UIState>()(
       };
     }),
     {
-      name: 'parchmark-ui',
+      name: STORAGE_KEYS.UI_PREFERENCES,
       // Ensure actions are preserved during hydration
       merge: (persistedState, currentState) => {
         return {
