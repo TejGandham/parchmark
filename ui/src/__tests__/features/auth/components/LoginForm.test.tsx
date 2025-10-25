@@ -228,4 +228,48 @@ describe('LoginForm', () => {
       });
     });
   });
+
+  it('toggles password visibility when clicking the toggle button', () => {
+    render(<LoginForm />);
+
+    const passwordInput = screen.getByTestId('password-input');
+    const toggleButton = screen.getByTestId('password-toggle');
+
+    // Initially, password should be hidden
+    expect(passwordInput).toHaveAttribute('type', 'password');
+    expect(toggleButton).toHaveAttribute('aria-label', 'Show password');
+
+    // Click to show password
+    fireEvent.click(toggleButton);
+    expect(passwordInput).toHaveAttribute('type', 'text');
+    expect(toggleButton).toHaveAttribute('aria-label', 'Hide password');
+
+    // Click to hide password again
+    fireEvent.click(toggleButton);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+    expect(toggleButton).toHaveAttribute('aria-label', 'Show password');
+  });
+
+  it('preserves password value when toggling visibility', () => {
+    render(<LoginForm />);
+
+    const passwordInput = screen.getByTestId(
+      'password-input'
+    ) as HTMLInputElement;
+    const toggleButton = screen.getByTestId('password-toggle');
+
+    // Enter a password
+    fireEvent.change(passwordInput, { target: { value: 'mySecretPassword' } });
+    expect(passwordInput.value).toBe('mySecretPassword');
+
+    // Toggle visibility - value should remain
+    fireEvent.click(toggleButton);
+    expect(passwordInput.value).toBe('mySecretPassword');
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    // Toggle back - value should still remain
+    fireEvent.click(toggleButton);
+    expect(passwordInput.value).toBe('mySecretPassword');
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
 });
