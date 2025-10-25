@@ -3,7 +3,6 @@ Notes CRUD routes for ParchMark backend API.
 Handles note creation, reading, updating, and deletion with user authorization.
 """
 
-import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,39 +17,10 @@ from app.schemas.schemas import (
     NoteResponse,
     NoteUpdate,
 )
+from app.utils.markdown import markdown_service
 
 # Create router for notes endpoints
 router = APIRouter(prefix="/notes", tags=["notes"])
-
-
-def extract_title_from_markdown(content: str) -> str:
-    """
-    Extract title from markdown content.
-    Looks for the first H1 heading (# Title).
-    Matches the frontend extractTitleFromMarkdown function.
-    """
-    title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-    return title_match.group(1).strip() if title_match else "Untitled Note"
-
-
-def format_note_content(content: str) -> str:
-    """
-    Format note content to ensure proper structure.
-    Matches the frontend formatNoteContent function.
-    """
-    cleaned_content = content.strip()
-    title = extract_title_from_markdown(cleaned_content)
-
-    # If content is only a title, ensure it has spacing for editing
-    return f"# {title}\n\n" if cleaned_content == f"# {title}" else cleaned_content
-
-
-def create_empty_note_content(title: str = "New Note") -> str:
-    """
-    Create a new empty note content template.
-    Matches the frontend createEmptyNoteContent function.
-    """
-    return f"# {title}\n\n"
 
 
 @router.get("/", response_model=list[NoteResponse])
@@ -113,8 +83,8 @@ async def create_note(
     note_id = f"note-{int(datetime.now().timestamp() * 1000)}"
 
     # Format content and extract title
-    formatted_content = format_note_content(note_data.content)
-    extracted_title = extract_title_from_markdown(formatted_content)
+    formatted_content = markdown_service.format_content(note_data.content)
+    extracted_title = markdown_service.extract_title(formatted_content)
 
     # Create new note
     db_note = Note(
@@ -175,8 +145,8 @@ async def update_note(
     # Update fields if provided
     if note_data.content is not None:
         # Format content and extract title (matches frontend behavior)
-        formatted_content = format_note_content(note_data.content)
-        extracted_title = extract_title_from_markdown(formatted_content)
+        formatted_content = markdown_service.format_content(note_data.content)
+        extracted_title = markdown_service.extract_title(formatted_content)
 
         db_note.content = formatted_content  # type: ignore[assignment]
         db_note.title = extracted_title  # type: ignore[assignment]

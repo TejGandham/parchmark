@@ -113,7 +113,7 @@ describe('Notes Store', () => {
       await store.actions.fetchNotes();
 
       const updatedStore = useNotesStore.getState();
-      expect(updatedStore.error).toBe('An error occurred');
+      expect(updatedStore.error).toBe('An unexpected error occurred');
       expect(updatedStore.isLoading).toBe(false);
     });
 
@@ -404,7 +404,7 @@ describe('Notes Store', () => {
 
       expect(result).toBeNull();
       const updatedStore = useNotesStore.getState();
-      expect(updatedStore.error).toBe('An error occurred');
+      expect(updatedStore.error).toBe('An unexpected error occurred');
     });
 
     it('should handle updateNote error with Error object', async () => {
@@ -431,7 +431,7 @@ describe('Notes Store', () => {
       await actions.updateNote('note-1', 'Updated content');
 
       const updatedStore = useNotesStore.getState();
-      expect(updatedStore.error).toBe('An error occurred');
+      expect(updatedStore.error).toBe('An unexpected error occurred');
     });
 
     it('should handle deleteNote error with Error object', async () => {
@@ -460,7 +460,7 @@ describe('Notes Store', () => {
       await actions.deleteNote('note-1');
 
       const updatedStore = useNotesStore.getState();
-      expect(updatedStore.error).toBe('An error occurred');
+      expect(updatedStore.error).toBe('An unexpected error occurred');
       // Notes should not be modified when error occurs
       expect(updatedStore.notes).toHaveLength(2);
     });

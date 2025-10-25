@@ -1,6 +1,8 @@
 import { Note } from '../types';
 import { API_BASE_URL } from '../config/constants';
 import { useAuthStore } from '../features/auth/store';
+import { API_ENDPOINTS } from '../config/api';
+import { STORAGE_KEYS } from '../config/storage';
 
 type ApiErrorResponse = {
   detail?: string | { msg: string }[];
@@ -18,7 +20,7 @@ class ApiError extends Error {
 }
 
 const getAuthToken = (): string | null => {
-  const authState = localStorage.getItem('parchmark-auth');
+  const authState = localStorage.getItem(STORAGE_KEYS.AUTH);
   if (!authState) return null;
   try {
     const { state } = JSON.parse(authState);
@@ -51,7 +53,10 @@ const request = async <T>(
     const errorData: ApiErrorResponse = await response.json().catch(() => ({}));
 
     // Handle 401 errors by logging out (except for login endpoint)
-    if (response.status === 401 && !endpoint.includes('/auth/login')) {
+    if (
+      response.status === 401 &&
+      !endpoint.includes(API_ENDPOINTS.AUTH.LOGIN)
+    ) {
       useAuthStore.getState().actions.logout();
     }
     let errorMessage = `HTTP error! status: ${response.status}`;
@@ -77,20 +82,21 @@ export const login = (
   username: string,
   password: string
 ): Promise<{ access_token: string; token_type: string }> => {
-  return request('/auth/login', {
+  return request(API_ENDPOINTS.AUTH.LOGIN, {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
 };
 
 // Notes API
-export const getNotes = (): Promise<Note[]> => request('/notes/');
+export const getNotes = (): Promise<Note[]> =>
+  request(API_ENDPOINTS.NOTES.LIST);
 
 export const createNote = (note: {
   title: string;
   content: string;
 }): Promise<Note> =>
-  request('/notes/', {
+  request(API_ENDPOINTS.NOTES.CREATE, {
     method: 'POST',
     body: JSON.stringify(note),
   });
@@ -99,13 +105,13 @@ export const updateNote = (
   id: string,
   note: { content: string }
 ): Promise<Note> =>
-  request(`/notes/${id}`, {
+  request(API_ENDPOINTS.NOTES.UPDATE(id), {
     method: 'PUT',
     body: JSON.stringify(note),
   });
 
 export const deleteNote = (id: string): Promise<void> =>
-  request(`/notes/${id}`, {
+  request(API_ENDPOINTS.NOTES.DELETE(id), {
     method: 'DELETE',
   });
 
