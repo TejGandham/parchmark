@@ -15,7 +15,10 @@ describe('constants', () => {
   it('should export TOKEN_WARNING_SECONDS (can be undefined)', () => {
     // In test environment, this might be undefined if not set in .env
     // The export exists but the value may be undefined
-    expect(typeof TOKEN_WARNING_SECONDS === 'string' || TOKEN_WARNING_SECONDS === undefined).toBe(true);
+    expect(
+      typeof TOKEN_WARNING_SECONDS === 'string' ||
+        TOKEN_WARNING_SECONDS === undefined
+    ).toBe(true);
   });
 
   it('should export IS_PRODUCTION', () => {

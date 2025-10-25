@@ -443,7 +443,10 @@ describe('useStoreRouterSync', () => {
     });
 
     const updatedNote = await act(async () => {
-      return await result.current.actions.updateNote('note-1', 'Updated content');
+      return await result.current.actions.updateNote(
+        'note-1',
+        'Updated content'
+      );
     });
 
     expect(mockNotesStore.actions.updateNote).toHaveBeenCalledWith(

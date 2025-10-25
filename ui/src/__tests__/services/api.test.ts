@@ -370,7 +370,9 @@ describe('API Service', () => {
         json: async () => ({ detail: 'Invalid credentials' }),
       } as Response);
 
-      await expect(login('user', 'wrong')).rejects.toThrow('Invalid credentials');
+      await expect(login('user', 'wrong')).rejects.toThrow(
+        'Invalid credentials'
+      );
       expect(mockLogout).not.toHaveBeenCalled();
     });
   });
