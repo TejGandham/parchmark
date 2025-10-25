@@ -228,4 +228,39 @@ describe('LoginForm', () => {
       });
     });
   });
+
+  it('toggles password visibility when clicking the eye icon', () => {
+    render(<LoginForm />);
+
+    const passwordInput = screen.getByTestId('password-input');
+    const toggleButton = screen.getByTestId('toggle-password-visibility');
+
+    // Initially, password should be hidden (type="password")
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    // Click to show password
+    fireEvent.click(toggleButton);
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    // Click to hide password again
+    fireEvent.click(toggleButton);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('displays correct aria-label for password visibility toggle', () => {
+    render(<LoginForm />);
+
+    const toggleButton = screen.getByTestId('toggle-password-visibility');
+
+    // Initially should show "Show password"
+    expect(toggleButton).toHaveAttribute('aria-label', 'Show password');
+
+    // After clicking, should show "Hide password"
+    fireEvent.click(toggleButton);
+    expect(toggleButton).toHaveAttribute('aria-label', 'Hide password');
+
+    // After clicking again, should show "Show password"
+    fireEvent.click(toggleButton);
+    expect(toggleButton).toHaveAttribute('aria-label', 'Show password');
+  });
 });
