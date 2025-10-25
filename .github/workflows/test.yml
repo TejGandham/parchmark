@@ -30,7 +30,10 @@ jobs:
 
       - name: Run tests
         run: make test-ui-test
-
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
   backend-tests:
     runs-on: ubuntu-latest
     name: Backend Tests
