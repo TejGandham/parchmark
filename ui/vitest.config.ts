@@ -19,6 +19,14 @@ export default defineConfig({
         'src/vite-env.d.ts',
         'src/main.tsx',
         'src/**/index.{ts,tsx}',
+        // Exclude test utilities and mocks from coverage
+        'src/__tests__/__mocks__/**',
+        'test-utils/**',
+        '*.config.{ts,js,cjs}',
+        'setup-test.ts',
+        'vitest.setup.ts',
+        '.eslintrc.cjs',
+        'babel.config.cjs',
       ],
       thresholds: {
         branches: 90,
