@@ -429,4 +429,41 @@ describe('useStoreRouterSync', () => {
     // This prevents editedContent from being cleared
     expect(mockNotesStore.actions.setCurrentNote).not.toHaveBeenCalled();
   });
+
+  it('should successfully call updateNote through safeStoreAction', async () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    // Mock updateNote to return a value
+    mockNotesStore.actions.updateNote.mockResolvedValue({
+      id: 'note-1',
+      title: 'Updated',
+      content: '# Updated\n\nUpdated content',
+      createdAt: '2023-01-01',
+      updatedAt: '2023-01-02',
+    });
+
+    const updatedNote = await act(async () => {
+      return await result.current.actions.updateNote('note-1', 'Updated content');
+    });
+
+    expect(mockNotesStore.actions.updateNote).toHaveBeenCalledWith(
+      'note-1',
+      'Updated content'
+    );
+    expect(updatedNote).toBeDefined();
+  });
+
+  it('should successfully call setEditedContent through safeStoreAction', async () => {
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    mockNotesStore.actions.setEditedContent.mockClear();
+
+    await act(async () => {
+      await result.current.actions.setEditedContent('New content');
+    });
+
+    expect(mockNotesStore.actions.setEditedContent).toHaveBeenCalledWith(
+      'New content'
+    );
+  });
 });
