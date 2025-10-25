@@ -13,6 +13,7 @@ class MarkdownProcessor(Protocol):
     def extract_title(self, content: str) -> str: ...
     def format_content(self, content: str) -> str: ...
     def remove_h1(self, content: str) -> str: ...
+    def create_empty_note(self, title: str = "New Note") -> str: ...
 
 
 class MarkdownService:
@@ -21,6 +22,7 @@ class MarkdownService:
     """
 
     H1_REGEX = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+    H1_REMOVE_REGEX = re.compile(r"^#\s+(.+)($|\n)", re.MULTILINE)
     DEFAULT_TITLE = "Untitled Note"
 
     def extract_title(self, content: str) -> str:
@@ -45,8 +47,10 @@ class MarkdownService:
         """
         Remove the H1 title heading from markdown content.
         Used to avoid duplicating the title in rendered content.
+        Captures the newline after the heading to avoid extra blank lines.
+        Only removes the first H1 heading found.
         """
-        return self.H1_REGEX.sub("", content).strip()
+        return self.H1_REMOVE_REGEX.sub("", content, count=1).strip()
 
     def create_empty_note(self, title: str = "New Note") -> str:
         """Create a new empty note content template."""
