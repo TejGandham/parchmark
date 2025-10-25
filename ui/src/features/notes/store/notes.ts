@@ -7,6 +7,7 @@ import {
 } from '../../../services/markdownService';
 import * as api from '../../../services/api';
 import { Note } from '../../../types';
+import { handleError } from '../../../utils/errorHandler';
 
 export type NotesState = {
   notes: Note[];
@@ -40,9 +41,8 @@ export const useNotesStore = create<NotesState>()(
           const notes = await api.getNotes();
           set({ notes, isLoading: false });
         } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'An error occurred';
-          set({ error: errorMessage, isLoading: false });
+          const appError = handleError(error);
+          set({ error: appError.message, isLoading: false });
         }
       },
       createNote: async () => {
@@ -57,9 +57,8 @@ export const useNotesStore = create<NotesState>()(
           });
           return newNote.id;
         } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'An error occurred';
-          set({ error: errorMessage });
+          const appError = handleError(error);
+          set({ error: appError.message });
           return null;
         }
       },
@@ -81,9 +80,8 @@ export const useNotesStore = create<NotesState>()(
             }
           });
         } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'An error occurred';
-          set({ error: errorMessage });
+          const appError = handleError(error);
+          set({ error: appError.message });
         }
       },
       deleteNote: async (id) => {
@@ -101,9 +99,8 @@ export const useNotesStore = create<NotesState>()(
             }
           });
         } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'An error occurred';
-          set({ error: errorMessage });
+          const appError = handleError(error);
+          set({ error: appError.message });
         }
       },
       setCurrentNote: (id) => {
