@@ -22,8 +22,8 @@ parchmark/
 │   │   │   ├── notes/       # Notes management (NoteContent, NoteActions, NotesContainer)
 │   │   │   └── ui/          # UI components (Header, Sidebar, NotFoundPage)
 │   │   ├── services/        # API and markdown services
-│   │   ├── utils/           # **NEW** Shared utilities (errorHandler, markdown)
-│   │   ├── config/          # **NEW** Type-safe constants (api, storage)
+│   │   ├── utils/           # Shared utilities (errorHandler, markdown)
+│   │   ├── config/          # Type-safe constants (api, storage)
 │   │   ├── styles/          # Theme and global styles
 │   │   └── __tests__/       # Vitest test files mirroring src structure
 │   ├── public/              # Static assets
@@ -35,10 +35,18 @@ parchmark/
 │   │   ├── models/          # SQLAlchemy models (User, Note)
 │   │   ├── routers/         # API endpoints (auth, notes)
 │   │   ├── schemas/         # Pydantic schemas for validation
-│   │   ├── utils/           # **NEW** Shared utilities (markdown)
+│   │   ├── utils/           # Shared utilities (markdown)
 │   │   └── main.py          # FastAPI application entry point
 │   ├── tests/               # Pytest test files
 │   └── Dockerfile           # Backend container configuration
+├── makefiles/               # Modular Makefile organization
+│   ├── common.mk            # Shared variables, colors, helper functions
+│   ├── help.mk              # Auto-generated help system
+│   ├── ui.mk                # UI test and development targets
+│   ├── backend.mk           # Backend test and development targets
+│   ├── docker.mk            # Docker-related targets
+│   └── users.mk             # User management targets (templated)
+├── Makefile                 # Main orchestrator (includes all makefiles/*.mk)
 └── docker-compose.yml       # Docker orchestration
 
 ```
@@ -340,7 +348,7 @@ ENVIRONMENT=development  # or production
 
 ## Key Implementation Patterns
 
-### Centralized Error Handling (Phase 1 Refactoring)
+### Centralized Error Handling
 ```typescript
 // ui/src/utils/errorHandler.ts
 import { handleError, AppError, ERROR_CODES } from '../utils/errorHandler';
@@ -360,7 +368,7 @@ try {
 // NOT_FOUND, SERVER_ERROR
 ```
 
-### Type-Safe Constants (Phase 1 Refactoring)
+### Type-Safe Constants
 ```typescript
 // ui/src/config/storage.ts
 import { STORAGE_KEYS } from '../config/storage';
@@ -372,7 +380,7 @@ httpClient.get(API_ENDPOINTS.NOTES.LIST); // Type-safe endpoint URLs
 httpClient.put(API_ENDPOINTS.NOTES.UPDATE('note-123')); // Dynamic routes
 ```
 
-### Markdown Processing (Phase 1 Refactoring - Synchronized Frontend/Backend)
+### Markdown Processing
 ```typescript
 // Frontend: ui/src/utils/markdown.ts
 import { markdownService } from '../utils/markdown';
@@ -620,9 +628,10 @@ Production:
 
 ### Architecture & Patterns
 - The application uses a **feature-first** organization pattern
-- **Centralized error handling** with 9 specific error codes (Phase 1 refactoring, 2025-10-25)
-- **Type-safe constants** for all API endpoints and storage keys (Phase 1 refactoring, 2025-10-25)
-- **Synchronized markdown utilities** between frontend/backend using Protocol/Interface pattern (Phase 1 refactoring, 2025-10-25)
+- **Centralized error handling** with 9 specific error codes
+- **Type-safe constants** for all API endpoints and storage keys
+- **Synchronized markdown utilities** between frontend/backend using Protocol/Interface pattern
+- **Modular Makefile** organization with auto-generated help system
 
 ### State Management & Storage
 - **State persistence** is handled via localStorage for auth/UI
@@ -633,8 +642,8 @@ Production:
 ### Testing & Quality
 - **Test coverage**: 90%+ enforced (293 UI tests + 467 backend tests = 760 total)
 - **CI/CD testing** can be replicated locally using the Makefile
-- **Phase 1 refactoring** (2025-10-25): Reduced code duplication from ~5% to <2%
-- **Critical bug fix** (Phase 1): removeH1() now correctly removes only first H1 heading
+- **Code duplication**: Reduced to <2% through centralized utilities and constants
+- **Markdown processing**: removeH1() correctly removes only first H1 heading
 
 ### Known Limitations & Future Enhancements
 - **Real-time updates** are not implemented (consider WebSockets for future)
@@ -642,15 +651,3 @@ Production:
 - **Multi-language support** is not implemented
 - **Backup functionality** should be added for production use
 - **Token revocation** is not yet implemented (consider Redis-based blacklist for future)
-
-### Recent Changes
-- **2025-10-25**: Phase 1 refactoring completed on branch `refactor/phase1-quick-wins`
-  - Centralized error handling with AppError class and handleError()
-  - Type-safe constants in config/ directory (STORAGE_KEYS, API_ENDPOINTS)
-  - Synchronized MarkdownService between frontend and backend
-  - Fixed critical bug in removeH1() method
-  - Enhanced API service to use Zustand store directly
-
----
-
-Last Updated: 2025-10-25
