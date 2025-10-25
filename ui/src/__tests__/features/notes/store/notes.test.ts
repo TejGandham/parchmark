@@ -50,6 +50,7 @@ describe('Notes Store', () => {
         ],
         currentNoteId: 'note-1',
         editedContent: null,
+        justCreatedNoteId: null,
         actions: useNotesStore.getState().actions,
       });
     });
@@ -160,6 +161,7 @@ describe('Notes Store', () => {
       expect(updatedStore.notes).toHaveLength(3);
       expect(updatedStore.currentNoteId).toBe(newNoteId);
       expect(updatedStore.editedContent).toBe('# New Note\n\n');
+      expect(updatedStore.justCreatedNoteId).toBe(newNoteId);
 
       const newNote = updatedStore.notes.find((note) => note.id === newNoteId);
       expect(newNote).toBeDefined();
@@ -208,6 +210,32 @@ describe('Notes Store', () => {
       expect(updatedNote?.title).toBe('Updated Title');
       expect(updatedNote?.content).toBe(newContent);
       expect(updatedStore.editedContent).toBeNull();
+    });
+
+    it('should clear justCreatedNoteId flag when updating a just-created note', async () => {
+      const noteId = 'note-1';
+      const newContent = '# Updated Title\n\nNew content';
+
+      // Set the just-created flag
+      act(() => {
+        useNotesStore.setState({
+          justCreatedNoteId: noteId,
+        });
+      });
+
+      // Mock the successful API call
+      (api.updateNote as Mock).mockResolvedValue({
+        id: noteId,
+        title: 'Updated Title',
+        content: newContent,
+        createdAt: '2023-01-01T00:00:00.000Z',
+        updatedAt: '2023-01-03T00:00:00.000Z',
+      });
+
+      await store.actions.updateNote(noteId, newContent);
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.justCreatedNoteId).toBeNull();
     });
 
     it('should not update any note if ID does not exist', async () => {
@@ -303,6 +331,35 @@ describe('Notes Store', () => {
 
       const updatedStore = useNotesStore.getState();
       expect(updatedStore.editedContent).toBeNull();
+    });
+
+    it('should preserve editedContent when navigating to just-created note', () => {
+      // Simulate a just-created note scenario
+      act(() => {
+        useNotesStore.setState({
+          editedContent: '# New Note\n\n',
+          justCreatedNoteId: 'note-3',
+        });
+      });
+
+      store.actions.setCurrentNote('note-3');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.editedContent).toBe('# New Note\n\n');
+      expect(updatedStore.justCreatedNoteId).toBeNull();
+    });
+
+    it('should clear justCreatedNoteId flag after navigating to the note', () => {
+      act(() => {
+        useNotesStore.setState({
+          justCreatedNoteId: 'note-2',
+        });
+      });
+
+      store.actions.setCurrentNote('note-2');
+
+      const updatedStore = useNotesStore.getState();
+      expect(updatedStore.justCreatedNoteId).toBeNull();
     });
 
     it('should handle null ID', () => {
