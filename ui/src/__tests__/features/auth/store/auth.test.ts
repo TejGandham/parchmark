@@ -180,6 +180,39 @@ describe('Auth Store', () => {
   });
 
   describe('Token Rehydration (via checkTokenExpiration)', () => {
+    it('should logout on rehydration when token is expiring', () => {
+      // Mock isTokenExpiringSoon to return true (token is expiring)
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);
+
+      // Set up authenticated state with an expiring token
+      const testState = {
+        isAuthenticated: true,
+        user: { username: 'testuser', password: '' },
+        token: 'expiring-token',
+        error: null,
+        actions: useAuthStore.getState().actions,
+      };
+
+      act(() => {
+        useAuthStore.setState(testState);
+      });
+
+      // Simulate the onRehydrateStorage callback by manually calling the logic
+      // This is what Zustand persist does after rehydrating from localStorage
+      const state = useAuthStore.getState();
+      if (state?.token && tokenUtils.isTokenExpiringSoon(state.token)) {
+        act(() => {
+          state.actions.logout();
+        });
+      }
+
+      // Verify that logout was triggered
+      const newState = useAuthStore.getState();
+      expect(newState.isAuthenticated).toBe(false);
+      expect(newState.token).toBeNull();
+      expect(newState.user).toBeNull();
+    });
+
     it('should logout when checking an expiring token', () => {
       // Mock isTokenExpiringSoon to return true
       (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);

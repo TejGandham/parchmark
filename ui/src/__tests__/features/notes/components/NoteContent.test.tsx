@@ -364,5 +364,47 @@ describe('NoteContent Component', () => {
       // Should render ReactMarkdown component without errors
       expect(screen.getByTestId('note-actions')).toBeInTheDocument();
     });
+
+    it('should handle edit button click when already editing a new note (no currentNote)', () => {
+      renderComponent({
+        currentNote: null,
+        isEditing: true,
+        editedContent: '# New Note\n\nContent',
+      });
+
+      // Click the edit button (which should be a no-op since already editing)
+      const editButton = screen.getByTestId('edit-button');
+      fireEvent.click(editButton);
+
+      // Should not crash and edit button should be disabled
+      expect(editButton).toBeDisabled();
+    });
+
+    it('should return editedContent in renderContent when isEditing is true', () => {
+      const editedContent = '# Edited Title\n\nEdited body';
+
+      renderComponent({
+        currentNote: mockNotes[0],
+        isEditing: true,
+        editedContent,
+      });
+
+      // In edit mode, the textarea should show editedContent
+      const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
+      expect(textarea).toHaveValue(editedContent);
+    });
+
+    it('should return removeH1FromContent result in renderContent when isEditing is false', () => {
+      renderComponent({
+        currentNote: {
+          ...mockNotes[0],
+          content: '# Test Note\n\nThis is the content',
+        },
+        isEditing: false,
+      });
+
+      // In view mode, should display content without H1
+      expect(screen.getByText(/This is the content/)).toBeInTheDocument();
+    });
   });
 });

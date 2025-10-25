@@ -109,7 +109,7 @@ test-ui-lint: ## Run ESLint on frontend code
 .PHONY: test-ui-test
 test-ui-test: ## Run Vitest tests with coverage
 	@echo "$(BLUE)Running UI tests...$(NC)"
-	cd ui && npm test
+	cd ui && npm run test:coverage
 	@echo "$(GREEN)✓ UI tests passed$(NC)"
 
 .PHONY: test-ui-all
