@@ -6,6 +6,7 @@ import api, {
   updateNote,
   deleteNote,
 } from '../../services/api';
+import { useAuthStore } from '../../features/auth/store';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -20,12 +21,21 @@ const localStorageMock = {
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
+// Mock auth store
+vi.mock('../../features/auth/store', () => ({
+  useAuthStore: {
+    getState: vi.fn(() => ({ token: null })),
+  },
+}));
+
 describe('API Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockClear();
     localStorageMock.getItem.mockClear();
     localStorageMock.getItem.mockReturnValue(null); // Default to no token
+    // Reset auth store mock to return no token by default
+    (useAuthStore.getState as Mock).mockReturnValue({ token: null });
   });
 
   describe('getAuthToken', () => {
@@ -89,11 +99,8 @@ describe('API Service', () => {
 
     it('should return token when auth state is valid', async () => {
       const token = 'test-token-123';
-      localStorageMock.getItem.mockReturnValue(
-        JSON.stringify({
-          state: { token },
-        })
-      );
+      // Mock the Zustand store to return the token
+      (useAuthStore.getState as Mock).mockReturnValue({ token });
 
       mockFetch.mockResolvedValueOnce({
         ok: true,

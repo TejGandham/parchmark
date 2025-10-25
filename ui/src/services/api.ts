@@ -2,7 +2,6 @@ import { Note } from '../types';
 import { API_BASE_URL } from '../config/constants';
 import { useAuthStore } from '../features/auth/store';
 import { API_ENDPOINTS } from '../config/api';
-import { STORAGE_KEYS } from '../config/storage';
 
 type ApiErrorResponse = {
   detail?: string | { msg: string }[];
@@ -20,14 +19,8 @@ class ApiError extends Error {
 }
 
 const getAuthToken = (): string | null => {
-  const authState = localStorage.getItem(STORAGE_KEYS.AUTH);
-  if (!authState) return null;
-  try {
-    const { state } = JSON.parse(authState);
-    return state.token || null;
-  } catch (error) {
-    return null;
-  }
+  // Use Zustand store directly instead of parsing localStorage
+  return useAuthStore.getState().token;
 };
 
 const request = async <T>(

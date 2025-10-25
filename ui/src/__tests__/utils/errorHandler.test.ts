@@ -1,39 +1,44 @@
 import { describe, it, expect } from 'vitest';
-import { AppError, handleError } from '../../utils/errorHandler';
+import { AppError, handleError, ERROR_CODES } from '../../utils/errorHandler';
 
 describe('AppError', () => {
   it('should create an AppError with message and code', () => {
-    const error = new AppError('Test error', 'TEST_CODE');
+    const error = new AppError('Test error', ERROR_CODES.UNKNOWN_ERROR);
 
     expect(error).toBeInstanceOf(Error);
     expect(error).toBeInstanceOf(AppError);
     expect(error.message).toBe('Test error');
-    expect(error.code).toBe('TEST_CODE');
+    expect(error.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
     expect(error.name).toBe('AppError');
   });
 
   it('should create an AppError with status code', () => {
-    const error = new AppError('Test error', 'TEST_CODE', 404);
+    const error = new AppError('Test error', ERROR_CODES.NOT_FOUND, 404);
 
     expect(error.statusCode).toBe(404);
   });
 
   it('should create an AppError with context', () => {
     const context = { userId: '123', action: 'login' };
-    const error = new AppError('Test error', 'TEST_CODE', 400, context);
+    const error = new AppError(
+      'Test error',
+      ERROR_CODES.VALIDATION_ERROR,
+      400,
+      context
+    );
 
     expect(error.context).toEqual(context);
   });
 
   it('should create an AppError without optional parameters', () => {
-    const error = new AppError('Test error', 'TEST_CODE');
+    const error = new AppError('Test error', ERROR_CODES.UNKNOWN_ERROR);
 
     expect(error.statusCode).toBeUndefined();
     expect(error.context).toBeUndefined();
   });
 
   it('should have correct stack trace', () => {
-    const error = new AppError('Test error', 'TEST_CODE');
+    const error = new AppError('Test error', ERROR_CODES.UNKNOWN_ERROR);
 
     expect(error.stack).toBeDefined();
     expect(error.stack).toContain('AppError');
@@ -42,12 +47,16 @@ describe('AppError', () => {
 
 describe('handleError', () => {
   it('should return AppError unchanged', () => {
-    const appError = new AppError('Test error', 'TEST_CODE', 400);
+    const appError = new AppError(
+      'Test error',
+      ERROR_CODES.VALIDATION_ERROR,
+      400
+    );
     const result = handleError(appError);
 
     expect(result).toBe(appError);
     expect(result.message).toBe('Test error');
-    expect(result.code).toBe('TEST_CODE');
+    expect(result.code).toBe(ERROR_CODES.VALIDATION_ERROR);
     expect(result.statusCode).toBe(400);
   });
 
@@ -57,16 +66,16 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('Standard error');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
   });
 
-  it('should convert TypeError to AppError', () => {
+  it('should convert TypeError to AppError with TYPE_ERROR code', () => {
     const error = new TypeError('Type error');
     const result = handleError(error);
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('Type error');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.TYPE_ERROR);
   });
 
   it('should handle string errors', () => {
@@ -74,7 +83,7 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('An unexpected error occurred');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
   });
 
   it('should handle null errors', () => {
@@ -82,7 +91,7 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('An unexpected error occurred');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
   });
 
   it('should handle undefined errors', () => {
@@ -90,7 +99,7 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('An unexpected error occurred');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
   });
 
   it('should handle object errors', () => {
@@ -98,7 +107,7 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('An unexpected error occurred');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
   });
 
   it('should handle number errors', () => {
@@ -106,7 +115,25 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('An unexpected error occurred');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
+  });
+
+  it('should handle SyntaxError with PARSE_ERROR code', () => {
+    const error = new SyntaxError('Invalid JSON');
+    const result = handleError(error);
+
+    expect(result).toBeInstanceOf(AppError);
+    expect(result.message).toBe('Invalid JSON');
+    expect(result.code).toBe(ERROR_CODES.PARSE_ERROR);
+  });
+
+  it('should handle network errors with NETWORK_ERROR code', () => {
+    const error = new Error('Failed to fetch');
+    const result = handleError(error);
+
+    expect(result).toBeInstanceOf(AppError);
+    expect(result.message).toBe('Failed to fetch');
+    expect(result.code).toBe(ERROR_CODES.NETWORK_ERROR);
   });
 
   it('should preserve Error subclass messages', () => {
@@ -122,6 +149,6 @@ describe('handleError', () => {
 
     expect(result).toBeInstanceOf(AppError);
     expect(result.message).toBe('Custom error message');
-    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.code).toBe(ERROR_CODES.UNKNOWN_ERROR);
   });
 });

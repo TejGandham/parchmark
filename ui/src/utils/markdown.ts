@@ -28,17 +28,8 @@ export class MarkdownService implements MarkdownProcessor {
   }
 
   removeH1(content: string): string {
-    // Only remove the first H1 heading found
-    let hasReplaced = false;
-    return content
-      .replace(MarkdownService.H1_REMOVE_REGEX, (match) => {
-        if (!hasReplaced) {
-          hasReplaced = true;
-          return '';
-        }
-        return match;
-      })
-      .trim();
+    // JavaScript replace() without /g flag only replaces the first occurrence
+    return content.replace(MarkdownService.H1_REMOVE_REGEX, '').trim();
   }
 
   createEmptyNote(title: string = 'New Note'): string {
