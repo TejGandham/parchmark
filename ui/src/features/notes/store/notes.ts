@@ -52,7 +52,6 @@ export const useNotesStore = create<NotesState>()(
           const newNote = await api.createNote({ title, content });
           set((state) => {
             state.notes.push(newNote);
-            state.currentNoteId = newNote.id;
             state.editedContent = content;
             state.justCreatedNoteId = newNote.id;
           });
