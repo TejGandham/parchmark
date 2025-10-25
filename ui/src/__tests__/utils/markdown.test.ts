@@ -15,9 +15,7 @@ describe('MarkdownService', () => {
 
     it('should trim whitespace from extracted title', () => {
       const content = '#   Title with spaces   \n\nContent';
-      expect(markdownService.extractTitle(content)).toBe(
-        'Title with spaces'
-      );
+      expect(markdownService.extractTitle(content)).toBe('Title with spaces');
     });
 
     it('should handle empty content', () => {
@@ -43,9 +41,7 @@ describe('MarkdownService', () => {
 
     it('should trim whitespace', () => {
       const content = '  \n# Title\n\nContent  \n  ';
-      expect(markdownService.formatContent(content)).toBe(
-        '# Title\n\nContent'
-      );
+      expect(markdownService.formatContent(content)).toBe('# Title\n\nContent');
     });
 
     it('should handle empty content', () => {
@@ -115,9 +111,7 @@ describe('MarkdownService', () => {
     });
 
     it('should handle title with unicode', () => {
-      expect(markdownService.createEmptyNote('标题 🚀')).toBe(
-        '# 标题 🚀\n\n'
-      );
+      expect(markdownService.createEmptyNote('标题 🚀')).toBe('# 标题 🚀\n\n');
     });
   });
 
