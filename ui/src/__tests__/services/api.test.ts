@@ -338,4 +338,42 @@ describe('API Service', () => {
       }
     });
   });
+
+  describe('401 error handling', () => {
+    it('should call logout on 401 error for non-login endpoints', async () => {
+      const mockLogout = vi.fn();
+      (useAuthStore.getState as Mock).mockReturnValue({
+        token: 'some-token',
+        actions: { logout: mockLogout },
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Unauthorized' }),
+      } as Response);
+
+      await expect(getNotes()).rejects.toThrow('Unauthorized');
+      expect(mockLogout).toHaveBeenCalled();
+    });
+
+    it('should NOT call logout on 401 error for login endpoint', async () => {
+      const mockLogout = vi.fn();
+      (useAuthStore.getState as Mock).mockReturnValue({
+        token: null,
+        actions: { logout: mockLogout },
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Invalid credentials' }),
+      } as Response);
+
+      await expect(login('user', 'wrong')).rejects.toThrow(
+        'Invalid credentials'
+      );
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+  });
 });
