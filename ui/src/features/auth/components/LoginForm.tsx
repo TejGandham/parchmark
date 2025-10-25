@@ -114,7 +114,9 @@ const LoginForm = () => {
                       showPassword ? 'Hide password' : 'Show password'
                     }
                     icon={
-                      <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                      <FontAwesomeIcon
+                        icon={showPassword ? faEyeSlash : faEye}
+                      />
                     }
                     onClick={() => setShowPassword(!showPassword)}
                     variant="ghost"
