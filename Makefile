@@ -27,6 +27,7 @@ help: ## Display this help message
 	@echo "$(GREEN)🧪 UI Tests (Frontend):$(NC)"
 	@echo "  make test-ui-install    - Install UI dependencies (npm ci)"
 	@echo "  make test-ui-lint       - Run ESLint on frontend code"
+	@echo "  make test-ui-format     - Format frontend code with Prettier"
 	@echo "  make test-ui-test       - Run Vitest tests with coverage"
 	@echo "  make test-ui-all        - Run all UI tests (lint + tests)"
 	@echo ""
@@ -86,7 +87,7 @@ help: ## Display this help message
 	@echo "  make user-list-prod                                   - List all users"
 	@echo ""
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(YELLOW)Total Commands Available: 38$(NC)"
+	@echo "$(YELLOW)Total Commands Available: 39$(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 
@@ -105,6 +106,12 @@ test-ui-lint: ## Run ESLint on frontend code
 	@echo "$(BLUE)Running UI linting...$(NC)"
 	cd ui && npm run lint
 	@echo "$(GREEN)✓ UI linting passed$(NC)"
+
+.PHONY: test-ui-format
+test-ui-format: ## Format frontend code with Prettier
+	@echo "$(BLUE)Formatting UI code with Prettier...$(NC)"
+	cd ui && npm run format
+	@echo "$(GREEN)✓ UI code formatted$(NC)"
 
 .PHONY: test-ui-test
 test-ui-test: ## Run Vitest tests with coverage
