@@ -14,6 +14,7 @@ export type NotesState = {
   editedContent: string | null;
   isLoading: boolean;
   error: string | null;
+  justCreatedNoteId: string | null; // Track recently created note to preserve edit mode
   actions: {
     fetchNotes: () => Promise<void>;
     createNote: () => Promise<string | null>;
@@ -31,6 +32,7 @@ export const useNotesStore = create<NotesState>()(
     editedContent: null,
     isLoading: false,
     error: null,
+    justCreatedNoteId: null,
     actions: {
       fetchNotes: async () => {
         set({ isLoading: true, error: null });
@@ -52,6 +54,7 @@ export const useNotesStore = create<NotesState>()(
             state.notes.push(newNote);
             state.currentNoteId = newNote.id;
             state.editedContent = content;
+            state.justCreatedNoteId = newNote.id;
           });
           return newNote.id;
         } catch (error: unknown) {
@@ -72,6 +75,10 @@ export const useNotesStore = create<NotesState>()(
             if (noteIndex !== -1) {
               state.notes[noteIndex] = updatedNote;
               state.editedContent = null;
+              // Clear the just-created flag when note is saved
+              if (state.justCreatedNoteId === id) {
+                state.justCreatedNoteId = null;
+              }
             }
           });
         } catch (error: unknown) {
@@ -102,8 +109,15 @@ export const useNotesStore = create<NotesState>()(
       },
       setCurrentNote: (id) => {
         set((state) => {
-          state.editedContent = null;
+          // Preserve edit mode if navigating to a just-created note
+          if (state.justCreatedNoteId !== id) {
+            state.editedContent = null;
+          }
           state.currentNoteId = id;
+          // Clear the flag once we've navigated to the note
+          if (state.justCreatedNoteId === id) {
+            state.justCreatedNoteId = null;
+          }
         });
       },
       setEditedContent: (content) => {
