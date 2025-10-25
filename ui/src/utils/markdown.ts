@@ -7,10 +7,12 @@ export interface MarkdownProcessor {
   extractTitle(content: string): string;
   formatContent(content: string): string;
   removeH1(content: string): string;
+  createEmptyNote(title?: string): string;
 }
 
 export class MarkdownService implements MarkdownProcessor {
   private static readonly H1_REGEX = /^#\s+(.+)$/m;
+  private static readonly H1_REMOVE_REGEX = /^#\s+(.+)($|\n)/m;
   private static readonly DEFAULT_TITLE = 'Untitled Note';
 
   extractTitle(content: string): string {
@@ -26,7 +28,17 @@ export class MarkdownService implements MarkdownProcessor {
   }
 
   removeH1(content: string): string {
-    return content.replace(MarkdownService.H1_REGEX, '').trim();
+    // Only remove the first H1 heading found
+    let hasReplaced = false;
+    return content
+      .replace(MarkdownService.H1_REMOVE_REGEX, (match) => {
+        if (!hasReplaced) {
+          hasReplaced = true;
+          return '';
+        }
+        return match;
+      })
+      .trim();
   }
 
   createEmptyNote(title: string = 'New Note'): string {
