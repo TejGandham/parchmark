@@ -1,15 +1,26 @@
 """
-Unit tests for notes utility functions (app.routers.notes).
+Unit tests for notes utility functions (app.utils.markdown).
 Tests markdown processing, title extraction, and content formatting functions.
 """
 
 import pytest
 
-from app.routers.notes import (
-    create_empty_note_content,
-    extract_title_from_markdown,
-    format_note_content,
-)
+from app.utils.markdown import markdown_service
+
+
+def extract_title_from_markdown(content: str) -> str:
+    """Wrapper for backward compatibility with tests."""
+    return markdown_service.extract_title(content)
+
+
+def format_note_content(content: str) -> str:
+    """Wrapper for backward compatibility with tests."""
+    return markdown_service.format_content(content)
+
+
+def create_empty_note_content(title: str = "New Note") -> str:
+    """Wrapper for backward compatibility with tests."""
+    return markdown_service.create_empty_note(title)
 
 
 class TestExtractTitleFromMarkdown:

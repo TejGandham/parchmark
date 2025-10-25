@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware';
 import { User } from '../../../types';
 import * as api from '../../../services/api';
 import { isTokenExpiringSoon } from '../utils/tokenUtils';
+import { handleError } from '../../../utils/errorHandler';
+import { STORAGE_KEYS } from '../../../config/storage';
 
 export type AuthState = {
   isAuthenticated: boolean;
@@ -37,10 +39,9 @@ export const useAuthStore = create<AuthState>()(
             });
             return true;
           } catch (error: unknown) {
-            const errorMessage =
-              error instanceof Error ? error.message : 'Login failed';
+            const appError = handleError(error);
             set((state) => {
-              state.error = errorMessage;
+              state.error = appError.message;
               state.isAuthenticated = false;
               state.user = null;
               state.token = null;
@@ -73,7 +74,7 @@ export const useAuthStore = create<AuthState>()(
       },
     })),
     {
-      name: 'parchmark-auth',
+      name: STORAGE_KEYS.AUTH,
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,

@@ -77,7 +77,7 @@ describe('Auth Store', () => {
     expect(success).toBe(false);
     expect(newState.isAuthenticated).toBe(false);
     expect(newState.user).toBeNull();
-    expect(newState.error).toBe('Login failed');
+    expect(newState.error).toBe('An unexpected error occurred');
   });
 
   it('should logout successfully', async () => {
