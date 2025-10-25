@@ -159,7 +159,8 @@ describe('Notes Store', () => {
       const updatedStore = useNotesStore.getState();
 
       expect(updatedStore.notes).toHaveLength(3);
-      expect(updatedStore.currentNoteId).toBe(newNoteId);
+      // currentNoteId is not set by createNote - router sync handles navigation
+      expect(updatedStore.currentNoteId).toBe('note-1');
       expect(updatedStore.editedContent).toBe('# New Note\n\n');
       expect(updatedStore.justCreatedNoteId).toBe(newNoteId);
 
