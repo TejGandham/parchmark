@@ -394,6 +394,30 @@ describe('dateGrouping utilities', () => {
       const sorted = sortNotes([], 'lastModified');
       expect(sorted).toEqual([]);
     });
+
+    it('should return unsorted array for invalid sort option', () => {
+      const notes: Note[] = [
+        createNote(
+          '1',
+          'C',
+          '2024-01-01T10:00:00.000Z',
+          '2024-01-01T10:00:00.000Z'
+        ),
+        createNote(
+          '2',
+          'A',
+          '2024-01-01T10:00:00.000Z',
+          '2024-01-01T10:00:00.000Z'
+        ),
+      ];
+
+      // TypeScript allows any string, so we test the default case
+      const sorted = sortNotes(notes, 'invalid' as SortOption);
+
+      // Should return a copy of the array without sorting
+      expect(sorted).toEqual(notes);
+      expect(sorted).not.toBe(notes); // Should be a new array
+    });
   });
 
   describe('filterNotes', () => {
