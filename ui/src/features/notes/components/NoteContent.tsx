@@ -11,7 +11,6 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { Note } from '../../../types';
-import { COLORS } from '../../../utils/constants';
 import {
   extractTitleFromMarkdown,
   removeH1FromContent,
@@ -83,13 +82,9 @@ const NoteContent = ({
         <Text>No note selected.</Text>
         <Button
           leftIcon={<FontAwesomeIcon icon={faPlus} />}
-          bg="transparent"
-          color={COLORS.primaryColor}
-          border="1px solid"
-          borderColor={COLORS.primaryLight}
-          _hover={{ bg: 'rgba(88, 12, 36, 0.08)', transform: 'scale(1.05)' }}
-          transition="all 0.2s"
+          variant="secondary"
           onClick={createNewNote}
+          _hover={{ transform: 'scale(1.05)' }}
         >
           Create New Note
         </Button>
@@ -127,12 +122,12 @@ const NoteContent = ({
                 width="100%"
                 cursor="not-allowed"
                 _hover={{
-                  borderColor: 'gray.300',
-                  background: 'gray.50',
+                  borderColor: 'border.default',
+                  background: 'bg.subtle',
                 }}
                 title="Title is controlled by the H1 heading in your content"
               />
-              <Text fontSize="xs" color="gray.500" mt={1}>
+              <Text fontSize="xs" color="text.muted" mt={1}>
                 Title is automatically set from H1 heading.
               </Text>
             </>

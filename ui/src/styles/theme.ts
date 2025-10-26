@@ -1,19 +1,50 @@
-import { extendTheme } from '@chakra-ui/react';
-import tokens from './tokens';
+// Main theme configuration for ParchMark
+// Integrates all foundations, components, and styles
 
-const theme = extendTheme({
-  colors: {
-    brand: tokens.colors.primary,
+import { extendTheme, withDefaultColorScheme } from '@chakra-ui/react';
+import {
+  colors,
+  typography,
+  shadows,
+  spacing,
+  radii,
+  semanticTokens,
+} from './foundations';
+import { layerStyles } from './layerStyles';
+import { textStyles } from './textStyles';
+import { Button, Input, Card } from './components';
+import { globalStyles } from './global';
+
+const theme = extendTheme(
+  {
+    config: {
+      initialColorMode: 'light',
+      useSystemColorMode: false,
+    },
+
+    // Foundations
+    colors,
+    ...typography,
+    shadows,
+    space: spacing,
+    radii,
+    semanticTokens,
+
+    // Styles
+    layerStyles,
+    textStyles,
+    styles: globalStyles,
+
+    // Components
+    components: {
+      Button,
+      Input,
+      Card,
+    },
   },
-  config: {
-    initialColorMode: 'light',
-    useSystemColorMode: false,
-  },
-  fonts: tokens.fonts,
-  shadows: tokens.shadows,
-  radii: tokens.radii,
-  space: tokens.spacing,
-  transition: tokens.transitions,
-});
+
+  // Apply primary color scheme to all components by default
+  withDefaultColorScheme({ colorScheme: 'primary' })
+);
 
 export default theme;

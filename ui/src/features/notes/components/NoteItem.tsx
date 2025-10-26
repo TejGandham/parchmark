@@ -2,7 +2,6 @@ import { HStack, Text, IconButton, ListItem } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faFile } from '@fortawesome/free-solid-svg-icons';
 import { Note } from '../../../types';
-import { COLORS } from '../../../utils/constants';
 
 interface NoteItemProps {
   note: Note;
@@ -18,13 +17,14 @@ const NoteItem = ({ note, isActive, onSelect, onDelete }: NoteItemProps) => {
       p={2}
       borderRadius="md"
       cursor="pointer"
-      bg={isActive ? 'rgba(88, 12, 36, 0.08)' : 'transparent'}
-      color={isActive ? COLORS.primaryColor : 'inherit'}
+      bg={isActive ? 'primary.50' : 'transparent'}
+      color={isActive ? 'primary.800' : 'text.primary'}
       _hover={{
-        bg: isActive ? 'rgba(88, 12, 36, 0.12)' : 'gray.100',
+        bg: isActive ? 'primary.100' : 'interactive.hover',
       }}
       onClick={() => onSelect(note.id)}
       className="note-transition"
+      transition="all 0.2s"
     >
       <HStack justify="space-between">
         <HStack>
@@ -36,8 +36,8 @@ const NoteItem = ({ note, isActive, onSelect, onDelete }: NoteItemProps) => {
           icon={<FontAwesomeIcon icon={faTrash} />}
           size="xs"
           variant="ghost"
-          color="gray.500"
-          _hover={{ color: COLORS.complementaryColor }}
+          color="text.muted"
+          colorScheme="secondary"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(note.id);

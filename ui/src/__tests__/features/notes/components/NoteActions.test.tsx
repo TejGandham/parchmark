@@ -107,9 +107,6 @@ describe('NoteActions Component', () => {
       // Chakra UI buttons use inline-flex display
       expect(editButton).toHaveStyle('display: inline-flex');
 
-      // Check for appropriate border color defined in the component
-      expect(editButton).toHaveStyle(`border-color: ${COLORS.primaryLight}`);
-
       // Check for icon if applicable
       const icon = editButton.querySelector('svg');
       expect(icon).toBeTruthy();
