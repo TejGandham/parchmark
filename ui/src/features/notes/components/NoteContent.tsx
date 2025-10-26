@@ -2,16 +2,16 @@ import {
   Box,
   Flex,
   VStack,
+  HStack,
   Text,
   Button,
   Heading,
   Input,
   Textarea,
+  Icon,
 } from '@chakra-ui/react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus } from '@fortawesome/free-solid-svg-icons';
+import { AddIcon, EditIcon, InfoIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
-import { COLORS } from '../../../utils/constants';
 import {
   extractTitleFromMarkdown,
   removeH1FromContent,
@@ -67,7 +67,7 @@ const NoteContent = ({
               onChange={(e) => {
                 setEditedContent(e.target.value);
               }}
-              minH="500px"
+              minH="calc(100vh - 250px)"
               p={4}
               width="100%"
               placeholder="# Your Title Here&#10;&#10;Start writing content..."
@@ -79,20 +79,68 @@ const NoteContent = ({
 
     // Default "no note" view
     return (
-      <VStack spacing={4} align="center" justify="center" h="100%">
-        <Text>No note selected.</Text>
+      <VStack spacing={6} align="center" justify="center" h="100%" px={8}>
+        <Box
+          w="120px"
+          h="120px"
+          bg="primary.50"
+          borderRadius="full"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          _dark={{
+            bg: 'primary.900',
+          }}
+        >
+          <Icon as={EditIcon} fontSize="5xl" color="primary.300" />
+        </Box>
+
+        <VStack spacing={2}>
+          <Heading
+            size="lg"
+            color="text.primary"
+            fontFamily="'Playfair Display', serif"
+          >
+            Ready to capture your thoughts?
+          </Heading>
+          <Text
+            fontSize="md"
+            color="text.muted"
+            textAlign="center"
+            maxW="400px"
+          >
+            Select a note from the sidebar or create a new one to get started
+          </Text>
+        </VStack>
+
         <Button
-          leftIcon={<FontAwesomeIcon icon={faPlus} />}
-          bg="transparent"
-          color={COLORS.primaryColor}
-          border="1px solid"
-          borderColor={COLORS.primaryLight}
-          _hover={{ bg: 'rgba(88, 12, 36, 0.08)', transform: 'scale(1.05)' }}
-          transition="all 0.2s"
+          size="lg"
+          colorScheme="primary"
+          leftIcon={<Icon as={AddIcon} />}
           onClick={createNewNote}
+          boxShadow="md"
+          _hover={{
+            transform: 'translateY(-2px)',
+            boxShadow: 'lg',
+          }}
         >
           Create New Note
         </Button>
+
+        <VStack spacing={3} mt={8} align="stretch" maxW="400px">
+          <HStack spacing={3} align="flex-start">
+            <Icon as={InfoIcon} color="primary.500" mt={0.5} />
+            <Text fontSize="sm" textAlign="left" color="text.secondary">
+              Full Markdown support for rich formatting
+            </Text>
+          </HStack>
+          <HStack spacing={3} align="flex-start">
+            <Icon as={EditIcon} color="primary.500" mt={0.5} />
+            <Text fontSize="sm" textAlign="left" color="text.secondary">
+              Auto-save keeps your work safe
+            </Text>
+          </HStack>
+        </VStack>
       </VStack>
     );
   }
@@ -127,12 +175,12 @@ const NoteContent = ({
                 width="100%"
                 cursor="not-allowed"
                 _hover={{
-                  borderColor: 'gray.300',
-                  background: 'gray.50',
+                  borderColor: 'border.default',
+                  background: 'bg.subtle',
                 }}
                 title="Title is controlled by the H1 heading in your content"
               />
-              <Text fontSize="xs" color="gray.500" mt={1}>
+              <Text fontSize="xs" color="text.muted" mt={1}>
                 Title is automatically set from H1 heading.
               </Text>
             </>
@@ -156,7 +204,7 @@ const NoteContent = ({
               onChange={(e) => {
                 setEditedContent(e.target.value);
               }}
-              minH="500px"
+              minH="calc(100vh - 250px)"
               p={4}
               width="100%"
               placeholder="# Your Title Here&#10;&#10;Start writing content..."

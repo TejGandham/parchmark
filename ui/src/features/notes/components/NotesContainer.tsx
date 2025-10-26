@@ -1,7 +1,6 @@
-import { Box, Flex } from '@chakra-ui/react';
+import { Box, Flex, Link } from '@chakra-ui/react';
 import { useUIStore } from '../../../store';
 import { useStoreRouterSync } from '../hooks/useStoreRouterSync';
-import { COLORS } from '../../../utils/constants';
 import '../../ui/styles/layout.css';
 
 // Direct imports from feature folders
@@ -26,6 +25,7 @@ const NotesContainer = () => {
     currentNote,
     isEditing,
     editedContent,
+    isLoading,
     actions,
   } = useStoreRouterSync();
 
@@ -45,22 +45,51 @@ const NotesContainer = () => {
   };
 
   return (
-    <Box minH="100vh" bg={COLORS.bgColor} className="bg-texture">
+    <Box minH="100vh" bg="bg.canvas" className="bg-texture">
+      {/* Skip to main content link for screen readers */}
+      <Link
+        href="#main-content"
+        position="absolute"
+        left="-9999px"
+        zIndex="9999"
+        p={3}
+        bg="primary.500"
+        color="white"
+        borderRadius="md"
+        _focus={{
+          left: '10px',
+          top: '10px',
+        }}
+      >
+        Skip to main content
+      </Link>
+
       <Flex h="100vh" flexDirection="column">
         <Header toggleSidebar={toggleSidebar} />
 
         <Flex flex="1" overflow="hidden">
           {isSidebarOpen && (
-            <Sidebar
-              notes={notes}
-              currentNoteId={currentNoteId || ''}
-              onSelectNote={actions.setCurrentNote}
-              onCreateNote={actions.createNote}
-              onDeleteNote={actions.deleteNote}
-            />
+            <Box as="nav" aria-label="Notes navigation">
+              <Sidebar
+                notes={notes}
+                currentNoteId={currentNoteId || ''}
+                onSelectNote={actions.setCurrentNote}
+                onCreateNote={actions.createNote}
+                onDeleteNote={actions.deleteNote}
+                isLoading={isLoading}
+              />
+            </Box>
           )}
 
-          <Box flex="1" p={6} overflowY="auto" className="note-transition">
+          <Box
+            as="main"
+            id="main-content"
+            flex="1"
+            p={6}
+            overflowY="auto"
+            className="note-transition"
+            aria-label="Note content"
+          >
             <NoteContent {...noteContentProps} />
           </Box>
         </Flex>

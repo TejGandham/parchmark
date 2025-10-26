@@ -8,6 +8,9 @@ describe('UI Store', () => {
       useUIStore.setState({
         isSidebarOpen: true,
         isDarkMode: false,
+        notesSortBy: 'lastModified',
+        notesSearchQuery: '',
+        notesGroupByDate: true,
         actions: useUIStore.getState().actions,
       });
     });
@@ -17,8 +20,14 @@ describe('UI Store', () => {
     const state = useUIStore.getState();
     expect(state.isSidebarOpen).toBe(true);
     expect(state.isDarkMode).toBe(false);
+    expect(state.notesSortBy).toBe('lastModified');
+    expect(state.notesSearchQuery).toBe('');
+    expect(state.notesGroupByDate).toBe(true);
     expect(typeof state.actions.toggleSidebar).toBe('function');
     expect(typeof state.actions.toggleDarkMode).toBe('function');
+    expect(typeof state.actions.setNotesSortBy).toBe('function');
+    expect(typeof state.actions.setNotesSearchQuery).toBe('function');
+    expect(typeof state.actions.setNotesGroupByDate).toBe('function');
   });
 
   describe('toggleSidebar', () => {
@@ -157,6 +166,211 @@ describe('UI Store', () => {
 
       // The state object should be different (new reference)
       expect(updatedState).not.toBe(initialState);
+    });
+  });
+
+  describe('setNotesSortBy', () => {
+    it('should update notesSortBy to lastModified', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSortBy('lastModified');
+      });
+
+      expect(useUIStore.getState().notesSortBy).toBe('lastModified');
+    });
+
+    it('should update notesSortBy to alphabetical', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSortBy('alphabetical');
+      });
+
+      expect(useUIStore.getState().notesSortBy).toBe('alphabetical');
+    });
+
+    it('should update notesSortBy to createdDate', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSortBy('createdDate');
+      });
+
+      expect(useUIStore.getState().notesSortBy).toBe('createdDate');
+    });
+
+    it('should allow changing sort option multiple times', () => {
+      // Start with lastModified (default)
+      expect(useUIStore.getState().notesSortBy).toBe('lastModified');
+
+      // Change to alphabetical
+      act(() => {
+        useUIStore.getState().actions.setNotesSortBy('alphabetical');
+      });
+      expect(useUIStore.getState().notesSortBy).toBe('alphabetical');
+
+      // Change to createdDate
+      act(() => {
+        useUIStore.getState().actions.setNotesSortBy('createdDate');
+      });
+      expect(useUIStore.getState().notesSortBy).toBe('createdDate');
+
+      // Back to lastModified
+      act(() => {
+        useUIStore.getState().actions.setNotesSortBy('lastModified');
+      });
+      expect(useUIStore.getState().notesSortBy).toBe('lastModified');
+    });
+  });
+
+  describe('setNotesSearchQuery', () => {
+    it('should update notesSearchQuery to a search term', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('test search');
+      });
+
+      expect(useUIStore.getState().notesSearchQuery).toBe('test search');
+    });
+
+    it('should update notesSearchQuery to empty string', () => {
+      // First set a search query
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('test');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('test');
+
+      // Clear the search query
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('');
+    });
+
+    it('should handle partial search queries', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('par');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('par');
+
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('part');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('part');
+
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('partial');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('partial');
+    });
+
+    it('should handle special characters in search query', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('C++ tutorial');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('C++ tutorial');
+    });
+
+    it('should allow updating search query multiple times', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('first');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('first');
+
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('second');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('second');
+
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('third');
+      });
+      expect(useUIStore.getState().notesSearchQuery).toBe('third');
+    });
+  });
+
+  describe('setNotesGroupByDate', () => {
+    it('should set notesGroupByDate to true', () => {
+      // First set to false
+      act(() => {
+        useUIStore.setState({ notesGroupByDate: false });
+      });
+      expect(useUIStore.getState().notesGroupByDate).toBe(false);
+
+      // Set to true
+      act(() => {
+        useUIStore.getState().actions.setNotesGroupByDate(true);
+      });
+      expect(useUIStore.getState().notesGroupByDate).toBe(true);
+    });
+
+    it('should set notesGroupByDate to false', () => {
+      // Start with true (default)
+      expect(useUIStore.getState().notesGroupByDate).toBe(true);
+
+      // Set to false
+      act(() => {
+        useUIStore.getState().actions.setNotesGroupByDate(false);
+      });
+      expect(useUIStore.getState().notesGroupByDate).toBe(false);
+    });
+
+    it('should allow toggling grouping multiple times', () => {
+      // Start with true
+      expect(useUIStore.getState().notesGroupByDate).toBe(true);
+
+      // Toggle to false
+      act(() => {
+        useUIStore.getState().actions.setNotesGroupByDate(false);
+      });
+      expect(useUIStore.getState().notesGroupByDate).toBe(false);
+
+      // Toggle back to true
+      act(() => {
+        useUIStore.getState().actions.setNotesGroupByDate(true);
+      });
+      expect(useUIStore.getState().notesGroupByDate).toBe(true);
+    });
+  });
+
+  describe('Notes Organization Integration', () => {
+    it('should allow setting search query and sort option together', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('shopping');
+        useUIStore.getState().actions.setNotesSortBy('alphabetical');
+      });
+
+      const state = useUIStore.getState();
+      expect(state.notesSearchQuery).toBe('shopping');
+      expect(state.notesSortBy).toBe('alphabetical');
+    });
+
+    it('should allow setting all notes organization preferences', () => {
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('test');
+        useUIStore.getState().actions.setNotesSortBy('createdDate');
+        useUIStore.getState().actions.setNotesGroupByDate(false);
+      });
+
+      const state = useUIStore.getState();
+      expect(state.notesSearchQuery).toBe('test');
+      expect(state.notesSortBy).toBe('createdDate');
+      expect(state.notesGroupByDate).toBe(false);
+    });
+
+    it('should preserve other state when updating notes preferences', () => {
+      // Set sidebar and dark mode
+      act(() => {
+        useUIStore.setState({ isSidebarOpen: false, isDarkMode: true });
+      });
+
+      // Update notes preferences
+      act(() => {
+        useUIStore.getState().actions.setNotesSearchQuery('test');
+        useUIStore.getState().actions.setNotesSortBy('alphabetical');
+      });
+
+      const state = useUIStore.getState();
+      // Notes preferences should be updated
+      expect(state.notesSearchQuery).toBe('test');
+      expect(state.notesSortBy).toBe('alphabetical');
+      // Other state should be preserved
+      expect(state.isSidebarOpen).toBe(false);
+      expect(state.isDarkMode).toBe(true);
     });
   });
 });

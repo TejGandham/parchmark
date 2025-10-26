@@ -10,7 +10,6 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore } from '../../store';
-import { COLORS } from '../../../../utils/constants';
 import UserDropdown from './UserDropdown';
 
 /**
@@ -100,11 +99,11 @@ const UserInfo: React.FC = () => {
         p={1}
         borderRadius="md"
         _hover={{
-          bg: 'rgba(88, 12, 36, 0.05)',
+          bg: 'interactive.hover',
         }}
         _focus={{
           outline: '2px solid',
-          outlineColor: COLORS.primaryColor,
+          outlineColor: 'border.emphasis',
           outlineOffset: '2px',
         }}
         transition="all 0.2s ease-in-out"
@@ -115,7 +114,7 @@ const UserInfo: React.FC = () => {
             size="sm"
             name={user.username}
             getInitials={getUserInitials}
-            bg={`linear-gradient(135deg, ${COLORS.primaryColor}, #8a3b53)`}
+            bgGradient="linear(to-br, primary.800, primary.600)"
             color="white"
             fontWeight="bold"
             fontSize="sm"
@@ -126,7 +125,7 @@ const UserInfo: React.FC = () => {
             <Text
               fontSize="sm"
               fontWeight="medium"
-              color={COLORS.primaryColor}
+              color="primary.800"
               maxW="120px"
               isTruncated
             >
@@ -139,7 +138,7 @@ const UserInfo: React.FC = () => {
             as={FontAwesomeIcon}
             icon={faChevronDown}
             fontSize="xs"
-            color={COLORS.primaryColor}
+            color="primary.800"
             transform={isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'}
             transition="transform 0.2s ease-in-out"
             ml={1}

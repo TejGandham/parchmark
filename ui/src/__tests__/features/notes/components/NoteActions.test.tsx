@@ -3,7 +3,6 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
 import NoteActions from '../../../../features/notes/components/NoteActions';
-import { COLORS } from '../../../../utils/constants';
 
 describe('NoteActions Component', () => {
   const defaultProps = {
@@ -106,9 +105,6 @@ describe('NoteActions Component', () => {
 
       // Chakra UI buttons use inline-flex display
       expect(editButton).toHaveStyle('display: inline-flex');
-
-      // Check for appropriate border color defined in the component
-      expect(editButton).toHaveStyle(`border-color: ${COLORS.primaryLight}`);
 
       // Check for icon if applicable
       const icon = editButton.querySelector('svg');

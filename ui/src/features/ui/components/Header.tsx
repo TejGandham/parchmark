@@ -1,7 +1,14 @@
-import { Flex, HStack, Heading, IconButton } from '@chakra-ui/react';
+import {
+  Flex,
+  HStack,
+  Heading,
+  IconButton,
+  Image,
+  useColorMode,
+} from '@chakra-ui/react';
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
-import { COLORS } from '../../../utils/constants';
 import { UserLoginStatus } from '../../auth/components';
 import Logo from '../../../../assets/images/parchmark.svg';
 
@@ -10,16 +17,20 @@ interface HeaderProps {
 }
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
+  const { colorMode, toggleColorMode } = useColorMode();
+
   return (
     <Flex
       as="header"
-      bgGradient="linear(to-r, white, #f8f0f2, white)"
-      color={COLORS.primaryColor}
+      bgGradient="linear(to-r, bg.surface, primary.50, bg.surface)"
+      color="primary.800"
       p={3}
       align="center"
       justify="space-between"
-      borderBottom="1px solid #e2e8f0"
+      borderBottom="1px solid"
+      borderColor="border.default"
       boxShadow="sm"
+      transition="all 0.2s"
     >
       <HStack spacing={3}>
         <IconButton
@@ -27,18 +38,27 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
           icon={<FontAwesomeIcon icon={faBars} />}
           onClick={toggleSidebar}
           variant="ghost"
-          color={COLORS.primaryColor}
-          _hover={{ bg: 'rgba(88, 12, 36, 0.1)' }}
+          colorScheme="primary"
         />
         <Heading size="md" ml={1} fontFamily="'Playfair Display', serif">
-          <img
-            src={Logo}
-            alt="ParchMark Logo"
-            style={{ height: '46px', marginRight: '10px' }}
-          />
+          <Image src={Logo} alt="ParchMark Logo" h="46px" mr="10px" />
         </Heading>
       </HStack>
-      <UserLoginStatus />
+      <HStack spacing={3}>
+        <IconButton
+          aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
+          icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+          onClick={toggleColorMode}
+          variant="ghost"
+          colorScheme="primary"
+          fontSize="lg"
+          _hover={{
+            transform: 'rotate(20deg)',
+            transition: 'transform 0.3s ease',
+          }}
+        />
+        <UserLoginStatus />
+      </HStack>
     </Flex>
   );
 };

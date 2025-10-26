@@ -2,7 +2,7 @@
 .decorative-divider {
   position: relative;
   height: 1px;
-  background: linear-gradient(to right, transparent, rgba(88, 12, 36, 0.2), transparent);
+  background: linear-gradient(to right, transparent, var(--chakra-colors-border-default), transparent);
 }
 .decorative-divider:before {
   content: "✦";
@@ -10,16 +10,16 @@
   top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  color: rgba(88, 12, 36, 0.4);
+  color: var(--chakra-colors-primary-600);
   font-size: 16px;
 }
 
 /* Dark mode divider */
 .dark-divider {
-  background: linear-gradient(to right, transparent, rgba(191, 138, 153, 0.3), transparent);
+  background: linear-gradient(to right, transparent, var(--chakra-colors-border-default), transparent);
 }
 .dark-divider:before {
-  color: rgba(191, 138, 153, 0.5);
+  color: var(--chakra-colors-primary-600);
 }
 
 /* Edit mode indicator */
@@ -35,10 +35,10 @@
   height: 0;
   border-style: solid;
   border-width: 0 24px 24px 0;
-  border-color: transparent #580c24 transparent transparent;
+  border-color: transparent var(--chakra-colors-primary-600) transparent transparent;
 }
 
 /* Dark mode edit mode indicator */
 .chakra-ui-dark .edit-mode-indicator:after {
-  border-color: transparent #bf8a99 transparent transparent;
+  border-color: transparent var(--chakra-colors-primary-600) transparent transparent;
 }
