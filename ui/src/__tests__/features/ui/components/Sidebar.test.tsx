@@ -5,6 +5,23 @@ import { TestProvider } from '../../../__mocks__/testUtils';
 import Sidebar from '../../../../features/ui/components/Sidebar';
 import { mockNotes } from '../../../__mocks__/mockStores';
 
+// Mock the UI store
+const mockUIState = {
+  notesSortBy: 'lastModified' as const,
+  notesSearchQuery: '',
+  notesGroupByDate: true,
+  actions: {
+    setNotesSortBy: vi.fn(),
+    setNotesSearchQuery: vi.fn(),
+    setNotesGroupByDate: vi.fn(),
+  },
+};
+
+vi.mock('../../../../features/ui/store', () => ({
+  useUIStore: (selector: (state: typeof mockUIState) => unknown) =>
+    selector(mockUIState),
+}));
+
 // Mock NoteItem component
 vi.mock('../../../../features/notes/components/NoteItem', () => {
   return {

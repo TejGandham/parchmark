@@ -12,6 +12,7 @@ export const useStoreRouterSync = () => {
     notes,
     currentNoteId,
     editedContent,
+    isLoading,
     actions: storeActions,
   } = useNotesStore();
   const { isAuthenticated } = useAuthStore();
@@ -133,6 +134,7 @@ export const useStoreRouterSync = () => {
     currentNote,
     isEditing,
     editedContent,
+    isLoading,
     actions,
   };
 };

@@ -8,6 +8,9 @@ describe('UI Store', () => {
       useUIStore.setState({
         isSidebarOpen: true,
         isDarkMode: false,
+        notesSortBy: 'lastModified',
+        notesSearchQuery: '',
+        notesGroupByDate: true,
         actions: useUIStore.getState().actions,
       });
     });
@@ -17,8 +20,14 @@ describe('UI Store', () => {
     const state = useUIStore.getState();
     expect(state.isSidebarOpen).toBe(true);
     expect(state.isDarkMode).toBe(false);
+    expect(state.notesSortBy).toBe('lastModified');
+    expect(state.notesSearchQuery).toBe('');
+    expect(state.notesGroupByDate).toBe(true);
     expect(typeof state.actions.toggleSidebar).toBe('function');
     expect(typeof state.actions.toggleDarkMode).toBe('function');
+    expect(typeof state.actions.setNotesSortBy).toBe('function');
+    expect(typeof state.actions.setNotesSearchQuery).toBe('function');
+    expect(typeof state.actions.setNotesGroupByDate).toBe('function');
   });
 
   describe('toggleSidebar', () => {

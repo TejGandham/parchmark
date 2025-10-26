@@ -25,6 +25,7 @@ const NotesContainer = () => {
     currentNote,
     isEditing,
     editedContent,
+    isLoading,
     actions,
   } = useStoreRouterSync();
 
@@ -75,6 +76,7 @@ const NotesContainer = () => {
                 onSelectNote={actions.setCurrentNote}
                 onCreateNote={actions.createNote}
                 onDeleteNote={actions.deleteNote}
+                isLoading={isLoading}
               />
             </Box>
           )}
