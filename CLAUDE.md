@@ -645,27 +645,27 @@ Production:
 - **Code duplication**: Reduced to <2% through centralized utilities and constants
 - **Markdown processing**: removeH1() correctly removes only first H1 heading
 
-### UI/UX Enhancements (Phase 3a - Completed)
-- **Dark Mode**: Fully implemented with color mode toggle in Header
-  - Moon/sun icon with smooth transitions
-  - Semantic tokens automatically adapt for dark mode
-  - Preference persists via Chakra UI's localStorage
-  - All components support both light and dark themes
-- **Enhanced Empty States**: Consistent design pattern across the application
-  - "No Notes Yet" state in Sidebar with helpful copy and CTA
-  - "No Note Selected" state in NoteContent with welcoming messaging
-  - Improved 404 page with better navigation and visual hierarchy
-  - Circular icon containers with theme-aware backgrounds (primary.50/primary.900)
-- **Accessibility Improvements**: WCAG AA compliance and keyboard navigation
-  - Comprehensive ARIA labels on all interactive elements
-  - Keyboard navigation support (Enter/Space keys) on note items
-  - Skip-to-content link for screen readers
-  - Landmark roles (nav, main) for better screen reader navigation
-  - Focus-visible indicators with primary.500 outline
-  - Decorative icons marked with aria-hidden="true"
-- **Full-Height Layouts**: Improved visual consistency
-  - Sidebar extends full viewport height
-  - Edit textarea uses calc(100vh - 250px) for optimal space usage
+### UI/UX Features
+- **Dark Mode Support**: Full light and dark theme implementation
+  - Color mode toggle in Header with moon/sun icons
+  - Semantic tokens automatically adapt for both themes
+  - User preference persists via Chakra UI's localStorage
+  - Smooth transitions between themes
+- **Empty State Design**: Consistent pattern with helpful guidance
+  - Sidebar "No Notes Yet" state with circular icon, helpful copy, and CTA button
+  - NoteContent "No Note Selected" state with welcoming messaging and feature tips
+  - 404 page with clear navigation options and visual hierarchy
+  - Theme-aware circular icon containers (primary.50 light / primary.900 dark)
+- **Accessibility (WCAG AA)**: Comprehensive keyboard and screen reader support
+  - Descriptive ARIA labels on all interactive elements (e.g., "Select note: {title}", "Delete note: {title}")
+  - Keyboard navigation with Enter/Space key support on note items
+  - Skip-to-content link for screen readers (appears on focus)
+  - Semantic landmark roles (nav, main) for navigation structure
+  - Focus-visible indicators with primary.500 outline (keyboard-only)
+  - Decorative icons marked aria-hidden for cleaner screen reader experience
+- **Responsive Layouts**: Optimized space utilization
+  - Sidebar: Full viewport height (h="100%")
+  - Edit textarea: Dynamic height calc(100vh - 250px) for maximum writing space
 
 ### Known Limitations & Future Enhancements
 - **Real-time updates** are not implemented (consider WebSockets for future)
