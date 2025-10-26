@@ -105,4 +105,49 @@ describe('NoteItem Component', () => {
     const noteButton = screen.getByRole('button', { name: /Select note/i });
     expect(noteButton).toBeInTheDocument();
   });
+
+  it('should call onSelect when Enter key is pressed', () => {
+    renderComponent();
+
+    const noteItem = screen.getByRole('button', { name: /Select note/i });
+
+    fireEvent.keyDown(noteItem, { key: 'Enter', code: 'Enter' });
+    expect(defaultProps.onSelect).toHaveBeenCalledWith('note-1');
+  });
+
+  it('should call onSelect when Space key is pressed', () => {
+    renderComponent();
+
+    const noteItem = screen.getByRole('button', { name: /Select note/i });
+
+    fireEvent.keyDown(noteItem, { key: ' ', code: 'Space' });
+    expect(defaultProps.onSelect).toHaveBeenCalledWith('note-1');
+  });
+
+  it('should call onDelete when Enter key is pressed on delete button', () => {
+    renderComponent();
+
+    const deleteButton = screen.getByLabelText('Delete note: Test Note');
+
+    fireEvent.keyDown(deleteButton, { key: 'Enter', code: 'Enter' });
+    expect(defaultProps.onDelete).toHaveBeenCalledWith('note-1');
+  });
+
+  it('should call onDelete when Space key is pressed on delete button', () => {
+    renderComponent();
+
+    const deleteButton = screen.getByLabelText('Delete note: Test Note');
+
+    fireEvent.keyDown(deleteButton, { key: ' ', code: 'Space' });
+    expect(defaultProps.onDelete).toHaveBeenCalledWith('note-1');
+  });
+
+  it('should not call onSelect when other keys are pressed', () => {
+    renderComponent();
+
+    const noteItem = screen.getByRole('button', { name: /Select note/i });
+
+    fireEvent.keyDown(noteItem, { key: 'a', code: 'KeyA' });
+    expect(defaultProps.onSelect).not.toHaveBeenCalled();
+  });
 });
