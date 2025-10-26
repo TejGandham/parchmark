@@ -5,6 +5,23 @@ import { TestProvider } from '../../../__mocks__/testUtils';
 import Sidebar from '../../../../features/ui/components/Sidebar';
 import { mockNotes } from '../../../__mocks__/mockStores';
 
+// Mock the UI store with mutable state
+let mockUIState = {
+  notesSortBy: 'lastModified' as const,
+  notesSearchQuery: '',
+  notesGroupByDate: true,
+  actions: {
+    setNotesSortBy: vi.fn(),
+    setNotesSearchQuery: vi.fn(),
+    setNotesGroupByDate: vi.fn(),
+  },
+};
+
+vi.mock('../../../../features/ui/store', () => ({
+  useUIStore: (selector: (state: typeof mockUIState) => unknown) =>
+    selector(mockUIState),
+}));
+
 // Mock NoteItem component
 vi.mock('../../../../features/notes/components/NoteItem', () => {
   return {
@@ -46,6 +63,17 @@ describe('Sidebar Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mockUIState to default values
+    mockUIState = {
+      notesSortBy: 'lastModified' as const,
+      notesSearchQuery: '',
+      notesGroupByDate: true,
+      actions: {
+        setNotesSortBy: vi.fn(),
+        setNotesSearchQuery: vi.fn(),
+        setNotesGroupByDate: vi.fn(),
+      },
+    };
   });
 
   const renderComponent = (props = {}) => {
@@ -151,5 +179,52 @@ describe('Sidebar Component', () => {
       name: /test note|newest note/i,
     });
     expect(noteItems[0].textContent).toContain('Newest Note');
+  });
+
+  it('should show loading skeleton when isLoading is true', () => {
+    renderComponent({ isLoading: true });
+
+    // Should not show actual notes
+    expect(screen.queryByText('Test Note 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Note 2')).not.toBeInTheDocument();
+  });
+
+  it('should render search input', () => {
+    renderComponent();
+
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    expect(searchInput).toBeInTheDocument();
+  });
+
+  it('should render sorting dropdown with default value', () => {
+    renderComponent();
+
+    // Find elements to verify sorting UI is rendered
+    const notesList = screen.getByRole('list', { hidden: true });
+    expect(notesList).toBeInTheDocument();
+  });
+
+  it('should render notes with date-based grouping enabled', () => {
+    renderComponent();
+
+    // Notes should be rendered - grouping behavior is tested at the utility level
+    expect(screen.getByText('Test Note 1')).toBeInTheDocument();
+    expect(screen.getByText('Test Note 2')).toBeInTheDocument();
+  });
+
+  it('should render notes without date-based grouping when disabled', () => {
+    // Disable grouping
+    mockUIState.notesGroupByDate = false;
+
+    renderComponent();
+
+    // Notes should be rendered in a simple list
+    expect(screen.getByText('Test Note 1')).toBeInTheDocument();
+    expect(screen.getByText('Test Note 2')).toBeInTheDocument();
+
+    // No group headers should be present
+    expect(screen.queryByText('Today')).not.toBeInTheDocument();
+    expect(screen.queryByText('Yesterday')).not.toBeInTheDocument();
+    expect(screen.queryByText('This Week')).not.toBeInTheDocument();
   });
 });

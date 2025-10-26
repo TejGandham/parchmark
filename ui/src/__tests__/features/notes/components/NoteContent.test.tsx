@@ -154,10 +154,12 @@ describe('NoteContent Component', () => {
   });
 
   describe('Empty State', () => {
-    it('should show "No note selected" message when no note is provided', () => {
+    it('should show "Ready to capture your thoughts?" message when no note is provided', () => {
       renderComponent({ currentNote: null });
 
-      expect(screen.getByText('No note selected.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Ready to capture your thoughts?')
+      ).toBeInTheDocument();
       expect(screen.getByText('Create New Note')).toBeInTheDocument();
     });
 
