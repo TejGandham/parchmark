@@ -90,18 +90,10 @@ export const colors = {
     700: '#1D4ED8',
   },
 
-  // Background & UI colors
+  // Background colors
   background: {
     light: '#FAF9F7',
     dark: '#1A1816',
     card: '#FFFFFF',
-  },
-
-  ui: {
-    sidebar: '#FFFFFF',
-    border: 'rgba(88, 12, 36, 0.1)',
-    borderLight: 'rgba(88, 12, 36, 0.05)',
-    divider: '#E9E6E1',
-    overlay: 'rgba(0, 0, 0, 0.5)',
   },
 };
