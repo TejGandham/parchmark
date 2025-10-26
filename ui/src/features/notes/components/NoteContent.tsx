@@ -69,7 +69,7 @@ const NoteContent = ({
               onChange={(e) => {
                 setEditedContent(e.target.value);
               }}
-              minH="500px"
+              minH="calc(100vh - 250px)"
               p={4}
               width="100%"
               placeholder="# Your Title Here&#10;&#10;Start writing content..."
@@ -201,7 +201,7 @@ const NoteContent = ({
               onChange={(e) => {
                 setEditedContent(e.target.value);
               }}
-              minH="500px"
+              minH="calc(100vh - 250px)"
               p={4}
               width="100%"
               placeholder="# Your Title Here&#10;&#10;Start writing content..."
