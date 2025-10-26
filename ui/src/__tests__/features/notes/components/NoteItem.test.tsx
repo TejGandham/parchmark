@@ -51,7 +51,7 @@ describe('NoteItem Component', () => {
   it('should call onDelete when delete button is clicked', () => {
     renderComponent();
 
-    const deleteButton = screen.getByLabelText('Delete note');
+    const deleteButton = screen.getByLabelText('Delete note: Test Note');
 
     fireEvent.click(deleteButton);
     expect(defaultProps.onDelete).toHaveBeenCalledWith('note-1');
@@ -101,8 +101,8 @@ describe('NoteItem Component', () => {
     });
 
     // Just make sure the component renders without crashing
-    // We can't test for an empty string directly because it would match multiple elements
-    const listItem = screen.getByRole('listitem');
-    expect(listItem).toBeInTheDocument();
+    // The ListItem now has role="button" for accessibility
+    const noteButton = screen.getByRole('button', { name: /Select note/i });
+    expect(noteButton).toBeInTheDocument();
   });
 });
