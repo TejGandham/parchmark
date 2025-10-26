@@ -30,3 +30,4 @@ coverage.xml
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.playwright-mcp/
