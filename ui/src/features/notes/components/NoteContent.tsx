@@ -10,8 +10,6 @@ import {
   Textarea,
   Icon,
 } from '@chakra-ui/react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { AddIcon, EditIcon, InfoIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
 import {
@@ -105,7 +103,12 @@ const NoteContent = ({
           >
             Ready to capture your thoughts?
           </Heading>
-          <Text fontSize="md" color="text.muted" textAlign="center" maxW="400px">
+          <Text
+            fontSize="md"
+            color="text.muted"
+            textAlign="center"
+            maxW="400px"
+          >
             Select a note from the sidebar or create a new one to get started
           </Text>
         </VStack>

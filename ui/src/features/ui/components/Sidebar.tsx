@@ -91,7 +91,12 @@ const Sidebar = ({
               >
                 No notes yet
               </Heading>
-              <Text fontSize="xs" color="text.muted" textAlign="center" maxW="180px">
+              <Text
+                fontSize="xs"
+                color="text.muted"
+                textAlign="center"
+                maxW="180px"
+              >
                 Start capturing your thoughts and ideas
               </Text>
             </VStack>
