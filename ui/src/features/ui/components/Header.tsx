@@ -1,4 +1,12 @@
-import { Flex, HStack, Heading, IconButton, Image } from '@chakra-ui/react';
+import {
+  Flex,
+  HStack,
+  Heading,
+  IconButton,
+  Image,
+  useColorMode,
+} from '@chakra-ui/react';
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
 import { UserLoginStatus } from '../../auth/components';
@@ -9,6 +17,8 @@ interface HeaderProps {
 }
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
+  const { colorMode, toggleColorMode } = useColorMode();
+
   return (
     <Flex
       as="header"
@@ -20,6 +30,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
       borderBottom="1px solid"
       borderColor="border.default"
       boxShadow="sm"
+      transition="all 0.2s"
     >
       <HStack spacing={3}>
         <IconButton
@@ -33,7 +44,21 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
           <Image src={Logo} alt="ParchMark Logo" h="46px" mr="10px" />
         </Heading>
       </HStack>
-      <UserLoginStatus />
+      <HStack spacing={3}>
+        <IconButton
+          aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
+          icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+          onClick={toggleColorMode}
+          variant="ghost"
+          colorScheme="primary"
+          fontSize="lg"
+          _hover={{
+            transform: 'rotate(20deg)',
+            transition: 'transform 0.3s ease',
+          }}
+        />
+        <UserLoginStatus />
+      </HStack>
     </Flex>
   );
 };

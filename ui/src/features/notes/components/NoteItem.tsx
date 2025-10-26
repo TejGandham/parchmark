@@ -11,6 +11,21 @@ interface NoteItemProps {
 }
 
 const NoteItem = ({ note, isActive, onSelect, onDelete }: NoteItemProps) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(note.id);
+    }
+  };
+
+  const handleDeleteKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onDelete(note.id);
+    }
+  };
+
   return (
     <ListItem
       key={note.id}
@@ -22,17 +37,27 @@ const NoteItem = ({ note, isActive, onSelect, onDelete }: NoteItemProps) => {
       _hover={{
         bg: isActive ? 'primary.100' : 'interactive.hover',
       }}
+      _focusVisible={{
+        outline: '2px solid',
+        outlineColor: 'primary.500',
+        outlineOffset: '2px',
+      }}
       onClick={() => onSelect(note.id)}
+      onKeyDown={handleKeyPress}
+      role="button"
+      tabIndex={0}
+      aria-label={`Select note: ${note.title}`}
+      aria-pressed={isActive}
       className="note-transition"
       transition="all 0.2s"
     >
       <HStack justify="space-between">
         <HStack>
-          <FontAwesomeIcon icon={faFile} />
+          <FontAwesomeIcon icon={faFile} aria-hidden="true" />
           <Text noOfLines={1}>{note.title}</Text>
         </HStack>
         <IconButton
-          aria-label="Delete note"
+          aria-label={`Delete note: ${note.title}`}
           icon={<FontAwesomeIcon icon={faTrash} />}
           size="xs"
           variant="ghost"
@@ -42,6 +67,7 @@ const NoteItem = ({ note, isActive, onSelect, onDelete }: NoteItemProps) => {
             e.stopPropagation();
             onDelete(note.id);
           }}
+          onKeyDown={handleDeleteKeyPress}
         />
       </HStack>
     </ListItem>

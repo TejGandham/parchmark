@@ -16,6 +16,7 @@ const NoteActions = ({ isEditing, onEdit, onSave }: NoteActionsProps) => {
           leftIcon={<FontAwesomeIcon icon={faSave} />}
           onClick={onSave}
           variant="secondary"
+          aria-label="Save note changes"
           _hover={{ transform: 'scale(1.05)' }}
         >
           Save
@@ -25,6 +26,7 @@ const NoteActions = ({ isEditing, onEdit, onSave }: NoteActionsProps) => {
           leftIcon={<FontAwesomeIcon icon={faEdit} />}
           onClick={onEdit}
           variant="secondary"
+          aria-label="Edit note"
           _hover={{ transform: 'scale(1.05)' }}
         >
           Edit

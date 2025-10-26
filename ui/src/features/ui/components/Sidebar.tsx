@@ -1,6 +1,17 @@
-import { Box, Flex, Heading, IconButton, List } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  Heading,
+  IconButton,
+  List,
+  VStack,
+  Text,
+  Icon,
+  Button,
+} from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
+import { AddIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
 import NoteItem from '../../notes/components/NoteItem';
 
@@ -55,9 +66,48 @@ const Sidebar = ({
             />
           ))
         ) : (
-          <Box p={2} textAlign="center" color="text.muted" fontSize="sm">
-            No notes yet
-          </Box>
+          <VStack spacing={4} py={8} px={2}>
+            <Box
+              w="60px"
+              h="60px"
+              bg="primary.50"
+              borderRadius="full"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              _dark={{
+                bg: 'primary.900',
+              }}
+            >
+              <Icon as={AddIcon} fontSize="2xl" color="primary.600" />
+            </Box>
+            <VStack spacing={2}>
+              <Heading
+                size="sm"
+                color="text.primary"
+                fontFamily="'Playfair Display', serif"
+                textAlign="center"
+              >
+                No notes yet
+              </Heading>
+              <Text fontSize="xs" color="text.muted" textAlign="center" maxW="180px">
+                Start capturing your thoughts and ideas
+              </Text>
+            </VStack>
+            <Button
+              size="sm"
+              colorScheme="primary"
+              onClick={onCreateNote}
+              leftIcon={<Icon as={AddIcon} />}
+              boxShadow="sm"
+              _hover={{
+                transform: 'translateY(-2px)',
+                boxShadow: 'md',
+              }}
+            >
+              Create Note
+            </Button>
+          </VStack>
         )}
       </List>
     </Box>
