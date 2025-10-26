@@ -33,6 +33,7 @@ const Sidebar = ({
   return (
     <Box
       w="250px"
+      h="100%"
       bg="bg.surface"
       p={4}
       borderRight="1px solid"
