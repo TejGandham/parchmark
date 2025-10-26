@@ -118,7 +118,12 @@ const LoginForm = () => {
 
           {/* Content */}
           <VStack spacing={8} position="relative" zIndex={1} color="white">
-            <Image src={Logo} alt="ParchMark" h="80px" filter="brightness(0) invert(1)" />
+            <Image
+              src={Logo}
+              alt="ParchMark"
+              h="80px"
+              filter="brightness(0) invert(1)"
+            />
 
             <Heading
               as="h1"
