@@ -160,7 +160,7 @@ const LoginForm = () => {
           bg="bg.surface"
           p={{ base: 8, md: 12 }}
           borderRadius="xl"
-          boxShadow="0 20px 60px rgba(88, 12, 36, 0.15), 0 0 1px rgba(88, 12, 36, 0.1)"
+          boxShadow="xl"
           maxW="md"
           w="full"
         >
@@ -211,7 +211,7 @@ const LoginForm = () => {
                       borderWidth="2px"
                       _focus={{
                         borderColor: 'primary.800',
-                        boxShadow: '0 0 0 3px rgba(88, 12, 36, 0.1)',
+                        boxShadow: 'outline',
                       }}
                     />
                   </InputGroup>
@@ -237,7 +237,7 @@ const LoginForm = () => {
                       borderWidth="2px"
                       _focus={{
                         borderColor: 'primary.800',
-                        boxShadow: '0 0 0 3px rgba(88, 12, 36, 0.1)',
+                        boxShadow: 'outline',
                       }}
                     />
                     <InputRightElement>
@@ -266,10 +266,10 @@ const LoginForm = () => {
                   isLoading={isLoading}
                   data-testid="login-button"
                   fontWeight="semibold"
-                  boxShadow="0 4px 12px rgba(88, 12, 36, 0.25)"
+                  boxShadow="primarySm"
                   _hover={{
                     transform: 'translateY(-2px)',
-                    boxShadow: '0 6px 20px rgba(88, 12, 36, 0.35)',
+                    boxShadow: 'primary',
                   }}
                   _active={{
                     transform: 'translateY(0)',

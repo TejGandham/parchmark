@@ -17,13 +17,13 @@
 
 .markdown-preview h1 {
   font-size: 2em;
-  border-bottom: 1px solid rgba(88, 12, 36, 0.2);
+  border-bottom: 1px solid var(--chakra-colors-border-default);
   padding-bottom: 0.3em;
 }
 
 .markdown-preview h2 {
   font-size: 1.5em;
-  border-bottom: 1px solid rgba(88, 12, 36, 0.2);
+  border-bottom: 1px solid var(--chakra-colors-border-default);
   padding-bottom: 0.3em;
 }
 
@@ -40,7 +40,7 @@
 
 .markdown-preview blockquote {
   padding: 0 1em;
-  border-left: 0.25em solid #580c24;
+  border-left: 0.25em solid var(--chakra-colors-primary-600);
   color: #6a737d;
   margin: 1em 0;
 }
@@ -72,15 +72,15 @@
 }
 
 .markdown-preview a {
-  color: #580c24;
+  color: var(--chakra-colors-primary-600);
   text-decoration: none;
-  border-bottom: 1px dotted #580c24;
+  border-bottom: 1px dotted var(--chakra-colors-primary-600);
 }
 
 .markdown-preview a:hover {
   text-decoration: none;
-  border-bottom: 1px solid #580c24;
-  color: #8a3b53;
+  border-bottom: 1px solid var(--chakra-colors-primary-600);
+  color: var(--chakra-colors-primary-700);
 }
 
 .markdown-preview table {
@@ -91,13 +91,13 @@
 
 .markdown-preview table th,
 .markdown-preview table td {
-  border: 1px solid rgba(88, 12, 36, 0.3);
+  border: 1px solid var(--chakra-colors-border-default);
   padding: 6px 13px;
 }
 
 .markdown-preview table tr {
   background-color: #fff;
-  border-top: 1px solid rgba(88, 12, 36, 0.2);
+  border-top: 1px solid var(--chakra-colors-border-default);
 }
 
 .markdown-preview table tr:nth-child(2n) {
@@ -108,7 +108,7 @@
   height: 0.25em;
   padding: 0;
   margin: 24px 0;
-  background-color: rgba(88, 12, 36, 0.2);
+  background-color: var(--chakra-colors-border-default);
   border: 0;
 }
 
@@ -127,6 +127,6 @@
 }
 
 .chakra-ui-dark .markdown-preview blockquote {
-  border-left-color: #580c24;
+  border-left-color: var(--chakra-colors-primary-600);
   color: rgba(255, 255, 255, 0.7);
 }
