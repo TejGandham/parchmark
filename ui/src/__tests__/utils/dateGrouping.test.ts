@@ -4,7 +4,6 @@ import {
   groupNotesByDate,
   sortNotes,
   filterNotes,
-  DateGroup,
 } from '../../utils/dateGrouping';
 import { Note } from '../../types';
 
@@ -180,9 +179,24 @@ describe('dateGrouping utilities', () => {
     describe('lastModified sorting', () => {
       it('should sort by updated_at descending (newest first)', () => {
         const notes: Note[] = [
-          createNote('1', 'Old', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('2', 'New', '2024-01-01T10:00:00.000Z', '2024-01-15T10:00:00.000Z'),
-          createNote('3', 'Medium', '2024-01-01T10:00:00.000Z', '2024-01-10T10:00:00.000Z'),
+          createNote(
+            '1',
+            'Old',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'New',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Medium',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-10T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'lastModified');
@@ -192,8 +206,18 @@ describe('dateGrouping utilities', () => {
 
       it('should handle same updated_at timestamps', () => {
         const notes: Note[] = [
-          createNote('1', 'A', '2024-01-01T10:00:00.000Z', '2024-01-15T10:00:00.000Z'),
-          createNote('2', 'B', '2024-01-01T10:00:00.000Z', '2024-01-15T10:00:00.000Z'),
+          createNote(
+            '1',
+            'A',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'B',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'lastModified');
@@ -206,9 +230,24 @@ describe('dateGrouping utilities', () => {
     describe('alphabetical sorting', () => {
       it('should sort by title ascending (A-Z)', () => {
         const notes: Note[] = [
-          createNote('1', 'Zebra', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('2', 'Apple', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('3', 'Mango', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
+          createNote(
+            '1',
+            'Zebra',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'Apple',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Mango',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'alphabetical');
@@ -218,9 +257,24 @@ describe('dateGrouping utilities', () => {
 
       it('should handle case-insensitive sorting', () => {
         const notes: Note[] = [
-          createNote('1', 'zebra', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('2', 'Apple', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('3', 'MANGO', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
+          createNote(
+            '1',
+            'zebra',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'Apple',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'MANGO',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'alphabetical');
@@ -230,9 +284,24 @@ describe('dateGrouping utilities', () => {
 
       it('should handle special characters and numbers', () => {
         const notes: Note[] = [
-          createNote('1', '2024 Goals', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('2', '!Important', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('3', 'Zebra', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
+          createNote(
+            '1',
+            '2024 Goals',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            '!Important',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Zebra',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'alphabetical');
@@ -245,9 +314,24 @@ describe('dateGrouping utilities', () => {
     describe('createdDate sorting', () => {
       it('should sort by created_at descending (newest first)', () => {
         const notes: Note[] = [
-          createNote('1', 'Old', '2024-01-01T10:00:00.000Z', '2024-01-15T10:00:00.000Z'),
-          createNote('2', 'New', '2024-01-15T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('3', 'Medium', '2024-01-10T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
+          createNote(
+            '1',
+            'Old',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'New',
+            '2024-01-15T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Medium',
+            '2024-01-10T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'createdDate');
@@ -257,8 +341,18 @@ describe('dateGrouping utilities', () => {
 
       it('should handle same created_at timestamps', () => {
         const notes: Note[] = [
-          createNote('1', 'A', '2024-01-15T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-          createNote('2', 'B', '2024-01-15T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
+          createNote(
+            '1',
+            'A',
+            '2024-01-15T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'B',
+            '2024-01-15T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
         ];
 
         const sorted = sortNotes(notes, 'createdDate');
@@ -270,9 +364,24 @@ describe('dateGrouping utilities', () => {
 
     it('should not mutate original array', () => {
       const notes: Note[] = [
-        createNote('1', 'C', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-        createNote('2', 'A', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
-        createNote('3', 'B', '2024-01-01T10:00:00.000Z', '2024-01-01T10:00:00.000Z'),
+        createNote(
+          '1',
+          'C',
+          '2024-01-01T10:00:00.000Z',
+          '2024-01-01T10:00:00.000Z'
+        ),
+        createNote(
+          '2',
+          'A',
+          '2024-01-01T10:00:00.000Z',
+          '2024-01-01T10:00:00.000Z'
+        ),
+        createNote(
+          '3',
+          'B',
+          '2024-01-01T10:00:00.000Z',
+          '2024-01-01T10:00:00.000Z'
+        ),
       ];
 
       const original = [...notes];
