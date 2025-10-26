@@ -157,7 +157,9 @@ describe('NoteContent Component', () => {
     it('should show "Ready to capture your thoughts?" message when no note is provided', () => {
       renderComponent({ currentNote: null });
 
-      expect(screen.getByText('Ready to capture your thoughts?')).toBeInTheDocument();
+      expect(
+        screen.getByText('Ready to capture your thoughts?')
+      ).toBeInTheDocument();
       expect(screen.getByText('Create New Note')).toBeInTheDocument();
     });
 

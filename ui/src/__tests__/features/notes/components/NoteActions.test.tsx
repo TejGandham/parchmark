@@ -3,7 +3,6 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
 import NoteActions from '../../../../features/notes/components/NoteActions';
-import { COLORS } from '../../../../utils/constants';
 
 describe('NoteActions Component', () => {
   const defaultProps = {
