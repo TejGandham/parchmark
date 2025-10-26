@@ -115,7 +115,7 @@ export const sortNotes = (notes: Note[], sortBy: SortOption): Note[] => {
  * Filter notes by search query
  */
 export const filterNotes = (notes: Note[], searchQuery: string): Note[] => {
-  if (!searchQuery.trim()) {
+  if (!searchQuery || !searchQuery.trim()) {
     return notes;
   }
 
