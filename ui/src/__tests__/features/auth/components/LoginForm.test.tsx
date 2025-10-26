@@ -12,6 +12,16 @@ import {
 // Mock the zustand hook
 vi.mock('../../../../features/auth/store');
 
+// Mock useBreakpointValue hook
+const mockUseBreakpointValue = vi.fn();
+vi.mock('@chakra-ui/react', async () => {
+  const actual = await import('@chakra-ui/react');
+  return {
+    ...actual,
+    useBreakpointValue: (...args: unknown[]) => mockUseBreakpointValue(...args),
+  };
+});
+
 // Mock react-router's useNavigate and useLocation
 vi.mock('react-router-dom', async () => ({
   ...(await import('react-router-dom')),
@@ -32,6 +42,8 @@ describe('LoginForm', () => {
     });
     // Mock the auth store for direct access pattern
     (useAuthStore as Mock).mockReturnValue(mockUnauthenticatedStore);
+    // Mock useBreakpointValue to return false by default (mobile view)
+    mockUseBreakpointValue.mockReturnValue(false);
   });
 
   it('renders the login form correctly', () => {
@@ -273,5 +285,37 @@ describe('LoginForm', () => {
     fireEvent.click(toggleButton);
     expect(passwordInput.value).toBe('mySecretPassword');
     expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('should render brand panel on desktop screens', () => {
+    // Mock useBreakpointValue to return true (desktop view)
+    mockUseBreakpointValue.mockReturnValue(true);
+
+    render(<LoginForm />);
+
+    // Brand panel elements should be visible
+    expect(screen.getByAltText('ParchMark')).toBeInTheDocument();
+    expect(screen.getByText('Welcome to ParchMark')).toBeInTheDocument();
+    expect(
+      screen.getByText('Your thoughts, beautifully preserved')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('✦ Elegant markdown note-taking')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('✦ Beautiful, distraction-free interface')
+    ).toBeInTheDocument();
+    expect(screen.getByText('✦ Your notes, your way')).toBeInTheDocument();
+  });
+
+  it('should not render brand panel on mobile screens', () => {
+    // Default mock returns false (mobile view)
+    render(<LoginForm />);
+
+    // Brand panel elements should NOT be visible
+    expect(screen.queryByText('Welcome to ParchMark')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Your thoughts, beautifully preserved')
+    ).not.toBeInTheDocument();
   });
 });
