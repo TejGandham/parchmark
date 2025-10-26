@@ -37,7 +37,9 @@ describe('LoginForm', () => {
   it('renders the login form correctly', () => {
     render(<LoginForm />);
 
-    expect(screen.getByText('Login to Parchmark')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sign In' })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('username-input')).toBeInTheDocument();
     expect(screen.getByTestId('password-input')).toBeInTheDocument();
     expect(screen.getByTestId('login-button')).toBeInTheDocument();
