@@ -2,13 +2,20 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
 import { STORAGE_KEYS } from '../../../config/storage';
+import { SortOption } from '../../../utils/dateGrouping';
 
 export type UIState = {
   isSidebarOpen: boolean;
   isDarkMode: boolean;
+  notesSortBy: SortOption;
+  notesSearchQuery: string;
+  notesGroupByDate: boolean;
   actions: {
     toggleSidebar: () => void;
     toggleDarkMode: () => void;
+    setNotesSortBy: (sortBy: SortOption) => void;
+    setNotesSearchQuery: (query: string) => void;
+    setNotesGroupByDate: (enabled: boolean) => void;
   };
 };
 
@@ -27,9 +34,30 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
     });
   };
 
+  const setNotesSortBy = (sortBy: SortOption) => {
+    set((state: UIState) => {
+      state.notesSortBy = sortBy;
+    });
+  };
+
+  const setNotesSearchQuery = (query: string) => {
+    set((state: UIState) => {
+      state.notesSearchQuery = query;
+    });
+  };
+
+  const setNotesGroupByDate = (enabled: boolean) => {
+    set((state: UIState) => {
+      state.notesGroupByDate = enabled;
+    });
+  };
+
   return {
     toggleSidebar,
     toggleDarkMode,
+    setNotesSortBy,
+    setNotesSearchQuery,
+    setNotesGroupByDate,
   };
 };
 
@@ -42,6 +70,9 @@ export const useUIStore = create<UIState>()(
       return {
         isSidebarOpen: true,
         isDarkMode: false,
+        notesSortBy: 'lastModified' as SortOption,
+        notesSearchQuery: '',
+        notesGroupByDate: true,
         actions,
       };
     }),
