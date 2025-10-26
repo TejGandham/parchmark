@@ -119,7 +119,7 @@ export const filterNotes = (notes: Note[], searchQuery: string): Note[] => {
     return notes;
   }
 
-  const query = searchQuery.toLowerCase();
+  const query = searchQuery.trim().toLowerCase();
   return notes.filter(
     (note) =>
       note.title.toLowerCase().includes(query) ||
