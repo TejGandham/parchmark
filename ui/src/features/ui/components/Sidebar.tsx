@@ -2,7 +2,6 @@ import { Box, Flex, Heading, IconButton, List } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { Note } from '../../../types';
-import { COLORS } from '../../../utils/constants';
 import NoteItem from '../../notes/components/NoteItem';
 
 interface SidebarProps {
@@ -23,10 +22,10 @@ const Sidebar = ({
   return (
     <Box
       w="250px"
-      bg={COLORS.sidebarBgColor}
+      bg="bg.surface"
       p={4}
       borderRight="1px solid"
-      borderColor="rgba(88, 12, 36, 0.1)"
+      borderColor="border.default"
       overflowY="auto"
       className="sidebar-shadow"
     >
@@ -39,12 +38,9 @@ const Sidebar = ({
           icon={<FontAwesomeIcon icon={faPlus} />}
           size="sm"
           onClick={onCreateNote}
-          bg="transparent"
-          color={COLORS.primaryColor}
-          border="1px solid"
-          borderColor={COLORS.primaryLight}
-          _hover={{ bg: 'rgba(88, 12, 36, 0.08)', transform: 'scale(1.05)' }}
-          transition="all 0.2s"
+          variant="ghost"
+          colorScheme="primary"
+          _hover={{ transform: 'scale(1.05)' }}
         />
       </Flex>
       <List spacing={1}>
@@ -59,7 +55,7 @@ const Sidebar = ({
             />
           ))
         ) : (
-          <Box p={2} textAlign="center" color="gray.500" fontSize="sm">
+          <Box p={2} textAlign="center" color="text.muted" fontSize="sm">
             No notes yet
           </Box>
         )}

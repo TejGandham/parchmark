@@ -125,7 +125,7 @@ const LoginForm = () => {
 
             <Button
               type="submit"
-              colorScheme="purple"
+              colorScheme="primary"
               width="full"
               mt={4}
               isLoading={isLoading}

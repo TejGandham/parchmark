@@ -16,7 +16,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store';
-import { COLORS } from '../../../../utils/constants';
 
 export interface UserDropdownProps {
   /** Callback to close the dropdown */
@@ -49,14 +48,14 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
     cursor="pointer"
     borderRadius="md"
     bg="transparent"
-    color={isLogout ? 'red.600' : COLORS.textColor}
+    color={isLogout ? 'error.600' : 'text.primary'}
     _hover={{
-      bg: isLogout ? 'red.50' : 'rgba(88, 12, 36, 0.05)',
-      color: isLogout ? 'red.700' : COLORS.primaryColor,
+      bg: isLogout ? 'error.50' : 'interactive.hover',
+      color: isLogout ? 'error.700' : 'primary.800',
     }}
     _focus={{
       outline: '2px solid',
-      outlineColor: isLogout ? 'red.500' : COLORS.primaryColor,
+      outlineColor: isLogout ? 'error.500' : 'border.emphasis',
       outlineOffset: '2px',
     }}
     transition="all 0.2s ease-in-out"
@@ -67,7 +66,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
     role="menuitem"
     tabIndex={0}
   >
-    <FontAwesomeIcon icon={icon} style={{ width: '16px' }} />
+    <Box as={FontAwesomeIcon} icon={icon} boxSize="16px" />
     <Text>{label}</Text>
   </Box>
 );
@@ -122,11 +121,11 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ onClose }) => {
       right={rightOffset}
       mt={2}
       w={dropdownWidth}
-      bg="white"
+      bg="bg.surface"
       borderRadius="lg"
       boxShadow="lg"
       border="1px solid"
-      borderColor="gray.200"
+      borderColor="border.default"
       zIndex={1000}
       py={2}
       role="menu"
@@ -142,12 +141,12 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ onClose }) => {
       {user && (
         <>
           <Box px={3} py={2}>
-            <Text fontSize="xs" color="gray.500" fontWeight="medium">
+            <Text fontSize="xs" color="text.muted" fontWeight="medium">
               Signed in as
             </Text>
             <Text
               fontSize="sm"
-              color={COLORS.primaryColor}
+              color="primary.800"
               fontWeight="bold"
               isTruncated
             >

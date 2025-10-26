@@ -1,7 +1,6 @@
 import { Box, Flex } from '@chakra-ui/react';
 import { useUIStore } from '../../../store';
 import { useStoreRouterSync } from '../hooks/useStoreRouterSync';
-import { COLORS } from '../../../utils/constants';
 import '../../ui/styles/layout.css';
 
 // Direct imports from feature folders
@@ -45,7 +44,7 @@ const NotesContainer = () => {
   };
 
   return (
-    <Box minH="100vh" bg={COLORS.bgColor} className="bg-texture">
+    <Box minH="100vh" bg="bg.canvas" className="bg-texture">
       <Flex h="100vh" flexDirection="column">
         <Header toggleSidebar={toggleSidebar} />
 
