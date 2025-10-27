@@ -132,26 +132,22 @@ After creating the OAuth client with `tag:ci`, you must configure your Tailscale
 
 #### Step 1: Tag Your Production Server
 
-Before configuring ACLs, tag your production server:
+Before configuring ACLs, tag your production server.
 
-**Option A: Via SSH (Recommended)**
-```bash
-# SSH into production
-ssh deploy@notes.engen.tech
+**Via Tailscale Admin Console** (only method):
 
-# Add tag
-sudo tailscale set --advertise-tags=tag:prod-server
-
-# Verify
-tailscale status | grep tag:prod-server
-```
-
-**Option B: Via Tailscale Admin Console**
 1. Go to https://login.tailscale.com/admin/machines
-2. Find server with IP 100.120.107.12
-3. Click "..." → Edit machine
-4. Under "Tags", add: `tag:prod-server`
-5. Save
+2. Find your production server (look for IP 100.120.107.12 or hostname)
+3. Click the three dots `...` → "Edit machine..."
+4. In the "Tags" field, type: `tag:prod-server`
+5. Click "Save"
+6. Verify from your server:
+   ```bash
+   ssh deploy@notes.engen.tech "tailscale status"
+   # Should show "tag:prod-server" in the output
+   ```
+
+**Note**: There is no CLI command to tag devices. Tags must be set via the admin console.
 
 #### Step 2: Access Tailscale ACL Editor
 
