@@ -160,13 +160,20 @@ jobs:
     environment: production  # Requires manual approval if configured
 
     steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          script_stop: true  # Stop on first error
+          command_timeout: 30m
           script: |
             # Enhanced error handling: exit on error, undefined vars, pipe failures
             set -Eeuo pipefail
