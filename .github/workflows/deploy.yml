@@ -186,28 +186,29 @@ jobs:
             echo "📥 Pulling latest configuration..."
             git pull origin main
 
-            # Login to GHCR with read-only token
-            echo "🔐 Authenticating with GHCR..."
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # # Login to GHCR with read-only token
+            # echo "🔐 Authenticating with GHCR..."
+            # echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull new images
-            echo "📦 Pulling new Docker images..."
-            docker compose -f docker-compose.prod.yml pull backend frontend
+            # # Pull new images
+            # echo "📦 Pulling new Docker images..."
+            # docker compose -f docker-compose.prod.yml pull backend frontend
 
-            # Run database migrations (if script exists)
+            docker compose -f docker-compose.prod.yml up -d --build
+
+            # Update services (--no-deps avoids restarting postgres)
+            # echo "🔄 Updating services..."
+            # docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
+
+            # Brief stabilization period (health checks handle startup timing)
+            echo "⏳ Waiting for containers to initialize..."
+            sleep 5
+
             # IMPORTANT: Migrations must succeed before deploying new code
             if [ -f "backend/scripts/migrate.sh" ]; then
               echo "🗄️ Running database migrations..."
               docker compose -f docker-compose.prod.yml exec -T backend bash /app/scripts/migrate.sh
             fi
-
-            # Update services (--no-deps avoids restarting postgres)
-            echo "🔄 Updating services..."
-            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
-
-            # Brief stabilization period (health checks handle startup timing)
-            echo "⏳ Waiting for containers to initialize..."
-            sleep 5
 
             # Health check backend with retries and exponential backoff
             echo "🏥 Checking backend health (with retries)..."
