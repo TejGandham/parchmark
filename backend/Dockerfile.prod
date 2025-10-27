@@ -30,10 +30,11 @@ RUN useradd -m -u 1000 -s /bin/bash appuser
 
 WORKDIR /app
 
-# Install PostgreSQL client libraries (required for psycopg2)
+# Install PostgreSQL client libraries (required for psycopg2) and curl (for health checks)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the complete virtual environment from builder
@@ -53,7 +54,7 @@ USER appuser
 
 # Health check for container orchestration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Expose the application port
 EXPOSE 8000
