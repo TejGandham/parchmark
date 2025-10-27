@@ -47,27 +47,20 @@ GitHub Actions Runner → Tailscale Network → Production Server
 
 ⚠️ **CRITICAL**: Tailscale SSH ACL rules require tags, NOT IP addresses in the `dst` field!
 
-1. **SSH into production server**
+**Tag via Tailscale Admin Console** (only method):
+
+1. Go to https://login.tailscale.com/admin/machines
+2. Find your production server (look for IP 100.120.107.12 or hostname)
+3. Click the three dots `...` → "Edit machine..."
+4. In the "Tags" field, type: `tag:prod-server`
+5. Click "Save"
+6. Verify the tag was applied:
    ```bash
-   ssh deploy@notes.engen.tech
+   ssh deploy@notes.engen.tech "tailscale status"
+   # Should show "tag:prod-server" in the output
    ```
 
-2. **Tag the server**
-   ```bash
-   # Add tag:prod-server to this device
-   sudo tailscale set --advertise-tags=tag:prod-server
-
-   # Verify the tag was applied
-   tailscale status
-   # Look for "tag:prod-server" in the output
-   ```
-
-   **Alternative**: Tag via Tailscale Admin Console
-   - Go to https://login.tailscale.com/admin/machines
-   - Find your production server
-   - Click "..." → Edit machine
-   - Add tag: `tag:prod-server`
-   - Save
+**Note**: There is no CLI command (`tailscale set`) to add tags. Tags must be set via the admin console.
 
 ### Part 3: Configure Tailscale ACLs
 

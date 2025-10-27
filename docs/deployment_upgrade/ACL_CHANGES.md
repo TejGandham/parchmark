@@ -174,24 +174,20 @@ tailscale status
 
 ### Step 1: Tag Your Production Server
 
-**Option A: Via SSH (Recommended)**
-```bash
-# SSH into production
-ssh deploy@notes.engen.tech
+**Via Tailscale Admin Console** (only method available):
 
-# Add tag
-sudo tailscale set --advertise-tags=tag:prod-server
-
-# Verify
-tailscale status | grep tag:prod-server
-```
-
-**Option B: Via Tailscale Admin Console**
 1. Go to https://login.tailscale.com/admin/machines
-2. Find server with IP 100.120.107.12
-3. Click "..." → Edit machine
-4. Under "Tags", add: `tag:prod-server`
-5. Save
+2. Find your production server (look for IP 100.120.107.12 or hostname)
+3. Click the three dots `...` → "Edit machine..."
+4. In the "Tags" field, type: `tag:prod-server`
+5. Click "Save"
+6. Verify from your server:
+   ```bash
+   ssh deploy@notes.engen.tech "tailscale status"
+   # Should show "tag:prod-server" in the output
+   ```
+
+**Note**: There is no CLI command to tag devices. Tags must be set via the admin console.
 
 ### Step 2: Open Tailscale ACL Editor
 
@@ -292,15 +288,6 @@ ssh deploy@notes.engen.tech
     "tag:ci": ["autogroup:admin"],
     "tag:prod-server": ["autogroup:admin"],  // Must be here!
 },
-```
-
-### Error: "permission denied" when tagging server
-
-**Cause**: Need sudo to set tags
-
-**Fix**: Use sudo:
-```bash
-sudo tailscale set --advertise-tags=tag:prod-server
 ```
 
 ### Server tag not showing up in ACL
@@ -432,10 +419,10 @@ Add specific rules:
 ### Commands
 
 ```bash
-# Tag production server
-sudo tailscale set --advertise-tags=tag:prod-server
+# Tag production server: Use admin console
+# https://login.tailscale.com/admin/machines → Edit machine → Add tag:prod-server
 
-# Verify tag applied
+# Verify tag applied (from server)
 tailscale status
 
 # Get server's Tailscale IP (for reference)
