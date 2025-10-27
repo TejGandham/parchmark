@@ -28,9 +28,46 @@ env:
 
 jobs:
   # ============================================================================
-  # JOB 1: BUILD AND PUSH BACKEND IMAGE
+  # JOB 1: RUN TESTS
+  # ============================================================================
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Start PostgreSQL
+        run: docker compose -f docker-compose.dev.yml up -d
+
+      - name: Run all tests
+        run: make test-all
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down
+
+  # ============================================================================
+  # JOB 2: BUILD AND PUSH BACKEND IMAGE
   # ============================================================================
   build-and-push-backend:
+    needs: [test]
     runs-on: ubuntu-latest
     name: Build Backend Image
 
@@ -69,9 +106,10 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-backend:buildcache,mode=max
 
   # ============================================================================
-  # JOB 2: BUILD AND PUSH FRONTEND IMAGE
+  # JOB 3: BUILD AND PUSH FRONTEND IMAGE
   # ============================================================================
   build-and-push-frontend:
+    needs: [test]
     runs-on: ubuntu-latest
     name: Build Frontend Image
 
@@ -110,7 +148,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-frontend:buildcache,mode=max
 
   # ============================================================================
-  # JOB 3: DEPLOY TO PRODUCTION
+  # JOB 4: DEPLOY TO PRODUCTION
   # ============================================================================
   deploy-to-production:
     needs: [build-and-push-backend, build-and-push-frontend]
@@ -149,9 +187,10 @@ jobs:
             docker compose -f docker-compose.prod.yml pull backend frontend
 
             # Run database migrations (if script exists)
+            # IMPORTANT: Migrations must succeed before deploying new code
             if [ -f "backend/scripts/migrate.sh" ]; then
               echo "🗄️ Running database migrations..."
-              docker compose -f docker-compose.prod.yml exec -T backend bash /app/scripts/migrate.sh || true
+              docker compose -f docker-compose.prod.yml exec -T backend bash /app/scripts/migrate.sh
             fi
 
             # Update services (--no-deps avoids restarting postgres)
@@ -212,7 +251,7 @@ jobs:
           exit 1
 
   # ============================================================================
-  # JOB 4: POST-DEPLOYMENT NOTIFICATION
+  # JOB 5: POST-DEPLOYMENT NOTIFICATION
   # ============================================================================
   notify-deployment:
     needs: [deploy-to-production]
