@@ -174,7 +174,7 @@ tailscale status
 
 ### Step 1: Tag Your Production Server
 
-**Via Tailscale Admin Console** (only method available):
+**Option A: Via Tailscale Admin Console (Recommended - No Re-auth)**
 
 1. Go to https://login.tailscale.com/admin/machines
 2. Find your production server (look for IP 100.120.107.12 or hostname)
@@ -187,7 +187,21 @@ tailscale status
    # Should show "tag:prod-server" in the output
    ```
 
-**Note**: There is no CLI command to tag devices. Tags must be set via the admin console.
+**Option B: Via CLI Re-authentication (Requires Login)**
+
+```bash
+# SSH into production server
+ssh deploy@notes.engen.tech
+
+# Re-authenticate with tags (generates new node key, keeps same IP)
+sudo tailscale login --advertise-tags=tag:prod-server --force-reauth
+
+# Follow the authentication link provided
+# After auth, verify:
+tailscale status
+```
+
+**Note**: `tailscale set --advertise-tags` does NOT exist. Use admin console (easiest) or `tailscale login --advertise-tags` (requires re-auth).
 
 ### Step 2: Open Tailscale ACL Editor
 
@@ -419,8 +433,11 @@ Add specific rules:
 ### Commands
 
 ```bash
-# Tag production server: Use admin console
-# https://login.tailscale.com/admin/machines → Edit machine → Add tag:prod-server
+# Tag production server - Method 1 (Recommended):
+# Admin Console: https://login.tailscale.com/admin/machines → Edit machine → Add tag:prod-server
+
+# Tag production server - Method 2 (CLI re-auth):
+sudo tailscale login --advertise-tags=tag:prod-server --force-reauth
 
 # Verify tag applied (from server)
 tailscale status
