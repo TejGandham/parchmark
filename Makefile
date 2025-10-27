@@ -8,6 +8,7 @@
 # - makefiles/backend.mk  - Backend test and dev targets
 # - makefiles/docker.mk   - Docker-related targets
 # - makefiles/users.mk    - User management targets
+# - makefiles/deploy.mk   - Deployment and production targets
 
 # Include all modular makefiles
 include makefiles/common.mk
@@ -15,6 +16,7 @@ include makefiles/ui.mk
 include makefiles/backend.mk
 include makefiles/docker.mk
 include makefiles/users.mk
+include makefiles/deploy.mk
 include makefiles/help.mk
 
 # ============================================================================
