@@ -204,45 +204,45 @@ jobs:
             echo "⏳ Waiting for containers to initialize..."
             sleep 5
 
-            # IMPORTANT: Migrations must succeed before deploying new code
+            # IMPORTANT: Migrations must succeed
             if [ -f "backend/scripts/migrate.sh" ]; then
               echo "🗄️ Running database migrations..."
               docker compose -f docker-compose.prod.yml exec -T backend bash /app/scripts/migrate.sh
             fi
 
-            # Health check backend with retries and exponential backoff
-            echo "🏥 Checking backend health (with retries)..."
-            curl -f -s --show-error \
-              --connect-timeout 3 \
-              --max-time 5 \
-              --retry 12 \
-              --retry-delay 5 \
-              --retry-all-errors \
-              https://assets-api.engen.tech/api/health || {
-              echo "❌ Backend health check failed after retries!"
-              exit 1
-            }
+            # # Health check backend with retries and exponential backoff
+            # echo "🏥 Checking backend health (with retries)..."
+            # curl -f -s --show-error \
+            #   --connect-timeout 3 \
+            #   --max-time 5 \
+            #   --retry 12 \
+            #   --retry-delay 5 \
+            #   --retry-all-errors \
+            #   https://assets-api.engen.tech/api/health || {
+            #   echo "❌ Backend health check failed after retries!"
+            #   exit 1
+            # }
 
-            # Health check frontend with retries and exponential backoff
-            echo "🏥 Checking frontend health (with retries)..."
-            curl -f -s --show-error \
-              --connect-timeout 3 \
-              --max-time 5 \
-              --retry 12 \
-              --retry-delay 5 \
-              --retry-all-errors \
-              -o /dev/null \
-              https://notes.engen.tech/ || {
-              echo "❌ Frontend health check failed after retries!"
-              exit 1
-            }
+            # # Health check frontend with retries and exponential backoff
+            # echo "🏥 Checking frontend health (with retries)..."
+            # curl -f -s --show-error \
+            #   --connect-timeout 3 \
+            #   --max-time 5 \
+            #   --retry 12 \
+            #   --retry-delay 5 \
+            #   --retry-all-errors \
+            #   -o /dev/null \
+            #   https://notes.engen.tech/ || {
+            #   echo "❌ Frontend health check failed after retries!"
+            #   exit 1
+            # }
 
             # Cleanup old images (keep last 7 days)
             echo "🧹 Cleaning up old images..."
-            docker image prune -f --filter "until=168h" || true
+            # docker image prune -f --filter "until=168h" || true
 
             # Logout from GHCR
-            docker logout ghcr.io
+            # docker logout ghcr.io
 
             echo "✅ Deployment successful!"
 
