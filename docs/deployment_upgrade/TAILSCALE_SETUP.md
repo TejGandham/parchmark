@@ -21,25 +21,27 @@ GitHub Actions Runner → Tailscale Network → Production Server
 
 ## Complete Setup Process
 
-### Part 1: Create Tailscale OAuth Client
+### Part 1: Create Tailscale Ephemeral Auth Key
 
-**Time required**: ~5 minutes
+**Time required**: ~3 minutes
 
-1. **Navigate to OAuth settings**
-   - URL: https://login.tailscale.com/admin/settings/oauth
-   - Click "Generate OAuth client"
+1. **Navigate to Auth Keys settings**
+   - URL: https://login.tailscale.com/admin/settings/keys
+   - Click "Generate auth key"
 
-2. **Configure the client**
+2. **Configure the auth key**
    - **Description**: `GitHub Actions CI/CD - ParchMark`
-   - **Permissions**: Check **ONLY** "Devices: Write"
-   - **Tags**: Enter `tag:ci`
-   - Leave all other scopes unchecked (DNS, Policy File, Users, etc.)
+   - **Ephemeral**: ✅ **Check this box** (key expires after node disconnects)
+   - **Reusable**: ✅ **Check this box** (can be used multiple times)
+   - **Tags**: Select or enter `tag:ci`
+   - **Pre-approved**: ✅ Check this (optional, bypasses ACL checks during auth)
+   - Leave expiry at default (90 days) or set longer if needed
 
-3. **Generate and save credentials**
-   - Click "Generate client"
-   - **IMMEDIATELY COPY** both values (secret shown only once):
-     - OAuth Client ID
-     - OAuth Client Secret
+3. **Generate and save the key**
+   - Click "Generate key"
+   - **IMMEDIATELY COPY** the auth key (shown only once):
+     - Format: `tskey-auth-xxxxxxxxxxxxx-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy`
+   - Store securely - this will be your `TS_AUTHKEY` secret
 
 ### Part 2: Tag Your Production Server
 
@@ -125,20 +127,21 @@ tailscale status
 
 ### Part 4: Configure GitHub Secrets
 
-**Time required**: ~5 minutes
+**Time required**: ~3 minutes
 
 1. **Navigate to repository secrets**
    - URL: `https://github.com/YOUR_USERNAME/parchmark/settings/secrets/actions`
    - Click "New repository secret"
 
-2. **Add Tailscale OAuth credentials**
+2. **Add Tailscale auth key**
 
-   Create these secrets (case-sensitive):
+   Create this secret (case-sensitive):
 
    | Secret Name | Value | Example |
    |-------------|-------|---------|
-   | `TS_OAUTH_CLIENT_ID` | Client ID from Part 1 | `k12345AbCdE...` |
-   | `TS_OAUTH_SECRET` | Client Secret from Part 1 | `tskey-client-k...` |
+   | `TS_AUTHKEY` | Auth key from Part 1 | `tskey-auth-xxxxx-yyyyyy...` |
+
+   **Important**: This is the ephemeral, reusable auth key you generated in Part 1.
 
 3. **Update PROD_HOST secret**
 
@@ -162,9 +165,7 @@ tailscale status
        - name: Connect to Tailscale
          uses: tailscale/github-action@v4
          with:
-           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-           tags: tag:ci
+           authkey: ${{ secrets.TS_AUTHKEY }}
 
        - name: Deploy via SSH
          uses: appleboy/ssh-action@v1.2.2
@@ -178,8 +179,7 @@ tailscale status
 2. **Verify all required secrets exist**
 
    Required GitHub secrets:
-   - ✅ `TS_OAUTH_CLIENT_ID`
-   - ✅ `TS_OAUTH_SECRET`
+   - ✅ `TS_AUTHKEY` (Ephemeral auth key)
    - ✅ `PROD_HOST` (Tailscale IP)
    - ✅ `PROD_USER` (e.g., `deploy`)
    - ✅ `PROD_SSH_KEY` (SSH private key)
@@ -218,11 +218,11 @@ tailscale status
 
 ### Issue: "tag collision" or "tag ownership" error
 
-**Cause**: Tag not defined in ACL or OAuth client tag doesn't match
+**Cause**: Tag not defined in ACL or auth key tag doesn't match
 
 **Solution**:
 - Verify `tag:ci` exists in `tagOwners` section of ACLs
-- Ensure OAuth client tag is exactly `tag:ci` (not `ci`)
+- Ensure auth key was created with tag `tag:ci` selected
 
 ### Issue: Connection timeout after Tailscale connects
 
@@ -242,34 +242,37 @@ tailscale status
 - Check SSH key in `PROD_SSH_KEY` is authorized on server
 - Test SSH manually: `ssh -i key.pem deploy@100.120.107.12`
 
-### Issue: OAuth secret not working
+### Issue: Auth key not working
 
-**Cause**: Secret copied incorrectly or expired
+**Cause**: Key copied incorrectly, expired, or revoked
 
 **Solution**:
-- Regenerate OAuth client (old client ID/secret will be invalidated)
-- Copy new credentials immediately
-- Update GitHub secrets with new values
+- Generate a new auth key at https://login.tailscale.com/admin/settings/keys
+- Ensure "Ephemeral" and "Reusable" are both checked
+- Select `tag:ci` in the tags field
+- Copy the full key (starts with `tskey-auth-`)
+- Update `TS_AUTHKEY` secret in GitHub with new value
 
 ## Security Best Practices
 
 ### ✅ What We Implemented
 
-1. **Minimal Permissions**: Only "Devices: Write" for OAuth client
-2. **Tag-based Access**: `tag:ci` isolates CI/CD access
-3. **SSH User Restriction**: Only `deploy` user accessible
-4. **Ephemeral Nodes**: GitHub runners auto-cleanup after jobs
+1. **Ephemeral Auth Keys**: Nodes auto-cleanup after GitHub Actions job completes
+2. **Reusable Keys**: Same key works for multiple deployments
+3. **Tag-based Access**: `tag:ci` isolates CI/CD access
+4. **SSH User Restriction**: Only `deploy` user accessible
 5. **Private Network**: No public SSH exposure
-6. **Specific Destination**: ACL limits access to single server IP
+6. **Specific Destination**: ACL limits access to single server
 
 ### ✅ Additional Recommendations
 
-1. **Rotate OAuth secrets** every 90 days
+1. **Rotate auth keys** every 90 days (or set expiry when creating)
 2. **Monitor ephemeral nodes** in Tailscale admin console
 3. **Audit ACL changes** regularly
 4. **Use separate tags** for different environments (prod/staging)
 5. **Enable MFA** on Tailscale account
 6. **Review tagOwners** permissions periodically
+7. **Revoke old auth keys** when no longer needed
 
 ## Quick Reference
 
@@ -289,7 +292,7 @@ tailscale ping <node>      # Test connectivity
 
 ### URLs
 
-- **OAuth Clients**: https://login.tailscale.com/admin/settings/oauth
+- **Auth Keys**: https://login.tailscale.com/admin/settings/keys
 - **ACL Editor**: https://login.tailscale.com/admin/acls
 - **GitHub Secrets**: https://github.com/YOUR_USERNAME/parchmark/settings/secrets/actions
 - **Tailscale Machines**: https://login.tailscale.com/admin/machines
@@ -298,10 +301,11 @@ tailscale ping <node>      # Test connectivity
 
 | Term | Definition |
 |------|------------|
-| **OAuth Client** | Credentials for GitHub Actions to join Tailscale network |
+| **Auth Key** | Ephemeral, reusable key for GitHub Actions to join Tailscale network |
 | **tag:ci** | Tag identifying ephemeral CI/CD nodes |
 | **tagOwners** | ACL section defining who can create tagged nodes |
-| **Ephemeral Node** | Temporary Tailscale device (auto-cleanup) |
+| **Ephemeral Node** | Temporary Tailscale device (auto-cleanup after job) |
+| **Reusable Key** | Auth key that can be used for multiple connections |
 | **ACL** | Access Control List (firewall rules) |
 | **SSH Rules** | Fine-grained SSH access control |
 
@@ -309,12 +313,13 @@ tailscale ping <node>      # Test connectivity
 
 Use this checklist to verify your setup:
 
-### OAuth Client
-- [ ] OAuth client created with description
-- [ ] Only "Devices: Write" permission enabled
-- [ ] Tag `tag:ci` added to client
-- [ ] Client ID copied to safe location
-- [ ] Client secret copied immediately (shown only once)
+### Auth Key
+- [ ] Auth key created with description
+- [ ] "Ephemeral" checkbox enabled
+- [ ] "Reusable" checkbox enabled
+- [ ] Tag `tag:ci` selected
+- [ ] Auth key copied immediately (shown only once)
+- [ ] Key starts with `tskey-auth-`
 
 ### Tailscale ACLs
 - [ ] ACL editor opened at https://login.tailscale.com/admin/acls
@@ -326,8 +331,7 @@ Use this checklist to verify your setup:
 - [ ] ACL JSON saved and validated successfully
 
 ### GitHub Secrets
-- [ ] `TS_OAUTH_CLIENT_ID` added to repository secrets
-- [ ] `TS_OAUTH_SECRET` added to repository secrets
+- [ ] `TS_AUTHKEY` added to repository secrets
 - [ ] `PROD_HOST` updated to server's Tailscale IP
 - [ ] `PROD_USER` set to `deploy` (or correct username)
 - [ ] `PROD_SSH_KEY` contains valid SSH private key
@@ -336,7 +340,7 @@ Use this checklist to verify your setup:
 ### Workflow Configuration
 - [ ] `.github/workflows/deploy.yml` has Tailscale step
 - [ ] Tailscale action uses version @v4
-- [ ] Tags parameter set to `tag:ci`
+- [ ] `authkey` parameter uses `${{ secrets.TS_AUTHKEY }}`
 - [ ] SSH step uses `${{ secrets.PROD_HOST }}`
 - [ ] Workflow committed and pushed to repository
 

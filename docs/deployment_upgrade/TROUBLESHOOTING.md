@@ -4,6 +4,189 @@ This document provides solutions for common deployment issues encountered with t
 
 ---
 
+## Tailscale Authentication Failed (Exit Code 1)
+
+### Symptom
+```
+Starting tailscaled daemon...
+Daemon ready! Initial state: NeedsLogin
+✅ tailscaled daemon is up and running!
+▶️ tailscale up
+Warning: Tailscale up attempt 1 failed: sudo failed with exit code 1
+Warning: Tailscale up attempt 2 failed: sudo failed with exit code 1
+...
+Error: sudo failed with exit code 1
+```
+
+### Cause
+The GitHub Actions runner cannot authenticate with Tailscale. Common causes:
+
+1. **Auth key missing or incorrect** (`TS_AUTHKEY`)
+2. **Tag not defined in ACL** (`tag:ci` missing from `tagOwners`)
+3. **Auth key misconfigured** (not ephemeral, missing tags, or expired)
+4. **Secret not accessible** to the workflow (environment protection)
+
+### Solutions
+
+#### Solution 1: Verify GitHub Secrets (Most Common)
+
+**Step 1: Check secret exists**
+
+1. Go to: `https://github.com/YOUR_USERNAME/parchmark/settings/secrets/actions`
+2. Verify this secret is present:
+   - `TS_AUTHKEY`
+3. If missing, generate a new auth key (see Tailscale setup guide)
+
+**Step 2: Verify secret is not empty**
+
+Add a debug step to your workflow BEFORE the Tailscale step:
+
+```yaml
+- name: Debug Tailscale Secret
+  run: |
+    if [ -z "${{ secrets.TS_AUTHKEY }}" ]; then
+      echo "::error::TS_AUTHKEY is empty or not set!"
+      exit 1
+    fi
+    echo "✅ Tailscale auth key is set"
+    echo "Key prefix: $(echo "${{ secrets.TS_AUTHKEY }}" | cut -c1-15)..."
+```
+
+**Step 3: Re-trigger deployment**
+
+```bash
+make deploy-trigger
+make deploy-watch
+```
+
+#### Solution 2: Verify ACL Configuration
+
+The `tag:ci` tag MUST be defined in your Tailscale ACL before GitHub Actions can use it.
+
+**Check your ACL:**
+
+1. Go to https://login.tailscale.com/admin/acls
+2. Verify `tagOwners` section includes:
+   ```json
+   "tagOwners": {
+       "tag:ci": ["autogroup:admin"]
+   }
+   ```
+3. If missing, add it and save
+
+**Test ACL:**
+```bash
+# Trigger a new deployment after ACL update
+make deploy-trigger
+```
+
+#### Solution 3: Verify Auth Key Configuration
+
+**Check auth key:**
+
+1. Go to https://login.tailscale.com/admin/settings/keys
+2. Find your "GitHub Actions CI/CD" auth key
+3. Verify:
+   - ✅ **Ephemeral** is checked
+   - ✅ **Reusable** is checked
+   - ✅ Tags includes: `tag:ci`
+   - ✅ Key is not expired or revoked
+
+**If key is misconfigured or expired:**
+- Generate a new auth key following the setup guide
+- Ensure "Ephemeral" and "Reusable" are both checked
+- Select `tag:ci` in tags
+- Update `TS_AUTHKEY` secret in GitHub
+- Re-trigger deployment
+
+#### Solution 4: Check Workflow Configuration
+
+Verify your workflow file has correct syntax:
+
+**Expected configuration in `.github/workflows/deploy.yml`:**
+
+```yaml
+- name: Connect to Tailscale
+  uses: tailscale/github-action@v4
+  with:
+    authkey: ${{ secrets.TS_AUTHKEY }}
+```
+
+**Common mistakes:**
+- ❌ Wrong secret name (should be `TS_AUTHKEY`, not `TS_AUTH_KEY`)
+- ❌ Using old OAuth parameters (`oauth-client-id`, `oauth-secret`)
+- ❌ Using outdated action version (use @v4 or latest)
+- ❌ Indentation errors in YAML
+
+#### Solution 5: Environment Protection Rules
+
+If using environment protection (e.g., `environment: production`), ensure:
+
+1. Secret is accessible to that environment
+2. Go to: Repository → Settings → Environments → production
+3. Ensure `TS_AUTHKEY` is accessible (either as environment secret or repository secret)
+
+OR use repository secrets instead of environment-specific secrets.
+
+### Verification Checklist
+
+Use this checklist to diagnose the issue:
+
+- [ ] `TS_AUTHKEY` secret exists in GitHub
+- [ ] Secret is not empty (use debug step)
+- [ ] `tag:ci` is defined in Tailscale ACL `tagOwners`
+- [ ] Auth key has "Ephemeral" checked
+- [ ] Auth key has "Reusable" checked
+- [ ] Auth key includes `tag:ci` in tags
+- [ ] Auth key is not expired or revoked
+- [ ] Workflow uses `tailscale/github-action@v4`
+- [ ] Workflow includes `authkey: ${{ secrets.TS_AUTHKEY }}`
+- [ ] No YAML syntax errors in workflow file
+
+### Quick Fix Summary
+
+**Most common fix** (90% of cases):
+
+1. **Verify secrets:**
+   ```bash
+   # Check GitHub secrets page
+   # https://github.com/YOUR_USERNAME/parchmark/settings/secrets/actions
+   ```
+
+2. **Verify ACL:**
+   ```json
+   "tagOwners": {
+       "tag:ci": ["autogroup:admin"]
+   }
+   ```
+
+3. **Re-trigger deployment:**
+   ```bash
+   make deploy-trigger
+   ```
+
+### Getting More Details
+
+To see the actual error message from Tailscale:
+
+**Add verbose logging to workflow:**
+
+```yaml
+- name: Connect to Tailscale
+  uses: tailscale/github-action@v4
+  with:
+    authkey: ${{ secrets.TS_AUTHKEY }}
+    verbose: true  # Add this for detailed logging
+```
+
+Check the workflow logs for specific error messages like:
+- "authentication failed"
+- "invalid tag"
+- "permission denied"
+- "oauth client not found"
+
+---
+
 ## SSH Connection Timeout
 
 ### Symptom
@@ -86,9 +269,7 @@ If your server uses Tailscale, configure GitHub Actions to connect via Tailscale
 - name: Connect to Tailscale
   uses: tailscale/github-action@v4
   with:
-    oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-    oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-    tags: tag:ci
+    authkey: ${{ secrets.TS_AUTHKEY }}
 
 - name: Deploy via SSH
   uses: appleboy/ssh-action@v1.2.2
@@ -97,30 +278,29 @@ If your server uses Tailscale, configure GitHub Actions to connect via Tailscale
     # ... rest of config
 ```
 
-**Create Tailscale OAuth Client:**
+**Create Tailscale Auth Key:**
 
-1. Go to https://login.tailscale.com/admin/settings/oauth
-2. Click "Generate OAuth client"
+1. Go to https://login.tailscale.com/admin/settings/keys
+2. Click "Generate auth key"
 3. Add a description (e.g., "GitHub Actions CI/CD")
-4. **Configure permissions** - You only need ONE scope:
-   - Under "**Devices**" section, check "**Write**"
-   - Leave all other scopes (DNS, Policy File, Users, etc.) unchecked
-5. **Add tags**: Enter `tag:ci` (or your preferred tag for CI nodes)
-6. Click "Generate client"
-7. Copy the **Client ID** and **Client secret** immediately (secret only shown once)
+4. **Configure key options:**
+   - Check "**Ephemeral**" (node auto-cleanup after job)
+   - Check "**Reusable**" (can be used for multiple deployments)
+   - Select tag: `tag:ci`
+5. Click "Generate key"
+6. Copy the auth key immediately (starts with `tskey-auth-`, shown only once)
 
 **Add GitHub Secrets:**
 1. Go to: GitHub Repository → Settings → Secrets and variables → Actions
-2. Add new repository secrets:
-   - `TS_OAUTH_CLIENT_ID` = Your OAuth client ID
-   - `TS_OAUTH_SECRET` = Your OAuth client secret
+2. Add new repository secret:
+   - `TS_AUTHKEY` = Your auth key (starts with `tskey-auth-`)
    - `PROD_HOST` = Your server's Tailscale IP (e.g., `100.120.107.12`)
 
 **Important Notes:**
-- Only **Devices: Write** permission is needed (creates ephemeral nodes)
-- Don't select "OAuth Keys" - use "Auth keys" with Write permission
+- **Ephemeral** keys auto-cleanup after GitHub Actions job completes
+- **Reusable** keys can be used for multiple deployments (secure by design)
 - The `tag:ci` allows you to control access via Tailscale ACLs
-- GitHub Actions runners will appear as ephemeral devices and auto-cleanup after jobs
+- GitHub Actions runners will appear as ephemeral devices in your tailnet
 
 ---
 
