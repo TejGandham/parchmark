@@ -234,12 +234,14 @@ The following must be completed on the production server (`notes.engen.tech`):
 ### Workflow Features
 - **Triggers**: Automatic on push to main, manual via workflow_dispatch
 - **Permissions**: Read-only contents, write packages (minimum required)
-- **Error Handling**: `script_stop: true` and `set -e` for fail-fast behavior
+- **Error Handling**: `script_stop: true` and `set -Eeuo pipefail` for fail-fast behavior
 - **Notifications**: Success/failure messages via GitHub Actions notices
 - **Post-Deployment**: Summary notification job with deployment status
+- **Test Gate**: All tests must pass before building images
+- **Migration Safety**: Database migrations must succeed before deployment
 
 ### Files Created
-- `.github/workflows/deploy.yml` (250+ lines, production-ready)
+- `.github/workflows/deploy.yml` (290+ lines, production-ready)
 
 ---
 
@@ -349,6 +351,73 @@ make deploy-help
 
 ---
 
+## ✅ Post-Implementation Refinements (COMPLETE)
+
+### Implementation Status
+- **Status**: ✅ Complete
+- **Date Completed**: 2025-10-26
+
+### What Was Done
+
+#### 1. Workflow Timing Optimization
+- **Reduced sleep duration** from 10s to 5s (50% faster)
+- Health checks already handle startup timing with `start_period` values
+- Comment added: "Brief stabilization period (health checks handle startup timing)"
+- Rationale: Docker health checks (30s backend, 20s frontend) plus curl retries provide robust startup detection
+
+#### 2. Standardized Health Checks (Backend Dockerfile)
+- **Added curl** to backend container (`apt-get install curl`)
+- **Changed HEALTHCHECK** from Python urllib to curl
+- Old: `python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"`
+- New: `curl -f http://localhost:8000/api/health`
+- Benefits:
+  - Consistent with docker-compose.yml and workflow approach
+  - Standard container practice (curl > Python for health checks)
+  - Simpler one-line syntax
+  - Uses comprehensive `/api/health` endpoint with database check
+
+#### 3. Test Gate Before Building
+- **Added test job** as Job 1 in workflow
+- Runs `make test-all` (UI + Backend tests)
+- Sets up Node.js 20, Python 3.13, uv, PostgreSQL
+- Both build jobs now depend on test job: `needs: [test]`
+- Benefits:
+  - Prevents deploying broken code
+  - Protects manual `workflow_dispatch` deployments
+  - Self-contained workflow (doesn't rely on external CI)
+  - Fail-fast: Catches errors before wasting time on builds
+- Trade-off: Adds ~2-3 minutes to deployment time (worth it for safety)
+
+#### 4. Migration Error Handling Fix
+- **Removed `|| true`** from migration script execution
+- Migrations now MUST succeed before deployment continues
+- Old: `bash /app/scripts/migrate.sh || true` (silently ignores failures)
+- New: `bash /app/scripts/migrate.sh` (fails deployment on error)
+- Comment added: "IMPORTANT: Migrations must succeed before deploying new code"
+- Benefits:
+  - Prevents deploying code expecting schema changes that didn't apply
+  - Avoids database inconsistencies and runtime errors
+  - Fail-fast approach is safer for production
+
+### Files Modified
+- `.github/workflows/deploy.yml` - Added test job, fixed migration handling, reduced sleep
+- `backend/Dockerfile.prod` - Added curl, standardized health check
+
+### Updated Job Structure
+1. **Job 1**: Run Tests (NEW - gates all deployment)
+2. **Job 2**: Build Backend (depends on Job 1)
+3. **Job 3**: Build Frontend (depends on Job 1)
+4. **Job 4**: Deploy to Production (depends on Jobs 2 & 3)
+5. **Job 5**: Post-Deployment Notification (depends on Job 4)
+
+### Impact Summary
+- **Deployment time**: -5s (sleep) +2-3min (tests) = ~2-3min slower overall
+- **Security posture**: 9/10 → 9.5/10 (test gate + migration safety)
+- **Consistency**: All health checks now use curl (Dockerfile, docker-compose, workflow)
+- **Reliability**: Zero-tolerance for test failures or migration errors
+
+---
+
 ## 📊 Overall Progress
 
 | Phase | Status | Progress |
@@ -369,7 +438,7 @@ make deploy-help
 ### Implemented
 - ✅ Database credentials moved to git-ignored `.env.db` file
 - ✅ Service layer architecture with proper separation of concerns
-- ✅ Health check endpoint for monitoring
+- ✅ Health check endpoint for monitoring (comprehensive database check)
 - ✅ Environment file templates created
 - ✅ GitHub Secrets encrypted storage (libsodium)
 - ✅ Read-only GHCR token (read:packages scope only)
@@ -377,10 +446,27 @@ make deploy-help
 - ✅ ED25519 SSH key authentication
 - ✅ Token rotation schedule (90-day expiration)
 - ✅ Deployment restricted to main branch only
+- ✅ Enhanced error handling (`set -Eeuo pipefail` with ERR trap)
+- ✅ Health check retries with exponential backoff (12 retries, 5s delay)
+- ✅ Test gate before building (all tests must pass before deployment)
+- ✅ Migration safety (deployment fails if migrations fail)
+- ✅ Standardized health checks (curl across all services)
 
-### Pending (Identified in Code Review)
-- 🟠 Frontend security hardening (read-only filesystem, tmpfs, cap_drop)
-- 🟠 Improved exception handling with specific exceptions and logging
+### Pending (Documented in FUTURE_IMPROVEMENTS.md)
+**Priority 1 - Supply-Chain Security**:
+- 🟠 Pin GitHub Actions to commit SHAs
+- 🟠 SSH host key verification
+- 🟡 Job-level permissions (least privilege)
+- 🟡 Deployment concurrency control
+
+**Priority 2 - Advanced Security** (Optional):
+- 🟡 SBOM & Provenance generation
+- 🟡 Image signing with Cosign
+- 🟡 Vulnerability scanning with Trivy
+
+**Priority 3 - Code Review Items**:
+- 🟡 Frontend security hardening (read-only filesystem, tmpfs, cap_drop)
+- 🟡 Improved exception handling with specific exceptions and logging
 - 🟡 Remove unnecessary NET_BIND_SERVICE capability from backend
 - 🟡 Remove unused parchmark-internal network
 
@@ -447,13 +533,17 @@ make deploy-help
 
 ## 📝 Notes
 
-- **All 6 phases complete**: Automated deployment system fully implemented
+- **All 6 phases complete** + post-implementation refinements applied
 - **Phase 3 manual setup**: Still requires one-time server configuration (see PHASE3_SERVER_SETUP.md)
 - **25 Makefile commands**: Comprehensive deployment management via `make deploy-*`
-- **Security posture**: 9/10 (after error handling & health check improvements)
+- **Security posture**: 9.5/10 (test gate + migration safety + enhanced error handling)
+- **Workflow structure**: 5 jobs (Test → Build Backend/Frontend → Deploy → Notify)
+- **Test coverage**: Full test suite runs before every deployment (UI + Backend)
+- **Migration handling**: Zero-tolerance for migration failures (no silent errors)
+- **Health checks**: Standardized curl-based checks across all services
 - **Next milestone**: First production deployment and verification
 - **Enhancement path**: FUTURE_IMPROVEMENTS.md documents route to 10/10 security
-- The `:latest` tag usage is intentional and aligned with the deployment guide design
+- The `:latest` tag usage is intentional (SHA tags enable rollbacks)
 
 ---
 
