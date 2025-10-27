@@ -158,9 +158,9 @@ jobs:
             echo "🔄 Updating services..."
             docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
 
-            # Wait for initial container startup
+            # Brief stabilization period (health checks handle startup timing)
             echo "⏳ Waiting for containers to initialize..."
-            sleep 10
+            sleep 5
 
             # Health check backend with retries and exponential backoff
             echo "🏥 Checking backend health (with retries)..."
