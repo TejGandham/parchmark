@@ -127,7 +127,9 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           script_stop: true  # Stop on first error
           script: |
-            set -e  # Exit on error
+            # Enhanced error handling: exit on error, undefined vars, pipe failures
+            set -Eeuo pipefail
+            trap 'echo "❌ Deployment failed at line $LINENO"; exit 1' ERR
 
             echo "🚀 Starting deployment to production..."
 
@@ -156,21 +158,34 @@ jobs:
             echo "🔄 Updating services..."
             docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
 
-            # Wait for services to stabilize
-            echo "⏳ Waiting for services to start..."
-            sleep 15
+            # Wait for initial container startup
+            echo "⏳ Waiting for containers to initialize..."
+            sleep 10
 
-            # Health check backend
-            echo "🏥 Checking backend health..."
-            curl -f -s https://assets-api.engen.tech/api/health || {
-              echo "❌ Backend health check failed!"
+            # Health check backend with retries and exponential backoff
+            echo "🏥 Checking backend health (with retries)..."
+            curl -f -s --show-error \
+              --connect-timeout 3 \
+              --max-time 5 \
+              --retry 12 \
+              --retry-delay 5 \
+              --retry-all-errors \
+              https://assets-api.engen.tech/api/health || {
+              echo "❌ Backend health check failed after retries!"
               exit 1
             }
 
-            # Health check frontend
-            echo "🏥 Checking frontend health..."
-            curl -f -s -o /dev/null https://notes.engen.tech/ || {
-              echo "❌ Frontend health check failed!"
+            # Health check frontend with retries and exponential backoff
+            echo "🏥 Checking frontend health (with retries)..."
+            curl -f -s --show-error \
+              --connect-timeout 3 \
+              --max-time 5 \
+              --retry 12 \
+              --retry-delay 5 \
+              --retry-all-errors \
+              -o /dev/null \
+              https://notes.engen.tech/ || {
+              echo "❌ Frontend health check failed after retries!"
               exit 1
             }
 
