@@ -188,7 +188,7 @@ jobs:
 
             # # Login to GHCR with read-only token
             # echo "🔐 Authenticating with GHCR..."
-            # echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # # Pull new images
             # echo "📦 Pulling new Docker images..."
@@ -239,10 +239,10 @@ jobs:
 
             # Cleanup old images (keep last 7 days)
             echo "🧹 Cleaning up old images..."
-            # docker image prune -f --filter "until=168h" || true
+            docker image prune -f --filter "until=168h" || true
 
             # Logout from GHCR
-            # docker logout ghcr.io
+            docker logout ghcr.io
 
             echo "✅ Deployment successful!"
 
