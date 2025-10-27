@@ -84,7 +84,7 @@ If your server uses Tailscale, configure GitHub Actions to connect via Tailscale
 ```yaml
 # Add to deploy-to-production job, before SSH step
 - name: Connect to Tailscale
-  uses: tailscale/github-action@v2
+  uses: tailscale/github-action@v4
   with:
     oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
     oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
@@ -97,11 +97,30 @@ If your server uses Tailscale, configure GitHub Actions to connect via Tailscale
     # ... rest of config
 ```
 
-**Required Secrets:**
-- `TS_OAUTH_CLIENT_ID` - Tailscale OAuth client ID
-- `TS_OAUTH_SECRET` - Tailscale OAuth secret
+**Create Tailscale OAuth Client:**
 
-Generate these at: https://login.tailscale.com/admin/settings/oauth
+1. Go to https://login.tailscale.com/admin/settings/oauth
+2. Click "Generate OAuth client"
+3. Add a description (e.g., "GitHub Actions CI/CD")
+4. **Configure permissions** - You only need ONE scope:
+   - Under "**Devices**" section, check "**Write**"
+   - Leave all other scopes (DNS, Policy File, Users, etc.) unchecked
+5. **Add tags**: Enter `tag:ci` (or your preferred tag for CI nodes)
+6. Click "Generate client"
+7. Copy the **Client ID** and **Client secret** immediately (secret only shown once)
+
+**Add GitHub Secrets:**
+1. Go to: GitHub Repository → Settings → Secrets and variables → Actions
+2. Add new repository secrets:
+   - `TS_OAUTH_CLIENT_ID` = Your OAuth client ID
+   - `TS_OAUTH_SECRET` = Your OAuth client secret
+   - `PROD_HOST` = Your server's Tailscale IP (e.g., `100.120.107.12`)
+
+**Important Notes:**
+- Only **Devices: Write** permission is needed (creates ephemeral nodes)
+- Don't select "OAuth Keys" - use "Auth keys" with Write permission
+- The `tag:ci` allows you to control access via Tailscale ACLs
+- GitHub Actions runners will appear as ephemeral devices and auto-cleanup after jobs
 
 #### Solution 4: Verify PROD_HOST Secret
 
