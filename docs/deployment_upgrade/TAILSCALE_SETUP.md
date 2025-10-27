@@ -163,7 +163,7 @@ tailscale status
    deploy-to-production:
      steps:
        - name: Connect to Tailscale
-         uses: tailscale/github-action@v2
+         uses: tailscale/github-action@v4
          with:
            authkey: ${{ secrets.TS_AUTHKEY }}
 
@@ -339,7 +339,7 @@ Use this checklist to verify your setup:
 
 ### Workflow Configuration
 - [ ] `.github/workflows/deploy.yml` has Tailscale step
-- [ ] Tailscale action uses version @v2
+- [ ] Tailscale action uses version @v4
 - [ ] `authkey` parameter uses `${{ secrets.TS_AUTHKEY }}`
 - [ ] SSH step uses `${{ secrets.PROD_HOST }}`
 - [ ] Workflow committed and pushed to repository
