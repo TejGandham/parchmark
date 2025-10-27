@@ -138,10 +138,11 @@ Before configuring ACLs, tag your production server.
 
 1. Go to https://login.tailscale.com/admin/machines
 2. Find your production server (look for IP 100.120.107.12 or hostname)
-3. Click the three dots `...` → "Edit machine..."
-4. In the "Tags" field, type: `tag:prod-server`
-5. Click "Save"
-6. Verify from your server:
+3. Click the three dots `...` menu on the far right
+4. Select **"Edit tags"** (or **"Edit ACL Tags"**)
+5. In the tags field, add: `tag:prod-server`
+6. Click **"Save"**
+7. Verify from your server:
    ```bash
    ssh deploy@notes.engen.tech "tailscale status"
    # Should show "tag:prod-server" in the output
