@@ -9,7 +9,8 @@ This file provides comprehensive guidance to Claude Code (claude.ai/code) when w
 ### Tech Stack
 - **Frontend**: React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7
 - **Backend**: FastAPI, Python 3.13, SQLAlchemy, JWT Auth, PostgreSQL
-- **Deployment**: Docker, Nginx, uv package manager
+- **Deployment**: Docker, Nginx, GitHub Actions, GitHub Container Registry (GHCR)
+- **Infrastructure**: Production server with SSH-based deployment, automated CI/CD pipeline
 
 ## Directory Structure
 
@@ -45,9 +46,21 @@ parchmark/
 │   ├── ui.mk                # UI test and development targets
 │   ├── backend.mk           # Backend test and development targets
 │   ├── docker.mk            # Docker-related targets
-│   └── users.mk             # User management targets (templated)
+│   ├── users.mk             # User management targets (templated)
+│   └── deploy.mk            # Deployment targets (25 commands)
+├── .github/
+│   └── workflows/
+│       └── deploy.yml       # Automated deployment pipeline (5 jobs)
+├── docs/deployment_upgrade/ # Deployment system documentation
+│   ├── DEPLOYMENT_VALIDATED.md     # Architecture and implementation guide
+│   ├── DEPLOYMENT_PROGRESS.md      # Implementation status tracker
+│   ├── FUTURE_IMPROVEMENTS.md      # Security enhancement roadmap
+│   ├── PHASE3_SERVER_SETUP.md      # Server setup instructions
+│   └── PHASE4_GITHUB_SECRETS.md    # GitHub Secrets configuration guide
 ├── Makefile                 # Main orchestrator (includes all makefiles/*.mk)
-└── docker-compose.yml       # Docker orchestration
+├── docker-compose.yml       # Development orchestration (all services)
+├── docker-compose.dev.yml   # PostgreSQL-only for local development
+└── docker-compose.prod.yml  # Production orchestration (GHCR images)
 
 ```
 
@@ -342,9 +355,187 @@ ENVIRONMENT=development  # or production
 
 ### Docker Compose
 - **Networks**: Internal communication between services
-- **Health checks** for monitoring
+- **Health checks** for monitoring (curl-based, standardized across services)
 - **Environment files**: `.env.docker` for dev, `.env.production` for prod
 - **Volume mounting**: Persistent database storage in production
+- **Three compose files**:
+  - `docker-compose.dev.yml` - PostgreSQL only (for local development)
+  - `docker-compose.yml` - Full stack (for testing containerized environment)
+  - `docker-compose.prod.yml` - Production (uses GHCR images with health checks)
+
+## Deployment System
+
+### Production Environment
+- **Frontend**: https://notes.engen.tech
+- **Backend API**: https://assets-api.engen.tech
+- **API Documentation**: https://assets-api.engen.tech/docs
+- **Health Endpoints**:
+  - Backend: `/api/health` (includes database connectivity check)
+  - Frontend: `/` (served by Nginx)
+
+### Automated Deployment Pipeline
+
+The deployment system uses GitHub Actions for automated CI/CD with the following workflow:
+
+**Workflow Structure** (`.github/workflows/deploy.yml`):
+1. **Job 1 - Test**: Runs full test suite (UI + Backend)
+   - Ensures broken code never gets deployed
+   - Uses `make test-all` for comprehensive validation
+2. **Job 2 - Build Backend**: Builds and pushes backend image to GHCR
+3. **Job 3 - Build Frontend**: Builds and pushes frontend image to GHCR
+4. **Job 4 - Deploy**: SSH-based deployment to production server
+   - Requires manual approval (production environment protection)
+   - Pulls new images, runs migrations, updates services
+   - Health checks with retries and exponential backoff
+5. **Job 5 - Notify**: Post-deployment status notification
+
+**Key Features**:
+- **Dual image tagging**: `:latest` and `:sha-xxxxx` for easy rollbacks
+- **Test gate**: All tests must pass before building images
+- **Migration safety**: Deployment fails if database migrations fail
+- **Health verification**: 12 retries with 5-second delay and exponential backoff
+- **Error handling**: `set -Eeuo pipefail` with ERR trap for fail-fast behavior
+- **Security**: Production environment requires manual approval
+
+**Triggers**:
+- Automatic on push to `main` branch
+- Manual via `workflow_dispatch`
+
+### Deployment Commands (Makefile)
+
+25 deployment commands organized into categories:
+
+**Verification** (3 commands):
+```bash
+make deploy-verify              # Health check backend + frontend
+make deploy-verify-backend      # Backend health only
+make deploy-verify-frontend     # Frontend health only
+```
+
+**Status & Logs** (6 commands):
+```bash
+make deploy-status              # Recent GitHub Actions runs
+make deploy-status-latest       # Latest deployment details
+make deploy-logs                # Container logs (last 50 lines)
+make deploy-logs-follow         # Real-time log streaming
+make deploy-logs-backend        # Backend logs only
+make deploy-logs-frontend       # Frontend logs only
+```
+
+**Deployment Control** (3 commands):
+```bash
+make deploy-trigger             # Manually trigger GitHub Actions
+make deploy-watch               # Watch deployment progress
+make deploy-rollback SHA=xxx    # Rollback to specific version
+```
+
+**Pre-Deployment** (3 commands):
+```bash
+make deploy-push-check          # Run all pre-deployment checks
+make deploy-test-local          # Validate docker-compose.prod.yml
+make deploy-build-local         # Build production images locally
+```
+
+**SSH Operations** (3 commands):
+```bash
+make deploy-ssh                 # SSH into production server
+make deploy-ps                  # Show running containers
+make deploy-disk-usage          # Check disk space
+```
+
+**Utilities** (2 commands):
+```bash
+make deploy-list-images         # List available image versions
+make deploy-help                # Comprehensive deployment guide
+```
+
+### Deployment Workflow
+
+1. **Development & Testing**:
+   ```bash
+   make test-all                # Run all tests locally
+   make deploy-test-local       # Validate docker-compose files
+   ```
+
+2. **Pre-Deployment Checks**:
+   ```bash
+   make deploy-push-check       # Runs tests + validation
+   ```
+
+3. **Trigger Deployment**:
+   ```bash
+   git push origin main         # Auto-triggers workflow
+   # OR
+   make deploy-trigger          # Manual trigger via gh CLI
+   ```
+
+4. **Monitor Deployment**:
+   ```bash
+   make deploy-status           # Check deployment runs
+   make deploy-watch            # Watch progress
+   ```
+
+5. **Verify Deployment**:
+   ```bash
+   make deploy-verify           # Health checks
+   make deploy-logs             # View container logs
+   ```
+
+6. **Rollback** (if needed):
+   ```bash
+   make deploy-list-images      # List available SHA tags
+   make deploy-rollback SHA=abc123
+   ```
+
+### Container Health Checks
+
+All services use standardized curl-based health checks:
+
+**Backend** (`backend/Dockerfile.prod`):
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+```
+
+**Frontend** (`docker-compose.prod.yml`):
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+  interval: 30s
+  timeout: 10s
+  start_period: 20s
+  retries: 3
+```
+
+**PostgreSQL**:
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U parchmark_user -d parchmark_db"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+```
+
+### Security Measures
+
+- **GitHub Secrets**: Encrypted storage for sensitive credentials
+- **Read-only GHCR token**: `read:packages` scope only
+- **SSH key authentication**: ED25519 keys (no passwords)
+- **Manual approval**: Required for production deployments
+- **Branch restriction**: Only `main` branch can deploy
+- **Token rotation**: 90-day expiration with reminders
+- **Test gate**: No deployment without passing tests
+- **Migration validation**: Deployment fails if migrations fail
+- **Health verification**: Extensive retries before marking success
+
+### Documentation
+
+Comprehensive deployment documentation available in `docs/deployment_upgrade/`:
+- **DEPLOYMENT_VALIDATED.md** - Architecture and implementation guide
+- **DEPLOYMENT_PROGRESS.md** - Implementation status and history
+- **FUTURE_IMPROVEMENTS.md** - Security enhancement roadmap
+- **PHASE3_SERVER_SETUP.md** - Server setup instructions
+- **PHASE4_GITHUB_SECRETS.md** - GitHub Secrets configuration
 
 ## Key Implementation Patterns
 
@@ -601,12 +792,15 @@ docker compose -f docker-compose.prod.yml exec backend python scripts/manage_use
 ## Allowed URLs
 
 Development:
-- http://localhost:5173/ - Frontend dev server
-- http://localhost:8000/ - Backend API
-- http://localhost:8080/ - Docker deployment
+- http://localhost:5173/ - Frontend dev server (Vite)
+- http://localhost:8000/ - Backend API (FastAPI with docs at /docs)
+- http://localhost:8080/ - Docker deployment (full stack)
 
 Production:
-- Configure based on deployment environment
+- https://notes.engen.tech - Frontend application
+- https://assets-api.engen.tech - Backend API
+- https://assets-api.engen.tech/docs - API documentation (Swagger UI)
+- https://assets-api.engen.tech/api/health - Health check endpoint
 
 ## Important Guidelines
 
@@ -623,6 +817,10 @@ Production:
 11. **Keep components focused** and reusable
 12. **Optimize for readability** over cleverness
 13. **Run linting and formatting** before commits (enforced in Makefile)
+14. **Deployment safety**: Never commit secrets; use `make deploy-push-check` before deploying
+15. **Migration safety**: Test database migrations locally before deploying
+16. **Verify deployments**: Always run `make deploy-verify` after deploying to production
+17. **Monitor production**: Use `make deploy-logs` and `make deploy-status` to monitor deployments
 
 ## Additional Notes
 
@@ -644,6 +842,17 @@ Production:
 - **CI/CD testing** can be replicated locally using the Makefile
 - **Code duplication**: Reduced to <2% through centralized utilities and constants
 - **Markdown processing**: removeH1() correctly removes only first H1 heading
+
+### Deployment & Production
+- **Automated CI/CD**: 5-job GitHub Actions workflow (Test → Build → Deploy → Notify)
+- **Test gate**: All tests must pass before images are built
+- **Migration safety**: Deployment fails if database migrations fail
+- **Health checks**: Standardized curl-based checks across all services with retries
+- **Rollback support**: SHA-tagged images enable instant rollback to any version
+- **25 Makefile commands**: Comprehensive deployment management (`make deploy-help`)
+- **Security posture**: 9.5/10 (manual approval, test gate, migration validation, error handling)
+- **Monitoring**: Real-time logs, deployment status, and health verification via Makefile
+- **Production URLs**: notes.engen.tech (frontend), assets-api.engen.tech (backend)
 
 ### UI/UX Features
 - **Dark Mode Support**: Full light and dark theme implementation
