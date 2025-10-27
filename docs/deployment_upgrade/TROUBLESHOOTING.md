@@ -122,6 +122,200 @@ If your server uses Tailscale, configure GitHub Actions to connect via Tailscale
 - The `tag:ci` allows you to control access via Tailscale ACLs
 - GitHub Actions runners will appear as ephemeral devices and auto-cleanup after jobs
 
+---
+
+### Tailscale ACL Configuration for tag:ci
+
+After creating the OAuth client with `tag:ci`, you must configure your Tailscale Access Control Lists (ACLs) to allow the CI runners to access your production server.
+
+#### Step 1: Access Tailscale ACL Editor
+
+1. Go to https://login.tailscale.com/admin/acls
+2. Click "Edit" to open the ACL editor
+
+#### Step 2: Define Tag Owners
+
+Add `tag:ci` to the `tagOwners` section. This controls who can create devices with this tag:
+
+```json
+{
+  "tagOwners": {
+    "tag:ci": ["autogroup:admin"]  // Allows admins to create CI nodes
+  },
+```
+
+**Options for tag owners:**
+- `"autogroup:admin"` - All tailnet admins (recommended for OAuth clients)
+- `"group:ci-admins"` - Custom group (must create group first)
+- `"user@example.com"` - Specific user email
+
+#### Step 3: Configure Network ACLs
+
+Add rules to allow `tag:ci` nodes to access your production server:
+
+```json
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["tag:ci"],
+      "dst": ["100.120.107.12:22"]  // Your server's Tailscale IP:port
+    }
+  ],
+```
+
+**Replace** `100.120.107.12` with your actual server's Tailscale IP.
+
+**To find your server's Tailscale IP:**
+```bash
+# SSH into your server normally
+ssh deploy@notes.engen.tech
+
+# Check Tailscale status
+tailscale status
+
+# Look for the line with your server's name
+# Example output: 100.120.107.12  your-server  user@   linux   -
+```
+
+#### Step 4: Configure SSH Rules (Recommended)
+
+For fine-grained SSH access control, add SSH-specific rules:
+
+```json
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["tag:ci"],
+      "dst": ["100.120.107.12"],
+      "users": ["deploy"]  // SSH username on target server
+    }
+  ]
+}
+```
+
+**Important**: The `"users"` field specifies which OS user accounts on the target server the CI can SSH into. Use `"deploy"` to match your deployment user.
+
+#### Complete ACL Example
+
+Here's a complete minimal ACL configuration:
+
+```json
+{
+  "tagOwners": {
+    "tag:ci": ["autogroup:admin"]
+  },
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["tag:ci"],
+      "dst": ["100.120.107.12:22"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["tag:ci"],
+      "dst": ["100.120.107.12"],
+      "users": ["deploy"]
+    }
+  ]
+}
+```
+
+#### Step 5: Test ACL Configuration
+
+After saving your ACLs:
+
+1. Click "Save" in the ACL editor
+2. The editor will validate your JSON syntax
+3. Fix any errors before saving
+
+**Test connectivity:**
+```bash
+# Trigger a deployment to test
+make deploy-trigger
+
+# Watch the workflow logs
+make deploy-watch
+
+# Look for Tailscale connection success:
+# "Tailscale started successfully"
+# "Connected to Tailscale network"
+```
+
+#### Troubleshooting ACL Issues
+
+**Error: "tag collision" or "tag ownership"**
+- Ensure `tag:ci` is defined in `tagOwners`
+- Verify your OAuth client's tag matches exactly (`tag:ci`, not `ci`)
+
+**Error: "connection refused" or "timeout" after Tailscale connects**
+- Check ACL rules include your server's correct Tailscale IP
+- Verify port 22 is included in the ACL destination
+- Ensure SSH service is running on target server
+
+**Error: "permission denied" during SSH**
+- Check the `users` field in SSH rules matches your deployment user
+- Verify the SSH key in GitHub secrets is authorized on the server
+
+#### Advanced ACL Options
+
+**Multiple servers:**
+```json
+"acls": [
+  {
+    "action": "accept",
+    "src": ["tag:ci"],
+    "dst": [
+      "100.120.107.12:22",  // Production
+      "100.120.107.13:22"   // Staging
+    ]
+  }
+]
+```
+
+**Multiple tags for different pipelines:**
+```json
+"tagOwners": {
+  "tag:ci-prod": ["autogroup:admin"],
+  "tag:ci-staging": ["autogroup:admin"]
+},
+"acls": [
+  {
+    "action": "accept",
+    "src": ["tag:ci-prod"],
+    "dst": ["100.120.107.12:22"]
+  },
+  {
+    "action": "accept",
+    "src": ["tag:ci-staging"],
+    "dst": ["100.120.107.13:22"]
+  }
+]
+```
+
+**Restrict by GitHub repository (using separate OAuth clients):**
+- Create different OAuth clients for different repos
+- Use different tags for each repo: `tag:ci-repo1`, `tag:ci-repo2`
+- Grant different permissions per tag
+
+#### ACL Best Practices
+
+1. **Principle of Least Privilege**: Only grant access to specific servers and ports needed
+2. **Use SSH rules**: More secure than broad network ACLs
+3. **Document tags**: Add comments in ACL JSON (not standard JSON but Tailscale supports it)
+4. **Test changes**: Use the ACL editor's test feature before saving
+5. **Version control**: Keep a backup of your ACL configuration
+6. **Audit regularly**: Review who has tagOwner permissions
+
+#### References
+
+- [Tailscale ACL Documentation](https://tailscale.com/kb/1198/access-controls)
+- [Tailscale GitHub Action Guide](https://tailscale.com/kb/1276/tailscale-github-action)
+- [SSH Access Controls](https://tailscale.com/kb/1193/tailscale-ssh)
+
+---
+
 #### Solution 4: Verify PROD_HOST Secret
 
 Ensure the `PROD_HOST` secret contains the correct value.
