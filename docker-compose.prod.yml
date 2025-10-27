@@ -14,7 +14,7 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - parchmark-internal
+      - proxiable
 
   backend:
     image: ghcr.io/tejgandham/parchmark-backend:latest
@@ -27,7 +27,6 @@ services:
         condition: service_healthy
     networks:
       - proxiable
-      - parchmark-internal
     labels:
       # Nginx Proxy Manager labels for API
       - "npm.enable=true"
@@ -86,5 +85,5 @@ networks:
     external: true
     name: proxiable
   # Internal network for frontend-backend communication
-  parchmark-internal:
-    driver: bridge
+  # parchmark-internal:
+  #   driver: bridge
