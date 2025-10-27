@@ -4,6 +4,196 @@ This document provides solutions for common deployment issues encountered with t
 
 ---
 
+## Tailscale Authentication Failed (Exit Code 1)
+
+### Symptom
+```
+Starting tailscaled daemon...
+Daemon ready! Initial state: NeedsLogin
+✅ tailscaled daemon is up and running!
+▶️ tailscale up
+Warning: Tailscale up attempt 1 failed: sudo failed with exit code 1
+Warning: Tailscale up attempt 2 failed: sudo failed with exit code 1
+...
+Error: sudo failed with exit code 1
+```
+
+### Cause
+The GitHub Actions runner cannot authenticate with Tailscale. Common causes:
+
+1. **OAuth secrets missing or incorrect** (`TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`)
+2. **Tag not defined in ACL** (`tag:ci` missing from `tagOwners`)
+3. **OAuth client misconfigured** (wrong scopes or expired)
+4. **Secrets not accessible** to the workflow (environment protection)
+
+### Solutions
+
+#### Solution 1: Verify GitHub Secrets (Most Common)
+
+**Step 1: Check secrets exist**
+
+1. Go to: `https://github.com/YOUR_USERNAME/parchmark/settings/secrets/actions`
+2. Verify these secrets are present:
+   - `TS_OAUTH_CLIENT_ID`
+   - `TS_OAUTH_SECRET`
+3. If missing, add them (see Tailscale setup guide)
+
+**Step 2: Verify secrets are not empty**
+
+Add a debug step to your workflow BEFORE the Tailscale step:
+
+```yaml
+- name: Debug Tailscale Secrets
+  run: |
+    if [ -z "${{ secrets.TS_OAUTH_CLIENT_ID }}" ]; then
+      echo "::error::TS_OAUTH_CLIENT_ID is empty or not set!"
+      exit 1
+    fi
+    if [ -z "${{ secrets.TS_OAUTH_SECRET }}" ]; then
+      echo "::error::TS_OAUTH_SECRET is empty or not set!"
+      exit 1
+    fi
+    echo "✅ Both Tailscale secrets are set"
+```
+
+**Step 3: Re-trigger deployment**
+
+```bash
+make deploy-trigger
+make deploy-watch
+```
+
+#### Solution 2: Verify ACL Configuration
+
+The `tag:ci` tag MUST be defined in your Tailscale ACL before GitHub Actions can use it.
+
+**Check your ACL:**
+
+1. Go to https://login.tailscale.com/admin/acls
+2. Verify `tagOwners` section includes:
+   ```json
+   "tagOwners": {
+       "tag:ci": ["autogroup:admin"]
+   }
+   ```
+3. If missing, add it and save
+
+**Test ACL:**
+```bash
+# Trigger a new deployment after ACL update
+make deploy-trigger
+```
+
+#### Solution 3: Verify OAuth Client Configuration
+
+**Check OAuth client:**
+
+1. Go to https://login.tailscale.com/admin/settings/oauth
+2. Find your "GitHub Actions CI/CD" OAuth client
+3. Verify:
+   - ✅ **Devices: Write** scope is checked
+   - ✅ Tags includes: `tag:ci`
+   - ✅ Client is not disabled or expired
+
+**If client is misconfigured:**
+- Delete the old OAuth client
+- Create a new one following the setup guide
+- Update GitHub secrets with new Client ID and Secret
+- Re-trigger deployment
+
+#### Solution 4: Check Workflow Configuration
+
+Verify your workflow file has correct syntax:
+
+**Expected configuration in `.github/workflows/deploy.yml`:**
+
+```yaml
+- name: Connect to Tailscale
+  uses: tailscale/github-action@v4
+  with:
+    oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+    oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+    tags: tag:ci
+```
+
+**Common mistakes:**
+- ❌ Wrong secret names (typos)
+- ❌ Missing `tags: tag:ci` parameter
+- ❌ Using wrong action version
+- ❌ Indentation errors in YAML
+
+#### Solution 5: Environment Protection Rules
+
+If using environment protection (e.g., `environment: production`), ensure:
+
+1. Secrets are accessible to that environment
+2. Go to: Repository → Settings → Environments → production
+3. Ensure environment secrets include Tailscale OAuth credentials
+
+OR use repository secrets instead of environment-specific secrets.
+
+### Verification Checklist
+
+Use this checklist to diagnose the issue:
+
+- [ ] `TS_OAUTH_CLIENT_ID` secret exists in GitHub
+- [ ] `TS_OAUTH_SECRET` secret exists in GitHub
+- [ ] Both secrets are not empty (use debug step)
+- [ ] `tag:ci` is defined in Tailscale ACL `tagOwners`
+- [ ] OAuth client has "Devices: Write" scope
+- [ ] OAuth client includes `tag:ci` in tags
+- [ ] OAuth client is not disabled or expired
+- [ ] Workflow uses `tailscale/github-action@v4`
+- [ ] Workflow includes `oauth-client-id` and `oauth-secret`
+- [ ] Workflow includes `tags: tag:ci`
+- [ ] No YAML syntax errors in workflow file
+
+### Quick Fix Summary
+
+**Most common fix** (90% of cases):
+
+1. **Verify secrets:**
+   ```bash
+   # Check GitHub secrets page
+   # https://github.com/YOUR_USERNAME/parchmark/settings/secrets/actions
+   ```
+
+2. **Verify ACL:**
+   ```json
+   "tagOwners": {
+       "tag:ci": ["autogroup:admin"]
+   }
+   ```
+
+3. **Re-trigger deployment:**
+   ```bash
+   make deploy-trigger
+   ```
+
+### Getting More Details
+
+To see the actual error message from Tailscale:
+
+**Add verbose logging to workflow:**
+
+```yaml
+- name: Connect to Tailscale
+  uses: tailscale/github-action@v4
+  with:
+    oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+    oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+    tags: tag:ci
+    verbose: true  # Add this for detailed logging
+```
+
+Check the workflow logs for specific error messages like:
+- "authentication failed"
+- "invalid tag"
+- "permission denied"
+- "oauth client not found"
+
+---
+
 ## SSH Connection Timeout
 
 ### Symptom
