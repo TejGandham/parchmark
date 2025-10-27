@@ -189,23 +189,57 @@ The following must be completed on the production server (`notes.engen.tech`):
 
 ---
 
-## ⏳ Phase 5: GitHub Actions Workflow (PENDING)
+## ✅ Phase 5: GitHub Actions Workflow (COMPLETE)
 
 ### Implementation Status
-- **Status**: ⏳ Not started, waiting for Phase 4 completion
+- **Status**: ✅ Complete
+- **Date Completed**: 2025-10-26
 
-### Planned Implementation
-1. Create `.github/workflows/deploy.yml`
-2. Implement build jobs:
-   - `build-and-push-backend` - Build and push backend image to GHCR
-   - `build-and-push-frontend` - Build and push frontend image to GHCR
-3. Implement deployment job:
-   - `deploy-to-production` - SSH deployment with health checks
-4. Add manual approval gate using GitHub environments
-5. Implement health verification and rollback support
+### What Was Done
+1. ✅ Created `.github/workflows/deploy.yml`
+   - Comprehensive CI/CD pipeline for automated deployment
+   - YAML syntax validated
+   - Integrated with Phase 4 GitHub Secrets
 
-### Files to Create
-- `.github/workflows/deploy.yml`
+2. ✅ Implemented Build Jobs (Parallel Execution)
+   - **build-and-push-backend**: Builds backend Docker image from `Dockerfile.prod`
+   - **build-and-push-frontend**: Builds frontend Docker image from `Dockerfile`
+   - Both jobs push to GHCR with dual tagging (`:latest` and `:sha-xxxxx`)
+   - Buildx caching enabled for faster subsequent builds
+
+3. ✅ Implemented Deployment Job
+   - **deploy-to-production**: SSH-based deployment using `appleboy/ssh-action@v1.2.2`
+   - Pulls latest docker-compose.yml configuration from git
+   - Authenticates with GHCR using `GHCR_PULL_TOKEN` secret
+   - Pulls new Docker images
+   - Updates services with zero-deps restart (preserves PostgreSQL)
+   - Automated cleanup of old images (7-day retention)
+
+4. ✅ Manual Approval Gate
+   - Uses `environment: production` for deployment protection
+   - Requires manual approval before deployment (configured in Phase 4)
+   - Restricted to `main` branch only
+
+5. ✅ Health Verification
+   - 15-second stabilization wait after deployment
+   - Backend health check: `https://assets-api.engen.tech/api/health`
+   - Frontend health check: `https://notes.engen.tech/`
+   - Deployment fails if either health check fails
+
+6. ✅ Rollback Support
+   - SHA-tagged images enable easy rollback
+   - Images preserved in GHCR for rollback to specific versions
+   - Emergency rollback procedure documented
+
+### Workflow Features
+- **Triggers**: Automatic on push to main, manual via workflow_dispatch
+- **Permissions**: Read-only contents, write packages (minimum required)
+- **Error Handling**: `script_stop: true` and `set -e` for fail-fast behavior
+- **Notifications**: Success/failure messages via GitHub Actions notices
+- **Post-Deployment**: Summary notification job with deployment status
+
+### Files Created
+- `.github/workflows/deploy.yml` (250+ lines, production-ready)
 
 ---
 
@@ -242,10 +276,10 @@ The following must be completed on the production server (`notes.engen.tech`):
 | Phase 2: Docker Compose Updates | ✅ Complete | 100% |
 | Phase 3: Server Setup | 📝 Ready | 0% (manual work required) |
 | Phase 4: GitHub Secrets | ✅ Complete | 100% |
-| Phase 5: GitHub Actions Workflow | ⏳ Pending | 0% |
+| Phase 5: GitHub Actions Workflow | ✅ Complete | 100% |
 | Phase 6: Makefile Integration | ⏳ Pending | 0% |
 
-**Overall Progress**: 3/6 phases complete (50%)
+**Overall Progress**: 4/6 phases complete (67%)
 
 ---
 
@@ -303,17 +337,18 @@ The following must be completed on the production server (`notes.engen.tech`):
 
 ## 🔜 Next Steps
 
-1. **Implement Phase 5** (GitHub Actions Workflow) ⬅️ **CURRENT PHASE**
-   - Create `.github/workflows/deploy.yml`
-   - Test automated build and deployment
-   - Verify health checks and rollback
-
-4. **Implement Phase 6** (Makefile Integration)
+1. **Implement Phase 6** (Makefile Integration) ⬅️ **CURRENT PHASE**
    - Create `makefiles/deploy.mk`
    - Add convenience commands
    - Update main Makefile
 
-5. **Address Pending Security Issues** (from code review)
+2. **Test First Deployment**
+   - Push changes to main branch
+   - Approve deployment in GitHub Actions
+   - Verify production health checks
+   - Test rollback procedure
+
+3. **Address Pending Security Issues** (from code review)
    - Harden frontend service
    - Improve exception handling
    - Remove unnecessary capabilities

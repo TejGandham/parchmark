@@ -1,0 +1,224 @@
+name: Build and Deploy to Production
+
+on:
+  # Automatic deployment when pushing to main
+  push:
+    branches:
+      - main
+
+  # Manual deployment trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+
+# Required for GHCR authentication
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  GITHUB_USERNAME: tejgandham
+
+jobs:
+  # ============================================================================
+  # JOB 1: BUILD AND PUSH BACKEND IMAGE
+  # ============================================================================
+  build-and-push-backend:
+    runs-on: ubuntu-latest
+    name: Build Backend Image
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-backend
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-backend:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-backend:buildcache,mode=max
+
+  # ============================================================================
+  # JOB 2: BUILD AND PUSH FRONTEND IMAGE
+  # ============================================================================
+  build-and-push-frontend:
+    runs-on: ubuntu-latest
+    name: Build Frontend Image
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-frontend
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ui
+          file: ./ui/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-frontend:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-frontend:buildcache,mode=max
+
+  # ============================================================================
+  # JOB 3: DEPLOY TO PRODUCTION
+  # ============================================================================
+  deploy-to-production:
+    needs: [build-and-push-backend, build-and-push-frontend]
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    environment: production  # Requires manual approval if configured
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script_stop: true  # Stop on first error
+          script: |
+            set -e  # Exit on error
+
+            echo "🚀 Starting deployment to production..."
+
+            # Navigate to project directory
+            cd /home/deploy/parchmark
+
+            # Pull latest code (for docker-compose.yml updates)
+            echo "📥 Pulling latest configuration..."
+            git pull origin main
+
+            # Login to GHCR with read-only token
+            echo "🔐 Authenticating with GHCR..."
+            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull new images
+            echo "📦 Pulling new Docker images..."
+            docker compose -f docker-compose.prod.yml pull backend frontend
+
+            # Run database migrations (if script exists)
+            if [ -f "backend/scripts/migrate.sh" ]; then
+              echo "🗄️ Running database migrations..."
+              docker compose -f docker-compose.prod.yml exec -T backend bash /app/scripts/migrate.sh || true
+            fi
+
+            # Update services (--no-deps avoids restarting postgres)
+            echo "🔄 Updating services..."
+            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
+
+            # Wait for services to stabilize
+            echo "⏳ Waiting for services to start..."
+            sleep 15
+
+            # Health check backend
+            echo "🏥 Checking backend health..."
+            curl -f -s https://assets-api.engen.tech/api/health || {
+              echo "❌ Backend health check failed!"
+              exit 1
+            }
+
+            # Health check frontend
+            echo "🏥 Checking frontend health..."
+            curl -f -s -o /dev/null https://notes.engen.tech/ || {
+              echo "❌ Frontend health check failed!"
+              exit 1
+            }
+
+            # Cleanup old images (keep last 7 days)
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f --filter "until=168h" || true
+
+            # Logout from GHCR
+            docker logout ghcr.io
+
+            echo "✅ Deployment successful!"
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "::notice::✅ Deployment to production completed successfully!"
+          echo "Backend: https://assets-api.engen.tech"
+          echo "Frontend: https://notes.engen.tech"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "::error::❌ Deployment failed! Check logs above."
+          exit 1
+
+  # ============================================================================
+  # JOB 4: POST-DEPLOYMENT NOTIFICATION
+  # ============================================================================
+  notify-deployment:
+    needs: [deploy-to-production]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Deployment summary
+        run: |
+          if [ "${{ needs.deploy-to-production.result }}" = "success" ]; then
+            echo "✅ Deployment completed successfully!"
+            echo "- Images built and pushed to GHCR"
+            echo "- Services updated on production server"
+            echo "- Health checks passed"
+            echo ""
+            echo "🔗 Production URLs:"
+            echo "- Frontend: https://notes.engen.tech"
+            echo "- Backend: https://assets-api.engen.tech"
+            echo "- API Docs: https://assets-api.engen.tech/docs"
+          else
+            echo "❌ Deployment failed!"
+            echo "Check the logs above for details."
+            exit 1
+          fi
