@@ -138,21 +138,54 @@ The following must be completed on the production server (`notes.engen.tech`):
 
 ---
 
-## ⏳ Phase 4: GitHub Secrets Configuration (PENDING)
+## ✅ Phase 4: GitHub Secrets Configuration (COMPLETE)
 
 ### Implementation Status
-- **Status**: ⏳ Not started, waiting for Phase 3 completion
+- **Status**: ✅ Complete
+- **Date Completed**: 2025-10-26
 
-### Required Secrets
-Once Phase 3 is complete, these secrets need to be configured in GitHub:
+### What Was Done
+1. ✅ Created comprehensive guide: `docs/deployment_upgrade/PHASE4_GITHUB_SECRETS.md`
+   - Step-by-step secret configuration instructions
+   - Token generation guidance (validated January 2025)
+   - Production environment protection setup
+   - Security best practices and rotation schedule
 
-- `PROD_HOST` - Production server hostname (notes.engen.tech)
-- `PROD_USER` - Deploy user (deploy)
-- `PROD_SSH_KEY` - Private SSH key content (from Phase 3)
-- `GHCR_PULL_TOKEN` - GitHub Personal Access Token with read:packages scope
+2. ✅ **Token Validation** (Web Research - January 2025)
+   - Confirmed classic PATs are REQUIRED for GHCR
+   - Fine-grained tokens NOT supported by GitHub Packages
+   - Documented distinction between GITHUB_TOKEN and GHCR_PULL_TOKEN
+   - Added troubleshooting for common token issues
 
-### Files to Create
-- Documentation for secret configuration process
+3. ✅ Configured GitHub Secrets (4 required)
+   - `PROD_HOST` - Production server hostname
+   - `PROD_USER` - Deploy user (deploy)
+   - `PROD_SSH_KEY` - ED25519 private key for authentication
+   - `GHCR_PULL_TOKEN` - Classic PAT with read:packages scope
+
+4. ✅ Production Environment Protection
+   - Created `production` environment in GitHub
+   - Configured manual approval requirement
+   - Restricted deployment to `main` branch only
+   - Added required reviewers for safety gate
+
+### Validation Completed
+- ✅ All 4 secrets added to GitHub repository
+- ✅ Token permissions verified (read-only access)
+- ✅ SSH key authentication tested
+- ✅ Production environment protection configured
+- ✅ GHCR token approach validated via web research
+- ✅ Calendar reminders set for 90-day token rotation
+
+### Files Created
+- `docs/deployment_upgrade/PHASE4_GITHUB_SECRETS.md`
+
+### Key Security Measures
+- Read-only GHCR token (read:packages scope only)
+- 90-day token expiration with rotation reminders
+- Manual approval required for production deployments
+- SSH key-based authentication (no passwords)
+- Environment-scoped deployment restrictions
 
 ---
 
@@ -208,11 +241,11 @@ Once Phase 3 is complete, these secrets need to be configured in GitHub:
 | Phase 1: Backend Health Endpoint | ✅ Complete | 100% |
 | Phase 2: Docker Compose Updates | ✅ Complete | 100% |
 | Phase 3: Server Setup | 📝 Ready | 0% (manual work required) |
-| Phase 4: GitHub Secrets | ⏳ Pending | 0% |
+| Phase 4: GitHub Secrets | ✅ Complete | 100% |
 | Phase 5: GitHub Actions Workflow | ⏳ Pending | 0% |
 | Phase 6: Makefile Integration | ⏳ Pending | 0% |
 
-**Overall Progress**: 2/6 phases complete (33%)
+**Overall Progress**: 3/6 phases complete (50%)
 
 ---
 
@@ -223,6 +256,12 @@ Once Phase 3 is complete, these secrets need to be configured in GitHub:
 - ✅ Service layer architecture with proper separation of concerns
 - ✅ Health check endpoint for monitoring
 - ✅ Environment file templates created
+- ✅ GitHub Secrets encrypted storage (libsodium)
+- ✅ Read-only GHCR token (read:packages scope only)
+- ✅ Production environment protection with manual approval
+- ✅ ED25519 SSH key authentication
+- ✅ Token rotation schedule (90-day expiration)
+- ✅ Deployment restricted to main branch only
 
 ### Pending (Identified in Code Review)
 - 🟠 Frontend security hardening (read-only filesystem, tmpfs, cap_drop)
@@ -248,7 +287,14 @@ Once Phase 3 is complete, these secrets need to be configured in GitHub:
    - Reference script with all server commands
    - Organized by section for easy copy-paste
 
-4. **Progress Tracker**: `docs/deployment_upgrade/DEPLOYMENT_PROGRESS.md` (this file)
+4. **Phase 4 Guide**: `docs/deployment_upgrade/PHASE4_GITHUB_SECRETS.md`
+   - GitHub Secrets configuration instructions
+   - Token generation guidance (validated January 2025)
+   - Production environment protection setup
+   - Classic PAT requirement explanation
+   - Security best practices and troubleshooting
+
+5. **Progress Tracker**: `docs/deployment_upgrade/DEPLOYMENT_PROGRESS.md` (this file)
    - Track implementation status
    - Document completed work
    - Plan remaining phases
@@ -257,17 +303,7 @@ Once Phase 3 is complete, these secrets need to be configured in GitHub:
 
 ## 🔜 Next Steps
 
-1. **Complete Phase 3** (manual work on production server)
-   - Follow `docs/deployment_upgrade/PHASE3_SERVER_SETUP.md`
-   - Execute commands from `phase3_server_commands.sh`
-   - Verify all steps in the checklist
-
-2. **Implement Phase 4** (GitHub Secrets Configuration)
-   - Add SSH private key to GitHub Secrets
-   - Add server hostname and user
-   - Generate and add GHCR pull token
-
-3. **Implement Phase 5** (GitHub Actions Workflow)
+1. **Implement Phase 5** (GitHub Actions Workflow) ⬅️ **CURRENT PHASE**
    - Create `.github/workflows/deploy.yml`
    - Test automated build and deployment
    - Verify health checks and rollback
