@@ -455,7 +455,7 @@ make deploy-watch
 
 - **Machines (for tagging)**: https://login.tailscale.com/admin/machines
 - **ACL Editor**: https://login.tailscale.com/admin/acls
-- **OAuth Clients**: https://login.tailscale.com/admin/settings/oauth
+- **Auth Keys**: https://login.tailscale.com/admin/settings/keys
 
 ---
 
