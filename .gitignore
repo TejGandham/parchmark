@@ -2,6 +2,7 @@ node_modules
 dist
 .DS_Store
 .env
+.env.db
 *.local
 private/
 __pycache__

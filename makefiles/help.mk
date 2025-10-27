@@ -18,6 +18,7 @@ help: ## Display this help message
 	@$(MAKE) --silent help-combined
 	@$(MAKE) --silent help-dev
 	@$(MAKE) --silent help-docker
+	@$(MAKE) --silent help-deploy
 	@$(MAKE) --silent help-install
 	@$(MAKE) --silent help-users
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
@@ -92,4 +93,32 @@ help-users:
 	@echo "  make user-update-password-prod USERNAME=x PASSWORD=y  - Update password"
 	@echo "  make user-delete-prod USERNAME=x                      - Delete user"
 	@echo "  make user-list-prod                                   - List all users"
+	@echo ""
+
+.PHONY: help-deploy
+help-deploy:
+	@echo "$(GREEN)🚀 Deployment & Production:$(NC)"
+	@echo "  $(YELLOW)For complete deployment guide: make deploy-help$(NC)"
+	@echo ""
+	@echo "  $(BLUE)Verification:$(NC)"
+	@echo "  make deploy-verify                  - Verify production health"
+	@echo "  make deploy-verify-backend          - Verify backend only"
+	@echo "  make deploy-verify-frontend         - Verify frontend only"
+	@echo ""
+	@echo "  $(BLUE)Status & Logs:$(NC)"
+	@echo "  make deploy-status                  - Check recent deployments"
+	@echo "  make deploy-logs                    - View container logs"
+	@echo "  make deploy-logs-follow             - Follow logs real-time"
+	@echo ""
+	@echo "  $(BLUE)Deployment Control:$(NC)"
+	@echo "  make deploy-trigger                 - Trigger GitHub Actions deployment"
+	@echo "  make deploy-watch                   - Watch deployment progress"
+	@echo "  make deploy-rollback SHA=xxx        - Rollback to specific version"
+	@echo ""
+	@echo "  $(BLUE)Pre-Deployment:$(NC)"
+	@echo "  make deploy-push-check              - Run all pre-deployment checks"
+	@echo "  make deploy-test-local              - Validate docker-compose files"
+	@echo ""
+	@echo "  $(BLUE)Help:$(NC)"
+	@echo "  make deploy-help                    - Show full deployment guide"
 	@echo ""

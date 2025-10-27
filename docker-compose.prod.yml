@@ -2,10 +2,8 @@ services:
   postgres:
     image: postgres:17.2-alpine
     container_name: parchmark-postgres-prod
-    environment:
-      POSTGRES_USER: parchmark_user
-      POSTGRES_PASSWORD: parchmark_password
-      POSTGRES_DB: parchmark_db
+    env_file:
+      - ./.env.db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -19,9 +17,7 @@ services:
       - proxiable
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/tejgandham/parchmark-backend:latest
     container_name: parchmark-backend
     env_file:
       - ./backend/.env.production
@@ -37,6 +33,12 @@ services:
       - "npm.host=assets-api.engen.tech"
       - "npm.port=8000"
       - "npm.proto=http"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     # Security: Read-only root filesystem
     read_only: true
     # Allow writing to /tmp for temporary files
@@ -51,9 +53,7 @@ services:
       - NET_BIND_SERVICE
 
   frontend:
-    build:
-      context: ./ui
-      dockerfile: Dockerfile
+    image: ghcr.io/tejgandham/parchmark-frontend:latest
     container_name: parchmark-frontend
     environment:
       - USE_HTTPS=false
@@ -61,7 +61,8 @@ services:
       - ./ui/.env.production
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - proxiable
     labels:
@@ -70,6 +71,12 @@ services:
       - "npm.host=notes.engen.tech"
       - "npm.port=80"
       - "npm.proto=http"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 volumes:
   postgres_data:
