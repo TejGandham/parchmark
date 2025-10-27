@@ -14,7 +14,7 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - proxiable
+      - parchmark-internal
 
   backend:
     image: ghcr.io/tejgandham/parchmark-backend:latest
@@ -27,6 +27,7 @@ services:
         condition: service_healthy
     networks:
       - proxiable
+      - parchmark-internal
     labels:
       # Nginx Proxy Manager labels for API
       - "npm.enable=true"
@@ -65,6 +66,7 @@ services:
         condition: service_healthy
     networks:
       - proxiable
+      - parchmark-internal
     labels:
       # Nginx Proxy Manager labels for automatic configuration
       - "npm.enable=true"
