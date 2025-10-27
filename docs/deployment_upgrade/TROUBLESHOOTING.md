@@ -128,19 +128,45 @@ If your server uses Tailscale, configure GitHub Actions to connect via Tailscale
 
 After creating the OAuth client with `tag:ci`, you must configure your Tailscale Access Control Lists (ACLs) to allow the CI runners to access your production server.
 
-#### Step 1: Access Tailscale ACL Editor
+⚠️ **CRITICAL**: Tailscale SSH ACL rules do NOT accept IP addresses in the `dst` field. They only accept tags, groups, or autogroups!
+
+#### Step 1: Tag Your Production Server
+
+Before configuring ACLs, tag your production server:
+
+**Option A: Via SSH (Recommended)**
+```bash
+# SSH into production
+ssh deploy@notes.engen.tech
+
+# Add tag
+sudo tailscale set --advertise-tags=tag:prod-server
+
+# Verify
+tailscale status | grep tag:prod-server
+```
+
+**Option B: Via Tailscale Admin Console**
+1. Go to https://login.tailscale.com/admin/machines
+2. Find server with IP 100.120.107.12
+3. Click "..." → Edit machine
+4. Under "Tags", add: `tag:prod-server`
+5. Save
+
+#### Step 2: Access Tailscale ACL Editor
 
 1. Go to https://login.tailscale.com/admin/acls
 2. Click "Edit" to open the ACL editor
 
-#### Step 2: Define Tag Owners
+#### Step 3: Define Tag Owners
 
-Add `tag:ci` to the `tagOwners` section. This controls who can create devices with this tag:
+Add both `tag:ci` and `tag:prod-server` to the `tagOwners` section:
 
 ```json
 {
   "tagOwners": {
-    "tag:ci": ["autogroup:admin"]  // Allows admins to create CI nodes
+    "tag:ci": ["autogroup:admin"],          // GitHub Actions ephemeral nodes
+    "tag:prod-server": ["autogroup:admin"]  // Production server
   },
 ```
 
@@ -149,7 +175,7 @@ Add `tag:ci` to the `tagOwners` section. This controls who can create devices wi
 - `"group:ci-admins"` - Custom group (must create group first)
 - `"user@example.com"` - Specific user email
 
-#### Step 3: Configure Network ACLs
+#### Step 4: Configure Network ACLs
 
 Add rules to allow `tag:ci` nodes to access your production server:
 
@@ -158,26 +184,14 @@ Add rules to allow `tag:ci` nodes to access your production server:
     {
       "action": "accept",
       "src": ["tag:ci"],
-      "dst": ["100.120.107.12:22"]  // Your server's Tailscale IP:port
+      "dst": ["tag:prod-server:22"]  // Use tag, can also use IP here
     }
   ],
 ```
 
-**Replace** `100.120.107.12` with your actual server's Tailscale IP.
+**Note**: Network ACLs CAN use IP addresses (`"100.120.107.12:22"`), but using tags is more maintainable.
 
-**To find your server's Tailscale IP:**
-```bash
-# SSH into your server normally
-ssh deploy@notes.engen.tech
-
-# Check Tailscale status
-tailscale status
-
-# Look for the line with your server's name
-# Example output: 100.120.107.12  your-server  user@   linux   -
-```
-
-#### Step 4: Configure SSH Rules (Recommended)
+#### Step 5: Configure SSH Rules (Recommended)
 
 For fine-grained SSH access control, add SSH-specific rules:
 
@@ -186,12 +200,14 @@ For fine-grained SSH access control, add SSH-specific rules:
     {
       "action": "accept",
       "src": ["tag:ci"],
-      "dst": ["100.120.107.12"],
-      "users": ["deploy"]  // SSH username on target server
+      "dst": ["tag:prod-server"],  // MUST use tag, NOT IP!
+      "users": ["deploy"]           // SSH username on target server
     }
   ]
 }
 ```
+
+**CRITICAL**: SSH ACL `dst` field MUST use tags/groups/autogroups. IP addresses like `"100.120.107.12"` will cause an error!
 
 **Important**: The `"users"` field specifies which OS user accounts on the target server the CI can SSH into. Use `"deploy"` to match your deployment user.
 
@@ -202,27 +218,37 @@ Here's a complete minimal ACL configuration:
 ```json
 {
   "tagOwners": {
-    "tag:ci": ["autogroup:admin"]
+    "tag:ci": ["autogroup:admin"],
+    "tag:prod-server": ["autogroup:admin"]
   },
   "acls": [
     {
       "action": "accept",
       "src": ["tag:ci"],
-      "dst": ["100.120.107.12:22"]
+      "dst": ["tag:prod-server:22"]
     }
   ],
   "ssh": [
     {
       "action": "accept",
       "src": ["tag:ci"],
-      "dst": ["100.120.107.12"],
+      "dst": ["tag:prod-server"],  // Tag required!
       "users": ["deploy"]
     }
   ]
 }
 ```
 
-#### Step 5: Test ACL Configuration
+#### Network ACLs vs SSH ACLs
+
+**Key Difference:**
+
+| ACL Section | Can use IPs? | Can use Tags? | Example |
+|-------------|--------------|---------------|---------|
+| **Network ACLs** (`acls`) | ✅ Yes | ✅ Yes | `"dst": ["100.120.107.12:22"]` or `"dst": ["tag:prod-server:22"]` |
+| **SSH ACLs** (`ssh`) | ❌ No | ✅ Yes (required!) | `"dst": ["tag:prod-server"]` |
+
+#### Step 6: Test ACL Configuration
 
 After saving your ACLs:
 
@@ -245,31 +271,56 @@ make deploy-watch
 
 #### Troubleshooting ACL Issues
 
+**Error: "invalid dst \"100.120.107.12\""**
+- **Cause**: SSH ACL rules cannot use IP addresses in `dst` field
+- **Fix**: Use a tag instead:
+  ```json
+  // ❌ WRONG - IP in SSH rule
+  "ssh": [{"dst": ["100.120.107.12"]}]
+
+  // ✅ CORRECT - Tag in SSH rule
+  "ssh": [{"dst": ["tag:prod-server"]}]
+  ```
+- **Action**: Tag your production server first, then use the tag in SSH ACLs
+
 **Error: "tag collision" or "tag ownership"**
-- Ensure `tag:ci` is defined in `tagOwners`
+- Ensure both `tag:ci` and `tag:prod-server` are defined in `tagOwners`
 - Verify your OAuth client's tag matches exactly (`tag:ci`, not `ci`)
+- Check that production server has been tagged: `tailscale status | grep tag:prod-server`
 
 **Error: "connection refused" or "timeout" after Tailscale connects**
-- Check ACL rules include your server's correct Tailscale IP
-- Verify port 22 is included in the ACL destination
-- Ensure SSH service is running on target server
+- Check ACL rules use `tag:prod-server` instead of IP
+- Verify port 22 is included in the network ACL destination: `"tag:prod-server:22"`
+- Ensure SSH service is running on target server: `systemctl status sshd`
+- Verify production server tag is active: `tailscale status`
 
 **Error: "permission denied" during SSH**
-- Check the `users` field in SSH rules matches your deployment user
+- Check the `users` field in SSH rules matches your deployment user (`deploy`)
 - Verify the SSH key in GitHub secrets is authorized on the server
+- Ensure the tag:prod-server is correctly applied to the target server
 
 #### Advanced ACL Options
 
-**Multiple servers:**
+**Multiple servers (using tags - recommended):**
 ```json
+"tagOwners": {
+  "tag:ci": ["autogroup:admin"],
+  "tag:prod-server": ["autogroup:admin"],
+  "tag:staging-server": ["autogroup:admin"]
+},
 "acls": [
   {
     "action": "accept",
     "src": ["tag:ci"],
-    "dst": [
-      "100.120.107.12:22",  // Production
-      "100.120.107.13:22"   // Staging
-    ]
+    "dst": ["tag:prod-server:22", "tag:staging-server:22"]
+  }
+],
+"ssh": [
+  {
+    "action": "accept",
+    "src": ["tag:ci"],
+    "dst": ["tag:prod-server", "tag:staging-server"],  // Tags required!
+    "users": ["deploy"]
   }
 ]
 ```
@@ -278,18 +329,34 @@ make deploy-watch
 ```json
 "tagOwners": {
   "tag:ci-prod": ["autogroup:admin"],
-  "tag:ci-staging": ["autogroup:admin"]
+  "tag:ci-staging": ["autogroup:admin"],
+  "tag:prod-server": ["autogroup:admin"],
+  "tag:staging-server": ["autogroup:admin"]
 },
 "acls": [
   {
     "action": "accept",
     "src": ["tag:ci-prod"],
-    "dst": ["100.120.107.12:22"]
+    "dst": ["tag:prod-server:22"]
   },
   {
     "action": "accept",
     "src": ["tag:ci-staging"],
-    "dst": ["100.120.107.13:22"]
+    "dst": ["tag:staging-server:22"]
+  }
+],
+"ssh": [
+  {
+    "action": "accept",
+    "src": ["tag:ci-prod"],
+    "dst": ["tag:prod-server"],
+    "users": ["deploy"]
+  },
+  {
+    "action": "accept",
+    "src": ["tag:ci-staging"],
+    "dst": ["tag:staging-server"],
+    "users": ["deploy"]
   }
 ]
 ```

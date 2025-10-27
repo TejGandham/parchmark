@@ -9,7 +9,7 @@ Tailscale enables GitHub Actions runners to securely SSH into your production se
 **Architecture:**
 ```
 GitHub Actions Runner → Tailscale Network → Production Server
-                       (ephemeral node)      (100.120.107.12)
+                       (ephemeral node)      (tag:prod-server)
                        tag:ci                deploy user
 ```
 
@@ -41,65 +41,82 @@ GitHub Actions Runner → Tailscale Network → Production Server
      - OAuth Client ID
      - OAuth Client Secret
 
-### Part 2: Configure Tailscale ACLs
+### Part 2: Tag Your Production Server
+
+**Time required**: ~3 minutes
+
+⚠️ **CRITICAL**: Tailscale SSH ACL rules require tags, NOT IP addresses in the `dst` field!
+
+1. **SSH into production server**
+   ```bash
+   ssh deploy@notes.engen.tech
+   ```
+
+2. **Tag the server**
+   ```bash
+   # Add tag:prod-server to this device
+   sudo tailscale set --advertise-tags=tag:prod-server
+
+   # Verify the tag was applied
+   tailscale status
+   # Look for "tag:prod-server" in the output
+   ```
+
+   **Alternative**: Tag via Tailscale Admin Console
+   - Go to https://login.tailscale.com/admin/machines
+   - Find your production server
+   - Click "..." → Edit machine
+   - Add tag: `tag:prod-server`
+   - Save
+
+### Part 3: Configure Tailscale ACLs
 
 **Time required**: ~10 minutes
 
-1. **Get your server's Tailscale IP**
-   ```bash
-   # SSH into your production server
-   ssh deploy@notes.engen.tech
-
-   # Check Tailscale status
-   tailscale status
-
-   # Find the line with your server's IP
-   # Example: 100.120.107.12  your-server  user@  linux  -
-   ```
-
-   **Your server's Tailscale IP**: `100.120.107.12` (example)
-
-2. **Open ACL editor**
+1. **Open ACL editor**
    - URL: https://login.tailscale.com/admin/acls
    - Click "Edit"
 
-3. **Add tag:ci configuration**
+2. **Add tag configuration**
 
    Add/modify the following sections in your ACL JSON:
 
    ```json
    {
      "tagOwners": {
-       "tag:ci": ["autogroup:admin"]
+       "tag:ci": ["autogroup:admin"],
+       "tag:prod-server": ["autogroup:admin"]
      },
      "acls": [
        {
          "action": "accept",
          "src": ["tag:ci"],
-         "dst": ["100.120.107.12:22"]
+         "dst": ["tag:prod-server:22"]
        }
      ],
      "ssh": [
        {
          "action": "accept",
          "src": ["tag:ci"],
-         "dst": ["100.120.107.12"],
+         "dst": ["tag:prod-server"],  // Must use tag, NOT IP!
          "users": ["deploy"]
        }
      ]
    }
    ```
 
-   **Replace values:**
-   - `100.120.107.12` → Your server's Tailscale IP
-   - `deploy` → Your deployment user
+   **Important**:
+   - SSH ACL `dst` field MUST use tags (like `tag:prod-server`)
+   - SSH ACL `dst` field CANNOT use IP addresses (will cause error!)
+   - Network ACL `dst` field CAN use either tags OR IPs
+   - Replace `deploy` with your actual SSH username
 
-4. **Save and validate**
+3. **Save and validate**
    - Click "Save"
    - Tailscale will validate JSON syntax
    - Fix any errors before saving
 
-### Part 3: Configure GitHub Secrets
+### Part 4: Configure GitHub Secrets
 
 **Time required**: ~5 minutes
 
@@ -124,7 +141,7 @@ GitHub Actions Runner → Tailscale Network → Production Server
    |-------------|-------|-------|
    | `PROD_HOST` | `100.120.107.12` | Your server's Tailscale IP |
 
-### Part 4: Verify Workflow Configuration
+### Part 5: Verify Workflow Configuration
 
 **Time required**: ~2 minutes
 
@@ -161,7 +178,7 @@ GitHub Actions Runner → Tailscale Network → Production Server
    - ✅ `PROD_SSH_KEY` (SSH private key)
    - ✅ `GHCR_PULL_TOKEN` (GitHub Container Registry token)
 
-### Part 5: Test Deployment
+### Part 6: Test Deployment
 
 **Time required**: ~5 minutes
 
