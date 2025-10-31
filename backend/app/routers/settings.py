@@ -28,9 +28,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 @router.get("/user-info", response_model=UserInfoResponse)
-async def get_user_info(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
+async def get_user_info(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Get detailed user information including account creation date and note count.
 
@@ -93,9 +91,7 @@ async def change_password(
 
 
 @router.get("/export-notes")
-async def export_notes(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
+async def export_notes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Export all user notes as a JSON file or ZIP archive with markdown files.
 
