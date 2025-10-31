@@ -25,7 +25,8 @@ const getAuthToken = (): string | null => {
 
 const request = async <T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<T> => {
   const token = getAuthToken();
   const headers: HeadersInit = {
@@ -45,13 +46,33 @@ const request = async <T>(
   if (!response.ok) {
     const errorData: ApiErrorResponse = await response.json().catch(() => ({}));
 
-    // Handle 401 errors by logging out (except for login endpoint)
+    // Handle 401 errors with token refresh retry
     if (
       response.status === 401 &&
-      !endpoint.includes(API_ENDPOINTS.AUTH.LOGIN)
+      !endpoint.includes(API_ENDPOINTS.AUTH.LOGIN) &&
+      !endpoint.includes(API_ENDPOINTS.AUTH.REFRESH) &&
+      !isRetry
+    ) {
+      // Try to refresh the token
+      const refreshSuccess = await useAuthStore.getState().actions.refreshTokens();
+
+      if (refreshSuccess) {
+        // Retry the original request with the new token
+        return request<T>(endpoint, options, true);
+      } else {
+        // Refresh failed, logout
+        useAuthStore.getState().actions.logout();
+      }
+    }
+
+    // If this is a 401 on refresh endpoint or a retry, just logout
+    if (
+      response.status === 401 &&
+      (endpoint.includes(API_ENDPOINTS.AUTH.REFRESH) || isRetry)
     ) {
       useAuthStore.getState().actions.logout();
     }
+
     let errorMessage = `HTTP error! status: ${response.status}`;
     if (errorData.detail) {
       if (typeof errorData.detail === 'string') {
@@ -74,10 +95,19 @@ const request = async <T>(
 export const login = (
   username: string,
   password: string
-): Promise<{ access_token: string; token_type: string }> => {
+): Promise<{ access_token: string; refresh_token: string; token_type: string }> => {
   return request(API_ENDPOINTS.AUTH.LOGIN, {
     method: 'POST',
     body: JSON.stringify({ username, password }),
+  });
+};
+
+export const refreshToken = (
+  refreshToken: string
+): Promise<{ access_token: string; refresh_token: string; token_type: string }> => {
+  return request(API_ENDPOINTS.AUTH.REFRESH, {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken }),
   });
 };
 
@@ -110,6 +140,7 @@ export const deleteNote = (id: string): Promise<void> =>
 
 export default {
   login,
+  refreshToken,
   getNotes,
   createNote,
   updateNote,

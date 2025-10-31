@@ -340,11 +340,12 @@ describe('API Service', () => {
   });
 
   describe('401 error handling', () => {
-    it('should call logout on 401 error for non-login endpoints', async () => {
+    it('should attempt token refresh on 401 error for non-login endpoints', async () => {
       const mockLogout = vi.fn();
+      const mockRefreshTokens = vi.fn().mockResolvedValue(false); // Refresh fails
       (useAuthStore.getState as Mock).mockReturnValue({
         token: 'some-token',
-        actions: { logout: mockLogout },
+        actions: { logout: mockLogout, refreshTokens: mockRefreshTokens },
       });
 
       mockFetch.mockResolvedValueOnce({
@@ -354,14 +355,48 @@ describe('API Service', () => {
       } as Response);
 
       await expect(getNotes()).rejects.toThrow('Unauthorized');
+      expect(mockRefreshTokens).toHaveBeenCalled();
       expect(mockLogout).toHaveBeenCalled();
+    });
+
+    it('should retry request after successful token refresh on 401 error', async () => {
+      const mockLogout = vi.fn();
+      const mockRefreshTokens = vi.fn().mockResolvedValue(true); // Refresh succeeds
+      (useAuthStore.getState as Mock).mockReturnValue({
+        token: 'some-token',
+        actions: { logout: mockLogout, refreshTokens: mockRefreshTokens },
+      });
+
+      const notes = [{ id: '1', title: 'Test Note', content: 'Content' }];
+
+      // First request returns 401
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Unauthorized' }),
+      } as Response);
+
+      // Second request (retry) succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => notes,
+        status: 200,
+      } as Response);
+
+      const result = await getNotes();
+
+      expect(mockRefreshTokens).toHaveBeenCalled();
+      expect(mockLogout).not.toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(notes);
     });
 
     it('should NOT call logout on 401 error for login endpoint', async () => {
       const mockLogout = vi.fn();
+      const mockRefreshTokens = vi.fn();
       (useAuthStore.getState as Mock).mockReturnValue({
         token: null,
-        actions: { logout: mockLogout },
+        actions: { logout: mockLogout, refreshTokens: mockRefreshTokens },
       });
 
       mockFetch.mockResolvedValueOnce({
@@ -374,6 +409,7 @@ describe('API Service', () => {
         'Invalid credentials'
       );
       expect(mockLogout).not.toHaveBeenCalled();
+      expect(mockRefreshTokens).not.toHaveBeenCalled();
     });
   });
 });
