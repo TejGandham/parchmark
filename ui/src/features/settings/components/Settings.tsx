@@ -290,7 +290,8 @@ const Settings = () => {
                               Account Statistics
                             </Text>
                             <Text>
-                              Total Notes: <strong>{userInfo.notes_count}</strong>
+                              Total Notes:{' '}
+                              <strong>{userInfo.notes_count}</strong>
                             </Text>
                           </Box>
                         </>
