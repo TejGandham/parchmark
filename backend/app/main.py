@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database.init_db import init_database
-from app.routers import auth, health, notes
+from app.routers import auth, health, notes, settings
 
 # Load environment variables
 load_dotenv()
@@ -136,6 +136,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 # Register routers with /api prefix
 app.include_router(auth.router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 app.include_router(health.router)
 
 

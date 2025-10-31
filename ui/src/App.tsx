@@ -15,6 +15,7 @@ const NotFoundPage = lazy(
   () => import('./features/ui/components/NotFoundPage')
 );
 const LoginForm = lazy(() => import('./features/auth/components/LoginForm'));
+const Settings = lazy(() => import('./features/settings/components/Settings'));
 
 // Create a better loading fallback
 const LoadingFallback = () => (
@@ -54,6 +55,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <NotesContainer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             }
           />
