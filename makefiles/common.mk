@@ -8,7 +8,7 @@ RED := \033[1;31m
 NC := \033[0m
 
 # Python version for backend
-PYTHON_VERSION := 3.11
+PYTHON_VERSION := 3.13
 
 # Common echo functions
 define info_msg

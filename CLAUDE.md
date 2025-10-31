@@ -8,7 +8,7 @@ This file provides comprehensive guidance to Claude Code (claude.ai/code) when w
 
 ### Tech Stack
 - **Frontend**: React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7
-- **Backend**: FastAPI, Python 3.11+, SQLAlchemy, JWT Auth, PostgreSQL
+- **Backend**: FastAPI, Python 3.13, SQLAlchemy, JWT Auth, PostgreSQL
 - **Deployment**: Docker, Nginx, GitHub Actions, GitHub Container Registry (GHCR)
 - **Infrastructure**: Production server with SSH-based deployment, automated CI/CD pipeline
 
@@ -68,7 +68,7 @@ parchmark/
 
 - **Docker & Docker Compose** (required for PostgreSQL and tests)
 - **Node.js 18+** for frontend
-- **Python 3.11+** for backend
+- **Python 3.13** for backend
 
 Note: PostgreSQL runs exclusively in Docker containers. No local PostgreSQL installation is needed.
 
@@ -348,7 +348,7 @@ ENVIRONMENT=development  # or production
 - **API proxy** to backend service
 
 ### Backend Container
-- **Multi-stage build** with Python 3.11+
+- **Multi-stage build** with Python 3.13
 - **uv package manager** for fast dependency installation
 - **Non-editable install** for production
 - **Module execution**: `python -m app`
