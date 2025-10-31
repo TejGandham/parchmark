@@ -11,12 +11,14 @@ export type AuthState = {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   error: string | null;
   actions: {
     login: (username: string, password: string) => Promise<boolean>;
     logout: () => void;
     clearError: () => void;
     checkTokenExpiration: () => void;
+    refreshTokens: () => Promise<boolean>;
   };
 };
 
@@ -26,6 +28,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       user: null,
       token: null,
+      refreshToken: null,
       error: null,
       actions: {
         login: async (username, password) => {
@@ -35,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
               state.isAuthenticated = true;
               state.user = { username, password: '' }; // Don't store actual password
               state.token = response.access_token;
+              state.refreshToken = response.refresh_token;
               state.error = null;
             });
             return true;
@@ -45,6 +49,34 @@ export const useAuthStore = create<AuthState>()(
               state.isAuthenticated = false;
               state.user = null;
               state.token = null;
+              state.refreshToken = null;
+            });
+            return false;
+          }
+        },
+
+        refreshTokens: async () => {
+          try {
+            const state = useAuthStore.getState();
+            if (!state.refreshToken) {
+              return false;
+            }
+
+            const response = await api.refreshToken(state.refreshToken);
+            set((s) => {
+              s.token = response.access_token;
+              s.refreshToken = response.refresh_token;
+              s.error = null;
+            });
+            return true;
+          } catch (error: unknown) {
+            const appError = handleError(error);
+            set((s) => {
+              s.error = appError.message;
+              s.isAuthenticated = false;
+              s.user = null;
+              s.token = null;
+              s.refreshToken = null;
             });
             return false;
           }
@@ -55,6 +87,7 @@ export const useAuthStore = create<AuthState>()(
             state.isAuthenticated = false;
             state.user = null;
             state.token = null;
+            state.refreshToken = null;
             state.error = null;
           });
         },
@@ -68,7 +101,8 @@ export const useAuthStore = create<AuthState>()(
         checkTokenExpiration: () => {
           const state = useAuthStore.getState();
           if (isTokenExpiringSoon(state.token)) {
-            state.actions.logout();
+            // Try to refresh tokens instead of logging out
+            state.actions.refreshTokens();
           }
         },
       },
@@ -79,11 +113,13 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
       }),
       onRehydrateStorage: () => (state) => {
         // Check token expiration after rehydration
         if (state?.token && isTokenExpiringSoon(state.token)) {
-          state.actions.logout();
+          // Try to refresh tokens instead of logging out
+          state.actions.refreshTokens();
         }
       },
     }
