@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import api, {
   login,
+  refreshToken,
   getNotes,
   createNote,
   updateNote,
@@ -189,7 +190,11 @@ describe('API Service', () => {
 
   describe('login', () => {
     it('should make POST request to login endpoint', async () => {
-      const loginResponse = { access_token: 'token', token_type: 'bearer' };
+      const loginResponse = {
+        access_token: 'token',
+        refresh_token: 'refresh-token',
+        token_type: 'bearer',
+      };
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => loginResponse,
@@ -206,6 +211,32 @@ describe('API Service', () => {
         body: JSON.stringify({ username: 'testuser', password: 'password123' }),
       });
       expect(result).toEqual(loginResponse);
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should make POST request to refresh endpoint', async () => {
+      const refreshResponse = {
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+        token_type: 'bearer',
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => refreshResponse,
+        status: 200,
+      } as Response);
+
+      const result = await refreshToken('old-refresh-token');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: 'old-refresh-token' }),
+      });
+      expect(result).toEqual(refreshResponse);
     });
   });
 
@@ -310,6 +341,7 @@ describe('API Service', () => {
   describe('default export', () => {
     it('should export all API functions', () => {
       expect(api.login).toBe(login);
+      expect(api.refreshToken).toBe(refreshToken);
       expect(api.getNotes).toBe(getNotes);
       expect(api.createNote).toBe(createNote);
       expect(api.updateNote).toBe(updateNote);
