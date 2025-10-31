@@ -54,7 +54,9 @@ const request = async <T>(
       !isRetry
     ) {
       // Try to refresh the token
-      const refreshSuccess = await useAuthStore.getState().actions.refreshTokens();
+      const refreshSuccess = await useAuthStore
+        .getState()
+        .actions.refreshTokens();
 
       if (refreshSuccess) {
         // Retry the original request with the new token
@@ -95,7 +97,11 @@ const request = async <T>(
 export const login = (
   username: string,
   password: string
-): Promise<{ access_token: string; refresh_token: string; token_type: string }> => {
+): Promise<{
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}> => {
   return request(API_ENDPOINTS.AUTH.LOGIN, {
     method: 'POST',
     body: JSON.stringify({ username, password }),
@@ -104,7 +110,11 @@ export const login = (
 
 export const refreshToken = (
   refreshToken: string
-): Promise<{ access_token: string; refresh_token: string; token_type: string }> => {
+): Promise<{
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}> => {
   return request(API_ENDPOINTS.AUTH.REFRESH, {
     method: 'POST',
     body: JSON.stringify({ refresh_token: refreshToken }),
