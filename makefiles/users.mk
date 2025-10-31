@@ -2,11 +2,14 @@
 # Uses templates to eliminate repetition across local/docker/prod environments
 
 # Template for creating user management targets
-# Arguments: $(1)=suffix (empty, -docker, -prod), $(2)=command prefix, $(3)=env description
+# Arguments: $(1)=suffix (empty, -docker, -prod), $(2)=command prefix, $(3)=env description, $(4)=needs docker (yes/no)
 define user-targets
 
 .PHONY: user-create$(1)
 user-create$(1): ## Create user ($(3))
+ifeq ($(4),yes)
+	$$(call check_docker)
+endif
 	@if [ -z "$$(USERNAME)" ] || [ -z "$$(PASSWORD)" ]; then \
 		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
 		echo "Usage: make user-create$(1) USERNAME=admin PASSWORD=pass123"; \
@@ -17,6 +20,9 @@ user-create$(1): ## Create user ($(3))
 
 .PHONY: user-update-password$(1)
 user-update-password$(1): ## Update user password ($(3))
+ifeq ($(4),yes)
+	$$(call check_docker)
+endif
 	@if [ -z "$$(USERNAME)" ] || [ -z "$$(PASSWORD)" ]; then \
 		echo "$(RED)Error: USERNAME and PASSWORD are required$(NC)"; \
 		echo "Usage: make user-update-password$(1) USERNAME=admin PASSWORD=newpass"; \
@@ -27,6 +33,9 @@ user-update-password$(1): ## Update user password ($(3))
 
 .PHONY: user-delete$(1)
 user-delete$(1): ## Delete user ($(3))
+ifeq ($(4),yes)
+	$$(call check_docker)
+endif
 	@if [ -z "$$(USERNAME)" ]; then \
 		echo "$(RED)Error: USERNAME is required$(NC)"; \
 		echo "Usage: make user-delete$(1) USERNAME=admin"; \
@@ -37,12 +46,15 @@ user-delete$(1): ## Delete user ($(3))
 
 .PHONY: user-list$(1)
 user-list$(1): ## List all users ($(3))
+ifeq ($(4),yes)
+	$$(call check_docker)
+endif
 	@echo "$(BLUE)Listing users in $(3)...$(NC)"
 	$(2) python scripts/manage_users.py list
 
 endef
 
 # Generate targets for each environment
-$(eval $(call user-targets,,cd backend && uv run,local dev))
-$(eval $(call user-targets,-docker,docker compose exec backend,docker dev))
-$(eval $(call user-targets,-prod,docker compose -f docker-compose.prod.yml exec backend,production))
+$(eval $(call user-targets,,cd backend && uv run,local dev,no))
+$(eval $(call user-targets,-docker,docker compose exec backend,docker dev,yes))
+$(eval $(call user-targets,-prod,docker compose -f docker-compose.prod.yml exec backend,production,yes))
