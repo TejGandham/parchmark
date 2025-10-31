@@ -27,7 +27,8 @@ define warning_msg
 	@echo "$(YELLOW)$(1)$(NC)"
 endef
 
-# Check if Docker is available
+# Check if Docker and Docker Compose are available
 define check_docker
 	@which docker >/dev/null 2>&1 || (echo "$(RED)Error: Docker is not installed or not in PATH. Please install Docker first.$(NC)" && exit 1)
+	@docker compose version >/dev/null 2>&1 || (echo "$(RED)Error: Docker Compose is not available. Please install Docker Compose or update Docker to a version with the 'docker compose' plugin.$(NC)" && exit 1)
 endef
