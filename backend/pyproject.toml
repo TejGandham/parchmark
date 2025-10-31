@@ -2,7 +2,7 @@
 name = "parchmark-backend"
 version = "1.0.0"
 description = "Backend API for ParchMark note-taking application"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi==0.104.1",
     "uvicorn[standard]==0.24.0",
