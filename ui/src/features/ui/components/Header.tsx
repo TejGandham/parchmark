@@ -8,8 +8,9 @@ import {
 } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog } from '@fortawesome/free-solid-svg-icons';
 import { UserLoginStatus } from '../../auth/components';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../../../../assets/images/parchmark.svg';
 
 interface HeaderProps {
@@ -18,6 +19,7 @@ interface HeaderProps {
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
   const { colorMode, toggleColorMode } = useColorMode();
+  const navigate = useNavigate();
 
   return (
     <Flex
@@ -45,6 +47,18 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
         </Heading>
       </HStack>
       <HStack spacing={3}>
+        <IconButton
+          aria-label="Settings"
+          icon={<FontAwesomeIcon icon={faCog} />}
+          onClick={() => navigate('/settings')}
+          variant="ghost"
+          colorScheme="primary"
+          fontSize="lg"
+          _hover={{
+            transform: 'rotate(90deg)',
+            transition: 'transform 0.3s ease',
+          }}
+        />
         <IconButton
           aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
           icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}

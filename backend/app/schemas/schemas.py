@@ -106,3 +106,27 @@ class DeleteResponse(BaseModel):
 
     message: str = Field(..., description="Confirmation message")
     deleted_id: str = Field(..., description="ID of the deleted item")
+
+
+# Settings/Account Management Schemas
+class PasswordChangeRequest(BaseModel):
+    """Schema for password change requests."""
+
+    current_password: str = Field(..., min_length=4, description="Current password for verification")
+    new_password: str = Field(..., min_length=4, description="New password to set")
+
+
+class AccountDeleteRequest(BaseModel):
+    """Schema for account deletion requests."""
+
+    password: str = Field(..., min_length=4, description="Password for confirmation")
+
+
+class UserInfoResponse(BaseModel):
+    """Schema for detailed user information responses."""
+
+    username: str = Field(..., description="Username of the user")
+    created_at: str = Field(..., description="ISO timestamp when the user was created")
+    notes_count: int = Field(..., description="Number of notes the user has")
+
+    model_config = ConfigDict(from_attributes=True)

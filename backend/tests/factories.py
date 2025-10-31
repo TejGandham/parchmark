@@ -168,7 +168,7 @@ class DatabaseTestDataFactory:
 
         notes = []
         for i in range(num_notes):
-            note = NoteFactory(user_id=user.id, id=f"note-{user.id}-{i+1}")
+            note = NoteFactory(user_id=user.id, id=f"note-{user.id}-{i + 1}")
             session.add(note)
             notes.append(note)
 
