@@ -433,8 +433,11 @@ const Settings = () => {
                       </FormControl>
 
                       <HStack justify="space-between">
-                        <FormLabel mb={0}>Word Wrap</FormLabel>
+                        <FormLabel htmlFor="word-wrap" mb={0}>
+                          Word Wrap
+                        </FormLabel>
                         <Switch
+                          id="word-wrap"
                           isChecked={editorPreferences.wordWrap}
                           onChange={(e) =>
                             actions.updateEditorPreferences({
@@ -445,8 +448,11 @@ const Settings = () => {
                       </HStack>
 
                       <HStack justify="space-between">
-                        <FormLabel mb={0}>Spell Check</FormLabel>
+                        <FormLabel htmlFor="spell-check" mb={0}>
+                          Spell Check
+                        </FormLabel>
                         <Switch
+                          id="spell-check"
                           isChecked={editorPreferences.spellCheck}
                           onChange={(e) =>
                             actions.updateEditorPreferences({
