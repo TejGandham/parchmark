@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
 import Sidebar from '../../../../features/ui/components/Sidebar';
 import { mockNotes } from '../../../__mocks__/mockStores';
@@ -202,6 +202,43 @@ describe('Sidebar Component', () => {
     // Find elements to verify sorting UI is rendered
     const notesList = screen.getByRole('list', { hidden: true });
     expect(notesList).toBeInTheDocument();
+  });
+
+  it('should fall back to "Last Modified" label for unknown sort option', () => {
+    mockUIState.notesSortBy = 'unknown' as never;
+
+    renderComponent();
+
+    expect(
+      screen.getByRole('button', { name: /last modified/i })
+    ).toBeInTheDocument();
+  });
+
+  it('should update search query when typing into the search box', () => {
+    renderComponent();
+
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    fireEvent.change(searchInput, { target: { value: 'meeting notes' } });
+
+    expect(mockUIState.actions.setNotesSearchQuery).toHaveBeenCalledWith(
+      'meeting notes'
+    );
+  });
+
+  it('should change sort order when a menu option is selected', async () => {
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button', { name: /last modified/i }));
+    const alphabeticalOption = await screen.findByRole('menuitem', {
+      name: /alphabetical/i,
+    });
+    fireEvent.click(alphabeticalOption);
+
+    await waitFor(() => {
+      expect(mockUIState.actions.setNotesSortBy).toHaveBeenCalledWith(
+        'alphabetical'
+      );
+    });
   });
 
   it('should render notes with date-based grouping enabled', () => {

@@ -443,5 +443,24 @@ describe('API Service', () => {
       expect(mockLogout).not.toHaveBeenCalled();
       expect(mockRefreshTokens).not.toHaveBeenCalled();
     });
+
+    it('should logout immediately when refresh endpoint returns 401', async () => {
+      const mockLogout = vi.fn();
+      const mockRefreshTokens = vi.fn();
+      (useAuthStore.getState as Mock).mockReturnValue({
+        token: 'stale-token',
+        actions: { logout: mockLogout, refreshTokens: mockRefreshTokens },
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Refresh expired' }),
+      } as Response);
+
+      await expect(refreshToken('expired')).rejects.toThrow('Refresh expired');
+      expect(mockRefreshTokens).not.toHaveBeenCalled();
+      expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -5,6 +5,13 @@ import { TestProvider } from '../../../__mocks__/testUtils';
 import NoteContent from '../../../../features/notes/components/NoteContent';
 import { mockNotes } from '../../../__mocks__/mockStores';
 
+// Track latest NoteActions props for targeted assertions
+let latestNoteActionsProps: {
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: () => void;
+} | null = null;
+
 // Mock the components that NoteContent uses
 vi.mock('../../../../features/notes/components/NoteActions', () => {
   return {
@@ -17,6 +24,7 @@ vi.mock('../../../../features/notes/components/NoteActions', () => {
       onEdit: () => void;
       onSave: () => void;
     }) {
+      latestNoteActionsProps = { isEditing, onEdit, onSave };
       return (
         <div data-testid="note-actions">
           <button
@@ -51,6 +59,9 @@ vi.mock('../../../../services/markdownService', () => ({
 }));
 
 describe('NoteContent Component', () => {
+  beforeEach(() => {
+    latestNoteActionsProps = null;
+  });
   // Default props for most tests
   const defaultProps = {
     currentNote: mockNotes[0],
@@ -185,6 +196,17 @@ describe('NoteContent Component', () => {
       const textarea = screen.getByPlaceholderText(/# Your Title Here/i);
       expect(textarea).toBeInTheDocument();
       expect(textarea).toHaveValue('# New Note\n\n');
+    });
+
+    it('should safely handle onEdit callback while already editing a new note', () => {
+      renderComponent({
+        currentNote: null,
+        isEditing: true,
+        editedContent: '# Draft Note\n\nContent',
+      });
+
+      expect(latestNoteActionsProps).not.toBeNull();
+      expect(() => latestNoteActionsProps?.onEdit()).not.toThrow();
     });
   });
 

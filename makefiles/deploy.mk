@@ -139,6 +139,7 @@ deploy-list-images: ## List available image versions for rollback
 
 .PHONY: deploy-build-local
 deploy-build-local: ## Build production Docker images locally
+	$(call check_docker)
 	$(call info_msg,Building production images locally...)
 	@docker build -t $(GHCR_BACKEND_IMAGE):local -f backend/Dockerfile.prod backend/
 	@docker build -t $(GHCR_FRONTEND_IMAGE):local -f ui/Dockerfile ui/
@@ -146,6 +147,7 @@ deploy-build-local: ## Build production Docker images locally
 
 .PHONY: deploy-test-local
 deploy-test-local: ## Validate docker-compose.prod.yml configuration
+	$(call check_docker)
 	$(call info_msg,Validating production docker-compose configuration...)
 	@docker compose -f docker-compose.prod.yml config > /dev/null
 	$(call success_msg,Production docker-compose.yml is valid)

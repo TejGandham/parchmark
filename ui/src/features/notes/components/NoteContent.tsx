@@ -161,6 +161,8 @@ const NoteContent = ({
     ? extractTitleFromMarkdown(editedContent)
     : currentNote.title;
 
+  const previewContent = renderContent();
+
   return (
     <Box>
       <Flex justifyContent="space-between" alignItems="flex-start" mb={4}>
@@ -238,7 +240,7 @@ const NoteContent = ({
                   },
                 }}
               >
-                {renderContent()}
+                {previewContent}
               </ReactMarkdown>
             </Box>
           </>
