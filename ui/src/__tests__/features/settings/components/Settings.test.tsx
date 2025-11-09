@@ -969,4 +969,169 @@ describe('Settings Component', () => {
       });
     });
   });
+
+  describe('Password Change Form Rendering', () => {
+    it('opens password change modal when button is clicked', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      const passwordSection = screen.getByText('Password & Security');
+      await act(async () => {
+        fireEvent.click(passwordSection);
+      });
+
+      let changePasswordButtons = screen.getAllByRole('button', {
+        name: /change password/i,
+      });
+      await act(async () => {
+        fireEvent.click(changePasswordButtons[0]);
+      });
+
+      // Verify modal opens with password fields
+      await waitFor(() => {
+        const passwordInputs = screen.getAllByLabelText(/password/i);
+        expect(passwordInputs.length).toBeGreaterThan(0);
+      });
+    });
+  });
+
+  describe('Delete Account Modal Interactions', () => {
+    it('closes delete account modal on cancel', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      const dangerSection = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerSection);
+      });
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText('Enter your password')
+        ).toBeInTheDocument();
+      });
+
+      const cancelButtons = screen.getAllByRole('button', { name: /cancel/i });
+      const deleteCancelButton = cancelButtons[cancelButtons.length - 1];
+      await act(async () => {
+        fireEvent.click(deleteCancelButton);
+      });
+
+      await waitFor(
+        () => {
+          expect(
+            screen.queryByPlaceholderText('Enter your password')
+          ).not.toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
+    });
+  });
+
+  describe('Export Notes - Blob Handling', () => {
+    it('handles export when API returns null blob', async () => {
+      (api.exportNotes as Mock).mockResolvedValue(null);
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Export All Notes')).toBeInTheDocument();
+      });
+
+      const exportButton = screen.getByText('Export All Notes');
+      await act(async () => {
+        fireEvent.click(exportButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Failed to export notes',
+            status: 'error',
+          })
+        );
+      });
+    });
+  });
+
+  describe('Account Statistics Display', () => {
+    it('displays total notes count from user info', async () => {
+      (api.getUserInfo as Mock).mockResolvedValue({
+        username: 'testuser',
+        created_at: '2025-01-01T00:00:00Z',
+        notes_count: 10,
+      });
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Total Notes:')).toBeInTheDocument();
+        expect(screen.getByText('10')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Appearance Text Display', () => {
+    it('displays appearance preference text', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText(
+          /Color theme can be changed using the theme toggle in the header/
+        )
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('Data Management - Export Section', () => {
+    it('displays export data description', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Download all your notes as a ZIP file/)
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Delete Account - UI Text', () => {
+    it('displays delete account warning message', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      const dangerSection = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerSection);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            /Permanently delete your account and all associated notes/
+          )
+        ).toBeInTheDocument();
+      });
+    });
+  });
 });
