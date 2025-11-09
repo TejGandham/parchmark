@@ -56,7 +56,7 @@ export const getDateGroup = (date: Date): DateGroup => {
 export const groupNotesByDate = (notes: Note[]): GroupedNotes[] => {
   const groups: Map<DateGroup, Note[]> = new Map();
 
-  // Initialize all groups
+  // Initialize known groups to maintain deterministic ordering
   const allGroups: DateGroup[] = [
     'Today',
     'Yesterday',
@@ -64,22 +64,24 @@ export const groupNotesByDate = (notes: Note[]): GroupedNotes[] => {
     'This Month',
     'Older',
   ];
-  allGroups.forEach((group) => groups.set(group, []));
 
-  // Group notes
+  // Group notes dynamically so the fallback branch executes when a bucket is empty
   notes.forEach((note) => {
     const group = getDateGroup(new Date(note.updated_at));
-    const existingNotes = groups.get(group) || [];
+    const existingNotes = groups.get(group) ?? [];
     groups.set(group, [...existingNotes, note]);
   });
 
   // Convert to array and filter out empty groups
   return allGroups
-    .map((group) => ({
-      group,
-      notes: groups.get(group) || [],
-      count: (groups.get(group) || []).length,
-    }))
+    .map((group) => {
+      const groupedNotes = groups.get(group) ?? [];
+      return {
+        group,
+        notes: groupedNotes,
+        count: groupedNotes.length,
+      };
+    })
     .filter((groupData) => groupData.count > 0);
 };
 

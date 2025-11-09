@@ -273,6 +273,26 @@ describe('Auth Store', () => {
   });
 
   describe('Token Rehydration (via checkTokenExpiration)', () => {
+    it('invokes persist onRehydrateStorage hook for expiring tokens', async () => {
+      (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);
+
+      const refreshTokens = vi.fn().mockResolvedValue(true);
+      const mockState = {
+        token: 'rehydrated-token',
+        actions: { refreshTokens },
+      } as unknown as AuthState;
+
+      const onRehydrate = useAuthStore.persist?.getOptions().onRehydrateStorage;
+      expect(onRehydrate).toBeDefined();
+
+      const rehydrateHandler = onRehydrate?.();
+      await act(async () => {
+        await rehydrateHandler?.(mockState);
+      });
+
+      expect(refreshTokens).toHaveBeenCalledTimes(1);
+    });
+
     it('should refresh tokens on rehydration when token is expiring', async () => {
       // Mock isTokenExpiringSoon to return true (token is expiring)
       (tokenUtils.isTokenExpiringSoon as Mock).mockReturnValue(true);
