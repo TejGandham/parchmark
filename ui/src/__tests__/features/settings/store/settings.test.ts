@@ -17,7 +17,6 @@ describe('Settings Store', () => {
           fontSize: 16,
           lineHeight: 1.6,
           autoSaveDelay: 1000,
-          showLineNumbers: false,
           wordWrap: true,
           spellCheck: true,
         },
@@ -41,7 +40,6 @@ describe('Settings Store', () => {
         fontSize: 16,
         lineHeight: 1.6,
         autoSaveDelay: 1000,
-        showLineNumbers: false,
         wordWrap: true,
         spellCheck: true,
       });
@@ -144,24 +142,6 @@ describe('Settings Store', () => {
       expect(newState.editorPreferences.spellCheck).toBe(true);
     });
 
-    it('should toggle show line numbers', () => {
-      const { actions } = store;
-
-      act(() => {
-        actions.updateEditorPreferences({ showLineNumbers: true });
-      });
-
-      let newState = useSettingsStore.getState();
-      expect(newState.editorPreferences.showLineNumbers).toBe(true);
-
-      act(() => {
-        actions.updateEditorPreferences({ showLineNumbers: false });
-      });
-
-      newState = useSettingsStore.getState();
-      expect(newState.editorPreferences.showLineNumbers).toBe(false);
-    });
-
     it('should update multiple editor preferences at once', () => {
       const { actions } = store;
 
@@ -252,7 +232,6 @@ describe('Settings Store', () => {
         fontSize: 16,
         lineHeight: 1.6,
         autoSaveDelay: 1000,
-        showLineNumbers: false,
         wordWrap: true,
         spellCheck: true,
       });
