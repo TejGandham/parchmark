@@ -983,7 +983,7 @@ describe('Settings Component', () => {
         fireEvent.click(passwordSection);
       });
 
-      let changePasswordButtons = screen.getAllByRole('button', {
+      const changePasswordButtons = screen.getAllByRole('button', {
         name: /change password/i,
       });
       await act(async () => {
