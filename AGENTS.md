@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with the ParchMark codebase.
+This file provides comprehensive guidance to LLMs when working with the ParchMark codebase.
 
 ## Project Overview
 
@@ -21,6 +21,7 @@ parchmark/
 │   │   ├── features/        # Feature-based organization
 │   │   │   ├── auth/        # Authentication (LoginForm, ProtectedRoute, UserLoginStatus)
 │   │   │   ├── notes/       # Notes management (NoteContent, NoteActions, NotesContainer)
+│   │   │   ├── settings/    # Settings & account management (password, export, delete)
 │   │   │   └── ui/          # UI components (Header, Sidebar, NotFoundPage)
 │   │   ├── services/        # API and markdown services
 │   │   ├── utils/           # Shared utilities (errorHandler, markdown)
@@ -195,21 +196,32 @@ docker compose -f docker-compose.prod.yml up -d
 
 #### State Management (Zustand)
 ```typescript
-// Three main stores with specific responsibilities:
-useAuthStore   // Authentication state, login/logout actions
-useNotesStore  // Notes CRUD operations, current note tracking
-useUIStore     // Sidebar state, dark mode toggle
+// Four main stores with specific responsibilities:
+useAuthStore     // Authentication state, login/logout actions
+useNotesStore    // Notes CRUD operations, current note tracking
+useUIStore       // Sidebar state, dark mode toggle
+useSettingsStore // Editor preferences, appearance preferences
 ```
 
 #### Component Organization
 ```
 features/{domain}/
 ├── components/     # React components
-├── store/          # Zustand store
+├── store/          # Zustand store (or store.ts for single file)
 ├── hooks/          # Custom hooks (e.g., useStoreRouterSync, useTokenExpirationMonitor)
 ├── utils/          # Utility functions (e.g., tokenUtils for JWT handling)
 └── styles/         # Feature-specific CSS
 ```
+
+#### Settings Feature Details
+The Settings feature provides comprehensive account management:
+- **Profile Information**: Display username, member since date, notes count
+- **Password & Security**: Change password with current password verification
+- **Editor Preferences**: Font family, size, line height, auto-save delay, word wrap, spell check
+- **Appearance**: Sidebar width customization
+- **Data Management**: Export all notes as ZIP with markdown files + JSON metadata
+- **Danger Zone**: Account deletion with password confirmation
+- **State Persistence**: All editor/appearance preferences persist via localStorage
 
 #### Key Libraries
 - **Chakra UI v2**: Component library with custom theme
@@ -304,7 +316,6 @@ Note:
 ```
 POST /api/auth/login     - User login (returns access & refresh tokens)
 POST /api/auth/refresh   - Refresh access token using refresh token
-POST /api/auth/logout    - User logout
 GET  /api/auth/me        - Current user info
 ```
 
@@ -315,6 +326,19 @@ POST   /api/notes/       - Create new note
 GET    /api/notes/{id}   - Get specific note
 PUT    /api/notes/{id}   - Update note
 DELETE /api/notes/{id}   - Delete note
+```
+
+### Settings & Account Management
+```
+GET    /api/settings/user-info       - Get user account info (username, created_at, notes_count)
+POST   /api/settings/change-password - Change user password (requires current password verification)
+GET    /api/settings/export-notes    - Export all notes as ZIP file with markdown + metadata JSON
+DELETE /api/settings/delete-account  - Delete user account and all notes (requires password verification)
+```
+
+### Health
+```
+GET  /api/health - Health check endpoint (database connectivity included)
 ```
 
 ## Environment Variables
