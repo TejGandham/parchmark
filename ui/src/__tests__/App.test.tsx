@@ -34,6 +34,14 @@ vi.mock('../features/auth/components/LoginForm', async () => {
   };
 });
 
+vi.mock('../features/settings/components/Settings', async () => {
+  return {
+    default: function MockSettings() {
+      return <div data-testid="settings-component">Settings Component</div>;
+    },
+  };
+});
+
 // Mock the auth store
 vi.mock('../features/auth/store');
 

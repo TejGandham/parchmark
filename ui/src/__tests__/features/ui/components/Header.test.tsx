@@ -15,11 +15,26 @@ const mockUseAuthStore = useAuthStore as MockedFunction<typeof useAuthStore>;
 
 // Mock useBreakpointValue hook for UserInfo component
 const mockUseBreakpointValue = vi.fn();
+let mockColorMode: 'light' | 'dark' = 'light';
+const mockToggleColorMode = vi.fn();
 vi.mock('@chakra-ui/react', async () => {
   const actual = await import('@chakra-ui/react');
   return {
     ...actual,
     useBreakpointValue: (...args: unknown[]) => mockUseBreakpointValue(...args),
+    useColorMode: () => ({
+      colorMode: mockColorMode,
+      toggleColorMode: mockToggleColorMode,
+    }),
+  };
+});
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await import('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
   };
 });
 
@@ -38,6 +53,9 @@ describe('Header Component', () => {
     vi.clearAllMocks();
     mockUseBreakpointValue.mockReturnValue(true); // Default to desktop view
     mockUseAuthStore.mockReturnValue(false); // Default to not authenticated
+    mockNavigate.mockReset();
+    mockToggleColorMode.mockReset();
+    mockColorMode = 'light';
   });
 
   it('should render the app title', () => {
@@ -114,14 +132,18 @@ describe('Header Component', () => {
   it('should toggle color mode when dark mode button is clicked', () => {
     renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
-    // Find the color mode toggle button
     const colorModeButton = screen.getByLabelText(/switch to dark mode/i);
-    expect(colorModeButton).toBeInTheDocument();
-
-    // Click the button to toggle color mode
     fireEvent.click(colorModeButton);
 
-    // After clicking, the button should still exist (it changes its icon/label)
-    expect(colorModeButton).toBeInTheDocument();
+    expect(mockToggleColorMode).toHaveBeenCalledTimes(1);
+  });
+
+  it('should navigate to settings when the settings button is clicked', () => {
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+
+    const settingsButton = screen.getByLabelText(/settings/i);
+    fireEvent.click(settingsButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
   });
 });
