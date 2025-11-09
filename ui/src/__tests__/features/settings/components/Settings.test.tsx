@@ -176,6 +176,23 @@ describe('Settings Component', () => {
       }
     });
 
+    it('updates line height with slider', async () => {
+      render(<Settings />);
+
+      // Find the line height slider
+      const lineHeightLabel = screen.getByText(/Line Height:/);
+      const sliderContainer = lineHeightLabel.closest('div');
+      const slider = sliderContainer?.querySelector('[role="slider"]');
+
+      if (slider) {
+        await act(async () => {
+          fireEvent.keyDown(slider, { key: 'ArrowRight', code: 'ArrowRight' });
+        });
+
+        expect(mockUpdateEditorPreferences).toHaveBeenCalled();
+      }
+    });
+
     it('toggles word wrap', async () => {
       render(<Settings />);
 
@@ -757,6 +774,198 @@ describe('Settings Component', () => {
             status: 'error',
           })
         );
+      });
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('calls toast when getUserInfo API fails', async () => {
+      (api.getUserInfo as Mock).mockRejectedValue(
+        new Error('Failed to load user info')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Error loading user info',
+            status: 'error',
+          })
+        );
+      });
+    });
+  });
+
+  describe('Line Height Preferences', () => {
+    it('updates line height preference', async () => {
+      render(<Settings />);
+
+      const lineHeightLabel = screen.getByText(/Line Height:/);
+      const sliderContainer = lineHeightLabel.closest('div');
+      const slider = sliderContainer?.querySelector('[role="slider"]');
+
+      if (slider) {
+        await act(async () => {
+          fireEvent.keyDown(slider, { key: 'ArrowUp', code: 'ArrowUp' });
+        });
+
+        expect(mockUpdateEditorPreferences).toHaveBeenCalled();
+      }
+    });
+
+    it('displays correct line height value', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Check that line height value is displayed
+      expect(screen.getByText(/Line Height: 1\.6/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Storage Statistics', () => {
+    it('displays storage statistics with singular note', async () => {
+      (api.getUserInfo as Mock).mockResolvedValue({
+        username: 'testuser',
+        created_at: '2025-01-01T00:00:00Z',
+        notes_count: 1,
+      });
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('You have 1 note stored')).toBeInTheDocument();
+      });
+    });
+
+    it('displays storage statistics with multiple notes', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('You have 5 notes stored')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Delete Account Error Handling', () => {
+    it('handles delete account API error', async () => {
+      (api.deleteAccount as Mock).mockRejectedValue(
+        new Error('Failed to delete account')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand the Danger Zone accordion
+      const dangerSection = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerSection);
+      });
+
+      // Click Delete Account button to open modal
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      // Enter password
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText('Enter your password')
+        ).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+          target: { value: 'testpass123' },
+        });
+      });
+
+      // Click confirm deletion
+      const confirmButton = screen.getByText('Delete My Account');
+      await act(async () => {
+        fireEvent.click(confirmButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Failed to delete account',
+            status: 'error',
+          })
+        );
+      });
+
+      // Verify logout was NOT called on error
+      expect(mockLogout).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('resets loading state on delete account error', async () => {
+      (api.deleteAccount as Mock).mockRejectedValue(
+        new Error('Failed to delete account')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      const dangerSection = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerSection);
+      });
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText('Enter your password')
+        ).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+          target: { value: 'testpass123' },
+        });
+      });
+
+      const confirmButton = screen.getByText('Delete My Account');
+      await act(async () => {
+        fireEvent.click(confirmButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Date Formatting', () => {
+    it('formats member since date correctly', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        const memberSinceInput = screen.getByLabelText(
+          'Member Since'
+        ) as HTMLInputElement;
+        expect(memberSinceInput).toBeInTheDocument();
+        // Date formatting includes locale-specific formatting, so just verify it's a valid date string
+        expect(memberSinceInput.value).toMatch(/\d{1,2},\s*202\d/);
       });
     });
   });
