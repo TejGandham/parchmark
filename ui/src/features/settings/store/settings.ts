@@ -2,14 +2,12 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
 import { STORAGE_KEYS } from '../../../config/storage';
-import { handleError } from '../../../utils/errorHandler';
 
 export interface EditorPreferences {
   fontFamily: 'monospace' | 'sans-serif' | 'serif';
   fontSize: number;
   lineHeight: number;
   autoSaveDelay: number;
-  showLineNumbers: boolean;
   wordWrap: boolean;
   spellCheck: boolean;
 }
@@ -38,7 +36,6 @@ const defaultEditorPreferences: EditorPreferences = {
   fontSize: 16,
   lineHeight: 1.6,
   autoSaveDelay: 1000,
-  showLineNumbers: false,
   wordWrap: true,
   spellCheck: true,
 };
@@ -56,37 +53,23 @@ export const useSettingsStore = create<SettingsState>()(
       error: null,
       actions: {
         updateEditorPreferences: (preferences) => {
-          try {
-            set((state) => {
-              state.editorPreferences = {
-                ...state.editorPreferences,
-                ...preferences,
-              };
-              state.error = null;
-            });
-          } catch (error: unknown) {
-            const appError = handleError(error);
-            set((state) => {
-              state.error = appError.message;
-            });
-          }
+          set((state) => {
+            state.editorPreferences = {
+              ...state.editorPreferences,
+              ...preferences,
+            };
+            state.error = null;
+          });
         },
 
         updateAppearancePreferences: (preferences) => {
-          try {
-            set((state) => {
-              state.appearancePreferences = {
-                ...state.appearancePreferences,
-                ...preferences,
-              };
-              state.error = null;
-            });
-          } catch (error: unknown) {
-            const appError = handleError(error);
-            set((state) => {
-              state.error = appError.message;
-            });
-          }
+          set((state) => {
+            state.appearancePreferences = {
+              ...state.appearancePreferences,
+              ...preferences,
+            };
+            state.error = null;
+          });
         },
 
         resetToDefaults: () => {
