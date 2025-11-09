@@ -138,6 +138,28 @@ describe('Header Component', () => {
     expect(mockToggleColorMode).toHaveBeenCalledTimes(1);
   });
 
+  it('should show correct aria-label when in light mode', () => {
+    mockColorMode = 'light';
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+
+    const colorModeButton = screen.getByLabelText(/switch to dark mode/i);
+    expect(colorModeButton).toHaveAttribute(
+      'aria-label',
+      'Switch to dark mode'
+    );
+  });
+
+  it('should show correct aria-label when in dark mode', () => {
+    mockColorMode = 'dark';
+    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+
+    const colorModeButton = screen.getByLabelText(/switch to light mode/i);
+    expect(colorModeButton).toHaveAttribute(
+      'aria-label',
+      'Switch to light mode'
+    );
+  });
+
   it('should navigate to settings when the settings button is clicked', () => {
     renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
 
