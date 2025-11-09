@@ -172,6 +172,9 @@ const Settings = () => {
     setIsExporting(true);
     try {
       const blob = await api.exportNotes();
+      if (!blob || blob.size === 0) {
+        throw new Error('Export failed: empty file');
+      }
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
