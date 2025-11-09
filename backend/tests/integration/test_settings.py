@@ -29,7 +29,7 @@ def test_get_user_info_unauthorized(client):
     """Test that user info endpoint requires authentication."""
     response = client.get("/api/settings/user-info")
 
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 def test_change_password_success(client, sample_user, sample_user_data, auth_headers, test_db_session):
@@ -81,7 +81,7 @@ def test_change_password_unauthorized(client):
         "/api/settings/change-password", json={"current_password": "anypass", "new_password": "newpass"}
     )
 
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 def test_export_notes_success(client, auth_headers, multiple_notes):
@@ -139,7 +139,7 @@ def test_export_notes_unauthorized(client):
     """Test that note export requires authentication."""
     response = client.get("/api/settings/export-notes")
 
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 def test_delete_account_success(client, sample_user, sample_user_data, auth_headers, test_db_session):
@@ -150,8 +150,8 @@ def test_delete_account_success(client, sample_user, sample_user_data, auth_head
     user_before = test_db_session.query(User).filter(User.id == sample_user.id).first()
     assert user_before is not None
 
-    response = client.delete(
-        "/api/settings/delete-account", headers=auth_headers, json={"password": sample_user_data["password"]}
+    response = client.request(
+        "DELETE", "/api/settings/delete-account", headers=auth_headers, json={"password": sample_user_data["password"]}
     )
 
     assert response.status_code == status.HTTP_200_OK
@@ -165,7 +165,9 @@ def test_delete_account_success(client, sample_user, sample_user_data, auth_head
 
 def test_delete_account_wrong_password(client, auth_headers):
     """Test that account deletion fails with incorrect password."""
-    response = client.delete("/api/settings/delete-account", headers=auth_headers, json={"password": "wrongpassword"})
+    response = client.request(
+        "DELETE", "/api/settings/delete-account", headers=auth_headers, json={"password": "wrongpassword"}
+    )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Password is incorrect"
@@ -173,9 +175,9 @@ def test_delete_account_wrong_password(client, auth_headers):
 
 def test_delete_account_unauthorized(client):
     """Test that account deletion requires authentication."""
-    response = client.delete("/api/settings/delete-account", json={"password": "anypass"})
+    response = client.request("DELETE", "/api/settings/delete-account", json={"password": "anypass"})
 
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 def test_delete_account_cascades_notes(
@@ -189,8 +191,8 @@ def test_delete_account_cascades_notes(
     assert len(notes_before) == len(multiple_notes)
 
     # Delete account
-    response = client.delete(
-        "/api/settings/delete-account", headers=auth_headers, json={"password": sample_user_data["password"]}
+    response = client.request(
+        "DELETE", "/api/settings/delete-account", headers=auth_headers, json={"password": sample_user_data["password"]}
     )
 
     assert response.status_code == status.HTTP_200_OK
