@@ -42,8 +42,8 @@ async def get_user_info(current_user: User = Depends(get_current_user), db: Sess
     notes_count = db.query(Note).filter(Note.user_id == current_user.id).count()
 
     return UserInfoResponse(
-        username=current_user.username,  # type: ignore[arg-type]
-        created_at=current_user.created_at.isoformat(),  # type: ignore[arg-type]
+        username=current_user.username,
+        created_at=current_user.created_at.isoformat(),
         notes_count=notes_count,
     )
 
@@ -70,21 +70,21 @@ async def change_password(
         HTTPException: 400 if new password is same as current
     """
     # Verify current password
-    if not verify_password(request.current_password, current_user.password_hash):  # type: ignore[arg-type]
+    if not verify_password(request.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect",
         )
 
     # Check if new password is different
-    if verify_password(request.new_password, current_user.password_hash):  # type: ignore[arg-type]
+    if verify_password(request.new_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different from current password",
         )
 
     # Update password
-    current_user.password_hash = get_password_hash(request.new_password)  # type: ignore[assignment]
+    current_user.password_hash = get_password_hash(request.new_password)
     db.commit()
 
     return MessageResponse(message="Password changed successfully")
@@ -115,18 +115,18 @@ async def export_notes(current_user: User = Depends(get_current_user), db: Sessi
         # Add individual markdown files
         for note in notes:
             # Sanitize filename (remove invalid characters)
-            safe_title = "".join(c for c in note.title if c.isalnum() or c in (" ", "-", "_"))  # type: ignore[attr-defined]
+            safe_title = "".join(c for c in note.title if c.isalnum() or c in (" ", "-", "_"))
             filename = f"{safe_title[:50]}.md"  # Limit filename length
-            zip_file.writestr(filename, note.content)  # type: ignore[arg-type]
+            zip_file.writestr(filename, note.content)
 
         # Add JSON metadata file
         notes_data = [
             {
-                "id": note.id,  # type: ignore[dict-item]
-                "title": note.title,  # type: ignore[dict-item]
-                "content": note.content,  # type: ignore[dict-item]
-                "createdAt": note.created_at.isoformat(),  # type: ignore[dict-item]
-                "updatedAt": note.updated_at.isoformat(),  # type: ignore[dict-item]
+                "id": note.id,
+                "title": note.title,
+                "content": note.content,
+                "createdAt": note.created_at.isoformat(),
+                "updatedAt": note.updated_at.isoformat(),
             }
             for note in notes
         ]
@@ -170,13 +170,13 @@ async def delete_account(
         HTTPException: 401 if password is incorrect
     """
     # Verify password
-    if not verify_password(request.password, current_user.password_hash):  # type: ignore[arg-type]
+    if not verify_password(request.password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Password is incorrect",
         )
 
-    username = current_user.username  # type: ignore[assignment]
+    username = current_user.username
 
     # Delete user (notes will cascade delete due to relationship)
     db.delete(current_user)
