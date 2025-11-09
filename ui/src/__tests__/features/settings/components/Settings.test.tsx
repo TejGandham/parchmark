@@ -1,5 +1,6 @@
 import { vi, Mock } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { render } from '../../../../../test-utils/render';
@@ -42,7 +43,6 @@ describe('Settings Component', () => {
       fontSize: 16,
       lineHeight: 1.6,
       autoSaveDelay: 1000,
-      showLineNumbers: false,
       wordWrap: true,
       spellCheck: true,
     },
@@ -382,6 +382,31 @@ describe('Settings Component', () => {
       appendChildSpy.mockRestore();
       removeChildSpy.mockRestore();
     });
+
+    it('shows error toast when export result is empty', async () => {
+      const emptyBlob = new Blob([], { type: 'application/zip' });
+      (api.exportNotes as Mock).mockResolvedValue(emptyBlob);
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Export All Notes')).toBeInTheDocument();
+      });
+
+      const exportButton = screen.getByText('Export All Notes');
+      await act(async () => {
+        fireEvent.click(exportButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Failed to export notes',
+            status: 'error',
+          })
+        );
+      });
+    });
   });
 
   describe('Delete Account', () => {
@@ -504,6 +529,232 @@ describe('Settings Component', () => {
           expect.objectContaining({
             title: 'Settings reset',
             status: 'info',
+          })
+        );
+      });
+    });
+  });
+
+  describe('Password Change Modal', () => {
+    it('shows error when current password is incorrect', async () => {
+      (api.changePassword as Mock).mockRejectedValue(
+        new Error('Current password is incorrect')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand the Password & Security accordion
+      const passwordSection = screen.getByText('Password & Security');
+      await act(async () => {
+        fireEvent.click(passwordSection);
+      });
+
+      // Click Change Password button to open modal
+      const changePasswordButton = screen.getByRole('button', {
+        name: /change password/i,
+      });
+      await act(async () => {
+        fireEvent.click(changePasswordButton);
+      });
+
+      // Wait for modal to appear and fill in fields
+      await waitFor(() => {
+        expect(screen.getAllByLabelText(/password/i).length).toBeGreaterThan(0);
+      });
+
+      const passwordInputs = screen.getAllByLabelText(/password/i);
+      const user = userEvent.setup();
+      await user.type(passwordInputs[0], 'wrongpass');
+      await user.type(passwordInputs[1], 'newpass123');
+      await user.type(passwordInputs[2], 'newpass123');
+
+      const submitButton = screen.getByRole('button', {
+        name: /change password/i,
+      });
+      await act(async () => {
+        fireEvent.click(submitButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: 'error',
+          })
+        );
+      });
+    });
+
+    it('closes modal on cancel', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand the Password & Security accordion
+      const passwordSection = screen.getByText('Password & Security');
+      await act(async () => {
+        fireEvent.click(passwordSection);
+      });
+
+      // Click Change Password button to open modal
+      const changePasswordButton = screen.getByRole('button', {
+        name: /change password/i,
+      });
+      await act(async () => {
+        fireEvent.click(changePasswordButton);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByRole('button', { name: /cancel/i }).length
+        ).toBeGreaterThan(0);
+      });
+
+      const cancelButton = screen.getAllByRole('button', {
+        name: /cancel/i,
+      })[0];
+      await act(async () => {
+        fireEvent.click(cancelButton);
+      });
+
+      // Modal should be closed - wait for it to be removed
+      await waitFor(
+        () => {
+          expect(
+            screen.queryByLabelText(/confirm new password/i)
+          ).not.toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
+    });
+  });
+
+  describe('Delete Account Modal', () => {
+    it('shows error when password is incorrect', async () => {
+      (api.deleteAccount as Mock).mockRejectedValue(
+        new Error('Password is incorrect')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand the Danger Zone accordion
+      const dangerSection = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerSection);
+      });
+
+      // Click Delete Account button to open modal
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      // Enter wrong password
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText('Enter your password')
+        ).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+          target: { value: 'wrongpassword' },
+        });
+      });
+
+      // Click confirm deletion
+      const confirmButton = screen.getByText('Delete My Account');
+      await act(async () => {
+        fireEvent.click(confirmButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: 'error',
+          })
+        );
+      });
+    });
+
+    it('closes modal on cancel', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand the Danger Zone accordion
+      const dangerSection = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerSection);
+      });
+
+      // Click Delete Account button to open modal
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByRole('button', { name: /cancel/i }).length
+        ).toBeGreaterThan(0);
+      });
+
+      const cancelButtons = screen.getAllByRole('button', { name: /cancel/i });
+      const deleteCancelButton = cancelButtons[cancelButtons.length - 1];
+      await act(async () => {
+        fireEvent.click(deleteCancelButton);
+      });
+
+      // Modal should be closed - wait for it to be removed
+      await waitFor(
+        () => {
+          expect(
+            screen.queryByPlaceholderText('Enter your password')
+          ).not.toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
+    });
+  });
+
+  describe('Export Notes Error', () => {
+    it('shows error when export fails', async () => {
+      (api.exportNotes as Mock).mockRejectedValue(
+        new Error('Failed to export notes')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Export All Notes')).toBeInTheDocument();
+      });
+
+      const exportButton = screen.getByText('Export All Notes');
+      await act(async () => {
+        fireEvent.click(exportButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Failed to export notes',
+            status: 'error',
           })
         );
       });
