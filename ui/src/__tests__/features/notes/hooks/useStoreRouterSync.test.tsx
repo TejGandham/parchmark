@@ -126,6 +126,65 @@ describe('useStoreRouterSync', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/notes/note-2');
   });
 
+  it('should expose null currentNote when currentNoteId is missing', () => {
+    (useNotesStore as Mock).mockReturnValue({
+      ...mockNotesStore,
+      currentNoteId: 'missing-note',
+    });
+
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    expect(result.current.currentNote).toBeNull();
+  });
+
+  it('should navigate back to /notes when deleting the last remaining note', async () => {
+    const deleteNote = vi.fn().mockResolvedValue(undefined);
+    (useNotesStore as Mock).mockReturnValue({
+      notes: [mockNotes[0]],
+      currentNoteId: mockNotes[0].id,
+      editedContent: null,
+      actions: {
+        ...mockNotesStore.actions,
+        deleteNote,
+      },
+    });
+
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    mockNavigate.mockClear();
+
+    await act(async () => {
+      await result.current.actions.deleteNote(mockNotes[0].id);
+    });
+
+    expect(deleteNote).toHaveBeenCalledWith(mockNotes[0].id);
+    expect(mockNavigate).toHaveBeenCalledWith('/notes');
+  });
+
+  it('should navigate to /notes when deleting a stale current note id', async () => {
+    const deleteNote = vi.fn().mockResolvedValue(undefined);
+    (useNotesStore as Mock).mockReturnValue({
+      notes: mockNotes,
+      currentNoteId: 'ghost-note',
+      editedContent: null,
+      actions: {
+        ...mockNotesStore.actions,
+        deleteNote,
+      },
+    });
+
+    const { result } = renderHook(() => useStoreRouterSync(), { wrapper });
+
+    mockNavigate.mockClear();
+
+    await act(async () => {
+      await result.current.actions.deleteNote('ghost-note');
+    });
+
+    expect(deleteNote).toHaveBeenCalledWith('ghost-note');
+    expect(mockNavigate).toHaveBeenCalledWith('/notes');
+  });
+
   it('should handle empty notes array correctly when noteId is non-existent', () => {
     // Mock empty notes store
     (useNotesStore as Mock).mockReturnValue({

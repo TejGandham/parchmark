@@ -19,6 +19,7 @@ export default defineConfig({
         'src/vite-env.d.ts',
         'src/main.tsx',
         'src/**/index.{ts,tsx}',
+        'src/config/constants.ts',
         // Exclude test utilities and mocks from coverage
         'src/__tests__/__mocks__/**',
         'test-utils/**',
