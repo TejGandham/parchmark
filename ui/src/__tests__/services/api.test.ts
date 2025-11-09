@@ -6,6 +6,10 @@ import api, {
   createNote,
   updateNote,
   deleteNote,
+  getUserInfo,
+  changePassword,
+  exportNotes,
+  deleteAccount,
 } from '../../services/api';
 import { useAuthStore } from '../../features/auth/store';
 
@@ -338,6 +342,107 @@ describe('API Service', () => {
     });
   });
 
+  describe('settings endpoints', () => {
+    it('should fetch user info with auth header', async () => {
+      const userInfo = {
+        username: 'tester',
+        created_at: '2025-01-01T00:00:00Z',
+        notes_count: 3,
+      };
+      (useAuthStore.getState as Mock).mockReturnValue({ token: 'token-123' });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => userInfo,
+        status: 200,
+      } as Response);
+
+      const result = await getUserInfo();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/settings/user-info', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer token-123',
+        },
+      });
+      expect(result).toEqual(userInfo);
+    });
+
+    it('should post password change payload', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'ok' }),
+        status: 200,
+      } as Response);
+
+      const result = await changePassword('old', 'new');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/settings/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_password: 'old',
+          new_password: 'new',
+        }),
+      });
+      expect(result).toEqual({ message: 'ok' });
+    });
+
+    it('should download notes as blob with auth header', async () => {
+      const blob = new Blob(['notes'], { type: 'application/zip' });
+      (useAuthStore.getState as Mock).mockReturnValue({
+        token: 'secure-token',
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: async () => blob,
+        status: 200,
+      } as unknown as Response);
+
+      const result = await exportNotes();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/settings/export-notes',
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer secure-token' },
+        })
+      );
+      expect(result).toBe(blob);
+    });
+
+    it('should throw when exporting notes fails', async () => {
+      (useAuthStore.getState as Mock).mockReturnValue({
+        token: 'secure-token',
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+      } as Response);
+
+      await expect(exportNotes()).rejects.toThrow('Failed to export notes');
+    });
+
+    it('should send delete account request with password', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'deleted' }),
+        status: 200,
+      } as Response);
+
+      const result = await deleteAccount('secret');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/settings/delete-account', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: 'secret' }),
+      });
+      expect(result).toEqual({ message: 'deleted' });
+    });
+  });
+
   describe('default export', () => {
     it('should export all API functions', () => {
       expect(api.login).toBe(login);
@@ -346,6 +451,10 @@ describe('API Service', () => {
       expect(api.createNote).toBe(createNote);
       expect(api.updateNote).toBe(updateNote);
       expect(api.deleteNote).toBe(deleteNote);
+      expect(api.getUserInfo).toBe(getUserInfo);
+      expect(api.changePassword).toBe(changePassword);
+      expect(api.exportNotes).toBe(exportNotes);
+      expect(api.deleteAccount).toBe(deleteAccount);
     });
   });
 
