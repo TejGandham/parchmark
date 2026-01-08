@@ -5,7 +5,7 @@ Tests OIDC token validation, claim extraction, and JWKS caching.
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -55,12 +55,12 @@ async def test_get_jwks_success(oidc_validator, mock_jwks, mock_discovery_endpoi
         mock_get = AsyncMock()
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        # First call: discovery endpoint
-        discovery_response = AsyncMock()
+        # First call: discovery endpoint (use Mock, not AsyncMock - json() is sync)
+        discovery_response = Mock()
         discovery_response.json.return_value = mock_discovery_endpoint
 
         # Second call: JWKS endpoint
-        jwks_response = AsyncMock()
+        jwks_response = Mock()
         jwks_response.json.return_value = mock_jwks
 
         mock_get.side_effect = [discovery_response, jwks_response]
@@ -79,11 +79,11 @@ async def test_get_jwks_caching(oidc_validator, mock_jwks, mock_discovery_endpoi
         mock_get = AsyncMock()
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        # Setup responses
-        discovery_response = AsyncMock()
+        # Setup responses (use Mock, not AsyncMock - json() is sync)
+        discovery_response = Mock()
         discovery_response.json.return_value = mock_discovery_endpoint
 
-        jwks_response = AsyncMock()
+        jwks_response = Mock()
         jwks_response.json.return_value = mock_jwks
 
         mock_get.side_effect = [discovery_response, jwks_response]
@@ -108,8 +108,8 @@ async def test_get_jwks_failure(oidc_validator, mock_discovery_endpoint):
         mock_get = AsyncMock()
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        # Discovery succeeds, but JWKS fails
-        discovery_response = AsyncMock()
+        # Discovery succeeds, but JWKS fails (use Mock - json() is sync)
+        discovery_response = Mock()
         discovery_response.json.return_value = mock_discovery_endpoint
 
         mock_get.side_effect = [discovery_response, Exception("JWKS fetch failed")]
@@ -187,10 +187,11 @@ async def test_validate_oidc_token_success(oidc_validator, mock_jwks, mock_disco
         mock_get = AsyncMock()
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        discovery_response = AsyncMock()
+        # Use Mock, not AsyncMock - json() is sync
+        discovery_response = Mock()
         discovery_response.json.return_value = mock_discovery_endpoint
 
-        jwks_response = AsyncMock()
+        jwks_response = Mock()
         jwks_response.json.return_value = mock_jwks
 
         mock_get.side_effect = [discovery_response, jwks_response]
@@ -208,17 +209,30 @@ async def test_validate_oidc_token_success(oidc_validator, mock_jwks, mock_disco
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_validate_oidc_token_expired(oidc_validator):
+async def test_validate_oidc_token_expired(oidc_validator, mock_jwks, mock_discovery_endpoint):
     """Test validation of expired OIDC token."""
-    with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
-        with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
-            mock_header.return_value = {"kid": "test-key-1"}
-            from jose import JWTError
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_get = AsyncMock()
+        mock_client.return_value.__aenter__.return_value.get = mock_get
 
-            mock_decode.side_effect = JWTError("Token expired")
+        # Mock HTTP responses for JWKS fetch
+        discovery_response = Mock()
+        discovery_response.json.return_value = mock_discovery_endpoint
 
-            with pytest.raises(JWTError):
-                await oidc_validator.validate_oidc_token("expired_token")
+        jwks_response = Mock()
+        jwks_response.json.return_value = mock_jwks
+
+        mock_get.side_effect = [discovery_response, jwks_response]
+
+        with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
+            with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
+                mock_header.return_value = {"kid": "test-key-1"}
+                from jose import JWTError
+
+                mock_decode.side_effect = JWTError("Token expired")
+
+                with pytest.raises(JWTError):
+                    await oidc_validator.validate_oidc_token("expired_token")
 
 
 @pytest.mark.unit
@@ -239,10 +253,11 @@ async def test_validate_oidc_token_invalid_kid(oidc_validator):
 
             mock_jwks = {"keys": []}
 
-            discovery_response = AsyncMock()
+            # Use Mock, not AsyncMock - json() is sync
+            discovery_response = Mock()
             discovery_response.json.return_value = mock_discovery_endpoint
 
-            jwks_response = AsyncMock()
+            jwks_response = Mock()
             jwks_response.json.return_value = mock_jwks
 
             mock_get.side_effect = [discovery_response, jwks_response]

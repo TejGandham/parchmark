@@ -31,7 +31,7 @@ import argparse
 from pathlib import Path
 
 import httpx
-from jwt import decode, encode, get_unverified_header
+from jose.jwt import decode, encode, get_unverified_header
 from datetime import datetime, timedelta, timezone
 
 # Color codes for output

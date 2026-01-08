@@ -352,7 +352,7 @@ class TestAuthenticationConfig:
         assert isinstance(ACCESS_TOKEN_EXPIRE_MINUTES, int)
         assert ACCESS_TOKEN_EXPIRE_MINUTES > 0
 
-    @patch.dict("os.environ", {"SECRET_KEY": "test_secret"})
+    @patch.dict("os.environ", {"SECRET_KEY": "test_secret_key_that_is_at_least_32_characters_long"})
     def test_secret_key_from_environment(self):
         """Test SECRET_KEY can be loaded from environment."""
         # Need to reload the module to pick up environment changes
@@ -363,7 +363,7 @@ class TestAuthenticationConfig:
         reload(app.auth.auth)
 
         # Check that the secret key was loaded
-        assert app.auth.auth.SECRET_KEY == "test_secret"
+        assert app.auth.auth.SECRET_KEY == "test_secret_key_that_is_at_least_32_characters_long"
 
     @patch.dict("os.environ", {"ACCESS_TOKEN_EXPIRE_MINUTES": "60"})
     def test_token_expire_minutes_from_environment(self):

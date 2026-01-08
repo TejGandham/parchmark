@@ -16,13 +16,13 @@ from app.models.models import User
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_current_user_with_local_jwt(db: Session):
+async def test_get_current_user_with_local_jwt(test_db_session: Session):
     """Test get_current_user with valid local JWT token."""
     # Create a test user
     user = User(username="testuser", password_hash="hashed_password", auth_provider="local")
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    test_db_session.add(user)
+    test_db_session.commit()
+    test_db_session.refresh(user)
 
     # Create valid local JWT
     from app.auth.auth import create_access_token
@@ -34,7 +34,7 @@ async def test_get_current_user_with_local_jwt(db: Session):
     credentials.credentials = token
 
     # Test
-    current_user = await get_current_user(credentials, db)
+    current_user = await get_current_user(credentials, test_db_session)
 
     assert current_user.username == "testuser"
     assert current_user.auth_provider == "local"
@@ -42,7 +42,7 @@ async def test_get_current_user_with_local_jwt(db: Session):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_current_user_with_oidc_token_existing_user(db: Session):
+async def test_get_current_user_with_oidc_token_existing_user(test_db_session: Session):
     """Test get_current_user with valid OIDC token for existing user."""
     # Create an OIDC user
     user = User(
@@ -52,9 +52,9 @@ async def test_get_current_user_with_oidc_token_existing_user(db: Session):
         auth_provider="oidc",
         password_hash=None,
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    test_db_session.add(user)
+    test_db_session.commit()
+    test_db_session.refresh(user)
 
     # Mock OIDC token validation
     mock_claims = {
@@ -78,7 +78,7 @@ async def test_get_current_user_with_oidc_token_existing_user(db: Session):
                     "email": "user@example.com",
                 }
 
-                current_user = await get_current_user(credentials, db)
+                current_user = await get_current_user(credentials, test_db_session)
 
                 assert current_user.username == "oidc_user"
                 assert current_user.auth_provider == "oidc"
@@ -87,10 +87,10 @@ async def test_get_current_user_with_oidc_token_existing_user(db: Session):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_current_user_with_oidc_token_new_user_creation(db: Session):
+async def test_get_current_user_with_oidc_token_new_user_creation(test_db_session: Session):
     """Test auto-creation of user on first OIDC login."""
     # No user exists yet
-    assert db.query(User).filter(User.oidc_sub == "authelia-sub-456").first() is None
+    assert test_db_session.query(User).filter(User.oidc_sub == "authelia-sub-456").first() is None
 
     # Mock OIDC token validation
     mock_claims = {
@@ -114,7 +114,7 @@ async def test_get_current_user_with_oidc_token_new_user_creation(db: Session):
                     "email": "newuser@example.com",
                 }
 
-                current_user = await get_current_user(credentials, db)
+                current_user = await get_current_user(credentials, test_db_session)
 
                 assert current_user.username == "new_oidc_user"
                 assert current_user.auth_provider == "oidc"
@@ -123,14 +123,14 @@ async def test_get_current_user_with_oidc_token_new_user_creation(db: Session):
                 assert current_user.password_hash is None
 
                 # Verify user was created in database
-                db_user = db.query(User).filter(User.oidc_sub == "authelia-sub-456").first()
+                db_user = test_db_session.query(User).filter(User.oidc_sub == "authelia-sub-456").first()
                 assert db_user is not None
                 assert db_user.username == "new_oidc_user"
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_current_user_both_auth_methods_fail(db: Session):
+async def test_get_current_user_both_auth_methods_fail(test_db_session: Session):
     """Test get_current_user fails when both local and OIDC validation fail."""
     # Mock credentials
     credentials = MagicMock()
@@ -142,14 +142,14 @@ async def test_get_current_user_both_auth_methods_fail(db: Session):
             mock_validate.side_effect = Exception("OIDC validation failed")
 
             with pytest.raises(HTTPException) as exc_info:
-                await get_current_user(credentials, db)
+                await get_current_user(credentials, test_db_session)
 
             assert exc_info.value.status_code == 401
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_current_user_oidc_user_email_fallback(db: Session):
+async def test_get_current_user_oidc_user_email_fallback(test_db_session: Session):
     """Test OIDC user creation uses email as username if preferred_username missing."""
     # Mock OIDC token with only email (no preferred_username)
     mock_claims = {
@@ -172,14 +172,14 @@ async def test_get_current_user_oidc_user_email_fallback(db: Session):
                     "email": "emailonly@example.com",
                 }
 
-                current_user = await get_current_user(credentials, db)
+                current_user = await get_current_user(credentials, test_db_session)
 
                 assert current_user.username == "emailonly@example.com"
                 assert current_user.auth_provider == "oidc"
 
 
 @pytest.mark.integration
-def test_get_user_by_oidc_sub(db: Session):
+def test_get_user_by_oidc_sub(test_db_session: Session):
     """Test get_user_by_oidc_sub helper function."""
     from app.auth.dependencies import get_user_by_oidc_sub
 
@@ -191,14 +191,14 @@ def test_get_user_by_oidc_sub(db: Session):
         auth_provider="oidc",
         password_hash=None,
     )
-    db.add(user)
-    db.commit()
+    test_db_session.add(user)
+    test_db_session.commit()
 
     # Test finding user
-    found_user = get_user_by_oidc_sub(db, "authelia-sub-999")
+    found_user = get_user_by_oidc_sub(test_db_session, "authelia-sub-999")
     assert found_user is not None
     assert found_user.username == "oidc_user"
 
     # Test user not found
-    not_found = get_user_by_oidc_sub(db, "non-existent-sub")
+    not_found = get_user_by_oidc_sub(test_db_session, "non-existent-sub")
     assert not_found is None
