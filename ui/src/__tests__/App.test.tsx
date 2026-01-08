@@ -34,6 +34,14 @@ vi.mock('../features/auth/components/LoginForm', async () => {
   };
 });
 
+vi.mock('../features/auth/components/OIDCCallback', async () => {
+  return {
+    default: function MockOIDCCallback() {
+      return <div data-testid="oidc-callback">OIDC Callback</div>;
+    },
+  };
+});
+
 // Mock the auth store
 vi.mock('../features/auth/store');
 
@@ -179,6 +187,8 @@ describe('App Component', () => {
 
     // Look for specific route paths in our mocked Route components
     expect(screen.getByTestId('route-/')).toBeInTheDocument();
+    expect(screen.getByTestId('route-/login')).toBeInTheDocument();
+    expect(screen.getByTestId('route-/oidc/callback')).toBeInTheDocument();
     expect(screen.getByTestId('route-/notes')).toBeInTheDocument();
     expect(screen.getByTestId('route-/notes/:noteId')).toBeInTheDocument();
     expect(screen.getByTestId('route-/not-found')).toBeInTheDocument();

@@ -3,7 +3,7 @@ Error handling and edge case tests for OIDC validation.
 Tests failure scenarios and error recovery mechanisms.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from jose import JWTError
@@ -39,7 +39,8 @@ async def test_get_jwks_missing_jwks_uri():
         mock_get = AsyncMock()
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        discovery_response = AsyncMock()
+        # Use Mock, not AsyncMock - json() is sync
+        discovery_response = Mock()
         discovery_response.json.return_value = {
             "issuer": "https://auth.engen.tech",
             # Missing jwks_uri
@@ -71,9 +72,24 @@ async def test_validate_oidc_token_invalid_audience():
     validator = OIDCValidator()
     validator.audience = "correct-audience"
 
-    with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
-        with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
-            with patch("app.auth.oidc_validator.httpx.AsyncClient"):
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_get = AsyncMock()
+        mock_client.return_value.__aenter__.return_value.get = mock_get
+
+        # Mock HTTP responses for JWKS fetch
+        discovery_response = Mock()
+        discovery_response.json.return_value = {
+            "issuer": "https://auth.engen.tech",
+            "jwks_uri": "https://auth.engen.tech/.well-known/openid-configuration/jwks",
+        }
+
+        jwks_response = Mock()
+        jwks_response.json.return_value = {"keys": [{"kid": "test-key", "kty": "RSA"}]}
+
+        mock_get.side_effect = [discovery_response, jwks_response]
+
+        with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
+            with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
                 mock_header.return_value = {"kid": "test-key"}
                 mock_decode.side_effect = JWTError("Invalid audience")
 
@@ -88,13 +104,29 @@ async def test_validate_oidc_token_invalid_issuer():
     validator = OIDCValidator()
     validator.issuer_url = "https://auth.engen.tech"
 
-    with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
-        with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
-            mock_header.return_value = {"kid": "test-key"}
-            mock_decode.side_effect = JWTError("Invalid issuer")
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_get = AsyncMock()
+        mock_client.return_value.__aenter__.return_value.get = mock_get
 
-            with pytest.raises(JWTError):
-                await validator.validate_oidc_token("wrong_issuer_token")
+        # Mock HTTP responses for JWKS fetch
+        discovery_response = Mock()
+        discovery_response.json.return_value = {
+            "issuer": "https://auth.engen.tech",
+            "jwks_uri": "https://auth.engen.tech/.well-known/openid-configuration/jwks",
+        }
+
+        jwks_response = Mock()
+        jwks_response.json.return_value = {"keys": [{"kid": "test-key", "kty": "RSA"}]}
+
+        mock_get.side_effect = [discovery_response, jwks_response]
+
+        with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
+            with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
+                mock_header.return_value = {"kid": "test-key"}
+                mock_decode.side_effect = JWTError("Invalid issuer")
+
+                with pytest.raises(JWTError):
+                    await validator.validate_oidc_token("wrong_issuer_token")
 
 
 @pytest.mark.unit
@@ -129,13 +161,14 @@ async def test_get_jwks_cache_expiration():
         mock_get = AsyncMock()
         mock_client.return_value.__aenter__.return_value.get = mock_get
 
-        discovery_response = AsyncMock()
+        # Use Mock, not AsyncMock - json() is sync
+        discovery_response = Mock()
         discovery_response.json.return_value = {
             "issuer": "https://auth.engen.tech",
             "jwks_uri": "https://auth.engen.tech/.well-known/openid-configuration/jwks",
         }
 
-        jwks_response = AsyncMock()
+        jwks_response = Mock()
         jwks_response.json.return_value = {"keys": []}
 
         mock_get.side_effect = [discovery_response, jwks_response]
