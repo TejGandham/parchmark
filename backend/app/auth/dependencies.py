@@ -8,6 +8,9 @@ import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from jose import JWTError
+import httpx
 
 from app.auth.auth import credentials_exception, verify_token
 from app.auth.oidc_validator import oidc_validator
@@ -31,7 +34,7 @@ async def get_current_user(
     Supports hybrid authentication:
     1. Attempts to verify as local JWT first
     2. If local JWT fails, attempts OIDC validation
-    3. For OIDC users, creates user if missing
+    3. For OIDC users, creates user if missing (with race condition handling)
     4. Returns the user object for use in protected routes
 
     Args:
@@ -60,26 +63,58 @@ async def get_current_user(
         oidc_claims = await oidc_validator.validate_oidc_token(token)
         user_info = oidc_validator.extract_user_info(oidc_claims)
 
+        # Validate required OIDC claims
+        if not user_info.get("oidc_sub"):
+            logger.error("OIDC token missing required 'sub' claim")
+            raise credentials_exception
+
         # Look up user by oidc_sub
         user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
 
-        if user is None and user_info["username"]:
+        if user is None and user_info.get("username"):
             # Auto-create OIDC user on first login
-            user = User(
-                username=user_info["username"],
-                email=user_info.get("email"),
-                oidc_sub=user_info["oidc_sub"],
-                auth_provider="oidc",
-                password_hash=None,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+            # Handle race condition where concurrent requests both try to create the same user
+            try:
+                user = User(
+                    username=user_info["username"],
+                    email=user_info.get("email"),
+                    oidc_sub=user_info["oidc_sub"],
+                    auth_provider="oidc",
+                    password_hash=None,
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+                logger.info(f"Auto-created OIDC user: {user_info['username']} (oidc_sub={user_info['oidc_sub']})")
+            except IntegrityError as e:
+                # Another concurrent request created the user; rollback and retry lookup
+                logger.debug(f"OIDC user creation race condition detected for oidc_sub={user_info['oidc_sub']}: {e}")
+                db.rollback()
+                # Re-fetch the user created by the other request
+                user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
+                if user is None:
+                    logger.error(f"Failed to retrieve OIDC user after race condition recovery: oidc_sub={user_info['oidc_sub']}")
+                    raise credentials_exception
 
         if user is not None:
             return user
+        else:
+            logger.warning(f"OIDC user not found after creation attempt: oidc_sub={user_info['oidc_sub']}")
+            raise credentials_exception
+
+    except (JWTError, httpx.TimeoutException, httpx.HTTPError) as e:
+        # Expected OIDC validation failures - log at info/debug level
+        logger.debug(f"OIDC token validation failed (expected): {type(e).__name__}: {e}")
+    except IntegrityError as e:
+        # Already handled in user creation block, but catch if it occurs elsewhere
+        logger.error(f"Database integrity error during OIDC validation: {e}")
+        db.rollback()
+    except HTTPException:
+        # HTTPException (credentials_exception) is explicitly raised in the code above; re-raise it
+        raise
     except Exception as e:
-        logger.debug(f"OIDC validation failed: {e}")
+        # Unexpected errors - log at error level for investigation
+        logger.error(f"Unexpected error during OIDC validation: {type(e).__name__}: {e}", exc_info=True)
 
     raise credentials_exception
 

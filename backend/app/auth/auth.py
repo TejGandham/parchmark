@@ -21,7 +21,21 @@ load_dotenv()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT configuration from environment variables
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError(
+        "CRITICAL SECURITY ERROR: SECRET_KEY environment variable is not set.\n"
+        "A strong SECRET_KEY is required for production security.\n"
+        "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'\n"
+        "Then set it in your .env file: SECRET_KEY=<generated-key>"
+    )
+if len(SECRET_KEY) < 32:
+    raise ValueError(
+        f"SECURITY ERROR: SECRET_KEY must be at least 32 characters for security.\n"
+        f"Current length: {len(SECRET_KEY)} characters\n"
+        f"Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+    )
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
@@ -150,6 +164,9 @@ def authenticate_user(username: str, password: str, user_db_check_func) -> User 
     """
     Authenticate a user with username and password.
 
+    Supports local authentication only. OIDC users (with password_hash=None) cannot
+    authenticate via this method and must use OIDC authentication.
+
     Args:
         username: The username to authenticate
         password: The plain text password
@@ -158,11 +175,22 @@ def authenticate_user(username: str, password: str, user_db_check_func) -> User 
     Returns:
         User: User model if authentication successful, None otherwise
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     user = user_db_check_func(username)
     if not user:
         return None
+
+    # Prevent local login for OIDC-only users
+    if user.password_hash is None:
+        logger.info(f"Local login attempted for OIDC user: {username} (auth_provider={user.auth_provider})")
+        return None
+
+    # Verify the password hash
     if not verify_password(password, user.password_hash):
         return None
+
     return user
 
 

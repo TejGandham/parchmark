@@ -6,13 +6,13 @@ Validates Authelia-issued JWT tokens and extracts user claims.
 import os
 import json
 import logging
+import asyncio
 from datetime import datetime, UTC
 from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
 from jose import JWTError, jwt
-from jose.backends.cryptography_backend import CryptographyBackend
 
 load_dotenv()
 
@@ -36,10 +36,14 @@ class OIDCValidator:
         self.jwks_cache: Optional[dict] = None
         self.jwks_cache_time: Optional[datetime] = None
         self.jwks_cache_ttl_seconds = 3600  # 1 hour
+        self._jwks_lock = asyncio.Lock()  # Lock to prevent concurrent JWKS fetches
 
     async def get_jwks(self) -> dict:
         """
         Fetch JWKS from Authelia discovery endpoint with caching.
+
+        Uses double-checked locking to prevent concurrent JWKS fetches during cache expiration.
+        Only one request will fetch fresh JWKS; others will wait and use the result.
 
         Returns:
             dict: JWKS public keys
@@ -47,36 +51,48 @@ class OIDCValidator:
         Raises:
             Exception: If unable to fetch JWKS
         """
-        # Check cache validity
+        # Fast path: check cache without lock
         if self.jwks_cache and self.jwks_cache_time:
             age_seconds = (datetime.now(UTC) - self.jwks_cache_time).total_seconds()
             if age_seconds < self.jwks_cache_ttl_seconds:
                 return self.jwks_cache
 
-        try:
-            async with httpx.AsyncClient() as client:
-                # Get OIDC discovery endpoint
-                discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
-                discovery_response = await client.get(discovery_url, timeout=10.0)
-                discovery_response.raise_for_status()
+        # Slow path: acquire lock for cache update
+        async with self._jwks_lock:
+            # Double-check cache after acquiring lock (another task may have fetched it)
+            if self.jwks_cache and self.jwks_cache_time:
+                age_seconds = (datetime.now(UTC) - self.jwks_cache_time).total_seconds()
+                if age_seconds < self.jwks_cache_ttl_seconds:
+                    return self.jwks_cache
 
-                discovery_data = discovery_response.json()
-                jwks_uri = discovery_data.get("jwks_uri")
+            # Fetch fresh JWKS (only one task does this at a time)
+            try:
+                async with httpx.AsyncClient() as client:
+                    # Get OIDC discovery endpoint
+                    discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
+                    discovery_response = await client.get(discovery_url, timeout=10.0)
+                    discovery_response.raise_for_status()
 
-                if not jwks_uri:
-                    raise ValueError("No jwks_uri in discovery endpoint")
+                    discovery_data = discovery_response.json()
+                    jwks_uri = discovery_data.get("jwks_uri")
 
-                # Fetch JWKS
-                jwks_response = await client.get(jwks_uri, timeout=10.0)
-                jwks_response.raise_for_status()
+                    if not jwks_uri:
+                        raise ValueError("No jwks_uri in discovery endpoint")
 
-                self.jwks_cache = jwks_response.json()
-                self.jwks_cache_time = datetime.now(UTC)
+                    # Fetch JWKS
+                    jwks_response = await client.get(jwks_uri, timeout=10.0)
+                    jwks_response.raise_for_status()
 
-                return self.jwks_cache
-        except Exception as e:
-            logger.error(f"Failed to fetch JWKS: {e}")
-            raise
+                    # Update cache atomically
+                    jwks_result = jwks_response.json()
+                    self.jwks_cache = jwks_result
+                    self.jwks_cache_time = datetime.now(UTC)
+                    logger.debug("JWKS cache updated successfully")
+
+                    return jwks_result
+            except Exception as e:
+                logger.error(f"Failed to fetch JWKS: {e}")
+                raise
 
     async def validate_oidc_token(self, token: str) -> dict:
         """
@@ -113,14 +129,11 @@ class OIDCValidator:
             if not key_data:
                 raise JWTError(f"Key '{kid}' not found in JWKS")
 
-            # Construct the key object for jose library
-            backend = CryptographyBackend()
-            public_key = backend.from_jwk(json.dumps(key_data))
-
             # Decode and validate token
+            # jwt.decode() accepts JWK dict directly for RS256 validation
             payload = jwt.decode(
                 token,
-                public_key,
+                key_data,
                 algorithms=["RS256"],  # Authelia typically uses RS256
                 audience=self.audience,
                 issuer=self.issuer_url,
