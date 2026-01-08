@@ -1,0 +1,38 @@
+# Authelia User Database for Development Testing
+# Users configured for OIDC testing with ParchMark
+# Generated with: echo -n "testuser123" | sha512sum
+
+users:
+  # Test user 1: Standard OIDC user
+  john:
+    displayname: "John Doe"
+    password: "$argon2id$v=19$m=65540,t=3,p=4$7TZ0K4vUYJ/KvHwSVsJkqA$VwPKNvPKGIhyqg6PwFN4SFKbJXvEqvkHI3WOXvJvCEw"  # password: password123
+    email: john@example.com
+    groups:
+      - dev
+
+  # Test user 2: Another OIDC user
+  jane:
+    displayname: "Jane Smith"
+    password: "$argon2id$v=19$m=65540,t=3,p=4$7TZ0K4vUYJ/KvHwSVsJkqA$VwPKNvPKGIhyqg6PwFN4SFKbJXvEqvkHI3WOXvJvCEw"  # password: password123
+    email: jane@example.com
+    groups:
+      - dev
+
+  # Admin user
+  admin:
+    displayname: "Admin User"
+    password: "$argon2id$v=19$m=65540,t=3,p=4$7TZ0K4vUYJ/KvHwSVsJkqA$VwPKNvPKGIhyqg6PwFN4SFKbJXvEqvkHI3WOXvJvCEw"  # password: password123
+    email: admin@example.com
+    groups:
+      - dev
+      - admins
+
+# Groups
+groups:
+  dev:
+    - john
+    - jane
+    - admin
+  admins:
+    - admin

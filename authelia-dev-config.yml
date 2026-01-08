@@ -1,0 +1,91 @@
+# Authelia Development Configuration for OIDC Testing
+# This configuration is pre-configured for ParchMark OIDC testing with:
+# - Local user database (in-memory)
+# - OIDC provider with parchmark-web client
+# - Development-friendly settings
+
+server:
+  host: 0.0.0.0
+  port: 9091
+  path_prefix: /
+
+# Logging configuration
+log:
+  level: debug
+  format: json
+
+# Session configuration for OIDC provider
+session:
+  name: authelia_session
+  domain: localhost
+  same_site: lax
+  expiration: 3600
+  inactivity: 1800
+  remember_me: 86400
+
+# Password hashing configuration
+authentication_backend:
+  password_reset:
+    disable: false
+  refresh_interval: 5m
+  file:
+    path: /config/users_database.yml
+
+# Authorization rules (allow all for development)
+access_control:
+  default_policy: allow
+
+# TOTP (Time-based One-Time Password) configuration
+totp:
+  issuer: Authelia
+
+# OIDC (OpenID Connect) Identity Provider Configuration
+identity_providers:
+  oidc:
+    # HTTP scheme settings
+    http_scheme: http
+    http_base_url: http://localhost:9091
+
+    # Session settings for OIDC clients
+    session_expiration: 1h
+
+    # Token lifetimes
+    access_token_expiration: 1h
+    refresh_token_expiration: 7d
+    authorization_code_expiration: 10m
+
+    # Enable PKCE
+    enforce_pkce: optional  # Can be 'optional' or 'always' for strict PKCE
+
+    # OIDC Clients
+    clients:
+      # ParchMark Web OIDC Client
+      - id: parchmark-web
+        description: ParchMark Note-Taking Application
+        public: true  # Public client (no client secret)
+        secret: ~  # Not used for public clients
+        redirect_uris:
+          - http://localhost:8080/oidc/callback
+          - http://localhost:5173/oidc/callback
+          - http://127.0.0.1:8080/oidc/callback
+          - http://127.0.0.1:5173/oidc/callback
+        scopes:
+          - openid
+          - profile
+          - email
+        grant_types:
+          - authorization_code
+          - refresh_token
+        response_types:
+          - code
+        response_modes:
+          - form_post
+          - query
+        require_pkce: true
+        pkce_challenge_method: S256
+        userinfo_signed_response_alg: none
+        authorization_policy: default
+
+# Notification settings (optional, for production)
+notifier:
+  disable: true
