@@ -68,11 +68,14 @@ jobs:
 
       - run: cd ui && npm ci
 
-      - run: cd ui && npm test -- __tests__/features/auth/components/OIDCCallback.test.tsx --coverage
+      - name: Run OIDCCallback tests
+        run: cd ui && npm test -- __tests__/features/auth/components/OIDCCallback.test.tsx
 
-      - run: cd ui && npm test -- __tests__/features/auth/utils/oidcUtils.test.ts --coverage
+      - name: Run oidcUtils tests
+        run: cd ui && npm test -- __tests__/features/auth/utils/oidcUtils.test.ts
 
-      - run: cd ui && npm test -- __tests__/features/auth/store/auth.oidc.test.ts --coverage
+      - name: Run auth.oidc store tests
+        run: cd ui && npm test -- __tests__/features/auth/store/auth.oidc.test.ts
 
   auth-integration-tests:
     runs-on: ubuntu-latest
