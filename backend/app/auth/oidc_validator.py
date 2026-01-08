@@ -3,12 +3,10 @@ OIDC token validation for hybrid authentication.
 Validates Authelia-issued JWT tokens and extracts user claims.
 """
 
-import os
-import json
-import logging
 import asyncio
-from datetime import datetime, UTC
-from typing import Optional
+import logging
+import os
+from datetime import UTC, datetime
 
 import httpx
 from dotenv import load_dotenv
@@ -33,8 +31,8 @@ class OIDCValidator:
         self.issuer_url = OIDC_ISSUER_URL
         self.audience = OIDC_AUDIENCE
         self.username_claim = OIDC_USERNAME_CLAIM
-        self.jwks_cache: Optional[dict] = None
-        self.jwks_cache_time: Optional[datetime] = None
+        self.jwks_cache: dict | None = None
+        self.jwks_cache_time: datetime | None = None
         self.jwks_cache_ttl_seconds = 3600  # 1 hour
         self._jwks_lock = asyncio.Lock()  # Lock to prevent concurrent JWKS fetches
 
@@ -131,6 +129,7 @@ class OIDCValidator:
 
             # Decode and validate token
             # jwt.decode() accepts JWK dict directly for RS256 validation
+            # Note: jwt.decode() automatically validates expiration (exp claim)
             payload = jwt.decode(
                 token,
                 key_data,
@@ -139,19 +138,13 @@ class OIDCValidator:
                 issuer=self.issuer_url,
             )
 
-            # Validate expiration
-            if "exp" in payload:
-                exp_time = datetime.fromtimestamp(payload["exp"], tz=UTC)
-                if exp_time < datetime.now(UTC):
-                    raise JWTError("Token expired")
-
             return payload
 
         except JWTError as e:
             logger.error(f"OIDC token validation failed: {e}")
             raise
 
-    def extract_username(self, token_claims: dict) -> Optional[str]:
+    def extract_username(self, token_claims: dict) -> str | None:
         """
         Extract username from OIDC token claims.
 

@@ -5,12 +5,13 @@ Supports both local JWT and OIDC federated authentication.
 """
 
 import logging
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from jose import JWTError
+
 import httpx
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.auth.auth import credentials_exception, verify_token
 from app.auth.oidc_validator import oidc_validator
@@ -55,8 +56,9 @@ async def get_current_user(
         user = db.query(User).filter(User.username == token_data.username).first()
         if user is not None:
             return user
-    except HTTPException:
-        pass  # Local JWT failed, try OIDC
+    except HTTPException as e:
+        # Local JWT failed, log reason and try OIDC fallback
+        logger.debug(f"Local JWT validation failed (will try OIDC): status={e.status_code}, detail={e.detail}")
 
     # Try OIDC validation
     try:
@@ -93,8 +95,10 @@ async def get_current_user(
                 # Re-fetch the user created by the other request
                 user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
                 if user is None:
-                    logger.error(f"Failed to retrieve OIDC user after race condition recovery: oidc_sub={user_info['oidc_sub']}")
-                    raise credentials_exception
+                    logger.error(
+                        f"Failed to retrieve OIDC user after race condition recovery: oidc_sub={user_info['oidc_sub']}"
+                    )
+                    raise credentials_exception from e
 
         if user is not None:
             return user
@@ -103,7 +107,7 @@ async def get_current_user(
             raise credentials_exception
 
     except (JWTError, httpx.TimeoutException, httpx.HTTPError) as e:
-        # Expected OIDC validation failures - log at info/debug level
+        # Expected OIDC validation failures - log at debug level
         logger.debug(f"OIDC token validation failed (expected): {type(e).__name__}: {e}")
     except IntegrityError as e:
         # Already handled in user creation block, but catch if it occurs elsewhere

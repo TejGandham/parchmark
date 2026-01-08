@@ -3,7 +3,7 @@ SQLAlchemy models for ParchMark backend.
 Defines User and Note models matching the frontend data structures.
 """
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -18,6 +18,16 @@ class User(Base):
     """
 
     __tablename__ = "users"
+    __table_args__ = (
+        # Ensure auth credentials are consistent with auth_provider:
+        # - Local users must have password_hash
+        # - OIDC users must have oidc_sub
+        CheckConstraint(
+            "(auth_provider = 'local' AND password_hash IS NOT NULL) OR "
+            "(auth_provider = 'oidc' AND oidc_sub IS NOT NULL)",
+            name="valid_auth_credentials",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)

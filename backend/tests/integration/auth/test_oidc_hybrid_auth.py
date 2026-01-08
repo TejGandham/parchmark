@@ -3,16 +3,15 @@ Integration tests for hybrid authentication (local + OIDC).
 Tests authentication dependency that accepts both local JWT and OIDC tokens.
 """
 
-import pytest
-from datetime import datetime, UTC, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.models import User
 from app.auth.dependencies import get_current_user
 from app.auth.oidc_validator import oidc_validator
+from app.models.models import User
 
 
 @pytest.mark.integration

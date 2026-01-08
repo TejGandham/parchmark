@@ -3,11 +3,10 @@ Unit tests for OIDC token validation.
 Tests OIDC token validation, claim extraction, and JWKS caching.
 """
 
-import json
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from datetime import datetime, UTC, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
-from jose import jwt
 
 from app.auth.oidc_validator import OIDCValidator
 
@@ -210,12 +209,6 @@ async def test_validate_oidc_token_success(oidc_validator, mock_jwks, mock_disco
 @pytest.mark.asyncio
 async def test_validate_oidc_token_expired(oidc_validator):
     """Test validation of expired OIDC token."""
-    # Create an expired token
-    payload = {
-        "sub": "user-123",
-        "exp": (datetime.now(UTC) - timedelta(hours=1)).timestamp(),
-    }
-
     with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
         with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
             mock_header.return_value = {"kid": "test-key-1"}
