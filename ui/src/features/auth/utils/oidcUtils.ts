@@ -19,7 +19,8 @@ export const startOIDCLogin = async () => {
   try {
     await userManager.signinRedirect();
   } catch (error) {
-    console.error("OIDC login failed:", error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`OIDC login failed: ${errorDetails}`, { original: error });
     throw error;
   }
 };
@@ -33,7 +34,8 @@ export const handleOIDCCallback = async () => {
     const user = await userManager.signinRedirectCallback();
     return user;
   } catch (error) {
-    console.error("OIDC callback failed:", error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`OIDC callback failed: ${errorDetails}`, { original: error });
     throw error;
   }
 };
@@ -45,7 +47,8 @@ export const getOIDCUser = async () => {
   try {
     return await userManager.getUser();
   } catch (error) {
-    console.error("Failed to get OIDC user:", error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`Failed to get OIDC user: ${errorDetails}`, { original: error });
     return null;
   }
 };
@@ -58,7 +61,8 @@ export const renewOIDCToken = async () => {
     const user = await userManager.signinSilent();
     return user;
   } catch (error) {
-    console.error("OIDC token renewal failed:", error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`OIDC token renewal failed: ${errorDetails}`, { original: error });
     return null;
   }
 };
@@ -70,7 +74,8 @@ export const logoutOIDC = async () => {
   try {
     await userManager.signoutRedirect();
   } catch (error) {
-    console.error("OIDC logout failed:", error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`OIDC logout failed: ${errorDetails}`, { original: error });
     throw error;
   }
 };
