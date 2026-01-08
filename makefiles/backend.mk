@@ -56,3 +56,43 @@ test-backend-auth: ## Run all authentication tests (local + OIDC)
 dev-backend: ## Start backend development server
 	$(call info_msg,Starting backend development server...)
 	cd backend && uv run uvicorn app.main:app --reload
+
+# ============================================================================
+# OIDC Integration Testing
+# ============================================================================
+
+.PHONY: test-oidc-integration
+test-oidc-integration: ## Test OIDC integration (discovery, JWKS, token validation)
+	$(call info_msg,Testing OIDC integration...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-all
+	$(call success_msg,OIDC integration tests completed)
+
+.PHONY: test-oidc-discovery
+test-oidc-discovery: ## Test OIDC discovery endpoint
+	$(call info_msg,Testing OIDC discovery...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-discovery
+
+.PHONY: test-oidc-jwks
+test-oidc-jwks: ## Test OIDC JWKS endpoint and caching
+	$(call info_msg,Testing OIDC JWKS...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-jwks
+
+.PHONY: test-oidc-tokens
+test-oidc-tokens: ## Test OIDC token validation
+	$(call info_msg,Testing OIDC token validation...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-validation
+
+.PHONY: test-oidc-health
+test-oidc-health: ## Test backend API health
+	$(call info_msg,Testing backend health...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-health
+
+.PHONY: test-oidc-hybrid
+test-oidc-hybrid: ## Test hybrid auth configuration
+	$(call info_msg,Testing hybrid auth configuration...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-hybrid
+
+.PHONY: test-oidc-perf
+test-oidc-perf: ## Test OIDC performance (JWKS caching)
+	$(call info_msg,Testing OIDC performance (JWKS caching)...)
+	cd backend && uv run python scripts/test_oidc_integration.py --test-performance
