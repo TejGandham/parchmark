@@ -3,30 +3,29 @@
  */
 
 const OIDC_ISSUER_URL =
-  import.meta.env.VITE_OIDC_ISSUER_URL || "https://auth.engen.tech";
-const OIDC_CLIENT_ID =
-  import.meta.env.VITE_OIDC_CLIENT_ID || "parchmark-web";
+  import.meta.env.VITE_OIDC_ISSUER_URL || 'https://auth.engen.tech';
+const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'parchmark-web';
 const OIDC_REDIRECT_URI =
   import.meta.env.VITE_OIDC_REDIRECT_URI ||
-  (typeof window !== "undefined"
+  (typeof window !== 'undefined'
     ? `${window.location.origin}/oidc/callback`
-    : "http://localhost:5173/oidc/callback");
+    : 'http://localhost:5173/oidc/callback');
 const OIDC_LOGOUT_REDIRECT_URI =
   import.meta.env.VITE_OIDC_LOGOUT_REDIRECT_URI ||
-  (typeof window !== "undefined"
+  (typeof window !== 'undefined'
     ? `${window.location.origin}/login`
-    : "http://localhost:5173/login");
+    : 'http://localhost:5173/login');
 
 export const OIDC_CONFIG = {
   authority: OIDC_ISSUER_URL,
   client_id: OIDC_CLIENT_ID,
   redirect_uri: OIDC_REDIRECT_URI,
   post_logout_redirect_uri: OIDC_LOGOUT_REDIRECT_URI,
-  response_type: "code",
-  scope: "openid profile email",
-  response_mode: "query",
+  response_type: 'code',
+  scope: 'openid profile email',
+  response_mode: 'query',
   // PKCE for public client
-  code_challenge_method: "S256",
+  code_challenge_method: 'S256',
 };
 
 export const OIDC_ENDPOINTS = {

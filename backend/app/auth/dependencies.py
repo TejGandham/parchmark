@@ -73,6 +73,16 @@ async def get_current_user(
         # Look up user by oidc_sub
         user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
 
+        if user is None and not user_info.get("username"):
+            # Valid OIDC token with sub claim but no extractable username
+            # This indicates a configuration issue - the OIDC provider should include
+            # preferred_username or email claims for user identification
+            logger.warning(
+                f"OIDC token has valid 'sub' but no username/email claim: oidc_sub={user_info['oidc_sub']}. "
+                "Check OIDC provider configuration to include preferred_username or email claims."
+            )
+            raise credentials_exception
+
         if user is None and user_info.get("username"):
             # Auto-create OIDC user on first login
             # Handle race condition where concurrent requests both try to create the same user
@@ -103,7 +113,11 @@ async def get_current_user(
         if user is not None:
             return user
         else:
-            logger.warning(f"OIDC user not found after creation attempt: oidc_sub={user_info['oidc_sub']}")
+            # This should not happen - user creation should have succeeded or raised
+            logger.error(
+                f"OIDC user creation completed but user is None: oidc_sub={user_info['oidc_sub']}, "
+                f"username={user_info.get('username')}"
+            )
             raise credentials_exception
 
     except (JWTError, httpx.TimeoutException, httpx.HTTPError) as e:

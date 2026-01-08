@@ -95,7 +95,7 @@ describe('OIDC Utils', () => {
   });
 
   describe('getOIDCUser', () => {
-    it('returns user when logged in', async () => {
+    it('returns success result with user when logged in', async () => {
       const mockUser = {
         access_token: 'token',
         profile: { sub: 'user-123' },
@@ -105,24 +105,33 @@ describe('OIDC Utils', () => {
       const result = await getOIDCUser();
 
       expect(mockFns.getUser).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(mockUser);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual(mockUser);
+      }
     });
 
-    it('returns null when no user', async () => {
+    it('returns success result with null when no user', async () => {
       mockFns.getUser.mockResolvedValue(null);
 
       const result = await getOIDCUser();
 
-      expect(result).toBeNull();
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBeNull();
+      }
     });
 
-    it('returns null and logs error on failure', async () => {
+    it('returns failure result with error on failure', async () => {
       const error = new Error('Storage error');
       mockFns.getUser.mockRejectedValue(error);
 
       const result = await getOIDCUser();
 
-      expect(result).toBeNull();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Storage error');
+      }
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to get OIDC user'),
         expect.any(Object)
@@ -131,7 +140,7 @@ describe('OIDC Utils', () => {
   });
 
   describe('renewOIDCToken', () => {
-    it('returns user on successful silent renewal', async () => {
+    it('returns success result with user on successful silent renewal', async () => {
       const mockUser = {
         access_token: 'new_token',
         refresh_token: 'new_refresh',
@@ -142,17 +151,23 @@ describe('OIDC Utils', () => {
       const result = await renewOIDCToken();
 
       expect(mockFns.signinSilent).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(mockUser);
-      expect(result?.access_token).toBe('new_token');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual(mockUser);
+        expect(result.data?.access_token).toBe('new_token');
+      }
     });
 
-    it('returns null and logs error on failure', async () => {
+    it('returns failure result with error on failure', async () => {
       const error = new Error('Silent renewal failed');
       mockFns.signinSilent.mockRejectedValue(error);
 
       const result = await renewOIDCToken();
 
-      expect(result).toBeNull();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Silent renewal failed');
+      }
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('OIDC token renewal failed'),
         expect.any(Object)

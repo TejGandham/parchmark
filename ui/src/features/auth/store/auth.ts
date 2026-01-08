@@ -22,6 +22,7 @@ export type AuthState = {
   refreshToken: string | null;
   tokenSource: TokenSource;
   error: string | null;
+  oidcLogoutWarning: string | null; // Warning shown when OIDC logout fails
   _refreshPromise: Promise<boolean> | null;
   actions: {
     login: (username: string, password: string) => Promise<boolean>;
@@ -29,6 +30,7 @@ export type AuthState = {
     handleOIDCCallbackFlow: () => Promise<boolean>;
     logout: () => Promise<void>;
     clearError: () => void;
+    clearOidcLogoutWarning: () => void;
     checkTokenExpiration: () => void;
     refreshTokens: () => Promise<boolean>;
   };
@@ -43,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       tokenSource: 'local' as TokenSource,
       error: null,
+      oidcLogoutWarning: null,
       _refreshPromise: null,
       actions: {
         login: async (username, password) => {
@@ -55,6 +58,7 @@ export const useAuthStore = create<AuthState>()(
               state.refreshToken = response.refresh_token;
               state.tokenSource = 'local';
               state.error = null;
+              state.oidcLogoutWarning = null; // Clear any previous OIDC logout warning
             });
             return true;
           } catch (error: unknown) {
@@ -91,11 +95,32 @@ export const useAuthStore = create<AuthState>()(
                 state.token = oidcUser.access_token;
                 state.refreshToken = oidcUser.refresh_token || null;
                 state.tokenSource = 'oidc';
-                state.user = { username: oidcUser.profile?.preferred_username || oidcUser.profile?.email || 'OIDC User', password: '' };
+                state.user = {
+                  username:
+                    oidcUser.profile?.preferred_username ||
+                    oidcUser.profile?.email ||
+                    'OIDC User',
+                  password: '',
+                };
                 state.error = null;
+                state.oidcLogoutWarning = null; // Clear any previous OIDC logout warning
               });
               return true;
             }
+            // OIDC callback returned but without access_token - this is an incomplete response
+            const errorMessage = oidcUser
+              ? 'Authentication response incomplete. Please try again.'
+              : 'Authentication failed. Please try again.';
+            console.error(
+              `OIDC callback incomplete: ${oidcUser ? 'missing access_token' : 'no user returned'}`
+            );
+            set((state) => {
+              state.error = errorMessage;
+              state.isAuthenticated = false;
+              state.user = null;
+              state.token = null;
+              state.refreshToken = null;
+            });
             return false;
           } catch (error: unknown) {
             const appError = handleError(error);
@@ -124,15 +149,29 @@ export const useAuthStore = create<AuthState>()(
 
               // Handle OIDC token refresh
               if (state.tokenSource === 'oidc') {
-                const oidcUser = await renewOIDCToken();
-                if (oidcUser?.access_token) {
+                const result = await renewOIDCToken();
+                if (result.success && result.data?.access_token) {
+                  // Extract to local variable to avoid non-null assertions
+                  const tokenData = result.data;
                   set((s) => {
-                    s.token = oidcUser.access_token;
-                    s.refreshToken = oidcUser.refresh_token || null;
+                    s.token = tokenData.access_token;
+                    s.refreshToken = tokenData.refresh_token || null;
                     s.error = null;
                   });
                   return true;
                 }
+                // OIDC token refresh failed - log out user with error message
+                const errorDetail = !result.success
+                  ? `renewal failed: ${result.error?.message || 'unknown error'}`
+                  : 'renewal returned no access token';
+                console.error(`OIDC token refresh failed: ${errorDetail}`);
+                set((s) => {
+                  s.error = 'Session expired. Please sign in again.';
+                  s.isAuthenticated = false;
+                  s.user = null;
+                  s.token = null;
+                  s.refreshToken = null;
+                });
                 return false;
               }
 
@@ -176,6 +215,8 @@ export const useAuthStore = create<AuthState>()(
 
         logout: async () => {
           const state = useAuthStore.getState();
+          let oidcLogoutFailed = false;
+          let oidcErrorMessage = '';
 
           // Logout from OIDC if applicable
           if (state.tokenSource === 'oidc') {
@@ -184,8 +225,17 @@ export const useAuthStore = create<AuthState>()(
             } catch (error) {
               // Log OIDC logout errors but continue with local logout
               // OIDC provider may be temporarily unavailable, but we should still clear local auth state
-              const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-              console.warn(`OIDC logout failed but continuing with local logout: ${errorDetails}`, { original: error });
+              const errorDetails =
+                error instanceof Error
+                  ? `${error.name}: ${error.message}`
+                  : String(error);
+              console.warn(
+                `OIDC logout failed but continuing with local logout: ${errorDetails}`,
+                { original: error }
+              );
+              oidcLogoutFailed = true;
+              oidcErrorMessage =
+                'Your session may still be active on the identity provider. For complete logout, close your browser or visit the identity provider directly.';
             }
           }
 
@@ -196,12 +246,21 @@ export const useAuthStore = create<AuthState>()(
             state.refreshToken = null;
             state.error = null;
             state._refreshPromise = null;
+            state.oidcLogoutWarning = oidcLogoutFailed
+              ? oidcErrorMessage
+              : null;
           });
         },
 
         clearError: () => {
           set((state) => {
             state.error = null;
+          });
+        },
+
+        clearOidcLogoutWarning: () => {
+          set((state) => {
+            state.oidcLogoutWarning = null;
           });
         },
 

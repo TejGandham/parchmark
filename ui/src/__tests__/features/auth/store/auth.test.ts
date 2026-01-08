@@ -18,7 +18,10 @@ describe('Auth Store', () => {
         user: null,
         token: null,
         refreshToken: null,
+        tokenSource: 'local',
         error: null,
+        oidcLogoutWarning: null,
+        _refreshPromise: null,
         actions: useAuthStore.getState().actions,
       });
     });

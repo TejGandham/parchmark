@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "https://auth.engen.tech")
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "parchmark-web")
 OIDC_USERNAME_CLAIM = os.getenv("OIDC_USERNAME_CLAIM", "preferred_username")
-AUTH_MODE = os.getenv("AUTH_MODE", "local")  # "local", "oidc", or "hybrid"
 
 
 class OIDCValidator:
@@ -141,7 +140,7 @@ class OIDCValidator:
             return payload
 
         except JWTError as e:
-            logger.error(f"OIDC token validation failed: {e}")
+            logger.warning(f"OIDC token validation failed: {e}")
             raise
 
     def extract_username(self, token_claims: dict) -> str | None:
