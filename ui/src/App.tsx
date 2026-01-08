@@ -15,6 +15,9 @@ const NotFoundPage = lazy(
   () => import('./features/ui/components/NotFoundPage')
 );
 const LoginForm = lazy(() => import('./features/auth/components/LoginForm'));
+const OIDCCallback = lazy(
+  () => import('./features/auth/components/OIDCCallback')
+);
 
 // Create a better loading fallback
 const LoadingFallback = () => (
@@ -41,6 +44,7 @@ function App() {
         <Routes>
           <Route path="/" element={<RootRoute />} />
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/oidc/callback" element={<OIDCCallback />} />
           <Route
             path="/notes"
             element={
