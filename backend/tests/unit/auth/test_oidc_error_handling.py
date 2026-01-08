@@ -3,8 +3,9 @@ Error handling and edge case tests for OIDC validation.
 Tests failure scenarios and error recovery mechanisms.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from jose import JWTError
 
 from app.auth.oidc_validator import OIDCValidator
@@ -144,7 +145,7 @@ async def test_get_jwks_cache_expiration():
         assert result1 == {"keys": []}
 
         # Manually set cache time to far past to simulate expiration
-        from datetime import datetime, UTC, timedelta
+        from datetime import UTC, datetime, timedelta
 
         validator.jwks_cache_time = datetime.now(UTC) - timedelta(seconds=2)
 

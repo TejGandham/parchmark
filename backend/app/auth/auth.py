@@ -3,6 +3,7 @@ JWT authentication utilities for ParchMark backend.
 Handles JWT token creation/validation and password hashing using bcrypt.
 """
 
+import logging
 import os
 from datetime import UTC, datetime, timedelta
 
@@ -16,6 +17,9 @@ from app.schemas.schemas import TokenData
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 # Password hashing configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -175,9 +179,6 @@ def authenticate_user(username: str, password: str, user_db_check_func) -> User 
     Returns:
         User: User model if authentication successful, None otherwise
     """
-    import logging
-    logger = logging.getLogger(__name__)
-
     user = user_db_check_func(username)
     if not user:
         return None
