@@ -25,7 +25,10 @@ const OIDCCallback = () => {
           navigate(from, { replace: true });
         } else {
           // Callback failed, redirect to login
-          navigate('/login', { replace: true, state: { error: 'OIDC authentication failed' } });
+          navigate('/login', {
+            replace: true,
+            state: { error: 'OIDC authentication failed' },
+          });
         }
       } catch (error) {
         const appError = handleError(error);

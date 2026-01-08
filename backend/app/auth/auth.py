@@ -185,7 +185,7 @@ def authenticate_user(username: str, password: str, user_db_check_func) -> User 
 
     # Prevent local login for OIDC-only users
     if user.password_hash is None:
-        logger.info(f"Local login attempted for OIDC user: {username} (auth_provider={user.auth_provider})")
+        logger.debug(f"Local login attempted for OIDC user: {username} (auth_provider={user.auth_provider})")
         return None
 
     # Verify the password hash

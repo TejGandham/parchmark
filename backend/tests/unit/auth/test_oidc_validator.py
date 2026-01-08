@@ -3,6 +3,7 @@ Unit tests for OIDC token validation.
 Tests OIDC token validation, claim extraction, and JWKS caching.
 """
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -250,3 +251,107 @@ async def test_validate_oidc_token_invalid_kid(oidc_validator):
 
             with pytest.raises(JWTError, match="not found in JWKS"):
                 await oidc_validator.validate_oidc_token("invalid_token")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_concurrent_jwks_fetch_uses_lock(mock_jwks, mock_discovery_endpoint):
+    """Test that concurrent JWKS fetches use the lock correctly.
+
+    When multiple coroutines try to fetch JWKS simultaneously (cache expired),
+    only one should actually make the HTTP request while others wait and
+    reuse the result (double-checked locking pattern).
+    """
+    validator = OIDCValidator()
+
+    # Track how many times the HTTP client is created
+    http_call_count = [0]
+
+    async def mock_get_with_delay(url, **kwargs):
+        """Simulate a slow HTTP request to allow concurrent access."""
+        http_call_count[0] += 1
+        await asyncio.sleep(0.1)  # Small delay to allow other coroutines to attempt access
+
+        # Create a mock response with sync json() method
+        class MockResponse:
+            def json(self):
+                # Check if it's the discovery endpoint (ends with openid-configuration)
+                if url.endswith("/.well-known/openid-configuration"):
+                    return mock_discovery_endpoint
+                # Otherwise it's the JWKS endpoint
+                return mock_jwks
+
+            def raise_for_status(self):
+                pass
+
+        return MockResponse()
+
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_instance = AsyncMock()
+        mock_instance.get = mock_get_with_delay
+        mock_client.return_value.__aenter__.return_value = mock_instance
+
+        # Launch 5 concurrent JWKS fetch requests
+        tasks = [validator.get_jwks() for _ in range(5)]
+        results = await asyncio.gather(*tasks)
+
+        # All results should be the same JWKS
+        for result in results:
+            assert result == mock_jwks
+
+        # Due to double-checked locking, only 2 HTTP calls should be made
+        # (1 for discovery + 1 for JWKS), not 10 (5 * 2)
+        assert http_call_count[0] == 2, f"Expected 2 HTTP calls, got {http_call_count[0]}"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_jwks_cache_expiration_triggers_single_refresh(mock_jwks, mock_discovery_endpoint):
+    """Test that cache expiration triggers exactly one refresh with concurrent requests."""
+    validator = OIDCValidator()
+    validator.jwks_cache_ttl_seconds = 0.1  # Very short TTL for testing
+
+    http_call_count = [0]
+
+    async def mock_get(url, **kwargs):
+        http_call_count[0] += 1
+        await asyncio.sleep(0.05)
+
+        # Create a mock response with sync json() method
+        class MockResponse:
+            def json(self):
+                # Check if it's the discovery endpoint (ends with openid-configuration)
+                if url.endswith("/.well-known/openid-configuration"):
+                    return mock_discovery_endpoint
+                # Otherwise it's the JWKS endpoint
+                return mock_jwks
+
+            def raise_for_status(self):
+                pass
+
+        return MockResponse()
+
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_instance = AsyncMock()
+        mock_instance.get = mock_get
+        mock_client.return_value.__aenter__.return_value = mock_instance
+
+        # First fetch - populates cache
+        result1 = await validator.get_jwks()
+        assert result1 == mock_jwks
+        assert http_call_count[0] == 2
+
+        # Wait for cache to expire
+        await asyncio.sleep(0.15)
+
+        # Launch concurrent requests after cache expired
+        http_call_count[0] = 0  # Reset counter
+        tasks = [validator.get_jwks() for _ in range(3)]
+        results = await asyncio.gather(*tasks)
+
+        # All should get the same result
+        for result in results:
+            assert result == mock_jwks
+
+        # Only one set of HTTP calls should occur (discovery + jwks)
+        assert http_call_count[0] == 2, f"Expected 2 HTTP calls after expiration, got {http_call_count[0]}"
