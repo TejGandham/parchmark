@@ -14,13 +14,17 @@ class User(Base):
     """
     User model for authentication and note ownership.
     Matches the frontend User interface with additional fields for backend needs.
+    Supports both local password auth and OIDC federated auth.
     """
 
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)  # Store hashed password, not plain text
+    password_hash = Column(String(255), nullable=True)  # Nullable for OIDC-only users
+    email = Column(String(255), nullable=True)  # Email from OIDC provider
+    oidc_sub = Column(String(255), unique=True, nullable=True, index=True)  # OIDC subject claim
+    auth_provider = Column(String(50), default="local", nullable=False)  # "local" or "oidc"
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationship to notes
