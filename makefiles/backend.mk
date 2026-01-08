@@ -40,6 +40,18 @@ test-backend-pytest-limited: ## Run pytest with 4 workers (resource-constrained)
 test-backend-all: test-backend-lint test-backend-format test-backend-types test-backend-pytest ## Run all backend tests
 	$(call success_msg,All backend tests passed)
 
+.PHONY: test-backend-oidc
+test-backend-oidc: ## Run OIDC-specific tests
+	$(call info_msg,Running OIDC validator and hybrid auth tests...)
+	cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py tests/unit/auth/test_oidc_error_handling.py tests/integration/auth/test_oidc_hybrid_auth.py -v --cov=app.auth.oidc_validator --cov-report=term
+	$(call success_msg,OIDC tests passed)
+
+.PHONY: test-backend-auth
+test-backend-auth: ## Run all authentication tests (local + OIDC)
+	$(call info_msg,Running all authentication tests...)
+	cd backend && uv run pytest tests/unit/auth/ tests/integration/auth/ -v --cov=app.auth --cov-report=term
+	$(call success_msg,Authentication tests passed)
+
 .PHONY: dev-backend
 dev-backend: ## Start backend development server
 	$(call info_msg,Starting backend development server...)

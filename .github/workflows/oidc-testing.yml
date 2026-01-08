@@ -1,0 +1,149 @@
+name: OIDC Integration Testing
+
+on:
+  push:
+    branches:
+      - authelia_support
+    paths:
+      - 'backend/app/auth/oidc_validator.py'
+      - 'backend/tests/unit/auth/test_oidc_*.py'
+      - 'backend/tests/integration/auth/test_oidc_*.py'
+      - 'ui/src/features/auth/utils/oidcUtils.ts'
+      - 'ui/src/__tests__/features/auth/**/*'
+      - '.github/workflows/oidc-testing.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-oidc-tests:
+    runs-on: ubuntu-latest
+    name: Backend OIDC Tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - run: cd backend && uv sync --dev
+
+      - run: docker compose -f docker-compose.dev.yml up -d
+
+      - run: |
+          for i in {1..30}; do
+            if docker exec $(docker ps -q -f "ancestor=postgres") pg_isready -U parchmark_user > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - run: cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v --cov=app.auth.oidc_validator --cov-report=xml
+
+      - run: cd backend && uv run pytest tests/unit/auth/test_oidc_error_handling.py -v --cov=app.auth.oidc_validator --cov-report=xml
+
+      - run: cd backend && uv run pytest tests/integration/auth/test_oidc_hybrid_auth.py -v --cov=app.auth.dependencies --cov-report=xml
+
+      - if: always()
+        run: docker compose -f docker-compose.dev.yml down
+
+  frontend-oidc-tests:
+    runs-on: ubuntu-latest
+    name: Frontend OIDC Tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - run: cd ui && npm ci
+
+      - run: cd ui && npm test -- __tests__/features/auth/components/OIDCCallback.test.tsx --coverage
+
+      - run: cd ui && npm test -- __tests__/features/auth/utils/oidcUtils.test.ts --coverage
+
+      - run: cd ui && npm test -- __tests__/features/auth/store/auth.oidc.test.ts --coverage
+
+  auth-integration-tests:
+    runs-on: ubuntu-latest
+    name: All Authentication Tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - run: make install-all
+
+      - run: docker compose -f docker-compose.dev.yml up -d
+
+      - run: |
+          for i in {1..30}; do
+            if docker exec $(docker ps -q -f "ancestor=postgres") pg_isready -U parchmark_user > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - run: make test-backend-auth
+
+      - run: make test-ui-auth
+
+      - if: always()
+        run: docker compose -f docker-compose.dev.yml down
+
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: astral-sh/setup-uv@v4
+
+      - run: |
+          cd backend
+          uv run python -m py_compile app/auth/oidc_validator.py
+          uv run python -m py_compile app/auth/dependencies.py
+          uv run python -m py_compile app/models/models.py
+
+      - run: cd backend && uv run ruff check app/auth
+
+      - run: cd backend && uv run mypy app/auth/oidc_validator.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - run: cd ui && npm ci
+
+      - run: cd ui && npm run lint -- src/features/auth/
+
+      - run: cd ui && npm run build -- --noEmit
