@@ -96,3 +96,24 @@ test-oidc-hybrid: ## Test hybrid auth configuration
 test-oidc-perf: ## Test OIDC performance (JWKS caching)
 	$(call info_msg,Testing OIDC performance (JWKS caching)...)
 	cd backend && uv run python scripts/test_oidc_integration.py --test-performance
+
+# ============================================================================
+# Pre-Deployment Validation
+# ============================================================================
+
+.PHONY: validate-oidc-deployment
+validate-oidc-deployment: ## Validate OIDC deployment readiness
+	$(call info_msg,Validating OIDC deployment configuration...)
+	cd backend && uv run python scripts/validate_oidc_deployment.py --environment $(ENV)
+
+.PHONY: validate-oidc-dev
+validate-oidc-dev: ## Validate for development environment
+	cd backend && uv run python scripts/validate_oidc_deployment.py --environment development
+
+.PHONY: validate-oidc-staging
+validate-oidc-staging: ## Validate for staging environment
+	cd backend && uv run python scripts/validate_oidc_deployment.py --environment staging
+
+.PHONY: validate-oidc-prod
+validate-oidc-prod: ## Validate for production environment
+	cd backend && uv run python scripts/validate_oidc_deployment.py --environment production
