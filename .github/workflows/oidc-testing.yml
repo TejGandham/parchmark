@@ -33,18 +33,21 @@ jobs:
 
       - run: cd backend && uv sync --dev
 
-      - run: docker compose -f docker-compose.dev.yml up -d
+      - name: Start PostgreSQL
+        run: docker compose -f docker-compose.dev.yml up -d
 
-      - run: |
+      - name: Wait for PostgreSQL
+        run: |
           for i in {1..30}; do
-            if docker exec $(docker ps -q -f "ancestor=postgres") pg_isready -U parchmark_user > /dev/null 2>&1; then
+            if docker exec parchmark-postgres-dev pg_isready -U parchmark_user > /dev/null 2>&1; then
               exit 0
             fi
             sleep 1
           done
           exit 1
 
-      - run: cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v --cov=app.auth.oidc_validator --cov-report=xml
+      - name: Run OIDC validator tests
+        run: cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v --cov=app.auth.oidc_validator --cov-report=xml
 
       - run: cd backend && uv run pytest tests/unit/auth/test_oidc_error_handling.py -v --cov=app.auth.oidc_validator --cov-report=xml
 
@@ -96,20 +99,24 @@ jobs:
 
       - uses: astral-sh/setup-uv@v4
 
-      - run: make install-all
+      - name: Install dependencies
+        run: make install-all
 
-      - run: docker compose -f docker-compose.dev.yml up -d
+      - name: Start PostgreSQL
+        run: docker compose -f docker-compose.dev.yml up -d
 
-      - run: |
+      - name: Wait for PostgreSQL
+        run: |
           for i in {1..30}; do
-            if docker exec $(docker ps -q -f "ancestor=postgres") pg_isready -U parchmark_user > /dev/null 2>&1; then
+            if docker exec parchmark-postgres-dev pg_isready -U parchmark_user > /dev/null 2>&1; then
               exit 0
             fi
             sleep 1
           done
           exit 1
 
-      - run: make test-backend-auth
+      - name: Run backend auth tests
+        run: make test-backend-auth
 
       - run: make test-ui-auth
 
@@ -147,6 +154,8 @@ jobs:
 
       - run: cd ui && npm ci
 
-      - run: cd ui && npm run lint -- src/features/auth/
+      - name: Lint auth code
+        run: cd ui && npm run lint -- src/features/auth/
 
-      - run: cd ui && npm run build -- --noEmit
+      - name: TypeScript type check
+        run: cd ui && npx tsc --noEmit
