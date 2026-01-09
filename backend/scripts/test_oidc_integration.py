@@ -22,17 +22,14 @@ Usage:
     python scripts/test_oidc_integration.py --issuer http://localhost:9091 --test-discovery
 """
 
+import argparse
 import asyncio
-import json
 import sys
 import time
-from typing import Optional
-import argparse
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
 import httpx
-from jose.jwt import decode, encode, get_unverified_header
-from datetime import datetime, timedelta, timezone
+from jose.jwt import encode
 
 # Color codes for output
 GREEN = "\033[92m"
@@ -68,8 +65,8 @@ class OIDCTester:
         self.issuer_url = issuer_url.rstrip("/")
         self.client_id = client_id
         self.api_url = api_url.rstrip("/")
-        self.discovery_doc: Optional[dict] = None
-        self.jwks: Optional[dict] = None
+        self.discovery_doc: dict | None = None
+        self.jwks: dict | None = None
 
     async def test_discovery(self) -> bool:
         """Test OIDC discovery endpoint"""
@@ -163,7 +160,7 @@ class OIDCTester:
         try:
             # Create test token (valid structure but may not work with real Authelia)
             secret = "test-secret"
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             payload = {
                 "sub": "test-user",
                 "preferred_username": "testuser",
@@ -250,9 +247,7 @@ class OIDCTester:
                     print_success("Local auth endpoint available (hybrid mode)")
                     return True
                 else:
-                    print_error(
-                        f"Unexpected response from local auth: {response.status_code}"
-                    )
+                    print_error(f"Unexpected response from local auth: {response.status_code}")
                     return False
 
         except Exception as e:
