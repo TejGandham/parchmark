@@ -4,6 +4,7 @@ Provides dependency functions for protected routes and user authentication.
 Supports both local JWT and OIDC federated authentication.
 """
 
+import asyncio
 import logging
 
 import httpx
@@ -23,6 +24,31 @@ logger = logging.getLogger(__name__)
 
 # HTTP Bearer token scheme for FastAPI
 security = HTTPBearer()
+
+
+def _query_user_by_username(db: Session, username: str) -> User | None:
+    """Sync helper to query user by username."""
+    return db.query(User).filter(User.username == username).first()
+
+
+def _query_user_by_oidc_sub(db: Session, oidc_sub: str) -> User | None:
+    """Sync helper to query user by OIDC subject."""
+    return db.query(User).filter(User.oidc_sub == oidc_sub).first()
+
+
+def _create_oidc_user(db: Session, user_info: dict) -> User:
+    """Sync helper to create OIDC user. Raises IntegrityError on race condition."""
+    user = User(
+        username=user_info["username"],
+        email=user_info.get("email"),
+        oidc_sub=user_info["oidc_sub"],
+        auth_provider="oidc",
+        password_hash=None,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 async def get_current_user(
@@ -53,7 +79,10 @@ async def get_current_user(
     # Try local JWT first
     try:
         token_data: TokenData = verify_token(token, credentials_exception)
-        user = db.query(User).filter(User.username == token_data.username).first()
+        if token_data.username is None:
+            raise credentials_exception
+        # Run sync DB operation in thread pool to avoid blocking event loop
+        user = await asyncio.to_thread(_query_user_by_username, db, token_data.username)
         if user is not None:
             return user
     except HTTPException as e:
@@ -70,8 +99,8 @@ async def get_current_user(
             logger.error("OIDC token missing required 'sub' claim")
             raise credentials_exception
 
-        # Look up user by oidc_sub
-        user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
+        # Look up user by oidc_sub (run in thread pool)
+        user = await asyncio.to_thread(_query_user_by_oidc_sub, db, user_info["oidc_sub"])
 
         if user is None and not user_info.get("username"):
             # Access token doesn't have user claims - fetch from userinfo endpoint
@@ -99,23 +128,14 @@ async def get_current_user(
             # Auto-create OIDC user on first login
             # Handle race condition where concurrent requests both try to create the same user
             try:
-                user = User(
-                    username=user_info["username"],
-                    email=user_info.get("email"),
-                    oidc_sub=user_info["oidc_sub"],
-                    auth_provider="oidc",
-                    password_hash=None,
-                )
-                db.add(user)
-                db.commit()
-                db.refresh(user)
+                user = await asyncio.to_thread(_create_oidc_user, db, user_info)
                 logger.info(f"Auto-created OIDC user: {user_info['username']} (oidc_sub={user_info['oidc_sub']})")
             except IntegrityError as e:
                 # Another concurrent request created the user; rollback and retry lookup
                 logger.debug(f"OIDC user creation race condition detected for oidc_sub={user_info['oidc_sub']}: {e}")
-                db.rollback()
+                await asyncio.to_thread(db.rollback)
                 # Re-fetch the user created by the other request
-                user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
+                user = await asyncio.to_thread(_query_user_by_oidc_sub, db, user_info["oidc_sub"])
                 if user is None:
                     logger.error(
                         f"Failed to retrieve OIDC user after race condition recovery: oidc_sub={user_info['oidc_sub']}"
@@ -138,7 +158,7 @@ async def get_current_user(
     except IntegrityError as e:
         # Already handled in user creation block, but catch if it occurs elsewhere
         logger.error(f"Database integrity error during OIDC validation: {e}")
-        db.rollback()
+        await asyncio.to_thread(db.rollback)
     except HTTPException:
         # HTTPException (credentials_exception) is explicitly raised in the code above; re-raise it
         raise
