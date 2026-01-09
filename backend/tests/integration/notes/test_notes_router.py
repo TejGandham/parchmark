@@ -660,9 +660,3 @@ class TestNotesRouterErrorHandling:
                 status.HTTP_405_METHOD_NOT_ALLOWED,
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
             ]
-
-    def test_database_error_handling(self, client: TestClient, auth_headers, monkeypatch):
-        """Test handling of database errors."""
-        # This test is difficult to implement reliably without modifying the app code
-        # Skip for now as the app handles errors gracefully
-        pytest.skip("Database error injection test not reliable in integration tests")

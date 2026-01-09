@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { act } from 'react';
-import { useAuthStore } from '../../../../features/auth/store/auth';
+import {
+  useAuthStore,
+  _resetRefreshPromise,
+} from '../../../../features/auth/store/auth';
 import * as oidcUtils from '../../../../features/auth/utils/oidcUtils';
 
 vi.mock('../../../../features/auth/utils/oidcUtils', () => ({
@@ -17,6 +20,9 @@ vi.mock('../../../../services/api', () => ({
 
 describe('Auth Store - OIDC Methods', () => {
   beforeEach(() => {
+    // Reset module-level state for token refresh deduplication
+    _resetRefreshPromise();
+
     // Reset the store before each test using setState (avoids localStorage persist issues)
     act(() => {
       useAuthStore.setState({
@@ -27,7 +33,6 @@ describe('Auth Store - OIDC Methods', () => {
         tokenSource: 'local',
         error: null,
         oidcLogoutWarning: null,
-        _refreshPromise: null,
         actions: useAuthStore.getState().actions,
       });
     });

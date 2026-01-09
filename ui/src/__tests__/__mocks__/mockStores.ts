@@ -76,7 +76,6 @@ export const mockAuthStore = {
   tokenSource: 'local' as const,
   error: null,
   oidcLogoutWarning: null,
-  _refreshPromise: null,
   actions: {
     login: vi.fn().mockResolvedValue(true),
     loginWithOIDC: vi.fn().mockResolvedValue(undefined),
@@ -97,7 +96,6 @@ export const mockUnauthenticatedStore = {
   tokenSource: 'local' as const,
   error: null,
   oidcLogoutWarning: null,
-  _refreshPromise: null,
   actions: {
     login: vi.fn().mockResolvedValue(false),
     loginWithOIDC: vi.fn().mockResolvedValue(undefined),
@@ -118,7 +116,6 @@ export const mockAuthStoreWithError = {
   tokenSource: 'local' as const,
   error: 'Invalid username or password',
   oidcLogoutWarning: null,
-  _refreshPromise: null,
   actions: {
     login: vi.fn().mockResolvedValue(false),
     loginWithOIDC: vi.fn().mockResolvedValue(undefined),

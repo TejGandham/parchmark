@@ -1,6 +1,10 @@
 import { vi, Mock } from 'vitest';
 import { act } from 'react';
-import { useAuthStore, AuthState } from '../../../../features/auth/store/auth';
+import {
+  useAuthStore,
+  AuthState,
+  _resetRefreshPromise,
+} from '../../../../features/auth/store/auth';
 import * as api from '../../../../services/api';
 import * as tokenUtils from '../../../../features/auth/utils/tokenUtils';
 
@@ -11,6 +15,9 @@ describe('Auth Store', () => {
   let store: AuthState;
 
   beforeEach(() => {
+    // Reset module-level state for token refresh deduplication
+    _resetRefreshPromise();
+
     // Reset the store before each test
     act(() => {
       useAuthStore.setState({
@@ -21,7 +28,6 @@ describe('Auth Store', () => {
         tokenSource: 'local',
         error: null,
         oidcLogoutWarning: null,
-        _refreshPromise: null,
         actions: useAuthStore.getState().actions,
       });
     });

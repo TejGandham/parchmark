@@ -25,6 +25,10 @@ OIDC_USERNAME_CLAIM = os.getenv("OIDC_USERNAME_CLAIM", "preferred_username")
 class OIDCValidator:
     """Validates OIDC tokens issued by Authelia."""
 
+    # Overall timeout for JWKS fetch operation (discovery + JWKS fetch)
+    # Individual HTTP requests have 10s timeout, but overall operation is capped at 15s
+    JWKS_FETCH_TIMEOUT_SECONDS = 15.0
+
     def __init__(self):
         """Initialize OIDC validator with discovery endpoint configuration."""
         self.issuer_url = OIDC_ISSUER_URL
@@ -63,30 +67,35 @@ class OIDCValidator:
                     return self.jwks_cache
 
             # Fetch fresh JWKS (only one task does this at a time)
+            # Overall timeout prevents slow responses from blocking requests
             try:
-                async with httpx.AsyncClient() as client:
-                    # Get OIDC discovery endpoint
-                    discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
-                    discovery_response = await client.get(discovery_url, timeout=10.0)
-                    discovery_response.raise_for_status()
+                async with asyncio.timeout(self.JWKS_FETCH_TIMEOUT_SECONDS):
+                    async with httpx.AsyncClient() as client:
+                        # Get OIDC discovery endpoint
+                        discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
+                        discovery_response = await client.get(discovery_url, timeout=10.0)
+                        discovery_response.raise_for_status()
 
-                    discovery_data = discovery_response.json()
-                    jwks_uri = discovery_data.get("jwks_uri")
+                        discovery_data = discovery_response.json()
+                        jwks_uri = discovery_data.get("jwks_uri")
 
-                    if not jwks_uri:
-                        raise ValueError("No jwks_uri in discovery endpoint")
+                        if not jwks_uri:
+                            raise ValueError("No jwks_uri in discovery endpoint")
 
-                    # Fetch JWKS
-                    jwks_response = await client.get(jwks_uri, timeout=10.0)
-                    jwks_response.raise_for_status()
+                        # Fetch JWKS
+                        jwks_response = await client.get(jwks_uri, timeout=10.0)
+                        jwks_response.raise_for_status()
 
-                    # Update cache atomically
-                    jwks_result = jwks_response.json()
-                    self.jwks_cache = jwks_result
-                    self.jwks_cache_time = datetime.now(UTC)
-                    logger.debug("JWKS cache updated successfully")
+                        # Update cache atomically
+                        jwks_result = jwks_response.json()
+                        self.jwks_cache = jwks_result
+                        self.jwks_cache_time = datetime.now(UTC)
+                        logger.debug("JWKS cache updated successfully")
 
-                    return jwks_result
+                        return jwks_result
+            except TimeoutError:
+                logger.error(f"JWKS fetch timed out after {self.JWKS_FETCH_TIMEOUT_SECONDS}s")
+                raise
             except Exception as e:
                 logger.error(f"Failed to fetch JWKS: {e}")
                 raise

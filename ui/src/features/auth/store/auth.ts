@@ -13,6 +13,19 @@ import {
   renewOIDCToken,
 } from '../utils/oidcUtils';
 
+// Module-level variable for synchronous promise deduplication
+// Using module scope prevents race conditions that could occur with Zustand state
+let _activeRefreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Reset the module-level refresh promise state.
+ * Used by tests to ensure clean state between test cases.
+ * @internal - Only exported for testing purposes
+ */
+export const _resetRefreshPromise = () => {
+  _activeRefreshPromise = null;
+};
+
 export type TokenSource = 'local' | 'oidc';
 
 export type AuthState = {
@@ -23,7 +36,6 @@ export type AuthState = {
   tokenSource: TokenSource;
   error: string | null;
   oidcLogoutWarning: string | null; // Warning shown when OIDC logout fails
-  _refreshPromise: Promise<boolean> | null;
   actions: {
     login: (username: string, password: string) => Promise<boolean>;
     loginWithOIDC: () => Promise<void>;
@@ -46,7 +58,6 @@ export const useAuthStore = create<AuthState>()(
       tokenSource: 'local' as TokenSource,
       error: null,
       oidcLogoutWarning: null,
-      _refreshPromise: null,
       actions: {
         login: async (username, password) => {
           try {
@@ -137,12 +148,12 @@ export const useAuthStore = create<AuthState>()(
 
         refreshTokens: async () => {
           // Check if a refresh is already in flight to prevent concurrent calls
-          const currentState = useAuthStore.getState();
-          if (currentState._refreshPromise) {
-            return currentState._refreshPromise;
+          // Using module-level variable ensures synchronous check without race conditions
+          if (_activeRefreshPromise) {
+            return _activeRefreshPromise;
           }
 
-          // Create refresh promise
+          // Create and immediately store promise for synchronous deduplication
           const refreshPromise = (async () => {
             try {
               const state = useAuthStore.getState();
@@ -199,16 +210,12 @@ export const useAuthStore = create<AuthState>()(
               return false;
             } finally {
               // Clear the in-flight promise when refresh completes
-              set((s) => {
-                s._refreshPromise = null;
-              });
+              _activeRefreshPromise = null;
             }
           })();
 
-          // Store the in-flight promise to deduplicate concurrent calls
-          set((s) => {
-            s._refreshPromise = refreshPromise;
-          });
+          // Store immediately for synchronous deduplication
+          _activeRefreshPromise = refreshPromise;
 
           return refreshPromise;
         },
@@ -239,13 +246,15 @@ export const useAuthStore = create<AuthState>()(
             }
           }
 
+          // Clear module-level refresh promise on logout
+          _activeRefreshPromise = null;
+
           set((state) => {
             state.isAuthenticated = false;
             state.user = null;
             state.token = null;
             state.refreshToken = null;
             state.error = null;
-            state._refreshPromise = null;
             state.oidcLogoutWarning = oidcLogoutFailed
               ? oidcErrorMessage
               : null;

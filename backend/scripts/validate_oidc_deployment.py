@@ -21,11 +21,10 @@ Usage:
     python scripts/validate_oidc_deployment.py --skip-performance
 """
 
+import asyncio
 import os
 import sys
 import time
-from typing import Dict, List, Tuple, Optional
-import asyncio
 
 import httpx
 
@@ -87,7 +86,7 @@ class DeploymentValidator:
         }
 
         missing_vars = []
-        for var, description in required_vars.items():
+        for var, _description in required_vars.items():
             value = os.getenv(var)
             if value:
                 # Mask secrets in output
@@ -189,9 +188,7 @@ class DeploymentValidator:
 
         self.add_check("OIDC_ISSUER_URL configured", bool(issuer), issuer)
         self.add_check("OIDC_AUDIENCE configured", bool(audience), audience)
-        self.add_check(
-            "OIDC_USERNAME_CLAIM configured", bool(username_claim), username_claim
-        )
+        self.add_check("OIDC_USERNAME_CLAIM configured", bool(username_claim), username_claim)
 
         # Check issuer URL format
         if issuer:
@@ -294,7 +291,7 @@ class DeploymentValidator:
                 for _ in range(3):
                     start = time.time()
                     try:
-                        response = await client.get(f"{api_url}/api/health")
+                        await client.get(f"{api_url}/api/health")
                         elapsed = (time.time() - start) * 1000
                         times.append(elapsed)
                     except Exception:
@@ -313,9 +310,7 @@ class DeploymentValidator:
                 if issuer:
                     start = time.time()
                     try:
-                        response = await client.get(
-                            f"{issuer}/.well-known/openid-configuration"
-                        )
+                        await client.get(f"{issuer}/.well-known/openid-configuration")
                         elapsed = (time.time() - start) * 1000
                         status = elapsed < 200
                         self.add_check(
@@ -324,9 +319,7 @@ class DeploymentValidator:
                             f"Time: {elapsed:.1f}ms",
                         )
                     except Exception as e:
-                        self.add_check(
-                            "OIDC response time check", False, str(e)
-                        )
+                        self.add_check("OIDC response time check", False, str(e))
 
         except Exception as e:
             self.add_check("Performance checks", False, str(e))
@@ -419,9 +412,7 @@ class DeploymentValidator:
     # ========================================================================
 
     async def run_all_checks(self) -> bool:
-        print_header(
-            f"ParchMark OIDC Deployment Validation ({self.environment.upper()})"
-        )
+        print_header(f"ParchMark OIDC Deployment Validation ({self.environment.upper()})")
 
         self.check_env_variables()
         await self.check_service_connectivity()
@@ -456,9 +447,7 @@ class DeploymentValidator:
 async def main():
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Pre-Deployment OIDC Validation Checker"
-    )
+    parser = argparse.ArgumentParser(description="Pre-Deployment OIDC Validation Checker")
     parser.add_argument(
         "--environment",
         choices=["development", "staging", "production"],
