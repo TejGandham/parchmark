@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # OIDC Configuration from environment
 OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "https://auth.engen.tech")
-OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "parchmark-web")
+OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "parchmark")
 OIDC_USERNAME_CLAIM = os.getenv("OIDC_USERNAME_CLAIM", "preferred_username")
 
 
@@ -129,13 +129,35 @@ class OIDCValidator:
             # Decode and validate token
             # jwt.decode() accepts JWK dict directly for RS256 validation
             # Note: jwt.decode() automatically validates expiration (exp claim)
-            payload = jwt.decode(
-                token,
-                key_data,
-                algorithms=["RS256"],  # Authelia typically uses RS256
-                audience=self.audience,
-                issuer=self.issuer_url,
-            )
+            #
+            # First try with audience validation, fall back to no audience check
+            # if the token has an empty audience (Authelia may not set it)
+            try:
+                payload = jwt.decode(
+                    token,
+                    key_data,
+                    algorithms=["RS256"],
+                    audience=self.audience,
+                    issuer=self.issuer_url,
+                )
+            except JWTError as e:
+                if "audience" in str(e).lower():
+                    # Retry without audience validation, check client_id instead
+                    logger.info("Audience validation failed, checking client_id")
+                    payload = jwt.decode(
+                        token,
+                        key_data,
+                        algorithms=["RS256"],
+                        issuer=self.issuer_url,
+                        options={"verify_aud": False},
+                    )
+                    # Verify client_id matches as fallback
+                    if payload.get("client_id") != self.audience:
+                        raise JWTError(
+                            f"client_id '{payload.get('client_id')}' does not match expected '{self.audience}'"
+                        )
+                else:
+                    raise
 
             return payload
 
@@ -181,6 +203,47 @@ class OIDCValidator:
             "username": self.extract_username(token_claims),
             "email": token_claims.get("email"),
         }
+
+    async def get_userinfo(self, access_token: str) -> dict:
+        """
+        Fetch user info from the OIDC userinfo endpoint.
+
+        Used when access token doesn't contain user claims (preferred_username, email).
+
+        Args:
+            access_token: Valid OIDC access token
+
+        Returns:
+            dict: User info from userinfo endpoint
+
+        Raises:
+            Exception: If unable to fetch userinfo
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                # Get userinfo endpoint from discovery
+                discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
+                discovery_response = await client.get(discovery_url, timeout=10.0)
+                discovery_response.raise_for_status()
+
+                discovery_data = discovery_response.json()
+                userinfo_url = discovery_data.get("userinfo_endpoint")
+
+                if not userinfo_url:
+                    raise ValueError("No userinfo_endpoint in discovery document")
+
+                # Call userinfo endpoint with access token
+                userinfo_response = await client.get(
+                    userinfo_url,
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=10.0,
+                )
+                userinfo_response.raise_for_status()
+
+                return userinfo_response.json()
+        except Exception as e:
+            logger.error(f"Failed to fetch userinfo: {e}")
+            raise
 
 
 # Singleton instance

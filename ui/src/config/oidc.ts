@@ -1,10 +1,13 @@
 /**
  * OIDC Configuration for Authelia SSO
+ *
+ * ParchMark is a public client (browser SPA) - uses PKCE, no client secret.
+ * Authelia must be configured with: public: true
  */
 
 const OIDC_ISSUER_URL =
   import.meta.env.VITE_OIDC_ISSUER_URL || 'https://auth.engen.tech';
-const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'parchmark-web';
+const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'parchmark';
 const OIDC_REDIRECT_URI =
   import.meta.env.VITE_OIDC_REDIRECT_URI ||
   (typeof window !== 'undefined'
@@ -24,7 +27,7 @@ export const OIDC_CONFIG = {
   response_type: 'code',
   scope: 'openid profile email',
   response_mode: 'query',
-  // PKCE for public client
+  // PKCE for public client (browser SPA)
   code_challenge_method: 'S256',
 };
 

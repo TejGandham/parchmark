@@ -3,7 +3,7 @@
  * Handles the redirect from Authelia after successful authentication
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Center, Box, Spinner, Text, VStack } from '@chakra-ui/react';
 import { useAuthStore } from '../store';
@@ -13,8 +13,14 @@ const OIDCCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { actions } = useAuthStore();
+  // Prevent double execution in React StrictMode (auth code can only be used once)
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
+    // Guard against React StrictMode double-render
+    if (hasProcessed.current) return;
+    hasProcessed.current = true;
+
     const handleCallback = async () => {
       try {
         const success = await actions.handleOIDCCallbackFlow();

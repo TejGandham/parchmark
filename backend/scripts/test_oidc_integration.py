@@ -62,7 +62,7 @@ class OIDCTester:
     def __init__(
         self,
         issuer_url: str = "http://localhost:9091",
-        client_id: str = "parchmark-web",
+        client_id: str = "parchmark",
         api_url: str = "http://localhost:8000",
     ):
         self.issuer_url = issuer_url.rstrip("/")
@@ -386,8 +386,8 @@ async def main():
     )
     parser.add_argument(
         "--client-id",
-        default="parchmark-web",
-        help="OIDC client ID (default: parchmark-web)",
+        default="parchmark",
+        help="OIDC client ID (default: parchmark)",
     )
     parser.add_argument(
         "--api",
