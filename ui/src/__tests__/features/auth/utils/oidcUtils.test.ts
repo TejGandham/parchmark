@@ -7,6 +7,7 @@ const mockFns = vi.hoisted(() => ({
   getUser: vi.fn(),
   signinSilent: vi.fn(),
   signoutRedirect: vi.fn(),
+  removeUser: vi.fn(),
 }));
 
 // Mock oidc-client-ts before any imports
@@ -17,6 +18,7 @@ vi.mock('oidc-client-ts', () => ({
     getUser: mockFns.getUser,
     signinSilent: mockFns.signinSilent,
     signoutRedirect: mockFns.signoutRedirect,
+    removeUser: mockFns.removeUser,
   })),
   WebStorageStateStore: vi.fn(),
 }));
@@ -176,19 +178,19 @@ describe('OIDC Utils', () => {
   });
 
   describe('logoutOIDC', () => {
-    it('calls userManager.signoutRedirect', async () => {
-      mockFns.signoutRedirect.mockResolvedValue(undefined);
+    it('calls userManager.removeUser to clear local session', async () => {
+      mockFns.removeUser.mockResolvedValue(undefined);
 
       await logoutOIDC();
 
-      expect(mockFns.signoutRedirect).toHaveBeenCalledTimes(1);
+      expect(mockFns.removeUser).toHaveBeenCalledTimes(1);
     });
 
     it('throws and logs error on failure', async () => {
-      const error = new Error('Logout failed');
-      mockFns.signoutRedirect.mockRejectedValue(error);
+      const error = new Error('Remove user failed');
+      mockFns.removeUser.mockRejectedValue(error);
 
-      await expect(logoutOIDC()).rejects.toThrow('Logout failed');
+      await expect(logoutOIDC()).rejects.toThrow('Remove user failed');
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('OIDC logout failed'),
         expect.any(Object)
