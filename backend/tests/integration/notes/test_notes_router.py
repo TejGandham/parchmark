@@ -5,7 +5,6 @@ Tests notes CRUD endpoints with real FastAPI client and database.
 
 from datetime import datetime
 
-import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
