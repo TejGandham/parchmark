@@ -743,9 +743,42 @@ docker compose -f docker-compose.prod.yml exec backend python scripts/manage_use
 **Note**: After updating the backend Dockerfile, you must rebuild the Docker images before user management commands will work in Docker/production environments.
 
 ### Database Migrations
-- PostgreSQL is the only supported database (SQLite removed)
-- Currently using auto-migration via SQLAlchemy
-- For production, use Alembic for migrations
+- **PostgreSQL** is the only supported database
+- **Alembic** manages schema migrations in `backend/migrations/`
+- Migrations are idempotent and check for existing columns/indexes
+
+#### Running Migrations
+```bash
+# Check current migration status
+cd backend && uv run alembic current
+
+# Apply all pending migrations
+cd backend && uv run alembic upgrade head
+
+# Rollback one migration
+cd backend && uv run alembic downgrade -1
+
+# View migration history
+cd backend && uv run alembic history
+```
+
+#### Creating New Migrations
+```bash
+# Auto-generate migration from model changes
+cd backend && uv run alembic revision --autogenerate -m "description"
+
+# Create empty migration for manual edits
+cd backend && uv run alembic revision -m "description"
+```
+
+#### Production Deployment
+Migrations run automatically during deployment via GitHub Actions.
+For manual deployment:
+```bash
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+```
+
+**Important**: Always test migrations locally before deploying. Downgrade migrations may fail if data constraints are violated (e.g., OIDC users with NULL passwords).
 
 ## Security Considerations
 
