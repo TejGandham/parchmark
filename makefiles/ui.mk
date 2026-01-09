@@ -31,13 +31,13 @@ test-ui-all: test-ui-lint test-ui-test ## Run all UI tests
 .PHONY: test-ui-oidc
 test-ui-oidc: ## Run OIDC-specific frontend tests
 	$(call info_msg,Running OIDC component tests...)
-	cd ui && npm test -- __tests__/features/auth/components/OIDCCallback.test.tsx __tests__/features/auth/utils/oidcUtils.test.ts __tests__/features/auth/store/auth.oidc.test.ts --coverage
+	cd ui && npm test -- __tests__/features/auth/components/OIDCCallback.test.tsx __tests__/features/auth/utils/oidcUtils.test.ts __tests__/features/auth/store/auth.oidc.test.ts
 	$(call success_msg,OIDC tests passed)
 
 .PHONY: test-ui-auth
 test-ui-auth: ## Run all authentication tests (local + OIDC)
 	$(call info_msg,Running all authentication tests...)
-	cd ui && npm test -- __tests__/features/auth/ --coverage
+	cd ui && npm test -- __tests__/features/auth/
 	$(call success_msg,Authentication tests passed)
 
 .PHONY: dev-ui
