@@ -80,9 +80,7 @@ async def get_current_user(
                 userinfo_data = await oidc_validator.get_userinfo(token)
                 # Merge userinfo into user_info
                 user_info["username"] = (
-                    userinfo_data.get("preferred_username")
-                    or userinfo_data.get("email")
-                    or userinfo_data.get("name")
+                    userinfo_data.get("preferred_username") or userinfo_data.get("email") or userinfo_data.get("name")
                 )
                 user_info["email"] = userinfo_data.get("email")
                 logger.info(f"Got userinfo: username={user_info.get('username')}, email={user_info.get('email')}")
