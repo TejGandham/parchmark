@@ -67,17 +67,24 @@ export const mockEmptyNotesStore = {
   },
 };
 
-// Auth store mocks
+// Auth store mocks - includes all OIDC-related fields
 export const mockAuthStore = {
   isAuthenticated: true,
   user: { username: 'user', password: '' },
   token: 'mock-token',
+  refreshToken: 'mock-refresh-token',
+  tokenSource: 'local' as const,
   error: null,
+  oidcLogoutWarning: null,
   actions: {
-    login: vi.fn().mockReturnValue(true),
-    logout: vi.fn(),
+    login: vi.fn().mockResolvedValue(true),
+    loginWithOIDC: vi.fn().mockResolvedValue(undefined),
+    handleOIDCCallbackFlow: vi.fn().mockResolvedValue(true),
+    logout: vi.fn().mockResolvedValue(undefined),
     clearError: vi.fn(),
+    clearOidcLogoutWarning: vi.fn(),
     checkTokenExpiration: vi.fn(),
+    refreshTokens: vi.fn().mockResolvedValue(true),
   },
 };
 
@@ -85,12 +92,19 @@ export const mockUnauthenticatedStore = {
   isAuthenticated: false,
   user: null,
   token: null,
+  refreshToken: null,
+  tokenSource: 'local' as const,
   error: null,
+  oidcLogoutWarning: null,
   actions: {
-    login: vi.fn().mockReturnValue(false),
-    logout: vi.fn(),
+    login: vi.fn().mockResolvedValue(false),
+    loginWithOIDC: vi.fn().mockResolvedValue(undefined),
+    handleOIDCCallbackFlow: vi.fn().mockResolvedValue(false),
+    logout: vi.fn().mockResolvedValue(undefined),
     clearError: vi.fn(),
+    clearOidcLogoutWarning: vi.fn(),
     checkTokenExpiration: vi.fn(),
+    refreshTokens: vi.fn().mockResolvedValue(false),
   },
 };
 
@@ -98,11 +112,18 @@ export const mockAuthStoreWithError = {
   isAuthenticated: false,
   user: null,
   token: null,
+  refreshToken: null,
+  tokenSource: 'local' as const,
   error: 'Invalid username or password',
+  oidcLogoutWarning: null,
   actions: {
-    login: vi.fn().mockReturnValue(false),
-    logout: vi.fn(),
+    login: vi.fn().mockResolvedValue(false),
+    loginWithOIDC: vi.fn().mockResolvedValue(undefined),
+    handleOIDCCallbackFlow: vi.fn().mockResolvedValue(false),
+    logout: vi.fn().mockResolvedValue(undefined),
     clearError: vi.fn(),
+    clearOidcLogoutWarning: vi.fn(),
     checkTokenExpiration: vi.fn(),
+    refreshTokens: vi.fn().mockResolvedValue(false),
   },
 };

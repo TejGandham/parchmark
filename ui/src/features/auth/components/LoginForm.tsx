@@ -11,6 +11,7 @@ import {
   InputRightElement,
   IconButton,
   VStack,
+  HStack,
   Heading,
   Text,
   Alert,
@@ -19,12 +20,14 @@ import {
   Grid,
   Flex,
   Image,
+  Divider,
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { ViewIcon, ViewOffIcon, LockIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore } from '../store';
+import { handleError } from '../../../utils/errorHandler';
 import Logo from '../../../../assets/images/parchmark.svg';
 
 const LoginForm = () => {
@@ -34,6 +37,7 @@ const LoginForm = () => {
   const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isOIDCLoading, setIsOIDCLoading] = useState(false);
   // Access the auth store directly to avoid infinite loops
   const authStore = useAuthStore();
   const error = authStore.error;
@@ -84,6 +88,18 @@ const LoginForm = () => {
         (location.state as { from?: { pathname: string } })?.from?.pathname ||
         '/notes';
       navigate(from, { replace: true });
+    }
+  };
+
+  const handleOIDCLogin = async () => {
+    try {
+      setIsOIDCLoading(true);
+      await actions.loginWithOIDC();
+    } catch (error) {
+      const appError = handleError(error);
+      console.error('OIDC login error:', appError);
+    } finally {
+      setIsOIDCLoading(false);
     }
   };
 
@@ -279,6 +295,32 @@ const LoginForm = () => {
                 </Button>
               </VStack>
             </form>
+
+            {/* Divider */}
+            <HStack spacing={3}>
+              <Divider />
+              <Text fontSize="sm" color="text.muted" whiteSpace="nowrap">
+                OR
+              </Text>
+              <Divider />
+            </HStack>
+
+            {/* SSO Button */}
+            <Button
+              onClick={handleOIDCLogin}
+              colorScheme="blue"
+              size="lg"
+              width="full"
+              isLoading={isOIDCLoading}
+              data-testid="sso-login-button"
+              fontWeight="semibold"
+              variant="outline"
+              _hover={{
+                bg: 'blue.50',
+              }}
+            >
+              Sign In with SSO
+            </Button>
           </VStack>
         </Box>
       </Flex>

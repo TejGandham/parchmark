@@ -3,7 +3,12 @@ dist
 .DS_Store
 .env
 .env.db
+.env.docker
+.env.production
 *.local
+
+# Authelia user database (contains credentials)
+authelia-users-database.yml
 private/
 __pycache__
 api

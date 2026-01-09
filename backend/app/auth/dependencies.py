@@ -1,32 +1,67 @@
 """
 Authentication dependencies for FastAPI routes.
 Provides dependency functions for protected routes and user authentication.
+Supports both local JWT and OIDC federated authentication.
 """
 
-from fastapi import Depends
+import asyncio
+import logging
+
+import httpx
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.auth import credentials_exception, verify_token
+from app.auth.oidc_validator import oidc_validator
 from app.database.database import get_db
 from app.models.models import User
 from app.schemas.schemas import TokenData
+
+logger = logging.getLogger(__name__)
 
 # HTTP Bearer token scheme for FastAPI
 security = HTTPBearer()
 
 
-def get_current_user(
+def _query_user_by_username(db: Session, username: str) -> User | None:
+    """Sync helper to query user by username."""
+    return db.query(User).filter(User.username == username).first()
+
+
+def _query_user_by_oidc_sub(db: Session, oidc_sub: str) -> User | None:
+    """Sync helper to query user by OIDC subject."""
+    return db.query(User).filter(User.oidc_sub == oidc_sub).first()
+
+
+def _create_oidc_user(db: Session, user_info: dict) -> User:
+    """Sync helper to create OIDC user. Raises IntegrityError on race condition."""
+    user = User(
+        username=user_info["username"],
+        email=user_info.get("email"),
+        oidc_sub=user_info["oidc_sub"],
+        auth_provider="oidc",
+        password_hash=None,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     """
     Dependency function to get the current authenticated user.
 
-    This function:
-    1. Extracts the JWT token from the Authorization header
-    2. Verifies and decodes the token
-    3. Retrieves the user from the database
+    Supports hybrid authentication:
+    1. Attempts to verify as local JWT first
+    2. If local JWT fails, attempts OIDC validation
+    3. For OIDC users, creates user if missing (with race condition handling)
     4. Returns the user object for use in protected routes
 
     Args:
@@ -39,21 +74,102 @@ def get_current_user(
     Raises:
         HTTPException: If token is invalid, expired, or user not found
     """
-    # Extract token from credentials
     token = credentials.credentials
 
-    # Verify and decode the token
-    token_data: TokenData = verify_token(token, credentials_exception)
+    # Try local JWT first
+    try:
+        token_data: TokenData = verify_token(token, credentials_exception)
+        if token_data.username is None:
+            raise credentials_exception
+        # Run sync DB operation in thread pool to avoid blocking event loop
+        user = await asyncio.to_thread(_query_user_by_username, db, token_data.username)
+        if user is not None:
+            return user
+    except HTTPException as e:
+        # Local JWT failed, log reason and try OIDC fallback
+        logger.debug(f"Local JWT validation failed (will try OIDC): status={e.status_code}, detail={e.detail}")
 
-    # Get user from database
-    user = db.query(User).filter(User.username == token_data.username).first()
-    if user is None:
-        raise credentials_exception
+    # Try OIDC validation
+    try:
+        oidc_claims = await oidc_validator.validate_oidc_token(token)
+        user_info = oidc_validator.extract_user_info(oidc_claims)
 
-    return user
+        # Validate required OIDC claims
+        if not user_info.get("oidc_sub"):
+            logger.error("OIDC token missing required 'sub' claim")
+            raise credentials_exception
+
+        # Look up user by oidc_sub (run in thread pool)
+        user = await asyncio.to_thread(_query_user_by_oidc_sub, db, user_info["oidc_sub"])
+
+        if user is None and not user_info.get("username"):
+            # Access token doesn't have user claims - fetch from userinfo endpoint
+            logger.info("Access token lacks user claims, fetching from userinfo endpoint")
+            try:
+                userinfo_data = await oidc_validator.get_userinfo(token)
+                # Merge userinfo into user_info
+                user_info["username"] = (
+                    userinfo_data.get("preferred_username") or userinfo_data.get("email") or userinfo_data.get("name")
+                )
+                user_info["email"] = userinfo_data.get("email")
+                logger.info(f"Got userinfo: username={user_info.get('username')}, email={user_info.get('email')}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch userinfo: {e}")
+
+        if user is None and not user_info.get("username"):
+            # Still no username after userinfo fetch
+            logger.warning(
+                f"OIDC token has valid 'sub' but no username/email claim: oidc_sub={user_info['oidc_sub']}. "
+                "Check OIDC provider configuration to include preferred_username or email claims."
+            )
+            raise credentials_exception
+
+        if user is None and user_info.get("username"):
+            # Auto-create OIDC user on first login
+            # Handle race condition where concurrent requests both try to create the same user
+            try:
+                user = await asyncio.to_thread(_create_oidc_user, db, user_info)
+                logger.info(f"Auto-created OIDC user: {user_info['username']} (oidc_sub={user_info['oidc_sub']})")
+            except IntegrityError as e:
+                # Another concurrent request created the user; rollback and retry lookup
+                logger.debug(f"OIDC user creation race condition detected for oidc_sub={user_info['oidc_sub']}: {e}")
+                await asyncio.to_thread(db.rollback)
+                # Re-fetch the user created by the other request
+                user = await asyncio.to_thread(_query_user_by_oidc_sub, db, user_info["oidc_sub"])
+                if user is None:
+                    logger.error(
+                        f"Failed to retrieve OIDC user after race condition recovery: oidc_sub={user_info['oidc_sub']}"
+                    )
+                    raise credentials_exception from e
+
+        if user is not None:
+            return user
+        else:
+            # This should not happen - user creation should have succeeded or raised
+            logger.error(
+                f"OIDC user creation completed but user is None: oidc_sub={user_info['oidc_sub']}, "
+                f"username={user_info.get('username')}"
+            )
+            raise credentials_exception
+
+    except (JWTError, httpx.TimeoutException, httpx.HTTPError) as e:
+        # Expected OIDC validation failures - log at debug level
+        logger.debug(f"OIDC token validation failed (expected): {type(e).__name__}: {e}")
+    except IntegrityError as e:
+        # Already handled in user creation block, but catch if it occurs elsewhere
+        logger.error(f"Database integrity error during OIDC validation: {e}")
+        await asyncio.to_thread(db.rollback)
+    except HTTPException:
+        # HTTPException (credentials_exception) is explicitly raised in the code above; re-raise it
+        raise
+    except Exception as e:
+        # Unexpected errors - log at error level for investigation
+        logger.error(f"Unexpected error during OIDC validation: {type(e).__name__}: {e}", exc_info=True)
+
+    raise credentials_exception
 
 
-def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """
     Dependency function to get the current active user.
 
@@ -92,8 +208,22 @@ def get_user_by_username(db: Session, username: str) -> User | None:
     return db.query(User).filter(User.username == username).first()
 
 
+def get_user_by_oidc_sub(db: Session, oidc_sub: str) -> User | None:
+    """
+    Helper function to get a user by OIDC subject claim from the database.
+
+    Args:
+        db: Database session
+        oidc_sub: OIDC subject identifier
+
+    Returns:
+        User: User object if found, None otherwise
+    """
+    return db.query(User).filter(User.oidc_sub == oidc_sub).first()
+
+
 # Optional: Dependency for admin users (future use)
-def get_current_admin_user(
+async def get_current_admin_user(
     current_user: User = Depends(get_current_active_user),
 ) -> User:
     """
