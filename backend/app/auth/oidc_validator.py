@@ -155,7 +155,7 @@ class OIDCValidator:
                     if payload.get("client_id") != self.audience:
                         raise JWTError(
                             f"client_id '{payload.get('client_id')}' does not match expected '{self.audience}'"
-                        )
+                        ) from None
                 else:
                     raise
 
