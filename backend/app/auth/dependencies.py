@@ -74,9 +74,23 @@ async def get_current_user(
         user = db.query(User).filter(User.oidc_sub == user_info["oidc_sub"]).first()
 
         if user is None and not user_info.get("username"):
-            # Valid OIDC token with sub claim but no extractable username
-            # This indicates a configuration issue - the OIDC provider should include
-            # preferred_username or email claims for user identification
+            # Access token doesn't have user claims - fetch from userinfo endpoint
+            logger.info("Access token lacks user claims, fetching from userinfo endpoint")
+            try:
+                userinfo_data = await oidc_validator.get_userinfo(token)
+                # Merge userinfo into user_info
+                user_info["username"] = (
+                    userinfo_data.get("preferred_username")
+                    or userinfo_data.get("email")
+                    or userinfo_data.get("name")
+                )
+                user_info["email"] = userinfo_data.get("email")
+                logger.info(f"Got userinfo: username={user_info.get('username')}, email={user_info.get('email')}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch userinfo: {e}")
+
+        if user is None and not user_info.get("username"):
+            # Still no username after userinfo fetch
             logger.warning(
                 f"OIDC token has valid 'sub' but no username/email claim: oidc_sub={user_info['oidc_sub']}. "
                 "Check OIDC provider configuration to include preferred_username or email claims."

@@ -177,7 +177,7 @@ async def test_validate_oidc_token_success(oidc_validator, mock_jwks, mock_disco
         "sub": "user-123",
         "preferred_username": "testuser",
         "email": "test@example.com",
-        "aud": "parchmark-web",
+        "aud": "parchmark",
         "iss": "https://auth.engen.tech",
         "exp": (datetime.now(UTC) + timedelta(hours=1)).timestamp(),
     }
