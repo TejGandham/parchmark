@@ -32,3 +32,4 @@ coverage.xml
 .ruff_cache/
 .mypy_cache/
 .playwright-mcp/
+docker.sock
