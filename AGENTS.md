@@ -185,7 +185,7 @@ docker compose -f docker-compose.prod.yml up -d
   - Hybrid auth mode: supports both local and OIDC authentication
   - PKCE-enabled public client for secure browser-based auth
   - Auto-creates users on first OIDC login
-  - See `docs/AUTHELIA_OIDC_QUICKSTART.md` for setup
+  - See `docs/AUTHELIA_OIDC.md` for setup
 - **Proactive token expiration monitoring**: Automatically logs out users 1 minute before token expires
 - **Token expiration checking**: Monitors tokens every 3 minutes with configurable warning threshold
 - **Clock skew protection**: 10-second buffer to handle client/server time differences
