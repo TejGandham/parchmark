@@ -162,7 +162,7 @@ main() {
     local frontend_attempts=1
     local frontend_max_attempts=15
     while [[ $frontend_attempts -le $frontend_max_attempts ]]; do
-        if docker compose -f "$COMPOSE_FILE" exec -T frontend wget --no-verbose --tries=1 --spider http://localhost:8080/ 2>/dev/null; then
+        if docker compose -f "$COMPOSE_FILE" exec -T frontend wget --no-verbose --tries=1 --spider http://localhost:80/ 2>/dev/null; then
             log "Frontend is healthy"
             break
         fi
