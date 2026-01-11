@@ -296,12 +296,40 @@ docker compose -f docker-compose.prod.yml exec backend alembic history
 docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 ```
 
-## Security Notes
+## Security Best Practices
+
+### Token Security
+
+1. **GHCR Token Scope**: Use a Classic Personal Access Token with **only** `read:packages` scope
+   - Fine-grained tokens are NOT supported by GitHub Packages
+   - Never use a token with write permissions on the production server
+
+2. **Token Rotation Schedule**: Rotate the GHCR token every **90 days**
+   - Set a calendar reminder for token expiration
+   - Generate new token at: https://github.com/settings/tokens
+   - Update `.env.deploy` with new token
+   - Test with: `./deploy/update.sh`
+
+3. **Consider GitHub App Tokens**: For enhanced security, consider using a GitHub App
+   - More granular permissions than PATs
+   - Automatic token rotation
+   - Better audit logging
+   - See: https://docs.github.com/en/apps/creating-github-apps
+
+### File Permissions
 
 1. **Environment files**: All `.env*` files should have `600` permissions
-2. **GHCR token**: Use a token with minimal scope (`read:packages` only)
-3. **Token rotation**: Rotate the GHCR token every 90 days
-4. **SSH access**: Use key-based authentication only, no passwords
+   ```bash
+   chmod 600 .env.deploy .env.db backend/.env.production
+   ```
+
+2. **Never commit secrets**: Ensure `.env*` files are in `.gitignore`
+
+### Access Control
+
+1. **SSH access**: Use ED25519 key-based authentication only, no passwords
+2. **Limit sudo access**: The deploy user should only have Docker permissions
+3. **Firewall**: Ensure only necessary ports are exposed (80, 443)
 
 ## Directory Structure
 

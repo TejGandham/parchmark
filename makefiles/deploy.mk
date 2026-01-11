@@ -83,18 +83,22 @@ deploy-logs-frontend: ## View frontend logs only
 # ============================================================================
 
 .PHONY: deploy-trigger
-deploy-trigger: ## Manually trigger GitHub Actions deployment
-	$(call info_msg,Triggering GitHub Actions deployment...)
-	@echo "$(YELLOW)This will trigger a production deployment.$(NC)"
-	@echo "$(YELLOW)Ensure all changes are committed and pushed to main branch.$(NC)"
-	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || (echo "Cancelled" && exit 1)
-	@gh workflow run deploy.yml || ($(call warning_msg,Install gh CLI: brew install gh) && exit 1)
-	$(call success_msg,Deployment triggered - check status with 'make deploy-status')
+deploy-trigger: ## Show deployment instructions (manual SSH required)
+	$(call info_msg,Deployment is now manual via SSH)
+	@echo ""
+	@echo "$(YELLOW)To deploy to production:$(NC)"
+	@echo "  1. Ensure images are built: check GitHub Actions status"
+	@echo "  2. SSH into production: make deploy-ssh"
+	@echo "  3. Navigate to project: cd $(PROD_DIR)"
+	@echo "  4. Pull latest config: git pull origin main"
+	@echo "  5. Run update script: ./deploy/update.sh"
+	@echo ""
+	@echo "$(BLUE)Or use: make deploy-ssh$(NC)"
 
 .PHONY: deploy-watch
-deploy-watch: ## Watch latest deployment run progress
-	$(call info_msg,Watching deployment progress...)
-	@gh run watch --workflow=deploy.yml || ($(call warning_msg,Install gh CLI: brew install gh) && exit 1)
+deploy-watch: ## Watch GitHub Actions build progress
+	$(call info_msg,Watching build progress...)
+	@gh run watch || ($(call warning_msg,Install gh CLI: brew install gh) && exit 1)
 
 # ============================================================================
 # ROLLBACK OPERATIONS
@@ -106,22 +110,17 @@ ifndef SHA
 	$(call error_msg,SHA parameter required. Usage: make deploy-rollback SHA=abc123)
 	@exit 1
 else
-	$(call info_msg,Rolling back to SHA: $(SHA))
-	@echo "$(YELLOW)This will update production to use images tagged with SHA $(SHA).$(NC)"
-	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || (echo "Cancelled" && exit 1)
-	@ssh $(PROD_USER)@$(PROD_HOST) "\
-		cd $(PROD_DIR) && \
-		export BACKEND_IMAGE='$(GHCR_BACKEND_IMAGE):sha-$(SHA)' && \
-		export FRONTEND_IMAGE='$(GHCR_FRONTEND_IMAGE):sha-$(SHA)' && \
-		docker compose -f docker-compose.prod.yml pull backend frontend && \
-		docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend && \
-		echo 'Waiting for services to start...' && \
-		sleep 10" || ($(call error_msg,Rollback failed) && exit 1)
+	$(call info_msg,Rollback instructions for SHA: $(SHA))
 	@echo ""
-	$(call info_msg,Verifying rollback...)
-	@sleep 5
-	@$(MAKE) deploy-verify
-	$(call success_msg,Rollback to SHA $(SHA) complete)
+	@echo "$(YELLOW)To rollback to SHA $(SHA):$(NC)"
+	@echo "  1. SSH into production: make deploy-ssh"
+	@echo "  2. Navigate to project: cd $(PROD_DIR)"
+	@echo "  3. Edit docker-compose.prod.yml to use specific tags:"
+	@echo "     image: $(GHCR_BACKEND_IMAGE):sha-$(SHA)"
+	@echo "     image: $(GHCR_FRONTEND_IMAGE):sha-$(SHA)"
+	@echo "  4. Run update script: ./deploy/update.sh"
+	@echo ""
+	@echo "$(BLUE)Available images: make deploy-list-images$(NC)"
 endif
 
 .PHONY: deploy-list-images
@@ -173,8 +172,9 @@ deploy-push-check: ## Pre-deployment checks before pushing to main
 	@echo "$(YELLOW)Ready to deploy:$(NC)"
 	@echo "  1. Commit and push to main branch"
 	@echo "  2. Wait for GitHub Actions to build images"
-	@echo "  3. Approve deployment in GitHub (production environment)"
-	@echo "  4. Verify with: make deploy-verify"
+	@echo "  3. SSH to production: make deploy-ssh"
+	@echo "  4. Run update script: ./deploy/update.sh"
+	@echo "  5. Verify with: make deploy-verify"
 
 # ============================================================================
 # SSH OPERATIONS
@@ -213,13 +213,15 @@ deploy-help: ## Show comprehensive deployment workflow guide
 	@echo "  2. Pre-Deployment Checks"
 	@echo "     make deploy-push-check     # Run all pre-deployment checks"
 	@echo ""
-	@echo "  3. Trigger Deployment"
-	@echo "     git push origin main       # Push to main (auto-triggers workflow)"
-	@echo "     make deploy-trigger        # OR manually trigger via gh CLI"
+	@echo "  3. Build Images"
+	@echo "     git push origin main       # Push to main (auto-triggers build)"
+	@echo "     make deploy-status         # Check build status"
 	@echo ""
-	@echo "  4. Monitor Deployment"
-	@echo "     make deploy-status         # Check deployment runs"
-	@echo "     make deploy-watch          # Watch deployment progress"
+	@echo "  4. Deploy to Production"
+	@echo "     make deploy-ssh            # SSH into production server"
+	@echo "     cd /home/deploy/parchmark  # Navigate to project"
+	@echo "     git pull origin main       # Pull latest config (if needed)"
+	@echo "     ./deploy/update.sh         # Run the update script"
 	@echo ""
 	@echo "  5. Verify Deployment"
 	@echo "     make deploy-verify         # Health check backend + frontend"
@@ -227,7 +229,7 @@ deploy-help: ## Show comprehensive deployment workflow guide
 	@echo ""
 	@echo "$(GREEN)🔄 ROLLBACK PROCESS:$(NC)"
 	@echo "  make deploy-list-images              # List available SHA tags"
-	@echo "  make deploy-rollback SHA=abc123      # Rollback to specific version"
+	@echo "  make deploy-rollback SHA=abc123      # Show rollback instructions"
 	@echo ""
 	@echo "$(GREEN)📊 MONITORING:$(NC)"
 	@echo "  make deploy-verify             # Health checks"
@@ -247,8 +249,8 @@ deploy-help: ## Show comprehensive deployment workflow guide
 	@echo "  API Docs: $(PROD_BACKEND_URL)/docs"
 	@echo ""
 	@echo "$(YELLOW)📚 Documentation:$(NC)"
-	@echo "  docs/deployment_upgrade/DEPLOYMENT_VALIDATED.md"
-	@echo "  docs/deployment_upgrade/DEPLOYMENT_PROGRESS.md"
+	@echo "  deploy/SERVER_SETUP.md                  # Server setup guide"
+	@echo "  deploy/update.sh                        # Update script"
 	@echo "  docs/deployment_upgrade/FUTURE_IMPROVEMENTS.md"
 	@echo ""
 	@echo "$(BLUE)════════════════════════════════════════════════════════════════$(NC)"

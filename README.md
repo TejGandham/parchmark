@@ -467,13 +467,31 @@ docker compose down -v
 
 ### Production Deployment
 
-```bash
-# Use production compose file
-docker compose -f docker-compose.prod.yml up -d
+ParchMark uses a server-side update script for production deployments:
 
-# With custom domain
-DOMAIN=notes.example.com docker compose -f docker-compose.prod.yml up -d
+```bash
+# 1. Push to main branch (triggers image builds)
+git push origin main
+
+# 2. Wait for GitHub Actions to build images (check status)
+gh run list --workflow=deploy.yml --limit=3
+
+# 3. SSH into production server
+ssh deploy@your-server
+cd /home/deploy/parchmark
+
+# 4. Run the update script
+./deploy/update.sh
 ```
+
+The update script will:
+- Authenticate with GitHub Container Registry
+- Pull latest Docker images
+- Restart services
+- Run database migrations
+- Verify health checks
+
+See `deploy/SERVER_SETUP.md` for initial server configuration.
 
 ### Docker Environment Variables
 
