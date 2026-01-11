@@ -125,11 +125,11 @@ main() {
 
     # Pull latest images
     log "Pulling latest images..."
-    docker compose -f "$COMPOSE_FILE" pull backend frontend
+    docker compose -f "$COMPOSE_FILE" pull postgres backend frontend
 
     # Get current image digests before update (for logging)
     log "Recreating containers with new images..."
-    docker compose -f "$COMPOSE_FILE" up -d backend frontend
+    docker compose -f "$COMPOSE_FILE" up -d postgres backend frontend
 
     # Wait for backend to be healthy before running migrations
     log "Waiting for backend to be healthy..."

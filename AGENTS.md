@@ -456,6 +456,18 @@ make deploy-logs-backend        # Backend logs only
 make deploy-logs-frontend       # Frontend logs only
 ```
 
+**Build Monitoring** (2 commands):
+```bash
+make deploy-trigger             # Show deployment instructions
+make deploy-watch               # Watch GitHub Actions build progress
+```
+
+**Rollback** (2 commands):
+```bash
+make deploy-list-images         # List available image versions
+make deploy-rollback SHA=xxx    # Show rollback instructions for specific SHA
+```
+
 **Pre-Deployment** (3 commands):
 ```bash
 make deploy-push-check          # Run all pre-deployment checks
@@ -470,9 +482,8 @@ make deploy-ps                  # Show running containers
 make deploy-disk-usage          # Check disk space
 ```
 
-**Utilities** (2 commands):
+**Utilities** (1 command):
 ```bash
-make deploy-list-images         # List available image versions
 make deploy-help                # Comprehensive deployment guide
 ```
 
