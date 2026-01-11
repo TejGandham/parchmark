@@ -378,9 +378,36 @@ ENVIRONMENT=development  # or production
   - Backend: `/api/health` (includes database connectivity check)
   - Frontend: `/` (served by Nginx)
 
-### Automated Deployment Pipeline
+### Deployment Architecture
 
-The deployment system uses GitHub Actions for automated CI/CD with the following workflow:
+The deployment system uses a **server-side update script** approach:
+
+```
+GitHub Actions                          Production Server
+     │                                        │
+     │ push to main                           │
+     ▼                                        │
+┌─────────────────┐                           │
+│  Run Tests      │                           │
+│  Build Images   │                           │
+│  Push to GHCR   │                           │
+└─────────────────┘                           │
+     │                                        │
+     │ Images available                       │
+     ▼                                        │
+                                              │
+     (When ready to deploy)                   │
+     SSH to server ──────────────────────────►│
+                                              │
+                                    ┌─────────▼─────────┐
+                                    │ ./deploy/update.sh│
+                                    │                   │
+                                    │ - Pull images     │
+                                    │ - Restart services│
+                                    │ - Run migrations  │
+                                    │ - Health checks   │
+                                    └───────────────────┘
+```
 
 **Workflow Structure** (`.github/workflows/deploy.yml`):
 1. **Job 1 - Test**: Runs full test suite (UI + Backend)
@@ -388,27 +415,29 @@ The deployment system uses GitHub Actions for automated CI/CD with the following
    - Uses `make test-all` for comprehensive validation
 2. **Job 2 - Build Backend**: Builds and pushes backend image to GHCR
 3. **Job 3 - Build Frontend**: Builds and pushes frontend image to GHCR
-4. **Job 4 - Deploy**: SSH-based deployment to production server
-   - Requires manual approval (production environment protection)
-   - Pulls new images, runs migrations, updates services
-   - Health checks with retries and exponential backoff
-5. **Job 5 - Notify**: Post-deployment status notification
+4. **Job 4 - Build Summary**: Outputs deployment instructions
+
+**Server-Side Deployment** (`deploy/update.sh`):
+- SSH into production server and run the update script manually
+- Authenticates with GHCR using stored credentials
+- Pulls latest Docker images
+- Recreates containers
+- Waits for health checks to pass
+- Runs database migrations (fails deployment if migrations fail)
+- Cleans up old images
 
 **Key Features**:
 - **Dual image tagging**: `:latest` and `:sha-xxxxx` for easy rollbacks
 - **Test gate**: All tests must pass before building images
 - **Migration safety**: Deployment fails if database migrations fail
-- **Health verification**: 12 retries with 5-second delay and exponential backoff
-- **Error handling**: `set -Eeuo pipefail` with ERR trap for fail-fast behavior
-- **Security**: Production environment requires manual approval
+- **Health verification**: Backend and frontend health checks with retries
+- **Manual deployment**: No automatic deployment - SSH to server and run script
 
 **Triggers**:
-- Automatic on push to `main` branch
-- Manual via `workflow_dispatch`
+- Automatic image builds on push to `main` branch
+- Manual deployment via SSH: `./deploy/update.sh`
 
 ### Deployment Commands (Makefile)
-
-25 deployment commands organized into categories:
 
 **Verification** (3 commands):
 ```bash
@@ -427,11 +456,16 @@ make deploy-logs-backend        # Backend logs only
 make deploy-logs-frontend       # Frontend logs only
 ```
 
-**Deployment Control** (3 commands):
+**Build Monitoring** (2 commands):
 ```bash
-make deploy-trigger             # Manually trigger GitHub Actions
-make deploy-watch               # Watch deployment progress
-make deploy-rollback SHA=xxx    # Rollback to specific version
+make deploy-trigger             # Show deployment instructions
+make deploy-watch               # Watch GitHub Actions build progress
+```
+
+**Rollback** (2 commands):
+```bash
+make deploy-list-images         # List available image versions
+make deploy-rollback SHA=xxx    # Show rollback instructions for specific SHA
 ```
 
 **Pre-Deployment** (3 commands):
@@ -448,9 +482,8 @@ make deploy-ps                  # Show running containers
 make deploy-disk-usage          # Check disk space
 ```
 
-**Utilities** (2 commands):
+**Utilities** (1 command):
 ```bash
-make deploy-list-images         # List available image versions
 make deploy-help                # Comprehensive deployment guide
 ```
 
@@ -467,17 +500,17 @@ make deploy-help                # Comprehensive deployment guide
    make deploy-push-check       # Runs tests + validation
    ```
 
-3. **Trigger Deployment**:
+3. **Push to Build Images**:
    ```bash
-   git push origin main         # Auto-triggers workflow
-   # OR
-   make deploy-trigger          # Manual trigger via gh CLI
+   git push origin main         # Auto-triggers image build
    ```
 
-4. **Monitor Deployment**:
+4. **Deploy to Production**:
    ```bash
-   make deploy-status           # Check deployment runs
-   make deploy-watch            # Watch progress
+   make deploy-ssh              # SSH into production server
+   cd /home/deploy/parchmark
+   git pull origin main         # Get latest config (if needed)
+   ./deploy/update.sh           # Run the update script
    ```
 
 5. **Verify Deployment**:
@@ -488,8 +521,9 @@ make deploy-help                # Comprehensive deployment guide
 
 6. **Rollback** (if needed):
    ```bash
-   make deploy-list-images      # List available SHA tags
-   make deploy-rollback SHA=abc123
+   # Edit docker-compose.prod.yml to use specific SHA tag
+   # e.g., ghcr.io/tejgandham/parchmark-backend:sha-abc123
+   ./deploy/update.sh           # Re-run update script
    ```
 
 ### Container Health Checks
@@ -535,12 +569,11 @@ healthcheck:
 
 ### Documentation
 
-Comprehensive deployment documentation available in `docs/deployment_upgrade/`:
-- **DEPLOYMENT_VALIDATED.md** - Architecture and implementation guide
-- **DEPLOYMENT_PROGRESS.md** - Implementation status and history
-- **FUTURE_IMPROVEMENTS.md** - Security enhancement roadmap
-- **PHASE3_SERVER_SETUP.md** - Server setup instructions
-- **PHASE4_GITHUB_SECRETS.md** - GitHub Secrets configuration
+Deployment documentation available in `deploy/` and `docs/deployment_upgrade/`:
+- **deploy/SERVER_SETUP.md** - Server setup and deployment guide
+- **deploy/update.sh** - Server-side update script
+- **docs/deployment_upgrade/DEPLOYMENT_VALIDATED.md** - Legacy architecture docs
+- **docs/deployment_upgrade/FUTURE_IMPROVEMENTS.md** - Security enhancement roadmap
 
 ## Key Implementation Patterns
 
