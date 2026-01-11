@@ -150,7 +150,29 @@ main() {
 
     # Run database migrations
     log "Running database migrations..."
-    docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head
+    if ! docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head; then
+        log_error "Database migrations failed! Deployment may be in inconsistent state."
+        log_error "Check migration logs and consider rolling back."
+        exit 1
+    fi
+    log "Migrations completed successfully"
+
+    # Verify frontend is healthy
+    log "Verifying frontend health..."
+    local frontend_attempts=1
+    local frontend_max_attempts=15
+    while [[ $frontend_attempts -le $frontend_max_attempts ]]; do
+        if docker compose -f "$COMPOSE_FILE" exec -T frontend wget --no-verbose --tries=1 --spider http://localhost:8080/ 2>/dev/null; then
+            log "Frontend is healthy"
+            break
+        fi
+        if [[ $frontend_attempts -eq $frontend_max_attempts ]]; then
+            log_error "Frontend failed to become healthy after ${frontend_max_attempts} attempts"
+            exit 1
+        fi
+        sleep 2
+        ((frontend_attempts++))
+    done
 
     # Cleanup old images (older than 7 days)
     log "Pruning old images..."
