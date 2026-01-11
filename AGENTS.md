@@ -778,35 +778,48 @@ docker compose -f docker-compose.prod.yml exec backend python scripts/manage_use
 - **PostgreSQL** is the only supported database
 - **Alembic** manages schema migrations in `backend/migrations/`
 - Migrations are idempotent and check for existing columns/indexes
+- **Automatic migrations**: Run on container startup when `APPLY_MIGRATIONS=true`
 
-#### Running Migrations
+#### Running Migrations (Docker - Recommended)
 ```bash
+# Migrations run automatically on container startup
+# For manual control:
+
 # Check current migration status
-cd backend && uv run alembic current
+docker compose exec backend alembic current
 
 # Apply all pending migrations
-cd backend && uv run alembic upgrade head
+docker compose exec backend alembic upgrade head
 
 # Rollback one migration
-cd backend && uv run alembic downgrade -1
+docker compose exec backend alembic downgrade -1
 
 # View migration history
-cd backend && uv run alembic history
+docker compose exec backend alembic history
+```
+
+#### Running Migrations (Local Development)
+```bash
+# When running backend directly on host (not in Docker)
+cd backend && uv run alembic current
+cd backend && uv run alembic upgrade head
 ```
 
 #### Creating New Migrations
 ```bash
-# Auto-generate migration from model changes
-cd backend && uv run alembic revision --autogenerate -m "description"
+# With Docker (backend must be running)
+docker compose exec backend alembic revision --autogenerate -m "description"
 
-# Create empty migration for manual edits
-cd backend && uv run alembic revision -m "description"
+# Local development
+cd backend && uv run alembic revision --autogenerate -m "description"
 ```
 
 #### Production Deployment
-Migrations run automatically during deployment via GitHub Actions.
-For manual deployment:
+Migrations run automatically on container startup (controlled by `APPLY_MIGRATIONS=true` in docker-compose.prod.yml).
+
+For manual operations:
 ```bash
+docker compose -f docker-compose.prod.yml exec backend alembic current
 docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 ```
 

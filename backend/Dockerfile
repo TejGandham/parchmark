@@ -15,6 +15,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app ./app
 COPY scripts ./scripts
 
+# Copy Alembic configuration and migrations for database migrations
+COPY alembic.ini ./
+COPY migrations ./migrations
+
 # Second sync: Install the project itself in non-editable mode
 # --no-editable ensures files are copied to site-packages instead of using .pth file
 RUN uv sync --frozen --no-dev --no-editable
@@ -30,6 +34,13 @@ COPY --from=builder /app/.venv /app/.venv
 # Copy scripts directory for user management and other utilities
 COPY --from=builder /app/scripts /app/scripts
 
+# Copy Alembic configuration and migrations
+COPY --from=builder /app/alembic.ini /app/alembic.ini
+COPY --from=builder /app/migrations /app/migrations
+
+# Copy entrypoint script
+COPY --from=builder /app/scripts/docker-entrypoint.sh /docker-entrypoint.sh
+
 # Don't copy env files in production - they should be mounted or provided via env_file
 # For development, you can mount .env.docker or .env.production at runtime
 
@@ -40,6 +51,6 @@ ENV VIRTUAL_ENV="/app/.venv"
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application as a Python module
-# The app is installed in the venv and can be run as a module
+# Use entrypoint for migrations, CMD for the app
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["python", "-m", "app"]

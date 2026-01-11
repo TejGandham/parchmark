@@ -28,6 +28,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    environment:
+      # Run database migrations on container startup
+      - APPLY_MIGRATIONS=true
     env_file:
       - ./backend/.env.docker
     restart: unless-stopped

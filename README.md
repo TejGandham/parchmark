@@ -487,11 +487,9 @@ cd /home/deploy/parchmark
 The update script will:
 - Authenticate with GitHub Container Registry (optional for public images)
 - Pull latest Docker images
-- Restart services
+- Restart services (migrations run automatically on startup)
 - Verify health checks
 - Clean up old images
-
-**Note:** Database migrations are run manually when needed. See `PRODUCTION_DEPLOYMENT.md` for details.
 
 See `deploy/SERVER_SETUP.md` for initial server configuration.
 

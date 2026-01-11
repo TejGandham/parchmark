@@ -18,7 +18,7 @@ help: ## Display this help message
 	@$(MAKE) --silent help-combined
 	@$(MAKE) --silent help-dev
 	@$(MAKE) --silent help-docker
-	@$(MAKE) --silent help-db-admin
+	@$(MAKE) --silent help-migrations
 	@$(MAKE) --silent help-deploy
 	@$(MAKE) --silent help-install
 	@$(MAKE) --silent help-users
@@ -96,18 +96,22 @@ help-users:
 	@echo "  make user-list-prod                                   - List all users"
 	@echo ""
 
-.PHONY: help-db-admin
-help-db-admin:
-	@echo "$(GREEN)🗄️ Database Admin:$(NC)"
-	@echo "  $(YELLOW)For complete guide: make db-admin-help$(NC)"
+.PHONY: help-migrations
+help-migrations:
+	@echo "$(GREEN)🗄️ Database Migrations:$(NC)"
+	@echo "  $(YELLOW)Migrations run automatically on container startup$(NC)"
+	@echo "  $(YELLOW)For complete guide: make migrate-help$(NC)"
 	@echo ""
-	@echo "  make db-admin                       - Interactive database admin shell"
-	@echo "  make db-admin-migrate               - Run migrations (non-interactive)"
-	@echo "  make db-admin-status                - Show current migration version"
-	@echo "  make db-admin-history               - Show migration history"
-	@echo "  make db-admin-downgrade             - Rollback one migration"
-	@echo "  make db-admin-revision MSG=\"desc\"   - Create new migration"
-	@echo "  make db-admin-help                  - Show full db-admin guide"
+	@echo "  make migrate                        - Run pending migrations"
+	@echo "  make migrate-status                 - Show current migration version"
+	@echo "  make migrate-history                - Show migration history"
+	@echo "  make migrate-downgrade              - Rollback one migration"
+	@echo "  make migrate-revision MSG=\"desc\"    - Create new migration"
+	@echo "  make migrate-help                   - Show full migration guide"
+	@echo ""
+	@echo "  $(BLUE)Production:$(NC)"
+	@echo "  make migrate-prod                   - Run production migrations"
+	@echo "  make migrate-prod-status            - Show production version"
 	@echo ""
 
 .PHONY: help-deploy

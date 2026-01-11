@@ -113,7 +113,7 @@ git pull origin main        # Get latest config changes
 
 The script will:
 - Pull latest Docker images from GHCR
-- Restart containers with new images
+- Restart containers with new images (migrations run automatically on startup)
 - Wait for health checks to pass
 - Clean up old images
 
@@ -129,7 +129,7 @@ git pull origin main
 # Pull latest Docker images
 docker compose -f docker-compose.prod.yml pull postgres backend frontend
 
-# Restart services
+# Restart services (migrations run automatically on startup)
 docker compose -f docker-compose.prod.yml up -d postgres backend frontend
 
 # Verify deployment
@@ -137,16 +137,24 @@ docker ps --filter "name=parchmark"
 curl -sf http://127.0.0.1:8000/api/health
 ```
 
-### Running Database Migrations
+### Database Migrations
 
-Migrations are NOT automatically run by the update script (alembic is not configured in the container). Run migrations manually when needed:
+**Automatic Migrations**: Migrations run automatically when the backend container starts (controlled by `APPLY_MIGRATIONS=true` in docker-compose.prod.yml).
+
+**Manual Migration Commands** (if needed):
 
 ```bash
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic upgrade head
+# Check migration status
+docker compose -f docker-compose.prod.yml exec backend alembic current
+
+# Run migrations manually
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+
+# View migration history
+docker compose -f docker-compose.prod.yml exec backend alembic history
+
+# Rollback one migration
+docker compose -f docker-compose.prod.yml exec backend alembic downgrade -1
 ```
 
 ### Verify Deployment
@@ -290,18 +298,13 @@ This usually means the API proxy isn't working:
 
 ```bash
 # Check current migration status
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic current
+docker compose -f docker-compose.prod.yml exec backend alembic current
 
 # Show migration history
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic history
+docker compose -f docker-compose.prod.yml exec backend alembic history
+
+# Check backend logs for migration errors
+docker logs parchmark-backend | grep -i "migration\|alembic"
 ```
 
 ### Network Issues

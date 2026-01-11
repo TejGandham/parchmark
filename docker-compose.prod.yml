@@ -19,6 +19,9 @@ services:
   backend:
     image: ghcr.io/tejgandham/parchmark-backend:latest
     container_name: parchmark-backend
+    environment:
+      # Run database migrations on container startup
+      - APPLY_MIGRATIONS=true
     env_file:
       - ./backend/.env.production
     restart: unless-stopped
