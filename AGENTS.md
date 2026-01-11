@@ -404,8 +404,8 @@ GitHub Actions                          Production Server
                                     │                   │
                                     │ - Pull images     │
                                     │ - Restart services│
-                                    │ - Run migrations  │
                                     │ - Health checks   │
+                                    │ - Cleanup         │
                                     └───────────────────┘
 ```
 
@@ -419,19 +419,18 @@ GitHub Actions                          Production Server
 
 **Server-Side Deployment** (`deploy/update.sh`):
 - SSH into production server and run the update script manually
-- Authenticates with GHCR using stored credentials
+- Authenticates with GHCR (optional for public images)
 - Pulls latest Docker images
 - Recreates containers
 - Waits for health checks to pass
-- Runs database migrations (fails deployment if migrations fail)
 - Cleans up old images
 
 **Key Features**:
 - **Dual image tagging**: `:latest` and `:sha-xxxxx` for easy rollbacks
 - **Test gate**: All tests must pass before building images
-- **Migration safety**: Deployment fails if database migrations fail
 - **Health verification**: Backend and frontend health checks with retries
 - **Manual deployment**: No automatic deployment - SSH to server and run script
+- **Migrations**: Run manually when needed (see `PRODUCTION_DEPLOYMENT.md`)
 
 **Triggers**:
 - Automatic image builds on push to `main` branch

@@ -100,9 +100,9 @@ VITE_API_URL=/api
 EOF
 ```
 
-#### Deploy credentials (`.env.deploy`)
+#### Deploy credentials (`.env.deploy`) - Optional
 
-Create a GitHub Personal Access Token with `read:packages` scope, then:
+For public images, GHCR authentication is optional. If your images are private, create a GitHub Personal Access Token with `read:packages` scope:
 
 ```bash
 cat > .env.deploy << 'EOF'
@@ -111,6 +111,8 @@ GHCR_TOKEN=ghp_your_token_here
 EOF
 chmod 600 .env.deploy
 ```
+
+**Note:** ParchMark images are public, so this file is optional.
 
 ### 4. Make Scripts Executable
 
@@ -145,12 +147,13 @@ git pull origin main
 ```
 
 The update script will:
-1. Authenticate with GHCR
+1. Authenticate with GHCR (if credentials provided)
 2. Pull the latest Docker images
 3. Recreate containers with new images
 4. Wait for health checks to pass
-5. Run database migrations
-6. Clean up old images
+5. Clean up old images
+
+**Note:** Database migrations are NOT automatically run. See "Running Migrations" below.
 
 ## Viewing Logs
 
@@ -214,17 +217,17 @@ BACKEND_TAG=sha-def456 docker compose -f docker-compose.prod.yml up -d backend
 
 ### Rollback Database Migration
 
-If a migration needs to be reverted:
+If a migration needs to be reverted, use the temporary container approach:
 
 ```bash
-# View migration history
-docker compose -f docker-compose.prod.yml exec backend alembic history
+cd /home/deploy/parchmark
 
 # Rollback one migration
-docker compose -f docker-compose.prod.yml exec backend alembic downgrade -1
-
-# Rollback to specific revision
-docker compose -f docker-compose.prod.yml exec backend alembic downgrade abc123
+docker run --rm --network proxiable \
+  -v $(pwd)/backend:/app -w /app \
+  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
+  astral/uv:python3.13-bookworm \
+  uv run alembic downgrade -1
 ```
 
 ## Health Checks
@@ -283,17 +286,33 @@ docker compose -f docker-compose.prod.yml logs postgres
 docker compose -f docker-compose.prod.yml exec postgres psql -U parchmark_user -d parchmark_db -c "SELECT 1"
 ```
 
-### Migrations Failed
+### Running Migrations
+
+Alembic is not configured to run from within the backend container. Use a temporary container instead:
 
 ```bash
+cd /home/deploy/parchmark
+
 # Check migration status
-docker compose -f docker-compose.prod.yml exec backend alembic current
+docker run --rm --network proxiable \
+  -v $(pwd)/backend:/app -w /app \
+  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
+  astral/uv:python3.13-bookworm \
+  uv run alembic current
+
+# Run migrations
+docker run --rm --network proxiable \
+  -v $(pwd)/backend:/app -w /app \
+  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
+  astral/uv:python3.13-bookworm \
+  uv run alembic upgrade head
 
 # View migration history
-docker compose -f docker-compose.prod.yml exec backend alembic history
-
-# Try running migrations manually
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+docker run --rm --network proxiable \
+  -v $(pwd)/backend:/app -w /app \
+  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
+  astral/uv:python3.13-bookworm \
+  uv run alembic history
 ```
 
 ## Security Best Practices

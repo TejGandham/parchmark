@@ -16,15 +16,24 @@ This guide provides comprehensive instructions for deploying and maintaining Par
 - Docker Network: `proxiable` (shared with NPM)
 - Images: Pre-built and stored in GitHub Container Registry (GHCR)
 
-## Current Deployment Process
+## Deployment Process
 
 ### How Deployments Work
 
 1. **Push to `main` branch** triggers GitHub Actions workflow
 2. **GitHub Actions** runs tests, builds Docker images, and pushes to GHCR
-3. **Manual SSH deployment** to production server to pull new images
+3. **Manual deployment** via SSH using the update script
 
-**Note:** The automated SSH deployment from GitHub Actions was planned but not fully configured. Deployments are currently manual.
+### Quick Deploy
+
+```bash
+ssh deploy@<server-ip>
+cd /home/deploy/parchmark
+git pull origin main        # Get latest config (if changed)
+./deploy/update.sh          # Pull images and restart services
+```
+
+The update script handles: GHCR authentication (optional for public images), pulling latest images, restarting containers, health checks, and cleanup.
 
 ---
 
@@ -41,9 +50,12 @@ This guide provides comprehensive instructions for deploying and maintaining Par
 /home/deploy/parchmark/
 ├── docker-compose.prod.yml      # Production compose configuration
 ├── .env.db                      # PostgreSQL credentials (gitignored)
+├── .env.deploy                  # GHCR credentials (optional for public images)
 ├── backend/.env.production      # Backend environment variables
 ├── ui/.env.production           # Frontend environment variables
-└── ui/nginx.http.conf           # Nginx config with API proxy
+├── ui/nginx.http.conf           # Nginx config with API proxy
+└── deploy/
+    └── update.sh                # Deployment script
 ```
 
 ---
@@ -90,28 +102,44 @@ VITE_TOKEN_WARNING_SECONDS=60
 
 ## Deployment Steps
 
-### 1. SSH to Production Server
+### Option 1: Using the Update Script (Recommended)
 
 ```bash
 ssh deploy@<server-ip>
 cd /home/deploy/parchmark
+git pull origin main        # Get latest config changes
+./deploy/update.sh          # Automated deployment
 ```
 
-### 2. Pull Latest Code (optional - for compose file changes)
+The script will:
+- Pull latest Docker images from GHCR
+- Restart containers with new images
+- Wait for health checks to pass
+- Clean up old images
+
+### Option 2: Manual Deployment
 
 ```bash
+ssh deploy@<server-ip>
+cd /home/deploy/parchmark
+
+# Pull latest code (for compose file changes)
 git pull origin main
+
+# Pull latest Docker images
+docker compose -f docker-compose.prod.yml pull postgres backend frontend
+
+# Restart services
+docker compose -f docker-compose.prod.yml up -d postgres backend frontend
+
+# Verify deployment
+docker ps --filter "name=parchmark"
+curl -sf http://127.0.0.1:8000/api/health
 ```
 
-### 3. Pull Latest Docker Images
+### Running Database Migrations
 
-```bash
-docker compose -f docker-compose.prod.yml pull backend frontend
-```
-
-### 4. Run Database Migrations (if needed)
-
-Migrations require access to PostgreSQL. Use a temporary container on the `proxiable` network:
+Migrations are NOT automatically run by the update script (alembic is not configured in the container). Run migrations manually when needed:
 
 ```bash
 docker run --rm --network proxiable \
@@ -121,13 +149,7 @@ docker run --rm --network proxiable \
   uv run alembic upgrade head
 ```
 
-### 5. Restart Services
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
-```
-
-### 6. Verify Deployment
+### Verify Deployment
 
 ```bash
 # Check containers are running
