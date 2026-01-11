@@ -18,6 +18,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app ./app
 COPY scripts ./scripts
 
+# Copy Alembic configuration and migrations for database migrations
+COPY alembic.ini ./
+COPY migrations ./migrations
+
 # Install the project itself in non-editable mode
 # --no-editable ensures files are copied to site-packages
 RUN uv sync --frozen --no-dev --no-editable
@@ -43,6 +47,10 @@ COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 # Copy scripts directory for user management and other utilities
 COPY --from=builder --chown=appuser:appuser /app/scripts /app/scripts
 
+# Copy Alembic configuration and migrations
+COPY --from=builder --chown=appuser:appuser /app/alembic.ini /app/alembic.ini
+COPY --from=builder --chown=appuser:appuser /app/migrations /app/migrations
+
 # Activate the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
@@ -52,6 +60,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Switch to non-root user
 USER appuser
 
+# Copy and set entrypoint script
+COPY --from=builder --chown=appuser:appuser /app/scripts/docker-entrypoint.sh /docker-entrypoint.sh
+
 # Health check for container orchestration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
@@ -59,5 +70,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose the application port
 EXPOSE 8000
 
-# Run the application as a Python module
+# Use entrypoint for migrations, CMD for the app
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["python", "-m", "app"]

@@ -2,14 +2,14 @@
 # Run 'make help' to see all available targets
 #
 # This is the main orchestrator that includes modular makefiles:
-# - makefiles/common.mk   - Shared variables and functions
-# - makefiles/help.mk     - Auto-generated help system
-# - makefiles/ui.mk       - UI test and dev targets
-# - makefiles/backend.mk  - Backend test and dev targets
-# - makefiles/docker.mk   - Docker-related targets
-# - makefiles/users.mk    - User management targets
-# - makefiles/deploy.mk   - Deployment and production targets
-# - makefiles/db-admin.mk - Database admin container targets
+# - makefiles/common.mk     - Shared variables and functions
+# - makefiles/help.mk       - Auto-generated help system
+# - makefiles/ui.mk         - UI test and dev targets
+# - makefiles/backend.mk    - Backend test and dev targets
+# - makefiles/docker.mk     - Docker-related targets
+# - makefiles/users.mk      - User management targets
+# - makefiles/deploy.mk     - Deployment and production targets
+# - makefiles/migrations.mk - Database migration targets
 
 # Include all modular makefiles
 include makefiles/common.mk
@@ -18,7 +18,7 @@ include makefiles/backend.mk
 include makefiles/docker.mk
 include makefiles/users.mk
 include makefiles/deploy.mk
-include makefiles/db-admin.mk
+include makefiles/migrations.mk
 include makefiles/help.mk
 
 # ============================================================================

@@ -125,8 +125,9 @@ main() {
     log "Recreating containers with new images..."
     docker compose -f "$COMPOSE_FILE" up -d postgres backend frontend
 
-    # Wait for backend to be healthy before running migrations
-    log "Waiting for backend to be healthy..."
+    # Wait for backend to be healthy
+    # Note: Migrations run automatically on container startup via entrypoint
+    log "Waiting for backend to be healthy (migrations run on startup)..."
     local max_attempts=30
     local attempt=1
     while [[ $attempt -le $max_attempts ]]; do
@@ -136,26 +137,12 @@ main() {
         fi
         if [[ $attempt -eq $max_attempts ]]; then
             log_error "Backend failed to become healthy after ${max_attempts} attempts"
+            log_error "Check container logs: docker logs parchmark-backend"
             exit 1
         fi
         sleep 2
         ((attempt++))
     done
-
-    # Run database migrations (if alembic is configured in container)
-    log "Checking for database migrations..."
-    if docker compose -f "$COMPOSE_FILE" exec -T backend alembic current &>/dev/null; then
-        log "Running database migrations..."
-        if ! docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head; then
-            log_error "Database migrations failed! Deployment may be in inconsistent state."
-            log_error "Check migration logs and consider rolling back."
-            exit 1
-        fi
-        log "Migrations completed successfully"
-    else
-        log "Alembic not configured in container, skipping automatic migrations"
-        log "Run migrations manually if needed: see PRODUCTION_DEPLOYMENT.md"
-    fi
 
     # Verify frontend is healthy
     log "Verifying frontend health..."

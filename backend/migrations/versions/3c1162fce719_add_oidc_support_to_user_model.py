@@ -24,20 +24,42 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _table_exists(inspector, table_name: str) -> bool:
+    """Check if a table exists in the database."""
+    return table_name in inspector.get_table_names()
+
+
 def _get_existing_columns(inspector, table_name: str) -> list[str]:
     """Get list of existing column names for a table."""
+    if not _table_exists(inspector, table_name):
+        return []
     return [col["name"] for col in inspector.get_columns(table_name)]
 
 
 def _get_existing_indexes(inspector, table_name: str) -> list[str]:
     """Get list of existing index names for a table."""
+    if not _table_exists(inspector, table_name):
+        return []
     return [idx["name"] for idx in inspector.get_indexes(table_name)]
 
 
 def upgrade() -> None:
-    """Add OIDC support columns to users table."""
+    """Add OIDC support columns to users table.
+
+    This migration is idempotent and handles the following scenarios:
+    - Fresh database: Table doesn't exist yet (created by SQLAlchemy create_all)
+    - Existing database without OIDC: Adds new columns to existing table
+    - Already migrated: No changes (columns already exist)
+    """
     conn = op.get_bind()
     inspector = sa.inspect(conn)
+
+    # If the users table doesn't exist yet, skip - SQLAlchemy's create_all will
+    # create the table with all columns (including OIDC columns) on app startup
+    if not _table_exists(inspector, "users"):
+        print("Users table does not exist yet. Skipping migration - table will be created by app startup.")
+        return
+
     existing_columns = _get_existing_columns(inspector, "users")
     existing_indexes = _get_existing_indexes(inspector, "users")
 

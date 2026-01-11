@@ -150,10 +150,9 @@ The update script will:
 1. Authenticate with GHCR (if credentials provided)
 2. Pull the latest Docker images
 3. Recreate containers with new images
-4. Wait for health checks to pass
-5. Clean up old images
-
-**Note:** Database migrations are NOT automatically run. See "Running Migrations" below.
+4. Run database migrations automatically on container startup
+5. Wait for health checks to pass
+6. Clean up old images
 
 ## Viewing Logs
 
@@ -217,17 +216,16 @@ BACKEND_TAG=sha-def456 docker compose -f docker-compose.prod.yml up -d backend
 
 ### Rollback Database Migration
 
-If a migration needs to be reverted, use the temporary container approach:
+If a migration needs to be reverted:
 
 ```bash
 cd /home/deploy/parchmark
 
 # Rollback one migration
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic downgrade -1
+docker compose -f docker-compose.prod.yml exec backend alembic downgrade -1
+
+# Rollback to a specific revision
+docker compose -f docker-compose.prod.yml exec backend alembic downgrade <revision_id>
 ```
 
 ## Health Checks
@@ -286,33 +284,26 @@ docker compose -f docker-compose.prod.yml logs postgres
 docker compose -f docker-compose.prod.yml exec postgres psql -U parchmark_user -d parchmark_db -c "SELECT 1"
 ```
 
-### Running Migrations
+### Database Migrations
 
-Alembic is not configured to run from within the backend container. Use a temporary container instead:
+**Automatic Migrations**: Migrations run automatically when the backend container starts. This is controlled by `APPLY_MIGRATIONS=true` in docker-compose.prod.yml.
+
+**Manual Migration Commands** (if needed):
 
 ```bash
 cd /home/deploy/parchmark
 
 # Check migration status
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic current
+docker compose -f docker-compose.prod.yml exec backend alembic current
 
-# Run migrations
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic upgrade head
+# Run migrations manually
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 
 # View migration history
-docker run --rm --network proxiable \
-  -v $(pwd)/backend:/app -w /app \
-  -e DATABASE_URL=postgresql://parchmark_user:<password>@parchmark-postgres-prod:5432/parchmark_db \
-  astral/uv:python3.13-bookworm \
-  uv run alembic history
+docker compose -f docker-compose.prod.yml exec backend alembic history
+
+# Rollback one migration
+docker compose -f docker-compose.prod.yml exec backend alembic downgrade -1
 ```
 
 ## Security Best Practices
