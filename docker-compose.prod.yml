@@ -57,6 +57,8 @@ services:
       - USE_HTTPS=false
     env_file:
       - ./ui/.env.production
+    volumes:
+      - ./ui/nginx.http.conf:/etc/nginx/conf.d/nginx.http.conf:ro
     restart: unless-stopped
     depends_on:
       backend:
