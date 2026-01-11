@@ -378,123 +378,49 @@ ENVIRONMENT=development  # or production
   - Backend: `/api/health` (includes database connectivity check)
   - Frontend: `/` (served by Nginx)
 
-### Automated Deployment Pipeline
+### Deployment Process
 
-The deployment system uses GitHub Actions for automated CI/CD with the following workflow:
+The deployment uses a **semi-automated** approach:
 
-**Workflow Structure** (`.github/workflows/deploy.yml`):
-1. **Job 1 - Test**: Runs full test suite (UI + Backend)
-   - Ensures broken code never gets deployed
-   - Uses `make test-all` for comprehensive validation
-2. **Job 2 - Build Backend**: Builds and pushes backend image to GHCR
-3. **Job 3 - Build Frontend**: Builds and pushes frontend image to GHCR
-4. **Job 4 - Deploy**: SSH-based deployment to production server
-   - Requires manual approval (production environment protection)
-   - Pulls new images, runs migrations, updates services
-   - Health checks with retries and exponential backoff
-5. **Job 5 - Notify**: Post-deployment status notification
+1. **GitHub Actions** (automatic on push to `main`):
+   - Runs full test suite (UI + Backend)
+   - Builds Docker images for frontend and backend
+   - Pushes images to GitHub Container Registry (GHCR)
+   - Tags with `:latest` and `:sha-xxxxx` for rollbacks
 
-**Key Features**:
-- **Dual image tagging**: `:latest` and `:sha-xxxxx` for easy rollbacks
-- **Test gate**: All tests must pass before building images
-- **Migration safety**: Deployment fails if database migrations fail
-- **Health verification**: 12 retries with 5-second delay and exponential backoff
-- **Error handling**: `set -Eeuo pipefail` with ERR trap for fail-fast behavior
-- **Security**: Production environment requires manual approval
-
-**Triggers**:
-- Automatic on push to `main` branch
-- Manual via `workflow_dispatch`
-
-### Deployment Commands (Makefile)
-
-25 deployment commands organized into categories:
-
-**Verification** (3 commands):
-```bash
-make deploy-verify              # Health check backend + frontend
-make deploy-verify-backend      # Backend health only
-make deploy-verify-frontend     # Frontend health only
-```
-
-**Status & Logs** (6 commands):
-```bash
-make deploy-status              # Recent GitHub Actions runs
-make deploy-status-latest       # Latest deployment details
-make deploy-logs                # Container logs (last 50 lines)
-make deploy-logs-follow         # Real-time log streaming
-make deploy-logs-backend        # Backend logs only
-make deploy-logs-frontend       # Frontend logs only
-```
-
-**Deployment Control** (3 commands):
-```bash
-make deploy-trigger             # Manually trigger GitHub Actions
-make deploy-watch               # Watch deployment progress
-make deploy-rollback SHA=xxx    # Rollback to specific version
-```
-
-**Pre-Deployment** (3 commands):
-```bash
-make deploy-push-check          # Run all pre-deployment checks
-make deploy-test-local          # Validate docker-compose.prod.yml
-make deploy-build-local         # Build production images locally
-```
-
-**SSH Operations** (3 commands):
-```bash
-make deploy-ssh                 # SSH into production server
-make deploy-ps                  # Show running containers
-make deploy-disk-usage          # Check disk space
-```
-
-**Utilities** (2 commands):
-```bash
-make deploy-list-images         # List available image versions
-make deploy-help                # Comprehensive deployment guide
-```
-
-### Deployment Workflow
-
-1. **Development & Testing**:
+2. **Manual SSH Deployment** (admin performs these steps):
    ```bash
-   make test-all                # Run all tests locally
-   make deploy-test-local       # Validate docker-compose files
+   ssh deploy@<server-ip>
+   cd /home/deploy/parchmark
+   git pull origin main                                    # Get compose file updates
+   docker compose -f docker-compose.prod.yml pull          # Pull new images
+   docker compose -f docker-compose.prod.yml up -d         # Restart services
    ```
 
-2. **Pre-Deployment Checks**:
+3. **Database Migrations** (if needed):
    ```bash
-   make deploy-push-check       # Runs tests + validation
+   docker run --rm --network proxiable \
+     -v $(pwd)/backend:/app -w /app \
+     -e DATABASE_URL=postgresql://user:pass@parchmark-postgres-prod:5432/parchmark_db \
+     astral/uv:python3.13-bookworm \
+     uv run alembic upgrade head
    ```
 
-3. **Trigger Deployment**:
-   ```bash
-   git push origin main         # Auto-triggers workflow
-   # OR
-   make deploy-trigger          # Manual trigger via gh CLI
-   ```
+### Key Architecture Details
 
-4. **Monitor Deployment**:
-   ```bash
-   make deploy-status           # Check deployment runs
-   make deploy-watch            # Watch progress
-   ```
+**Frontend Nginx Proxy**: The frontend container proxies `/api/*` requests to the backend:
+- Config: `ui/nginx.http.conf` (mounted as volume in docker-compose.prod.yml)
+- This allows the frontend to use `VITE_API_URL=/api` (same-origin requests)
 
-5. **Verify Deployment**:
-   ```bash
-   make deploy-verify           # Health checks
-   make deploy-logs             # View container logs
-   ```
+**Docker Network**: All containers run on `proxiable` network (shared with Nginx Proxy Manager)
 
-6. **Rollback** (if needed):
-   ```bash
-   make deploy-list-images      # List available SHA tags
-   make deploy-rollback SHA=abc123
-   ```
+**GHCR Images**:
+- `ghcr.io/tejgandham/parchmark-backend:latest`
+- `ghcr.io/tejgandham/parchmark-frontend:latest`
 
 ### Container Health Checks
 
-All services use standardized curl-based health checks:
+All services use standardized health checks:
 
 **Backend** (`backend/Dockerfile.prod`):
 ```dockerfile
@@ -505,7 +431,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 **Frontend** (`docker-compose.prod.yml`):
 ```yaml
 healthcheck:
-  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
   interval: 30s
   timeout: 10s
   start_period: 20s
@@ -523,24 +449,15 @@ healthcheck:
 
 ### Security Measures
 
-- **GitHub Secrets**: Encrypted storage for sensitive credentials
-- **Read-only GHCR token**: `read:packages` scope only
-- **SSH key authentication**: ED25519 keys (no passwords)
-- **Manual approval**: Required for production deployments
-- **Branch restriction**: Only `main` branch can deploy
-- **Token rotation**: 90-day expiration with reminders
-- **Test gate**: No deployment without passing tests
-- **Migration validation**: Deployment fails if migrations fail
-- **Health verification**: Extensive retries before marking success
+- **Environment files**: `.env.db`, `backend/.env.production`, `ui/.env.production` are gitignored
+- **Docker network isolation**: Database not exposed externally
+- **SSL/HSTS**: Enforced via Nginx Proxy Manager
+- **GHCR images**: Public read, authenticated write
 
 ### Documentation
 
-Comprehensive deployment documentation available in `docs/deployment_upgrade/`:
-- **DEPLOYMENT_VALIDATED.md** - Architecture and implementation guide
-- **DEPLOYMENT_PROGRESS.md** - Implementation status and history
-- **FUTURE_IMPROVEMENTS.md** - Security enhancement roadmap
-- **PHASE3_SERVER_SETUP.md** - Server setup instructions
-- **PHASE4_GITHUB_SECRETS.md** - GitHub Secrets configuration
+- **PRODUCTION_DEPLOYMENT.md** - Comprehensive deployment guide (single source of truth)
+- **docs/deployment_upgrade/archive/** - Historical planning docs (not in use)
 
 ## Key Implementation Patterns
 
