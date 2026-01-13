@@ -49,11 +49,11 @@ async def get_user_info(
     notes_count = db.query(Note).filter(Note.user_id == current_user.id).count()
 
     return UserInfoResponse(
-        username=current_user.username,
-        email=current_user.email,
+        username=current_user.username,  # type: ignore[arg-type]
+        email=current_user.email,  # type: ignore[arg-type]
         created_at=current_user.created_at.isoformat(),
         notes_count=notes_count,
-        auth_provider=current_user.auth_provider,
+        auth_provider=current_user.auth_provider,  # type: ignore[arg-type]
     )
 
 
@@ -90,21 +90,21 @@ async def change_password(
         )
 
     # Verify current password
-    if not verify_password(request.current_password, current_user.password_hash):
+    if not verify_password(request.current_password, current_user.password_hash):  # type: ignore[arg-type]
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect",
         )
 
     # Check if new password is different
-    if verify_password(request.new_password, current_user.password_hash):
+    if verify_password(request.new_password, current_user.password_hash):  # type: ignore[arg-type]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different from current password",
         )
 
     # Update password
-    current_user.password_hash = get_password_hash(request.new_password)
+    current_user.password_hash = get_password_hash(request.new_password)  # type: ignore[assignment]
     db.commit()
 
     return MessageResponse(message="Password changed successfully")
@@ -139,7 +139,8 @@ async def export_notes(
         used_filenames: set[str] = set()
         for note in notes:
             # Sanitize filename (remove invalid characters)
-            safe_title = "".join(c for c in note.title if c.isalnum() or c in (" ", "-", "_"))
+            title_str = str(note.title)
+            safe_title = "".join(c for c in title_str if c.isalnum() or c in (" ", "-", "_"))
             safe_title = safe_title.strip() or "untitled"
             base_filename = f"{safe_title[:50]}.md"
 
@@ -151,7 +152,7 @@ async def export_notes(
                 counter += 1
             used_filenames.add(filename)
 
-            zip_file.writestr(filename, note.content)
+            zip_file.writestr(filename, str(note.content))
 
         # Add JSON metadata file for backup/restore
         notes_data = [
@@ -208,14 +209,14 @@ async def delete_account(
     """
     # For local users, verify password
     if current_user.auth_provider == "local" and current_user.password_hash is not None:
-        if not verify_password(request.password, current_user.password_hash):
+        if not verify_password(request.password, current_user.password_hash):  # type: ignore[arg-type]
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Password is incorrect",
             )
     # For OIDC users with a password hash, verify if provided
     elif current_user.password_hash is not None:
-        if not verify_password(request.password, current_user.password_hash):
+        if not verify_password(request.password, current_user.password_hash):  # type: ignore[arg-type]
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Password is incorrect",

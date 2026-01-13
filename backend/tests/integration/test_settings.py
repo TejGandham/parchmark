@@ -140,7 +140,7 @@ class TestChangePasswordOIDC:
         response = client.post(
             "/api/settings/change-password",
             headers=oidc_auth_headers,
-            json={"current_password": "any", "new_password": "newpass123"},
+            json={"current_password": "test", "new_password": "newpass123"},
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
