@@ -20,13 +20,11 @@ export const mockNotes: Note[] = [
 
 export const mockUIStore = {
   isSidebarOpen: true,
-  isDarkMode: false,
   notesSortBy: 'lastModified' as const,
   notesSearchQuery: '',
   notesGroupByDate: true,
   actions: {
     toggleSidebar: vi.fn(),
-    toggleDarkMode: vi.fn(),
     setNotesSortBy: vi.fn(),
     setNotesSearchQuery: vi.fn(),
     setNotesGroupByDate: vi.fn(),

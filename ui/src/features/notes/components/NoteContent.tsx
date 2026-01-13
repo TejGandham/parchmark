@@ -88,9 +88,6 @@ const NoteContent = ({
           display="flex"
           alignItems="center"
           justifyContent="center"
-          _dark={{
-            bg: 'primary.900',
-          }}
         >
           <Icon as={EditIcon} fontSize="5xl" color="primary.300" />
         </Box>

@@ -93,10 +93,8 @@ describe('NotesContainer Component', () => {
     // Mock useUIStore - updated for direct store access pattern
     (useUIStore as Mock).mockReturnValue({
       isSidebarOpen: true,
-      isDarkMode: false,
       actions: {
         toggleSidebar: mockToggleSidebar,
-        toggleDarkMode: vi.fn(),
       },
     });
 
@@ -137,10 +135,8 @@ describe('NotesContainer Component', () => {
     // Update the mock to return sidebar closed - updated for direct store access pattern
     (useUIStore as Mock).mockReturnValue({
       isSidebarOpen: false,
-      isDarkMode: false,
       actions: {
         toggleSidebar: mockToggleSidebar,
-        toggleDarkMode: vi.fn(),
       },
     });
 

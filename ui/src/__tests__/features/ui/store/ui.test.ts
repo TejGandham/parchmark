@@ -7,7 +7,6 @@ describe('UI Store', () => {
     act(() => {
       useUIStore.setState({
         isSidebarOpen: true,
-        isDarkMode: false,
         notesSortBy: 'lastModified',
         notesSearchQuery: '',
         notesGroupByDate: true,
@@ -19,12 +18,10 @@ describe('UI Store', () => {
   it('should initialize with the default state', () => {
     const state = useUIStore.getState();
     expect(state.isSidebarOpen).toBe(true);
-    expect(state.isDarkMode).toBe(false);
     expect(state.notesSortBy).toBe('lastModified');
     expect(state.notesSearchQuery).toBe('');
     expect(state.notesGroupByDate).toBe(true);
     expect(typeof state.actions.toggleSidebar).toBe('function');
-    expect(typeof state.actions.toggleDarkMode).toBe('function');
     expect(typeof state.actions.setNotesSortBy).toBe('function');
     expect(typeof state.actions.setNotesSearchQuery).toBe('function');
     expect(typeof state.actions.setNotesGroupByDate).toBe('function');
@@ -81,54 +78,6 @@ describe('UI Store', () => {
         useUIStore.getState().actions.toggleSidebar();
       });
       expect(useUIStore.getState().isSidebarOpen).toBe(false);
-    });
-  });
-
-  describe('toggleDarkMode', () => {
-    it('should toggle dark mode from false to true', () => {
-      // Start with dark mode off
-      expect(useUIStore.getState().isDarkMode).toBe(false);
-
-      // Toggle dark mode
-      act(() => {
-        useUIStore.getState().actions.toggleDarkMode();
-      });
-
-      // Dark mode should now be on
-      expect(useUIStore.getState().isDarkMode).toBe(true);
-    });
-
-    it('should toggle dark mode from true to false', () => {
-      // First set dark mode to true
-      act(() => {
-        useUIStore.setState({ isDarkMode: true });
-      });
-      expect(useUIStore.getState().isDarkMode).toBe(true);
-
-      // Toggle dark mode
-      act(() => {
-        useUIStore.getState().actions.toggleDarkMode();
-      });
-
-      // Dark mode should now be off
-      expect(useUIStore.getState().isDarkMode).toBe(false);
-    });
-
-    it('should work with multiple dark mode toggles', () => {
-      // Start with dark mode off
-      expect(useUIStore.getState().isDarkMode).toBe(false);
-
-      // First toggle
-      act(() => {
-        useUIStore.getState().actions.toggleDarkMode();
-      });
-      expect(useUIStore.getState().isDarkMode).toBe(true);
-
-      // Second toggle
-      act(() => {
-        useUIStore.getState().actions.toggleDarkMode();
-      });
-      expect(useUIStore.getState().isDarkMode).toBe(false);
     });
   });
 
@@ -353,9 +302,9 @@ describe('UI Store', () => {
     });
 
     it('should preserve other state when updating notes preferences', () => {
-      // Set sidebar and dark mode
+      // Set sidebar
       act(() => {
-        useUIStore.setState({ isSidebarOpen: false, isDarkMode: true });
+        useUIStore.setState({ isSidebarOpen: false });
       });
 
       // Update notes preferences
@@ -370,7 +319,6 @@ describe('UI Store', () => {
       expect(state.notesSortBy).toBe('alphabetical');
       // Other state should be preserved
       expect(state.isSidebarOpen).toBe(false);
-      expect(state.isDarkMode).toBe(true);
     });
   });
 });
