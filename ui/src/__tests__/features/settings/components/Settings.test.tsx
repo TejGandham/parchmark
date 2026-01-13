@@ -545,6 +545,74 @@ describe('Settings Component', () => {
         );
       });
     });
+
+    it('resets form fields when Cancel is clicked', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      await expandPasswordSection();
+
+      // Open modal
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /change password/i })
+        ).toBeInTheDocument();
+      });
+
+      const changePasswordButton = screen.getByRole('button', {
+        name: /change password/i,
+      });
+      await act(async () => {
+        fireEvent.click(changePasswordButton);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText('Enter current password')
+        ).toBeInTheDocument();
+      });
+
+      // Fill form with some data
+      fireEvent.change(screen.getByPlaceholderText('Enter current password'), {
+        target: { value: 'somepassword' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Enter new password'), {
+        target: { value: 'newpass123' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Confirm new password'), {
+        target: { value: 'newpass123' },
+      });
+
+      // Click Cancel
+      const modal = screen.getByRole('dialog');
+      const cancelButton = within(modal).getByRole('button', {
+        name: /cancel/i,
+      });
+      await act(async () => {
+        fireEvent.click(cancelButton);
+      });
+
+      // Re-open modal
+      await act(async () => {
+        fireEvent.click(changePasswordButton);
+      });
+
+      // Verify fields are empty
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText('Enter current password')
+        ).toHaveValue('');
+        expect(screen.getByPlaceholderText('Enter new password')).toHaveValue(
+          ''
+        );
+        expect(screen.getByPlaceholderText('Confirm new password')).toHaveValue(
+          ''
+        );
+      });
+    });
   });
 
   describe('Delete Account Modal', () => {
@@ -636,6 +704,130 @@ describe('Settings Component', () => {
         expect(api.deleteAccount).toHaveBeenCalledWith('password123');
         expect(mockLogout).toHaveBeenCalled();
         expect(mockNavigate).toHaveBeenCalledWith('/login');
+      });
+    });
+
+    it('resets form fields when Cancel is clicked', async () => {
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand Danger Zone accordion
+      const dangerZoneButton = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerZoneButton);
+      });
+
+      // Open modal
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /delete account/i })
+        ).toBeInTheDocument();
+      });
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('DELETE')).toBeInTheDocument();
+      });
+
+      // Fill form with some data
+      fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+        target: { value: 'somepassword' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('DELETE'), {
+        target: { value: 'DELETE' },
+      });
+
+      // Click Cancel
+      const modal = screen.getByRole('dialog');
+      const cancelButton = within(modal).getByRole('button', {
+        name: /cancel/i,
+      });
+      await act(async () => {
+        fireEvent.click(cancelButton);
+      });
+
+      // Re-open modal
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      // Verify fields are empty
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Enter your password')).toHaveValue(
+          ''
+        );
+        expect(screen.getByPlaceholderText('DELETE')).toHaveValue('');
+      });
+    });
+
+    it('shows error when delete account fails', async () => {
+      (api.deleteAccount as Mock).mockRejectedValue(
+        new Error('Failed to delete account')
+      );
+
+      render(<Settings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Profile Information')).toBeInTheDocument();
+      });
+
+      // Expand Danger Zone accordion
+      const dangerZoneButton = screen.getByText('Danger Zone');
+      await act(async () => {
+        fireEvent.click(dangerZoneButton);
+      });
+
+      // Open modal
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /delete account/i })
+        ).toBeInTheDocument();
+      });
+
+      const deleteButton = screen.getByRole('button', {
+        name: /delete account/i,
+      });
+      await act(async () => {
+        fireEvent.click(deleteButton);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('DELETE')).toBeInTheDocument();
+      });
+
+      // Fill form correctly
+      fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+        target: { value: 'password123' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('DELETE'), {
+        target: { value: 'DELETE' },
+      });
+
+      // Submit
+      const submitButtons = screen.getAllByRole('button', {
+        name: /delete account/i,
+      });
+      const modalSubmitButton = submitButtons[submitButtons.length - 1];
+      await act(async () => {
+        fireEvent.click(modalSubmitButton);
+      });
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Failed to delete account',
+            status: 'error',
+          })
+        );
       });
     });
   });

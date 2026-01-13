@@ -201,29 +201,8 @@ const Settings = () => {
   };
 
   // Delete account handler
+  // Note: Form validations are enforced via button disabled state
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') {
-      toast({
-        title: 'Please type DELETE to confirm',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    // For local users, require password
-    if (userInfo?.auth_provider === 'local' && deletePassword.length < 4) {
-      toast({
-        title: 'Password required',
-        description: 'Please enter your password to confirm deletion',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
     setIsDeletingAccount(true);
     try {
       await deleteAccount(deletePassword || 'DELETE');
