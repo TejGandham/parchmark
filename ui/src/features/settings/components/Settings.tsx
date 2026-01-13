@@ -21,7 +21,6 @@ import {
   StatLabel,
   StatNumber,
   Text,
-  useColorModeValue,
   useDisclosure,
   useToast,
   VStack,
@@ -77,12 +76,6 @@ const Settings = () => {
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
-
-  // Theme colors - must be called before any early returns
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const dangerBg = useColorModeValue('red.50', 'red.900');
-  const pageBgColor = useColorModeValue('gray.50', 'gray.900');
 
   // Load user info on mount
   useEffect(() => {
@@ -253,7 +246,7 @@ const Settings = () => {
   const isOIDCUser = userInfo?.auth_provider === 'oidc';
 
   return (
-    <Box minH="100vh" bg={pageBgColor} py={8}>
+    <Box minH="100vh" bg="gray.50" py={8}>
       <Container maxW="container.md">
         {/* Header */}
         <HStack mb={8}>
@@ -270,10 +263,10 @@ const Settings = () => {
         <Accordion allowMultiple defaultIndex={[0]}>
           {/* Profile Information */}
           <AccordionItem
-            bg={bgColor}
+            bg="white"
             borderRadius="md"
             border="1px solid"
-            borderColor={borderColor}
+            borderColor="gray.200"
             mb={4}
           >
             <h2>
@@ -331,10 +324,10 @@ const Settings = () => {
           {/* Password & Security - Only for local users */}
           {!isOIDCUser && (
             <AccordionItem
-              bg={bgColor}
+              bg="white"
               borderRadius="md"
               border="1px solid"
-              borderColor={borderColor}
+              borderColor="gray.200"
               mb={4}
             >
               <h2>
@@ -358,10 +351,10 @@ const Settings = () => {
 
           {/* Data Management */}
           <AccordionItem
-            bg={bgColor}
+            bg="white"
             borderRadius="md"
             border="1px solid"
-            borderColor={borderColor}
+            borderColor="gray.200"
             mb={4}
           >
             <h2>
@@ -392,7 +385,7 @@ const Settings = () => {
 
           {/* Danger Zone */}
           <AccordionItem
-            bg={dangerBg}
+            bg="red.50"
             borderRadius="md"
             border="1px solid"
             borderColor="red.300"

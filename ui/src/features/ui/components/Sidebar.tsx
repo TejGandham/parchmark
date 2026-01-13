@@ -286,9 +286,6 @@ const Sidebar = ({
               display="flex"
               alignItems="center"
               justifyContent="center"
-              _dark={{
-                bg: 'primary.900',
-              }}
             >
               <Icon as={AddIcon} fontSize="2xl" color="primary.600" />
             </Box>

@@ -4,9 +4,7 @@ import {
   Heading,
   IconButton,
   Image,
-  useColorMode,
 } from '@chakra-ui/react';
-import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faGear } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +16,6 @@ interface HeaderProps {
 }
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
-  const { colorMode, toggleColorMode } = useColorMode();
   const navigate = useNavigate();
 
   return (
@@ -56,18 +53,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
           fontSize="lg"
           _hover={{
             transform: 'rotate(45deg)',
-            transition: 'transform 0.3s ease',
-          }}
-        />
-        <IconButton
-          aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
-          icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
-          onClick={toggleColorMode}
-          variant="ghost"
-          colorScheme="primary"
-          fontSize="lg"
-          _hover={{
-            transform: 'rotate(20deg)',
             transition: 'transform 0.3s ease',
           }}
         />

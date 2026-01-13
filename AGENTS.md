@@ -205,7 +205,7 @@ docker compose -f docker-compose.prod.yml up -d
 // Three main stores with specific responsibilities:
 useAuthStore   // Authentication state, login/logout actions
 useNotesStore  // Notes CRUD operations, current note tracking
-useUIStore     // Sidebar state, dark mode toggle
+useUIStore     // Sidebar state, UI preferences
 ```
 
 #### Component Organization
@@ -733,7 +733,6 @@ Visual testing catches issues that unit tests miss: layout problems, styling reg
    - Navigate to the relevant pages
    - Test the happy path (feature works as expected)
    - Test edge cases (empty states, error states, loading states)
-   - Verify dark mode if applicable
    - Check console for errors
 3. **Test as the QA user**: Login as `qauser` / `QaPass123!` for realistic testing
 4. **Document any issues** found and fix before committing
@@ -1022,16 +1021,11 @@ Production:
 - **Production URLs**: notes.engen.tech (frontend), assets-api.engen.tech (backend)
 
 ### UI/UX Features
-- **Dark Mode Support**: Full light and dark theme implementation
-  - Color mode toggle in Header with moon/sun icons
-  - Semantic tokens automatically adapt for both themes
-  - User preference persists via Chakra UI's localStorage
-  - Smooth transitions between themes
 - **Empty State Design**: Consistent pattern with helpful guidance
   - Sidebar "No Notes Yet" state with circular icon, helpful copy, and CTA button
   - NoteContent "No Note Selected" state with welcoming messaging and feature tips
   - 404 page with clear navigation options and visual hierarchy
-  - Theme-aware circular icon containers (primary.50 light / primary.900 dark)
+  - Consistent styling with primary color accents
 - **Accessibility (WCAG AA)**: Comprehensive keyboard and screen reader support
   - Descriptive ARIA labels on all interactive elements (e.g., "Select note: {title}", "Delete note: {title}")
   - Keyboard navigation with Enter/Space key support on note items
