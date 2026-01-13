@@ -246,7 +246,7 @@ const Settings = () => {
   const isOIDCUser = userInfo?.auth_provider === 'oidc';
 
   return (
-    <Box minH="100vh" bg="gray.50" py={8}>
+    <Box minH="100vh" bg="bg.canvas" py={8}>
       <Container maxW="container.md">
         {/* Header */}
         <HStack mb={8}>
@@ -263,10 +263,10 @@ const Settings = () => {
         <Accordion allowMultiple defaultIndex={[0]}>
           {/* Profile Information */}
           <AccordionItem
-            bg="white"
+            bg="bg.surface"
             borderRadius="md"
             border="1px solid"
-            borderColor="gray.200"
+            borderColor="border.default"
             mb={4}
           >
             <h2>
@@ -324,10 +324,10 @@ const Settings = () => {
           {/* Password & Security - Only for local users */}
           {!isOIDCUser && (
             <AccordionItem
-              bg="white"
+              bg="bg.surface"
               borderRadius="md"
               border="1px solid"
-              borderColor="gray.200"
+              borderColor="border.default"
               mb={4}
             >
               <h2>
@@ -351,10 +351,10 @@ const Settings = () => {
 
           {/* Data Management */}
           <AccordionItem
-            bg="white"
+            bg="bg.surface"
             borderRadius="md"
             border="1px solid"
-            borderColor="gray.200"
+            borderColor="border.default"
             mb={4}
           >
             <h2>
