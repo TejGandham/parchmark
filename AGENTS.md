@@ -715,6 +715,60 @@ make user-create USERNAME=qauser PASSWORD=QaPass123!
    - Frontend: `ui/coverage/`
    - Backend: `backend/htmlcov/`
 
+### Visual QA Requirements
+
+**MANDATORY: Perform visual QA before every major change or group of commits.**
+
+Visual testing catches issues that unit tests miss: layout problems, styling regressions, UX issues, and integration bugs. Use the Chrome DevTools MCP to perform visual QA.
+
+**When to perform Visual QA:**
+- Before committing UI changes (new components, styling changes, layout modifications)
+- Before committing API changes that affect the frontend
+- After completing a feature or bug fix
+- Before creating a PR or pushing a group of commits
+
+**Visual QA Workflow:**
+1. **Start the dev environment**: `make dev` (or `make docker-dev` + `make dev-backend` + `make dev-ui`)
+2. **Use Chrome DevTools MCP** to interact with the app:
+   - Navigate to the relevant pages
+   - Test the happy path (feature works as expected)
+   - Test edge cases (empty states, error states, loading states)
+   - Verify dark mode if applicable
+   - Check console for errors
+3. **Test as the QA user**: Login as `qauser` / `QaPass123!` for realistic testing
+4. **Document any issues** found and fix before committing
+
+**Chrome DevTools MCP Commands:**
+```
+# Navigate and interact
+mcp_chrome-devtools_navigate_page    # Go to a URL
+mcp_chrome-devtools_take_snapshot    # Get page structure (preferred)
+mcp_chrome-devtools_take_screenshot  # Visual capture
+mcp_chrome-devtools_click            # Click elements by uid
+mcp_chrome-devtools_fill             # Fill form inputs
+mcp_chrome-devtools_list_console_messages  # Check for errors
+
+# Common workflow
+1. take_snapshot to see page structure and element uids
+2. click/fill to interact with elements
+3. take_snapshot again to verify changes
+4. list_console_messages to check for errors
+```
+
+**Example Visual QA Session:**
+```
+# Testing a new Settings feature
+1. Navigate to http://localhost:5173
+2. Take snapshot, find login form
+3. Fill username/password, click login
+4. Navigate to /settings
+5. Take snapshot, verify all sections render
+6. Click through each accordion section
+7. Test form submissions (e.g., change password)
+8. Check console for errors
+9. Verify success/error toasts appear correctly
+```
+
 ### Full Stack Docker Development
 1. Build: `docker compose build`
 2. Run: `docker compose up -d`
@@ -918,21 +972,22 @@ Production:
 
 1. **Use Makefile commands** from project root instead of manual commands (see `make help` for all options)
 2. **Always test** before committing changes - use `make test` to run full CI pipeline
-3. **Follow existing patterns** in the codebase
-4. **Write tests** for new functionality (add regression tests for bugs)
-5. **Update documentation** when adding features
-6. **Use strong typing** in TypeScript and Python
-7. **Use centralized error handling** via `handleError()` for all error scenarios (see ui/src/utils/errorHandler.ts)
-8. **Use type-safe constants** from `config/` directory instead of magic strings
-9. **Use MarkdownService** for all markdown operations to maintain frontend/backend parity
-10. **Handle errors gracefully** with user feedback
-11. **Keep components focused** and reusable
-12. **Optimize for readability** over cleverness
-13. **Run linting and formatting** before commits (enforced in Makefile)
-14. **Deployment safety**: Never commit secrets; use `make deploy-push-check` before deploying
-15. **Migration safety**: Test database migrations locally before deploying
-16. **Verify deployments**: Always run `make deploy-verify` after deploying to production
-17. **Monitor production**: Use `make deploy-logs` and `make deploy-status` to monitor deployments
+3. **Visual QA before commits**: Perform visual testing using Chrome DevTools MCP before major changes or group commits (see Visual QA Requirements section)
+4. **Follow existing patterns** in the codebase
+5. **Write tests** for new functionality (add regression tests for bugs)
+6. **Update documentation** when adding features
+7. **Use strong typing** in TypeScript and Python
+8. **Use centralized error handling** via `handleError()` for all error scenarios (see ui/src/utils/errorHandler.ts)
+9. **Use type-safe constants** from `config/` directory instead of magic strings
+10. **Use MarkdownService** for all markdown operations to maintain frontend/backend parity
+11. **Handle errors gracefully** with user feedback
+12. **Keep components focused** and reusable
+13. **Optimize for readability** over cleverness
+14. **Run linting and formatting** before commits (enforced in Makefile)
+15. **Deployment safety**: Never commit secrets; use `make deploy-push-check` before deploying
+16. **Migration safety**: Test database migrations locally before deploying
+17. **Verify deployments**: Always run `make deploy-verify` after deploying to production
+18. **Monitor production**: Use `make deploy-logs` and `make deploy-status` to monitor deployments
 
 ## Additional Notes
 
