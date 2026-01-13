@@ -17,11 +17,6 @@ import { globalStyles } from './global';
 
 const theme = extendTheme(
   {
-    config: {
-      initialColorMode: 'light',
-      useSystemColorMode: false,
-    },
-
     // Foundations
     colors,
     ...typography,

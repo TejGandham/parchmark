@@ -1,4 +1,4 @@
-// Global styles with dark mode support
+// Global styles
 // Migrated from base/global.css
 
 export const globalStyles = {

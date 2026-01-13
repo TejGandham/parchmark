@@ -18,9 +18,6 @@ const baseStyle = definePartsStyle({
     _focus: {
       borderColor: 'primary.800',
       boxShadow: 'outline',
-      _dark: {
-        borderColor: 'primary.400',
-      },
     },
     _hover: {
       borderColor: 'neutral.300',

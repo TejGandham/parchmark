@@ -6,13 +6,11 @@ import { SortOption } from '../../../utils/dateGrouping';
 
 export type UIState = {
   isSidebarOpen: boolean;
-  isDarkMode: boolean;
   notesSortBy: SortOption;
   notesSearchQuery: string;
   notesGroupByDate: boolean;
   actions: {
     toggleSidebar: () => void;
-    toggleDarkMode: () => void;
     setNotesSortBy: (sortBy: SortOption) => void;
     setNotesSearchQuery: (query: string) => void;
     setNotesGroupByDate: (enabled: boolean) => void;
@@ -25,12 +23,6 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
   const toggleSidebar = () => {
     set((state: UIState) => {
       state.isSidebarOpen = !state.isSidebarOpen;
-    });
-  };
-
-  const toggleDarkMode = () => {
-    set((state: UIState) => {
-      state.isDarkMode = !state.isDarkMode;
     });
   };
 
@@ -54,7 +46,6 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
 
   return {
     toggleSidebar,
-    toggleDarkMode,
     setNotesSortBy,
     setNotesSearchQuery,
     setNotesGroupByDate,
@@ -69,7 +60,6 @@ export const useUIStore = create<UIState>()(
 
       return {
         isSidebarOpen: true,
-        isDarkMode: false,
         notesSortBy: 'lastModified' as SortOption,
         notesSearchQuery: '',
         notesGroupByDate: true,

@@ -111,22 +111,3 @@
   background-color: var(--chakra-colors-border-default);
   border: 0;
 }
-
-/* Dark mode overrides for markdown */
-.chakra-ui-dark .markdown-preview pre,
-.chakra-ui-dark .markdown-preview code {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.chakra-ui-dark .markdown-preview table tr {
-  background-color: transparent;
-}
-
-.chakra-ui-dark .markdown-preview table tr:nth-child(2n) {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.chakra-ui-dark .markdown-preview blockquote {
-  border-left-color: var(--chakra-colors-primary-600);
-  color: rgba(255, 255, 255, 0.7);
-}

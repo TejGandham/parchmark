@@ -110,18 +110,4 @@ describe('Header Component', () => {
     });
     expect(userButton).toBeInTheDocument();
   });
-
-  it('should toggle color mode when dark mode button is clicked', () => {
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
-
-    // Find the color mode toggle button
-    const colorModeButton = screen.getByLabelText(/switch to dark mode/i);
-    expect(colorModeButton).toBeInTheDocument();
-
-    // Click the button to toggle color mode
-    fireEvent.click(colorModeButton);
-
-    // After clicking, the button should still exist (it changes its icon/label)
-    expect(colorModeButton).toBeInTheDocument();
-  });
 });

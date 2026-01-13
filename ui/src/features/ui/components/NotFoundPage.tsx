@@ -31,9 +31,6 @@ const NotFoundPage = () => {
             display="flex"
             alignItems="center"
             justifyContent="center"
-            _dark={{
-              bg: 'primary.900',
-            }}
           >
             <Icon as={WarningTwoIcon} fontSize="6xl" color="primary.300" />
           </Box>
@@ -44,9 +41,6 @@ const NotFoundPage = () => {
               size="4xl"
               color="primary.800"
               fontFamily="'Playfair Display', serif"
-              _dark={{
-                color: 'primary.200',
-              }}
             >
               404
             </Heading>

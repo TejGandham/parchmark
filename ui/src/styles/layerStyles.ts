@@ -63,10 +63,6 @@ export const layerStyles = {
     borderRadius: 'xl',
     border: '1px',
     borderColor: 'whiteAlpha.400',
-    _dark: {
-      bg: 'rgba(26, 24, 22, 0.8)',
-      borderColor: 'whiteAlpha.100',
-    },
   },
 
   // Raised surface - For elevated elements

@@ -66,9 +66,6 @@ export const Button = defineStyleConfig({
       _hover: {
         bg: 'primary.50',
         transform: 'translateY(-1px)',
-        _dark: {
-          bg: 'primary.900',
-        },
       },
       _active: {
         transform: 'translateY(0)',
