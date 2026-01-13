@@ -440,7 +440,7 @@ describe('UserLoginStatus', () => {
 
     it('should handle settings menu item click', async () => {
       const user = userEvent.setup();
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation();
+      mockNavigate.mockClear();
       const mockUser = { username: 'testuser', password: '' };
       mockUseAuthStore.mockImplementation((selector) => {
         const state = {
@@ -463,8 +463,7 @@ describe('UserLoginStatus', () => {
       const settingsItem = screen.getByText('Settings');
       await user.click(settingsItem);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Navigate to settings');
-      consoleSpy.mockRestore();
+      expect(mockNavigate).toHaveBeenCalledWith('/settings');
     });
 
     it('should handle help menu item click', async () => {
