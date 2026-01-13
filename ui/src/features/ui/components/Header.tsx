@@ -1,10 +1,4 @@
-import {
-  Flex,
-  HStack,
-  Heading,
-  IconButton,
-  Image,
-} from '@chakra-ui/react';
+import { Flex, HStack, Heading, IconButton, Image } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faGear } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';

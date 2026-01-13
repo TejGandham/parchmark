@@ -110,5 +110,4 @@ describe('Header Component', () => {
     });
     expect(userButton).toBeInTheDocument();
   });
-
 });
