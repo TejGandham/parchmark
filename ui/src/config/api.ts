@@ -12,4 +12,10 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/notes/${id}`,
     DELETE: (id: string) => `/notes/${id}`,
   },
+  SETTINGS: {
+    USER_INFO: '/settings/user-info',
+    CHANGE_PASSWORD: '/settings/change-password',
+    EXPORT_NOTES: '/settings/export-notes',
+    DELETE_ACCOUNT: '/settings/delete-account',
+  },
 } as const;

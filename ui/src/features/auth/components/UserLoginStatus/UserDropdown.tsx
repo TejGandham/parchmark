@@ -98,8 +98,7 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ onClose }) => {
 
   const handleSettings = () => {
     onClose();
-    // Navigate to settings page when implemented
-    console.log('Navigate to settings');
+    navigate('/settings');
   };
 
   const handleHelp = () => {

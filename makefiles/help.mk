@@ -7,11 +7,9 @@ help: ## Display this help message
 	@echo "$(BLUE)╚════════════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
 	@echo "$(YELLOW)📋 Quick Start:$(NC)"
+	@echo "  make dev                - Start all dev services (DB + Backend + Frontend)"
 	@echo "  make test               - Run ALL tests (UI + Backend, mirrors CI)"
 	@echo "  make install-all        - Install all dependencies (UI + Backend)"
-	@echo "  make dev-ui             - Start UI development server"
-	@echo "  make dev-backend        - Start backend development server"
-	@echo "  make docker-dev         - Start PostgreSQL for local development"
 	@echo ""
 	@$(MAKE) --silent help-ui
 	@$(MAKE) --silent help-backend
@@ -54,6 +52,8 @@ help-combined:
 .PHONY: help-dev
 help-dev:
 	@echo "$(GREEN)🚀 Development Servers:$(NC)"
+	@echo "  make dev                  - Start all dev services (DB + Backend + Frontend)"
+	@echo "  make dev-stop             - Stop all development services"
 	@grep -hE '^(dev-ui|dev-backend|docker-dev|docker-dev-down):.*?## ' makefiles/ui.mk makefiles/backend.mk makefiles/docker.mk Makefile 2>/dev/null | sed -E 's/^([a-zA-Z_-]+):.*## (.*)$$/  make \1 ##PADDING## - \2/' | awk '{printf "  make %-23s - %s\n", $$2, substr($$0, index($$0, $$5))}'
 	@echo ""
 

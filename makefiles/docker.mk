@@ -1,5 +1,49 @@
 # Docker targets for ParchMark
 
+# ============================================================================
+# COMBINED DEVELOPMENT TARGETS
+# ============================================================================
+
+.PHONY: dev
+dev: docker-dev dev-wait-db ## Start all dev services (PostgreSQL + Backend + Frontend)
+	$(call info_msg,Starting backend and frontend in parallel...)
+	@echo ""
+	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  ParchMark Development Environment$(NC)"
+	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(BLUE)Access points:$(NC)"
+	@echo "  Frontend:  http://localhost:5173"
+	@echo "  Backend:   http://localhost:8000"
+	@echo "  API Docs:  http://localhost:8000/docs"
+	@echo ""
+	@echo "$(BLUE)Test user:$(NC)"
+	@echo "  Username:  qauser"
+	@echo "  Password:  QaPass123!"
+	@echo ""
+	@echo "$(YELLOW)Press Ctrl+C to stop all services$(NC)"
+	@echo ""
+	@trap 'echo ""; echo "$(BLUE)Stopping services...$(NC)"; kill 0' EXIT; \
+	(cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) & \
+	(cd ui && npm run dev -- --host 0.0.0.0) & \
+	wait
+
+.PHONY: dev-wait-db
+dev-wait-db: ## Wait for PostgreSQL to be ready
+	@echo "$(BLUE)Waiting for PostgreSQL to be ready...$(NC)"
+	@for i in 1 2 3 4 5; do \
+		docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U parchmark_user -d parchmark_db > /dev/null 2>&1 && break || sleep 1; \
+	done
+	$(call success_msg,PostgreSQL is ready)
+
+.PHONY: dev-stop
+dev-stop: docker-dev-down ## Stop all development services
+	$(call success_msg,All development services stopped)
+
+# ============================================================================
+# POSTGRESQL TARGETS
+# ============================================================================
+
 .PHONY: docker-dev
 docker-dev: ## Start PostgreSQL for local development
 	$(call check_docker)

@@ -2,6 +2,8 @@
 
 This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with the ParchMark codebase.
 
+## Use 'bd' for task tracking
+
 ## Project Overview
 
 **ParchMark** is a full-stack markdown note-taking application with a React frontend and FastAPI backend.
@@ -667,13 +669,40 @@ isTokenExpiringSoon(token, withinSeconds) // Checks if token expires soon
 ## Development Workflow
 
 ### Local Development (Recommended)
+
+**Quick Start (Single Command):**
+```bash
+make dev    # Starts PostgreSQL + Backend + Frontend
+```
+
+Access points:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+Press `Ctrl+C` to stop all services.
+
+**Manual Start (Separate Terminals):**
 1. Start PostgreSQL: `make docker-dev` (from project root)
 2. Start backend: `make dev-backend` (from project root)
 3. Start frontend: `make dev-ui` (from project root)
-4. Access app at `http://localhost:5173`
-5. API docs at `http://localhost:8000/docs`
 
 This approach uses PostgreSQL in Docker but runs backend/frontend on host for faster development.
+
+### Test User for QA
+
+A test user is available for visual QA and manual testing:
+
+| Field | Value |
+|-------|-------|
+| Username | `qauser` |
+| Password | `QaPass123!` |
+
+Create this user (first time only):
+```bash
+make docker-dev  # Ensure PostgreSQL is running
+make user-create USERNAME=qauser PASSWORD=QaPass123!
+```
 
 ### Testing Changes
 1. **Recommended**: Use `make test` to run the full CI pipeline locally (both UI + Backend)
@@ -685,6 +714,60 @@ This approach uses PostgreSQL in Docker but runs backend/frontend on host for fa
 5. Check coverage reports:
    - Frontend: `ui/coverage/`
    - Backend: `backend/htmlcov/`
+
+### Visual QA Requirements
+
+**MANDATORY: Perform visual QA before every major change or group of commits.**
+
+Visual testing catches issues that unit tests miss: layout problems, styling regressions, UX issues, and integration bugs. Use the Chrome DevTools MCP to perform visual QA.
+
+**When to perform Visual QA:**
+- Before committing UI changes (new components, styling changes, layout modifications)
+- Before committing API changes that affect the frontend
+- After completing a feature or bug fix
+- Before creating a PR or pushing a group of commits
+
+**Visual QA Workflow:**
+1. **Start the dev environment**: `make dev` (or `make docker-dev` + `make dev-backend` + `make dev-ui`)
+2. **Use Chrome DevTools MCP** to interact with the app:
+   - Navigate to the relevant pages
+   - Test the happy path (feature works as expected)
+   - Test edge cases (empty states, error states, loading states)
+   - Verify dark mode if applicable
+   - Check console for errors
+3. **Test as the QA user**: Login as `qauser` / `QaPass123!` for realistic testing
+4. **Document any issues** found and fix before committing
+
+**Chrome DevTools MCP Commands:**
+```
+# Navigate and interact
+mcp_chrome-devtools_navigate_page    # Go to a URL
+mcp_chrome-devtools_take_snapshot    # Get page structure (preferred)
+mcp_chrome-devtools_take_screenshot  # Visual capture
+mcp_chrome-devtools_click            # Click elements by uid
+mcp_chrome-devtools_fill             # Fill form inputs
+mcp_chrome-devtools_list_console_messages  # Check for errors
+
+# Common workflow
+1. take_snapshot to see page structure and element uids
+2. click/fill to interact with elements
+3. take_snapshot again to verify changes
+4. list_console_messages to check for errors
+```
+
+**Example Visual QA Session:**
+```
+# Testing a new Settings feature
+1. Navigate to http://localhost:5173
+2. Take snapshot, find login form
+3. Fill username/password, click login
+4. Navigate to /settings
+5. Take snapshot, verify all sections render
+6. Click through each accordion section
+7. Test form submissions (e.g., change password)
+8. Check console for errors
+9. Verify success/error toasts appear correctly
+```
 
 ### Full Stack Docker Development
 1. Build: `docker compose build`
@@ -889,21 +972,22 @@ Production:
 
 1. **Use Makefile commands** from project root instead of manual commands (see `make help` for all options)
 2. **Always test** before committing changes - use `make test` to run full CI pipeline
-3. **Follow existing patterns** in the codebase
-4. **Write tests** for new functionality (add regression tests for bugs)
-5. **Update documentation** when adding features
-6. **Use strong typing** in TypeScript and Python
-7. **Use centralized error handling** via `handleError()` for all error scenarios (see ui/src/utils/errorHandler.ts)
-8. **Use type-safe constants** from `config/` directory instead of magic strings
-9. **Use MarkdownService** for all markdown operations to maintain frontend/backend parity
-10. **Handle errors gracefully** with user feedback
-11. **Keep components focused** and reusable
-12. **Optimize for readability** over cleverness
-13. **Run linting and formatting** before commits (enforced in Makefile)
-14. **Deployment safety**: Never commit secrets; use `make deploy-push-check` before deploying
-15. **Migration safety**: Test database migrations locally before deploying
-16. **Verify deployments**: Always run `make deploy-verify` after deploying to production
-17. **Monitor production**: Use `make deploy-logs` and `make deploy-status` to monitor deployments
+3. **Visual QA before commits**: Perform visual testing using Chrome DevTools MCP before major changes or group commits (see Visual QA Requirements section)
+4. **Follow existing patterns** in the codebase
+5. **Write tests** for new functionality (add regression tests for bugs)
+6. **Update documentation** when adding features
+7. **Use strong typing** in TypeScript and Python
+8. **Use centralized error handling** via `handleError()` for all error scenarios (see ui/src/utils/errorHandler.ts)
+9. **Use type-safe constants** from `config/` directory instead of magic strings
+10. **Use MarkdownService** for all markdown operations to maintain frontend/backend parity
+11. **Handle errors gracefully** with user feedback
+12. **Keep components focused** and reusable
+13. **Optimize for readability** over cleverness
+14. **Run linting and formatting** before commits (enforced in Makefile)
+15. **Deployment safety**: Never commit secrets; use `make deploy-push-check` before deploying
+16. **Migration safety**: Test database migrations locally before deploying
+17. **Verify deployments**: Always run `make deploy-verify` after deploying to production
+18. **Monitor production**: Use `make deploy-logs` and `make deploy-status` to monitor deployments
 
 ## Additional Notes
 
@@ -965,3 +1049,29 @@ Production:
 - **Multi-language support** is not implemented
 - **Backup functionality** should be added for production use
 - **Token revocation** is not yet implemented (consider Redis-based blacklist for future)
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds

@@ -148,6 +148,60 @@ export const deleteNote = (id: string): Promise<void> =>
     method: 'DELETE',
   });
 
+// Settings API
+export interface UserInfo {
+  username: string;
+  email: string | null;
+  created_at: string;
+  notes_count: number;
+  auth_provider: 'local' | 'oidc';
+}
+
+export const getUserInfo = (): Promise<UserInfo> =>
+  request(API_ENDPOINTS.SETTINGS.USER_INFO);
+
+export const changePassword = (
+  currentPassword: string,
+  newPassword: string
+): Promise<{ message: string }> =>
+  request(API_ENDPOINTS.SETTINGS.CHANGE_PASSWORD, {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+
+export const exportNotes = async (): Promise<Blob> => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_ENDPOINTS.SETTINGS.EXPORT_NOTES}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    throw new ApiError(
+      'Failed to export notes',
+      response.status,
+      await response.json().catch(() => ({}))
+    );
+  }
+
+  return response.blob();
+};
+
+export const deleteAccount = (password: string): Promise<{ message: string }> =>
+  request(API_ENDPOINTS.SETTINGS.DELETE_ACCOUNT, {
+    method: 'DELETE',
+    body: JSON.stringify({ password }),
+  });
+
 export default {
   login,
   refreshToken,
@@ -155,4 +209,8 @@ export default {
   createNote,
   updateNote,
   deleteNote,
+  getUserInfo,
+  changePassword,
+  exportNotes,
+  deleteAccount,
 };

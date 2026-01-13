@@ -6,6 +6,10 @@ import api, {
   createNote,
   updateNote,
   deleteNote,
+  getUserInfo,
+  changePassword,
+  exportNotes,
+  deleteAccount,
 } from '../../services/api';
 import { useAuthStore } from '../../features/auth/store';
 
@@ -461,6 +465,151 @@ describe('API Service', () => {
       await expect(refreshToken('expired')).rejects.toThrow('Refresh expired');
       expect(mockRefreshTokens).not.toHaveBeenCalled();
       expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Settings API', () => {
+    describe('getUserInfo', () => {
+      it('should make GET request to user-info endpoint', async () => {
+        const userInfo = {
+          username: 'testuser',
+          email: null,
+          created_at: '2025-01-01T00:00:00Z',
+          notes_count: 5,
+          auth_provider: 'local',
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => userInfo,
+          status: 200,
+        } as Response);
+
+        const result = await getUserInfo();
+
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/user-info', {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        expect(result).toEqual(userInfo);
+      });
+    });
+
+    describe('changePassword', () => {
+      it('should make POST request to change-password endpoint', async () => {
+        const response = { message: 'Password changed successfully' };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => response,
+          status: 200,
+        } as Response);
+
+        const result = await changePassword('oldpass', 'newpass');
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/settings/change-password',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              current_password: 'oldpass',
+              new_password: 'newpass',
+            }),
+          }
+        );
+        expect(result).toEqual(response);
+      });
+    });
+
+    describe('exportNotes', () => {
+      it('should make GET request to export-notes endpoint and return blob', async () => {
+        const mockBlob = new Blob(['test zip content'], {
+          type: 'application/zip',
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          blob: async () => mockBlob,
+          status: 200,
+        } as Response);
+
+        const result = await exportNotes();
+
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/export-notes', {
+          headers: {},
+        });
+        expect(result).toBeInstanceOf(Blob);
+      });
+
+      it('should include auth header when token is present', async () => {
+        (useAuthStore.getState as Mock).mockReturnValue({
+          token: 'test-token',
+        });
+
+        const mockBlob = new Blob(['test zip content'], {
+          type: 'application/zip',
+        });
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          blob: async () => mockBlob,
+          status: 200,
+        } as Response);
+
+        await exportNotes();
+
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/export-notes', {
+          headers: {
+            Authorization: 'Bearer test-token',
+          },
+        });
+      });
+
+      it('should throw error when export fails', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: async () => ({ detail: 'Server error' }),
+        } as Response);
+
+        await expect(exportNotes()).rejects.toThrow('Failed to export notes');
+      });
+    });
+
+    describe('deleteAccount', () => {
+      it('should make DELETE request to delete-account endpoint', async () => {
+        const response = { message: 'Account deleted successfully' };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => response,
+          status: 200,
+        } as Response);
+
+        const result = await deleteAccount('password123');
+
+        expect(mockFetch).toHaveBeenCalledWith('/api/settings/delete-account', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: 'password123' }),
+        });
+        expect(result).toEqual(response);
+      });
+    });
+
+    describe('default export includes settings functions', () => {
+      it('should export all settings API functions', () => {
+        expect(api.getUserInfo).toBe(getUserInfo);
+        expect(api.changePassword).toBe(changePassword);
+        expect(api.exportNotes).toBe(exportNotes);
+        expect(api.deleteAccount).toBe(deleteAccount);
+      });
     });
   });
 });
