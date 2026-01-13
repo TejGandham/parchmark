@@ -2,6 +2,8 @@
 
 This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with the ParchMark codebase.
 
+## Use 'bd' for task tracking
+
 ## Project Overview
 
 **ParchMark** is a full-stack markdown note-taking application with a React frontend and FastAPI backend.
@@ -667,13 +669,40 @@ isTokenExpiringSoon(token, withinSeconds) // Checks if token expires soon
 ## Development Workflow
 
 ### Local Development (Recommended)
+
+**Quick Start (Single Command):**
+```bash
+make dev    # Starts PostgreSQL + Backend + Frontend
+```
+
+Access points:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+Press `Ctrl+C` to stop all services.
+
+**Manual Start (Separate Terminals):**
 1. Start PostgreSQL: `make docker-dev` (from project root)
 2. Start backend: `make dev-backend` (from project root)
 3. Start frontend: `make dev-ui` (from project root)
-4. Access app at `http://localhost:5173`
-5. API docs at `http://localhost:8000/docs`
 
 This approach uses PostgreSQL in Docker but runs backend/frontend on host for faster development.
+
+### Test User for QA
+
+A test user is available for visual QA and manual testing:
+
+| Field | Value |
+|-------|-------|
+| Username | `qauser` |
+| Password | `QaPass123!` |
+
+Create this user (first time only):
+```bash
+make docker-dev  # Ensure PostgreSQL is running
+make user-create USERNAME=qauser PASSWORD=QaPass123!
+```
 
 ### Testing Changes
 1. **Recommended**: Use `make test` to run the full CI pipeline locally (both UI + Backend)
@@ -965,3 +994,29 @@ Production:
 - **Multi-language support** is not implemented
 - **Backup functionality** should be added for production use
 - **Token revocation** is not yet implemented (consider Redis-based blacklist for future)
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
