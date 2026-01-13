@@ -12,38 +12,6 @@ vi.mock('../../../../services/api');
 // Mock auth store
 vi.mock('../../../../features/auth/store');
 
-// Mock settings store with implementation
-const mockUpdateEditorPreferences = vi.fn();
-const mockUpdateAppearancePreferences = vi.fn();
-const mockResetToDefaults = vi.fn();
-
-vi.mock('../../../../features/settings/store', () => ({
-  useSettingsStore: (selector: (state: unknown) => unknown) => {
-    const state = {
-      editorPreferences: {
-        fontFamily: 'monospace',
-        fontSize: 16,
-        lineHeight: 1.6,
-        autoSaveDelay: 1000,
-        wordWrap: true,
-        spellCheck: true,
-      },
-      appearancePreferences: {
-        sidebarWidth: 280,
-      },
-      isLoading: false,
-      error: null,
-      actions: {
-        updateEditorPreferences: mockUpdateEditorPreferences,
-        updateAppearancePreferences: mockUpdateAppearancePreferences,
-        resetToDefaults: mockResetToDefaults,
-        clearError: vi.fn(),
-      },
-    };
-    return typeof selector === 'function' ? selector(state) : state;
-  },
-}));
-
 // Mock react-router's useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => ({
@@ -112,11 +80,9 @@ describe('Settings Component', () => {
         ).toBeInTheDocument();
       });
 
-      // Check for accordion sections
+      // Check for accordion sections (4 sections for local users)
       expect(screen.getByText('Profile Information')).toBeInTheDocument();
       expect(screen.getByText('Password & Security')).toBeInTheDocument();
-      expect(screen.getByText('Editor Preferences')).toBeInTheDocument();
-      expect(screen.getByText('Appearance')).toBeInTheDocument();
       expect(screen.getByText('Data Management')).toBeInTheDocument();
       expect(screen.getByText('Danger Zone')).toBeInTheDocument();
     });
@@ -215,42 +181,6 @@ describe('Settings Component', () => {
     });
   });
 
-  describe('Editor Preferences', () => {
-    it('updates font family', async () => {
-      render(<Settings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Profile Information')).toBeInTheDocument();
-      });
-
-      const fontFamilySelect = screen.getByLabelText('Font Family');
-      await act(async () => {
-        fireEvent.change(fontFamilySelect, { target: { value: 'sans-serif' } });
-      });
-
-      expect(mockUpdateEditorPreferences).toHaveBeenCalledWith({
-        fontFamily: 'sans-serif',
-      });
-    });
-
-    it('updates auto-save delay', async () => {
-      render(<Settings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Profile Information')).toBeInTheDocument();
-      });
-
-      const autoSaveSelect = screen.getByLabelText('Auto-save Delay');
-      await act(async () => {
-        fireEvent.change(autoSaveSelect, { target: { value: '3000' } });
-      });
-
-      expect(mockUpdateEditorPreferences).toHaveBeenCalledWith({
-        autoSaveDelay: 3000,
-      });
-    });
-  });
-
   describe('Export Notes', () => {
     it('exports notes successfully', async () => {
       // Mock URL.createObjectURL and URL.revokeObjectURL
@@ -329,21 +259,6 @@ describe('Settings Component', () => {
           })
         );
       });
-    });
-  });
-
-  describe('Reset to Defaults', () => {
-    it('calls resetToDefaults when button is clicked', async () => {
-      render(<Settings />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Reset to Defaults')).toBeInTheDocument();
-      });
-
-      const resetButton = screen.getByText('Reset to Defaults');
-      fireEvent.click(resetButton);
-
-      expect(mockResetToDefaults).toHaveBeenCalled();
     });
   });
 

@@ -17,15 +17,9 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Select,
-  Slider,
-  SliderFilledTrack,
-  SliderThumb,
-  SliderTrack,
   Stat,
   StatLabel,
   StatNumber,
-  Switch,
   Text,
   useColorModeValue,
   useDisclosure,
@@ -50,7 +44,6 @@ import {
   UserInfo,
 } from '../../../services/api';
 import { useAuthStore } from '../../auth/store';
-import { useSettingsStore, FontFamily } from '../store';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -84,17 +77,6 @@ const Settings = () => {
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
-
-  // Settings store
-  const editorPreferences = useSettingsStore((s) => s.editorPreferences);
-  const appearancePreferences = useSettingsStore(
-    (s) => s.appearancePreferences
-  );
-  const {
-    updateEditorPreferences,
-    updateAppearancePreferences,
-    resetToDefaults,
-  } = useSettingsStore((s) => s.actions);
 
   // Theme colors - must be called before any early returns
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -394,166 +376,6 @@ const Settings = () => {
               </AccordionPanel>
             </AccordionItem>
           )}
-
-          {/* Editor Preferences */}
-          <AccordionItem
-            bg={bgColor}
-            borderRadius="md"
-            border="1px solid"
-            borderColor={borderColor}
-            mb={4}
-          >
-            <h2>
-              <AccordionButton py={4}>
-                <Box flex="1" textAlign="left" fontWeight="semibold">
-                  Editor Preferences
-                </Box>
-                <AccordionIcon />
-              </AccordionButton>
-            </h2>
-            <AccordionPanel pb={4}>
-              <VStack spacing={6} align="stretch">
-                <FormControl>
-                  <FormLabel>Font Family</FormLabel>
-                  <Select
-                    value={editorPreferences.fontFamily}
-                    onChange={(e) =>
-                      updateEditorPreferences({
-                        fontFamily: e.target.value as FontFamily,
-                      })
-                    }
-                  >
-                    <option value="monospace">Monospace</option>
-                    <option value="sans-serif">Sans-serif</option>
-                    <option value="serif">Serif</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>
-                    Font Size: {editorPreferences.fontSize}px
-                  </FormLabel>
-                  <Slider
-                    min={12}
-                    max={24}
-                    step={1}
-                    value={editorPreferences.fontSize}
-                    onChange={(value) =>
-                      updateEditorPreferences({ fontSize: value })
-                    }
-                  >
-                    <SliderTrack>
-                      <SliderFilledTrack />
-                    </SliderTrack>
-                    <SliderThumb />
-                  </Slider>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>
-                    Line Height: {editorPreferences.lineHeight.toFixed(1)}
-                  </FormLabel>
-                  <Slider
-                    min={1.0}
-                    max={2.5}
-                    step={0.1}
-                    value={editorPreferences.lineHeight}
-                    onChange={(value) =>
-                      updateEditorPreferences({ lineHeight: value })
-                    }
-                  >
-                    <SliderTrack>
-                      <SliderFilledTrack />
-                    </SliderTrack>
-                    <SliderThumb />
-                  </Slider>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Auto-save Delay</FormLabel>
-                  <Select
-                    value={editorPreferences.autoSaveDelay}
-                    onChange={(e) =>
-                      updateEditorPreferences({
-                        autoSaveDelay: parseInt(e.target.value),
-                      })
-                    }
-                  >
-                    <option value={500}>0.5 seconds</option>
-                    <option value={1000}>1 second</option>
-                    <option value={2000}>2 seconds</option>
-                    <option value={3000}>3 seconds</option>
-                    <option value={5000}>5 seconds</option>
-                  </Select>
-                </FormControl>
-
-                <HStack justify="space-between">
-                  <Text>Word Wrap</Text>
-                  <Switch
-                    isChecked={editorPreferences.wordWrap}
-                    onChange={(e) =>
-                      updateEditorPreferences({ wordWrap: e.target.checked })
-                    }
-                  />
-                </HStack>
-
-                <HStack justify="space-between">
-                  <Text>Spell Check</Text>
-                  <Switch
-                    isChecked={editorPreferences.spellCheck}
-                    onChange={(e) =>
-                      updateEditorPreferences({ spellCheck: e.target.checked })
-                    }
-                  />
-                </HStack>
-              </VStack>
-            </AccordionPanel>
-          </AccordionItem>
-
-          {/* Appearance */}
-          <AccordionItem
-            bg={bgColor}
-            borderRadius="md"
-            border="1px solid"
-            borderColor={borderColor}
-            mb={4}
-          >
-            <h2>
-              <AccordionButton py={4}>
-                <Box flex="1" textAlign="left" fontWeight="semibold">
-                  Appearance
-                </Box>
-                <AccordionIcon />
-              </AccordionButton>
-            </h2>
-            <AccordionPanel pb={4}>
-              <VStack spacing={6} align="stretch">
-                <FormControl>
-                  <FormLabel>
-                    Sidebar Width: {appearancePreferences.sidebarWidth}px
-                  </FormLabel>
-                  <Slider
-                    min={200}
-                    max={400}
-                    step={10}
-                    value={appearancePreferences.sidebarWidth}
-                    onChange={(value) =>
-                      updateAppearancePreferences({ sidebarWidth: value })
-                    }
-                  >
-                    <SliderTrack>
-                      <SliderFilledTrack />
-                    </SliderTrack>
-                    <SliderThumb />
-                  </Slider>
-                </FormControl>
-
-                <Button variant="outline" onClick={resetToDefaults}>
-                  Reset to Defaults
-                </Button>
-              </VStack>
-            </AccordionPanel>
-          </AccordionItem>
 
           {/* Data Management */}
           <AccordionItem
