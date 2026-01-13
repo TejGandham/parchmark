@@ -42,6 +42,14 @@ vi.mock('../features/auth/components/OIDCCallback', async () => {
   };
 });
 
+vi.mock('../features/settings/components/Settings', async () => {
+  return {
+    default: function MockSettings() {
+      return <div data-testid="settings-component">Settings Component</div>;
+    },
+  };
+});
+
 // Mock the auth store
 vi.mock('../features/auth/store');
 
@@ -191,6 +199,7 @@ describe('App Component', () => {
     expect(screen.getByTestId('route-/oidc/callback')).toBeInTheDocument();
     expect(screen.getByTestId('route-/notes')).toBeInTheDocument();
     expect(screen.getByTestId('route-/notes/:noteId')).toBeInTheDocument();
+    expect(screen.getByTestId('route-/settings')).toBeInTheDocument();
     expect(screen.getByTestId('route-/not-found')).toBeInTheDocument();
     expect(screen.getByTestId('route-*')).toBeInTheDocument();
   });
@@ -226,8 +235,9 @@ describe('App Component', () => {
         );
       });
 
-      // Should render at least one navigate to login
-      expect(screen.getAllByTestId('navigate-/login')).toHaveLength(3);
+      // Should render navigate to login for each ProtectedRoute (/notes, /notes/:noteId, /settings)
+      // Plus the RootRoute which also redirects to /login when unauthenticated
+      expect(screen.getAllByTestId('navigate-/login')).toHaveLength(4);
     });
 
     it('should navigate to /notes when user is authenticated', async () => {

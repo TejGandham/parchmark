@@ -18,6 +18,7 @@ const LoginForm = lazy(() => import('./features/auth/components/LoginForm'));
 const OIDCCallback = lazy(
   () => import('./features/auth/components/OIDCCallback')
 );
+const Settings = lazy(() => import('./features/settings/components/Settings'));
 
 // Create a better loading fallback
 const LoadingFallback = () => (
@@ -58,6 +59,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <NotesContainer />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             }
           />
