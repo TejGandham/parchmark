@@ -137,7 +137,7 @@ const NoteContent = ({
           <HStack spacing={3} align="flex-start">
             <Icon as={EditIcon} color="primary.500" mt={0.5} />
             <Text fontSize="sm" textAlign="left" color="text.secondary">
-              Auto-save keeps your work safe
+              Click Save to keep your work safe
             </Text>
           </HStack>
         </VStack>
