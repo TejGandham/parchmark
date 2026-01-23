@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from 'react';
 import { Box, Flex, Link } from '@chakra-ui/react';
 import { useUIStore } from '../../../store';
 import { useStoreRouterSync } from '../hooks/useStoreRouterSync';
@@ -29,20 +30,38 @@ const NotesContainer = () => {
     actions,
   } = useStoreRouterSync();
 
-  // Prepare props for NoteContent
-  const noteContentProps = {
-    currentNote,
-    isEditing,
-    editedContent: editedContent === null ? '' : editedContent,
-    setEditedContent: actions.setEditedContent,
-    startEditing: () => actions.setEditedContent(currentNote?.content || ''),
-    saveNote: () => {
-      if (currentNoteId && editedContent !== null) {
-        actions.updateNote(currentNoteId, editedContent);
-      }
-    },
-    createNewNote: actions.createNote,
-  };
+  // Memoized handlers for NoteContent
+  const startEditing = useCallback(() => {
+    actions.setEditedContent(currentNote?.content || '');
+  }, [actions, currentNote?.content]);
+
+  const saveNote = useCallback(() => {
+    if (currentNoteId && editedContent !== null) {
+      actions.updateNote(currentNoteId, editedContent);
+    }
+  }, [currentNoteId, editedContent, actions]);
+
+  // Prepare props for NoteContent with stable references
+  const noteContentProps = useMemo(
+    () => ({
+      currentNote,
+      isEditing,
+      editedContent: editedContent === null ? '' : editedContent,
+      setEditedContent: actions.setEditedContent,
+      startEditing,
+      saveNote,
+      createNewNote: actions.createNote,
+    }),
+    [
+      currentNote,
+      isEditing,
+      editedContent,
+      actions.setEditedContent,
+      actions.createNote,
+      startEditing,
+      saveNote,
+    ]
+  );
 
   return (
     <Box minH="100vh" bg="bg.canvas" className="bg-texture">

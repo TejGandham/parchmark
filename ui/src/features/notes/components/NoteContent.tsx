@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   Box,
   Flex,
@@ -24,6 +25,10 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import Mermaid from '../../../components/Mermaid';
 
+// Stable reference for markdown plugins - prevents recreation on each render
+const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeRaw];
+
 interface NoteContentProps {
   currentNote: Note | null | undefined;
   isEditing: boolean;
@@ -43,6 +48,32 @@ const NoteContent = ({
   saveNote,
   createNewNote,
 }: NoteContentProps) => {
+  // Memoize markdown components to prevent recreation on every render
+  // Must be called before any early returns to satisfy Rules of Hooks
+  const markdownComponents = useMemo(
+    () => ({
+      code({
+        className,
+        children,
+        ...props
+      }: {
+        className?: string;
+        children?: React.ReactNode;
+      }) {
+        const match = /language-(\w+)/.exec(className || '');
+        if (match && match[1] === 'mermaid') {
+          return <Mermaid chart={String(children).replace(/\n$/, '')} />;
+        }
+        return (
+          <code className={className} {...props}>
+            {children}
+          </code>
+        );
+      },
+    }),
+    [] // Empty deps - components definition is stable
+  );
+
   // Handle case when no note is selected, or we're in the process of creating one
   if (!currentNote) {
     // If we're editing (creating a new note) but currentNote is not yet set
@@ -214,28 +245,9 @@ const NoteContent = ({
             <Box className="decorative-divider" mb={5}></Box>
             <Box className="markdown-preview" p={4}>
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                  code({ className, children, ...props }) {
-                    {
-                      const match = /language-(\w+)/.exec(className || '');
-                      if (match && match[1] === 'mermaid') {
-                        return (
-                          <Mermaid
-                            chart={String(children).replace(/\n$/, '')}
-                          />
-                        );
-                      }
-                      // Render other code blocks as usual
-                      return (
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      );
-                    }
-                  },
-                }}
+                remarkPlugins={remarkPlugins}
+                rehypePlugins={rehypePlugins}
+                components={markdownComponents}
               >
                 {previewContent}
               </ReactMarkdown>

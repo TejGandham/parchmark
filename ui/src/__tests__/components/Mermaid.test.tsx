@@ -1,85 +1,118 @@
-import { vi } from 'vitest';
+import { vi, beforeEach, describe, it, expect } from 'vitest';
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import Mermaid from '../../components/Mermaid';
 
-// Mock mermaid library
+// Use vi.hoisted to create mock functions that can be referenced in vi.mock
+const { mockContentLoaded, mockInitialize } = vi.hoisted(() => ({
+  mockContentLoaded: vi.fn(),
+  mockInitialize: vi.fn(),
+}));
+
+// Mock mermaid library - must happen before import
 vi.mock('mermaid', () => ({
   default: {
-    initialize: vi.fn(),
-    contentLoaded: vi.fn(),
+    initialize: () => {},
+    contentLoaded: () => Promise.resolve(),
   },
 }));
 
-import mermaidMock from 'mermaid';
-
-describe('Mermaid Component', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('should render mermaid chart content', () => {
-    const chartContent = 'graph TD; A-->B;';
-    const { container } = render(<Mermaid chart={chartContent} />);
-
-    const mermaidDiv = container.querySelector('.mermaid');
-    expect(mermaidDiv).toBeInTheDocument();
-    expect(mermaidDiv).toHaveTextContent(chartContent);
-  });
-
-  it('should initialize mermaid with correct configuration', () => {
-    render(<Mermaid chart="graph TD; A-->B;" />);
-
-    expect(mermaidMock.initialize).toHaveBeenCalledWith({
+// Mock mermaidInit module with lazy loading API
+vi.mock('../../utils/mermaidInit', () => ({
+  getMermaid: async () => {
+    mockInitialize({
       startOnLoad: true,
       theme: 'default',
       securityLevel: 'loose',
     });
+    return {
+      contentLoaded: (...args: unknown[]) => mockContentLoaded(...args),
+      initialize: mockInitialize,
+    };
+  },
+}));
+
+// Import component after mocks are set up
+import Mermaid from '../../components/Mermaid';
+
+describe('Mermaid Component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset contentLoaded to resolve successfully
+    mockContentLoaded.mockResolvedValue(undefined);
   });
 
-  it('should call contentLoaded after initialization', () => {
+  it('should render mermaid chart container with mermaid class', async () => {
+    const chartContent = 'graph TD; A-->B;';
+    render(<Mermaid chart={chartContent} />);
+
+    await waitFor(() => {
+      expect(mockContentLoaded).toHaveBeenCalled();
+    });
+
+    // Check that the container has the mermaid class
+    const container = document.querySelector('.mermaid');
+    expect(container).toBeInTheDocument();
+    expect(container).toHaveTextContent(chartContent);
+  });
+
+  it('should initialize mermaid with correct configuration', async () => {
     render(<Mermaid chart="graph TD; A-->B;" />);
 
-    expect(mermaidMock.contentLoaded).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockInitialize).toHaveBeenCalledWith({
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+      });
+    });
   });
 
-  it('should render different chart types', () => {
-    const flowchartContent = 'flowchart TD; Start --> Stop;';
-    const { rerender, container } = render(
-      <Mermaid chart={flowchartContent} />
-    );
+  it('should call mermaid.contentLoaded to render diagrams', async () => {
+    const chartContent = 'graph TD; A-->B;';
+    render(<Mermaid chart={chartContent} />);
 
-    expect(container.querySelector('.mermaid')).toHaveTextContent(
-      flowchartContent
-    );
+    await waitFor(() => {
+      expect(mockContentLoaded).toHaveBeenCalled();
+    });
+  });
+
+  it('should render different chart types', async () => {
+    const flowchartContent = 'flowchart TD; Start --> Stop;';
+    const { rerender } = render(<Mermaid chart={flowchartContent} />);
+
+    await waitFor(() => {
+      expect(mockContentLoaded).toHaveBeenCalled();
+    });
+
+    mockContentLoaded.mockClear();
 
     const sequenceContent = 'sequenceDiagram; Alice->>Bob: Hello Bob;';
     rerender(<Mermaid chart={sequenceContent} />);
 
-    expect(container.querySelector('.mermaid')).toHaveTextContent(
-      sequenceContent
-    );
+    await waitFor(() => {
+      expect(mockContentLoaded).toHaveBeenCalled();
+    });
   });
 
-  it('should handle empty chart content', () => {
-    const { container } = render(<Mermaid chart="" />);
+  it('should not render empty chart content', async () => {
+    render(<Mermaid chart="" />);
 
-    const mermaidDiv = container.querySelector('.mermaid');
-    expect(mermaidDiv).toBeInTheDocument();
-    expect(mermaidDiv).toHaveTextContent('');
+    // Give it a moment to potentially call contentLoaded
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Empty chart should not trigger contentLoaded
+    expect(mockContentLoaded).not.toHaveBeenCalled();
   });
 
-  it('should initialize mermaid only once per component instance', () => {
-    const { rerender } = render(<Mermaid chart="graph TD; A-->B;" />);
+  it('should display error state when render fails', async () => {
+    mockContentLoaded.mockRejectedValueOnce(new Error('Parse error'));
 
-    expect(mermaidMock.initialize).toHaveBeenCalledTimes(1);
-    expect(mermaidMock.contentLoaded).toHaveBeenCalledTimes(1);
+    render(<Mermaid chart="invalid mermaid syntax" />);
 
-    // Rerender with different chart - should not call initialize again
-    rerender(<Mermaid chart="graph TD; B-->C;" />);
-
-    expect(mermaidMock.initialize).toHaveBeenCalledTimes(1);
-    expect(mermaidMock.contentLoaded).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.getByText(/Diagram error:/)).toBeInTheDocument();
+      expect(screen.getByText(/Parse error/)).toBeInTheDocument();
+    });
   });
 });

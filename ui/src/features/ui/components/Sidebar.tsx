@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   Box,
   Flex,
@@ -25,6 +25,7 @@ import { motion } from 'framer-motion';
 import { Note } from '../../../types';
 import NoteItem from '../../notes/components/NoteItem';
 import { NoteListSkeleton } from '../../../components/NoteCardSkeleton';
+import VirtualizedNotesList from '../../../components/VirtualizedNotesList';
 import {
   sortNotes,
   filterNotes,
@@ -50,6 +51,11 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: 'alphabetical', label: 'Alphabetical' },
   { value: 'createdDate', label: 'Created Date' },
 ];
+
+// Use virtualization when note count exceeds this threshold
+const VIRTUALIZATION_THRESHOLD = 50;
+// Approximate height for virtualized list (viewport minus header, search, etc.)
+const VIRTUALIZED_LIST_HEIGHT = 400;
 
 const Sidebar = ({
   notes,
@@ -83,6 +89,17 @@ const Sidebar = ({
   const currentSortLabel =
     sortOptions.find((opt) => opt.value === notesSortBy)?.label ||
     'Last Modified';
+
+  // Stable callbacks for NoteItem to enable memoization
+  const handleSelectNote = useCallback(
+    (id: string | null) => onSelectNote(id),
+    [onSelectNote]
+  );
+
+  const handleDeleteNote = useCallback(
+    (id: string) => onDeleteNote(id),
+    [onDeleteNote]
+  );
 
   return (
     <Box
@@ -234,8 +251,8 @@ const Sidebar = ({
                         <NoteItem
                           note={note}
                           isActive={note.id === currentNoteId}
-                          onSelect={onSelectNote}
-                          onDelete={onDeleteNote}
+                          onSelect={handleSelectNote}
+                          onDelete={handleDeleteNote}
                         />
                       </MotionBox>
                     ))}
@@ -243,8 +260,17 @@ const Sidebar = ({
                 </MotionBox>
               ))}
             </VStack>
+          ) : processedNotes.length > VIRTUALIZATION_THRESHOLD ? (
+            // Large list - use virtualization for performance
+            <VirtualizedNotesList
+              notes={processedNotes}
+              currentNoteId={currentNoteId}
+              onSelectNote={handleSelectNote}
+              onDeleteNote={handleDeleteNote}
+              height={VIRTUALIZED_LIST_HEIGHT}
+            />
           ) : (
-            // Not grouped - simple list with stagger
+            // Small list - simple list with stagger animation
             <MotionList
               spacing={1}
               initial="hidden"
@@ -269,8 +295,8 @@ const Sidebar = ({
                   <NoteItem
                     note={note}
                     isActive={note.id === currentNoteId}
-                    onSelect={onSelectNote}
-                    onDelete={onDeleteNote}
+                    onSelect={handleSelectNote}
+                    onDelete={handleDeleteNote}
                   />
                 </MotionBox>
               ))}
