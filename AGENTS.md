@@ -4,7 +4,34 @@ Guidance for Claude Code working with the ParchMark codebase.
 
 ## Task Tracking
 
-Use `bd` for task tracking (see beads workflow in hooks).
+This repo uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking.
+
+**Do NOT use:** TodoWrite, TaskCreate, or markdown files for task tracking.
+
+```bash
+# View tasks
+bd ready              # Show unblocked tasks ready for work
+bd list               # Show all open issues
+bd show <id>          # Show issue details
+
+# Create tasks
+bd q "Title"                                   # Quick create (outputs ID only)
+bd create --title="..." --type=task --priority=2  # Full create
+
+# Update tasks
+bd update <id> --status=in_progress  # Claim work before coding
+bd close <id>                        # Close completed issue
+bd dep add <id> <dep>                # Add dependency
+
+# Sync (REQUIRED at session end)
+bd sync
+```
+
+**Priority:** 0=critical, 1=high, 2=medium, 3=low, 4=backlog (NOT "high"/"medium"/"low")
+
+**Warning:** Never use `bd edit` - it opens $EDITOR which blocks agents.
+
+Run `bd prime` for full workflow context after session restart.
 
 ## Project Overview
 
