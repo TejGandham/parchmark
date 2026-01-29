@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.database.database import async_engine
 from app.database.init_db import init_database
 from app.routers import auth, health, notes, settings
 
@@ -48,6 +49,10 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down ParchMark API...")
+
+    # Dispose async engine to close all connections cleanly
+    await async_engine.dispose()
+    logger.info("Database connections closed")
 
 
 # Create FastAPI application with enhanced configuration

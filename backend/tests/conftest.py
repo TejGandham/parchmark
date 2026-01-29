@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.postgres import PostgresContainer
 
@@ -23,7 +24,7 @@ os.environ["ALLOWED_ORIGINS"] = (
 from app.auth.auth import create_access_token, get_password_hash
 
 # Import application components
-from app.database.database import Base, get_db
+from app.database.database import Base, get_async_db, get_db
 from app.main import app
 from app.models.models import Note, User
 from tests.factories import (
@@ -58,23 +59,53 @@ def test_db_engine():
         yield engine
 
 
+@pytest.fixture(scope="session")
+def test_async_db_engine(test_db_engine):
+    """
+    Create an async PostgreSQL engine for testing.
+
+    This fixture reuses the database container from test_db_engine but creates
+    an async engine using asyncpg.
+
+    NOTE: Engine disposal is handled at session end via atexit or when pytest
+    tears down the session. The connection pool cleanup is automatic.
+    """
+    # Get the sync URL and convert to async
+    # IMPORTANT: Use render_as_string(hide_password=False) to preserve the actual password
+    # str(engine.url) masks the password as '***' which causes authentication failures
+    sync_url = test_db_engine.url.render_as_string(hide_password=False)
+    async_url = sync_url.replace("postgresql://", "postgresql+asyncpg://").replace(
+        "postgresql+psycopg2://", "postgresql+asyncpg://"
+    )
+    # Use pool_pre_ping to verify connections and poolclass=NullPool to avoid
+    # connection pooling issues between sync and async sessions
+    from sqlalchemy.pool import NullPool
+
+    async_engine = create_async_engine(async_url, echo=False, poolclass=NullPool)
+    yield async_engine
+    # Note: We don't explicitly dispose here because:
+    # 1. The testcontainer (postgres) will be stopped at session end, closing all connections
+    # 2. Explicit dispose would require async context which is complex in sync fixtures
+
+
 @pytest.fixture(scope="function")
 def test_db_session(test_db_engine):
     """
     Create a database session for testing with automatic cleanup.
 
-    This fixture ensures test isolation by truncating all tables before and after
+    This fixture ensures test isolation by deleting data before and after
     each test. With pytest-xdist parallel execution:
     - Each worker has its own database (from test_db_engine)
-    - TRUNCATE operations only affect the worker's own database
+    - DELETE operations only affect the worker's own database
     - No race conditions between workers (databases are isolated)
-    - TRUNCATE acquires ACCESS EXCLUSIVE lock, ensuring isolation within worker
-    """
-    from sqlalchemy import text
 
+    NOTE: Uses DELETE instead of TRUNCATE to avoid ACCESS EXCLUSIVE lock
+    conflicts with async connection pools.
+    """
     # Clean tables before each test to ensure clean state
     with test_db_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+        conn.execute(text("DELETE FROM notes"))
+        conn.execute(text("DELETE FROM users"))
 
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
 
@@ -89,20 +120,64 @@ def test_db_session(test_db_engine):
 
         # Clean up all data after the test
         with test_db_engine.begin() as conn:
-            conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+            conn.execute(text("DELETE FROM notes"))
+            conn.execute(text("DELETE FROM users"))
 
 
 @pytest.fixture(scope="function")
-def client(test_db_session):
+def test_async_db_session(test_db_engine, test_async_db_engine):
+    """
+    Create an async database session for testing.
+    Uses a sync session internally to share data with the test_db_session fixture.
+    """
+    # Clean tables before each test using DELETE instead of TRUNCATE.
+    # DELETE doesn't require ACCESS EXCLUSIVE lock, avoiding conflicts with
+    # async connection pool that may have open connections.
+    with test_db_engine.begin() as conn:
+        conn.execute(text("DELETE FROM notes"))
+        conn.execute(text("DELETE FROM users"))
+
+    TestingAsyncSessionLocal = async_sessionmaker(
+        bind=test_async_db_engine,
+        class_=AsyncSession,
+        autocommit=False,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+    yield TestingAsyncSessionLocal
+
+    # Clean up all data after the test using DELETE to avoid lock contention
+    with test_db_engine.begin() as conn:
+        conn.execute(text("DELETE FROM notes"))
+        conn.execute(text("DELETE FROM users"))
+
+
+@pytest.fixture(scope="function")
+def client(test_db_session, test_async_db_session):
     """Create a test client with database dependency override."""
 
+    # Override sync get_db (kept for backwards compatibility)
     def override_get_db():
         try:
             yield test_db_session
         finally:
             pass
 
+    # Override async get_async_db
+    # NOTE: We avoid 'async with' context manager here because TestClient
+    # runs in a separate thread with its own event loop. Using async with
+    # can cause hangs during cleanup when the context manager's __aexit__
+    # tries to run after the event loop is being shut down.
+    async def override_get_async_db():
+        session = test_async_db_session()
+        try:
+            yield session
+        finally:
+            await session.close()
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
 
     with TestClient(app) as test_client:
         yield test_client

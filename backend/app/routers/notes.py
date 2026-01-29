@@ -6,10 +6,11 @@ Handles note creation, reading, updating, and deletion with user authorization.
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.models.models import Note, User
 from app.schemas.schemas import (
     DeleteResponse,
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/notes", tags=["notes"])
 
 
 @router.get("/", response_model=list[NoteResponse])
-async def get_notes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)):
     """
     Get all notes for the authenticated user.
 
@@ -33,13 +34,14 @@ async def get_notes(current_user: User = Depends(get_current_user), db: Session 
 
     Args:
         current_user: Current authenticated user
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         List[NoteResponse]: List of user's notes
     """
     # Query notes for the current user
-    notes = db.query(Note).filter(Note.user_id == current_user.id).all()
+    result = await db.execute(select(Note).filter(Note.user_id == current_user.id))
+    notes = result.scalars().all()
 
     # Convert to response format using Pydantic's model_validate
     note_responses = []
@@ -61,7 +63,7 @@ async def get_notes(current_user: User = Depends(get_current_user), db: Session 
 async def create_note(
     note_data: NoteCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new note for the authenticated user.
@@ -74,7 +76,7 @@ async def create_note(
     Args:
         note_data: Note creation data (title and content)
         current_user: Current authenticated user
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         NoteResponse: The created note
@@ -95,8 +97,8 @@ async def create_note(
     )
 
     db.add(db_note)
-    db.commit()
-    db.refresh(db_note)
+    await db.commit()
+    await db.refresh(db_note)
 
     return NoteResponse.model_validate(
         {
@@ -114,7 +116,7 @@ async def update_note(
     note_id: str,
     note_data: NoteUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update an existing note for the authenticated user.
@@ -128,7 +130,7 @@ async def update_note(
         note_id: ID of the note to update
         note_data: Note update data (title and/or content)
         current_user: Current authenticated user
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         NoteResponse: The updated note
@@ -137,7 +139,8 @@ async def update_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    db_note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
+    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
+    db_note = result.scalar_one_or_none()
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
@@ -154,8 +157,8 @@ async def update_note(
         # If only title is provided, update it directly
         db_note.title = note_data.title  # type: ignore[assignment]
 
-    db.commit()
-    db.refresh(db_note)
+    await db.commit()
+    await db.refresh(db_note)
 
     return NoteResponse.model_validate(
         {
@@ -172,7 +175,7 @@ async def update_note(
 async def delete_note(
     note_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete a note for the authenticated user.
@@ -184,7 +187,7 @@ async def delete_note(
     Args:
         note_id: ID of the note to delete
         current_user: Current authenticated user
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         DeleteResponse: Confirmation message with deleted note ID
@@ -193,14 +196,15 @@ async def delete_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    db_note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
+    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
+    db_note = result.scalar_one_or_none()
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     # Delete the note
-    db.delete(db_note)
-    db.commit()
+    await db.delete(db_note)
+    await db.commit()
 
     return DeleteResponse(message="Note deleted successfully", deleted_id=note_id)
 
@@ -209,7 +213,7 @@ async def delete_note(
 async def get_note(
     note_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get a specific note for the authenticated user.
@@ -217,7 +221,7 @@ async def get_note(
     Args:
         note_id: ID of the note to retrieve
         current_user: Current authenticated user
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         NoteResponse: The requested note
@@ -226,7 +230,8 @@ async def get_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    db_note = db.query(Note).filter(Note.id == note_id, Note.user_id == current_user.id).first()
+    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
+    db_note = result.scalar_one_or_none()
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")

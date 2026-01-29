@@ -5,10 +5,22 @@ Tests database setup, connection, and dependency functions.
 
 from unittest.mock import patch
 
+import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.database.database import SQLALCHEMY_DATABASE_URL, Base, SessionLocal, engine, get_db
+from app.database.database import (
+    ASYNC_DATABASE_URL,
+    SQLALCHEMY_DATABASE_URL,
+    AsyncSessionLocal,
+    Base,
+    SessionLocal,
+    async_engine,
+    engine,
+    get_async_db,
+    get_db,
+)
 
 
 class TestDatabaseConfiguration:
@@ -19,6 +31,11 @@ class TestDatabaseConfiguration:
         # Default is now PostgreSQL
         assert "postgresql" in SQLALCHEMY_DATABASE_URL.lower()
         assert "parchmark" in SQLALCHEMY_DATABASE_URL
+
+    def test_async_database_url_configuration(self):
+        """Test async database URL is properly configured."""
+        assert "postgresql+asyncpg://" in ASYNC_DATABASE_URL
+        assert "parchmark" in ASYNC_DATABASE_URL
 
     @patch.dict("os.environ", {"DATABASE_URL": "postgresql://user:pass@localhost/testdb"})
     def test_database_url_from_environment(self):
@@ -40,6 +57,14 @@ class TestDatabaseConfiguration:
         # Engine pool exists
         assert hasattr(engine, "pool")
 
+    def test_async_engine_configuration(self):
+        """Test async SQLAlchemy engine configuration."""
+        assert async_engine is not None
+        # Engine should have a valid URL
+        assert hasattr(async_engine, "url")
+        # Verify it's configured for asyncpg
+        assert "asyncpg" in str(async_engine.url)
+
     def test_postgresql_only_validation(self):
         """Test that only PostgreSQL URLs are accepted."""
         # This test would require reloading the module with different URLs
@@ -57,6 +82,10 @@ class TestDatabaseConfiguration:
         assert session.autoflush is False
         # Session should be closeable
         session.close()
+
+    def test_async_session_local_configuration(self):
+        """Test AsyncSessionLocal configuration."""
+        assert AsyncSessionLocal is not None
 
     def test_base_declarative_class(self):
         """Test Base declarative class."""
@@ -156,6 +185,26 @@ class TestGetDbDependency:
             # Note: SQLAlchemy sessions don't have a direct "is_closed" property
             # but calling close() multiple times is safe
             session.close()
+
+
+class TestGetAsyncDbDependency:
+    """Test get_async_db dependency function."""
+
+    @pytest.mark.asyncio
+    async def test_get_async_db_yields_session(self):
+        """Test that get_async_db yields an async database session."""
+        db_generator = get_async_db()
+
+        # Get the session from the async generator
+        db_session = await db_generator.__anext__()
+
+        assert isinstance(db_session, AsyncSession)
+
+        # Clean up
+        try:
+            await db_generator.__anext__()
+        except StopAsyncIteration:
+            pass  # Expected when generator closes
 
 
 class TestDatabaseConnectionHandling:
