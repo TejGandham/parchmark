@@ -313,8 +313,12 @@ class TestApplicationLifespan:
 
     @patch("app.main.init_database")
     @patch("app.main.logger")
-    def test_lifespan_database_init_failure(self, mock_logger, mock_init_db):
-        """Test lifespan handling when database initialization fails."""
+    def test_lifespan_database_init_failure_raises_error(self, mock_logger, mock_init_db):
+        """Test that app fails to start when database initialization returns False.
+
+        Issue #42: App should fail fast when DB init fails, not continue running
+        and confuse operators with 500 errors on first request.
+        """
         mock_init_db.return_value = False
 
         from app.main import app, lifespan
@@ -325,17 +329,23 @@ class TestApplicationLifespan:
 
         import asyncio
 
-        asyncio.run(test_lifespan())
+        # App should raise RuntimeError and refuse to start
+        with pytest.raises(RuntimeError) as exc_info:
+            asyncio.run(test_lifespan())
 
-        # Should handle failure gracefully
+        assert "database" in str(exc_info.value).lower()
         mock_init_db.assert_called_once()
-        mock_logger.error.assert_called()
+        mock_logger.critical.assert_called()
 
     @patch("app.main.init_database")
     @patch("app.main.logger")
-    def test_lifespan_database_init_exception(self, mock_logger, mock_init_db):
-        """Test lifespan handling when database initialization raises exception."""
-        mock_init_db.side_effect = Exception("Database error")
+    def test_lifespan_database_init_exception_raises_error(self, mock_logger, mock_init_db):
+        """Test that app fails to start when database initialization raises exception.
+
+        Issue #42: App should fail fast when DB init fails, not continue running
+        and confuse operators with 500 errors on first request.
+        """
+        mock_init_db.side_effect = Exception("Database connection refused")
 
         from app.main import app, lifespan
 
@@ -345,11 +355,13 @@ class TestApplicationLifespan:
 
         import asyncio
 
-        asyncio.run(test_lifespan())
+        # App should re-raise the exception and refuse to start
+        with pytest.raises(RuntimeError) as exc_info:
+            asyncio.run(test_lifespan())
 
-        # Should handle exception gracefully
+        assert "database" in str(exc_info.value).lower()
         mock_init_db.assert_called_once()
-        mock_logger.error.assert_called()
+        mock_logger.critical.assert_called()
 
 
 class TestApplicationIntegration:

@@ -29,19 +29,28 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
     Handles startup and shutdown events.
+
+    Fails fast if database initialization fails - the app should not start
+    if it can't connect to the database, as this leads to confusing 500 errors
+    on first request (see issue #42).
     """
     # Startup
     logger.info("Starting ParchMark API...")
 
-    # Initialize database
+    # Initialize database - fail fast if this fails
     try:
         success = init_database()
         if success:
             logger.info("Database initialized successfully")
         else:
-            logger.error("Failed to initialize database")
+            logger.critical("Failed to initialize database - app cannot start")
+            raise RuntimeError("Database initialization failed - refusing to start with unhealthy database")
+    except RuntimeError:
+        # Re-raise RuntimeError (from our own failure check above)
+        raise
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+        logger.critical(f"Database initialization error: {e}")
+        raise RuntimeError(f"Database initialization failed: {e}") from e
 
     logger.info("ParchMark API startup complete")
 
