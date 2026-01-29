@@ -37,3 +37,6 @@ coverage.xml
 .ruff_cache/
 .mypy_cache/
 .playwright-mcp/
+
+# Git worktrees
+.worktrees/
