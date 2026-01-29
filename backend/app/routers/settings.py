@@ -4,15 +4,16 @@ Handles password changes, account information, note exports, and account deletio
 Supports both local and OIDC authentication providers.
 """
 
-import io
 import json
-import zipfile
-from datetime import datetime
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from stream_zip import ZIP_32, stream_zip
 
 from app.auth.auth import get_password_hash, verify_password
 from app.auth.dependencies import get_current_user
@@ -24,6 +25,9 @@ from app.schemas.schemas import (
     PasswordChangeRequest,
     UserInfoResponse,
 )
+
+# Batch size for streaming notes from database
+EXPORT_BATCH_SIZE = 100
 
 # Create router for settings endpoints
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -112,6 +116,101 @@ async def change_password(
     return MessageResponse(message="Password changed successfully")
 
 
+def _sanitize_filename(title: str, used_filenames: set[str]) -> str:
+    """Sanitize note title to create a valid, unique filename.
+
+    Args:
+        title: The note title to sanitize
+        used_filenames: Set of already-used filenames to avoid duplicates
+
+    Returns:
+        A unique, sanitized filename ending in .md
+    """
+    safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "-", "_"))
+    safe_title = safe_title.strip() or "untitled"
+    base_filename = f"{safe_title[:50]}.md"
+
+    # Handle duplicate filenames
+    filename = base_filename
+    counter = 1
+    while filename in used_filenames:
+        filename = f"{safe_title[:45]}_{counter}.md"
+        counter += 1
+    used_filenames.add(filename)
+
+    return filename
+
+
+async def _collect_notes_for_export(
+    db: AsyncSession, user_id: int
+) -> tuple[list[tuple[str, str]], list[dict[str, Any]]]:
+    """Collect all notes for a user, preparing filenames and metadata.
+
+    This fetches notes in batches to avoid loading everything at once,
+    but collects all data needed for the ZIP generation.
+
+    Args:
+        db: Async database session
+        user_id: The user's ID
+
+    Returns:
+        Tuple of (list of (filename, content) pairs, list of metadata dicts)
+    """
+    used_filenames: set[str] = set()
+    note_files: list[tuple[str, str]] = []
+    notes_metadata: list[dict[str, Any]] = []
+
+    # Stream notes in batches to reduce memory pressure during fetch
+    result = await db.stream(
+        select(Note).filter(Note.user_id == user_id).execution_options(yield_per=EXPORT_BATCH_SIZE)
+    )
+
+    async for note in result.scalars():
+        # Prepare file entry
+        filename = _sanitize_filename(str(note.title), used_filenames)
+        note_files.append((filename, str(note.content)))
+
+        # Prepare metadata entry
+        notes_metadata.append(
+            {
+                "id": note.id,
+                "title": note.title,
+                "content": note.content,
+                "createdAt": note.created_at.isoformat(),
+                "updatedAt": note.updated_at.isoformat(),
+            }
+        )
+
+    return note_files, notes_metadata
+
+
+def _generate_zip_entries(
+    note_files: list[tuple[str, str]], notes_metadata: list[dict[str, Any]]
+) -> Iterable[tuple[str, datetime, int, Any, Iterable[bytes]]]:
+    """Generate ZIP file entries for stream_zip.
+
+    Each entry is a tuple of (filename, modified_time, mode, compression, content_iterator).
+
+    Args:
+        note_files: List of (filename, content) tuples for markdown files
+        notes_metadata: List of metadata dictionaries for JSON file
+
+    Yields:
+        Tuples suitable for stream_zip consumption
+    """
+    modified_time = datetime.now(UTC)
+    file_mode = 0o644
+
+    # Yield markdown files
+    for filename, content in note_files:
+        content_bytes = content.encode("utf-8")
+        yield filename, modified_time, file_mode, ZIP_32, (content_bytes,)
+
+    # Yield metadata JSON file
+    metadata_json = json.dumps(notes_metadata, indent=2).encode("utf-8")
+    yield "notes_metadata.json", modified_time, file_mode, ZIP_32, (metadata_json,)
+
+
 @router.get("/export-notes")
 async def export_notes(
     current_user: User = Depends(get_current_user),
@@ -120,65 +219,38 @@ async def export_notes(
     """
     Export all user notes as a ZIP archive with markdown files and metadata.
 
-    This endpoint creates a ZIP file containing:
+    This endpoint streams a ZIP file containing:
     1. All notes as individual markdown files (sanitized filenames)
     2. A JSON file with complete note metadata for backup/restore
+
+    The ZIP is streamed incrementally to avoid loading the entire archive
+    into memory, preventing OOM errors for users with many large notes.
 
     Args:
         current_user: Current authenticated user from JWT token
         db: Async database session dependency
 
     Returns:
-        StreamingResponse: ZIP file download with all notes
+        StreamingResponse: Streamed ZIP file download with all notes
     """
-    # Get all user's notes
-    result = await db.execute(select(Note).filter(Note.user_id == current_user.id))
-    notes = result.scalars().all()
+    # Collect notes data (streamed from DB in batches)
+    note_files, notes_metadata = await _collect_notes_for_export(db, current_user.id)  # type: ignore[arg-type]
 
-    # Create in-memory ZIP file
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        # Add individual markdown files
-        used_filenames: set[str] = set()
-        for note in notes:
-            # Sanitize filename (remove invalid characters)
-            title_str = str(note.title)
-            safe_title = "".join(c for c in title_str if c.isalnum() or c in (" ", "-", "_"))
-            safe_title = safe_title.strip() or "untitled"
-            base_filename = f"{safe_title[:50]}.md"
+    # Generate filename with timestamp
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    zip_filename = f"parchmark_notes_{timestamp}.zip"
 
-            # Handle duplicate filenames
-            filename = base_filename
-            counter = 1
-            while filename in used_filenames:
-                filename = f"{safe_title[:45]}_{counter}.md"
-                counter += 1
-            used_filenames.add(filename)
-
-            zip_file.writestr(filename, str(note.content))
-
-        # Add JSON metadata file for backup/restore
-        notes_data = [
-            {
-                "id": note.id,
-                "title": note.title,
-                "content": note.content,
-                "createdAt": note.created_at.isoformat(),
-                "updatedAt": note.updated_at.isoformat(),
-            }
-            for note in notes
-        ]
-        zip_file.writestr("notes_metadata.json", json.dumps(notes_data, indent=2))
-
-    # Prepare ZIP for download
-    zip_buffer.seek(0)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"parchmark_notes_{timestamp}.zip"
+    # Create streaming ZIP response
+    # stream_zip yields chunks as they're generated, avoiding full buffering
+    zip_chunks = stream_zip(
+        _generate_zip_entries(note_files, notes_metadata),
+        chunk_size=65536,  # 64KB chunks
+    )
 
     return StreamingResponse(
-        io.BytesIO(zip_buffer.getvalue()),
+        iter(zip_chunks),
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f"attachment; filename={zip_filename}"},
     )
 
 
