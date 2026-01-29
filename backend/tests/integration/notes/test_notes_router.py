@@ -156,6 +156,30 @@ class TestCreateNoteEndpoint:
         # Title should be extracted from markdown content H1
         assert data["title"] == "Extracted Title"
 
+    def test_create_note_whitespace_title_extracts_from_h1(self, client: TestClient, auth_headers):
+        """Test note creation treats whitespace-only title as absent."""
+        note_data = {"title": "    ", "content": "# Extracted Title\n\nContent here."}
+
+        response = client.post("/api/notes/", headers=auth_headers, json=note_data)
+
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        # Whitespace-only title should be ignored, extract from H1 instead
+        assert data["title"] == "Extracted Title"
+
+    def test_create_note_title_whitespace_trimmed(self, client: TestClient, auth_headers):
+        """Test note creation trims whitespace from valid titles."""
+        note_data = {"title": "  Padded Title  ", "content": "# H1 Title\n\nContent here."}
+
+        response = client.post("/api/notes/", headers=auth_headers, json=note_data)
+
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        # Title should be trimmed
+        assert data["title"] == "Padded Title"
+
     def test_create_note_content_formatting(self, client: TestClient, auth_headers):
         """Test note creation with content formatting."""
         note_data = {"title": "Test", "content": "# Title Only"}

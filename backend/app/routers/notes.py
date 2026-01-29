@@ -70,11 +70,11 @@ async def create_note(
 
     Matches the frontend createNote operation:
     - Generates unique ID with timestamp
-    - Extracts title from markdown content
+    - Uses client-provided title if given, otherwise extracts from content H1
     - Sets created and updated timestamps
 
     Args:
-        note_data: Note creation data (title and content)
+        note_data: Note creation data (content required, title optional)
         current_user: Current authenticated user
         db: Async database session dependency
 
@@ -87,9 +87,9 @@ async def create_note(
     # Format content
     formatted_content = markdown_service.format_content(note_data.content)
 
-    # Use client-provided title if given, otherwise extract from content
-    if note_data.title:
-        title = note_data.title
+    # Use client-provided title if given (and not whitespace-only), otherwise extract from content
+    if note_data.title and note_data.title.strip():
+        title = note_data.title.strip()
     else:
         title = markdown_service.extract_title(formatted_content)
 
