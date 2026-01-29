@@ -6,6 +6,7 @@ Handles JWT token creation/validation and password hashing using bcrypt.
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from dotenv import load_dotenv
 from fastapi import HTTPException, status
@@ -190,6 +191,35 @@ def authenticate_user(username: str, password: str, user_db_check_func) -> User 
 
     # Verify the password hash
     if not verify_password(password, user.password_hash):
+        return None
+
+    return user
+
+
+def verify_user_password(user: "User | None", password: str) -> "User | None":
+    """
+    Verify password for a user object directly.
+
+    This is a simpler alternative to authenticate_user() for async contexts
+    where the user has already been fetched from the database.
+
+    Args:
+        user: User object (or None if not found)
+        password: The plain text password to verify
+
+    Returns:
+        User: User model if password verification successful, None otherwise
+    """
+    if not user:
+        return None
+
+    # Prevent local login for OIDC-only users
+    if user.password_hash is None:
+        logger.debug(f"Local login attempted for OIDC user: {user.username} (auth_provider={user.auth_provider})")
+        return None
+
+    # Verify the password hash (cast needed for mypy - SQLAlchemy types as Column[str])
+    if not verify_password(password, cast(str, user.password_hash)):
         return None
 
     return user

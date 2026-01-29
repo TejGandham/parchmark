@@ -2,8 +2,12 @@
 Health check service for monitoring application and database status.
 """
 
+import logging
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 class HealthService:
@@ -23,7 +27,8 @@ class HealthService:
         try:
             await db.execute(text("SELECT 1"))
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Database health check failed: {e}")
             return False
 
     @staticmethod

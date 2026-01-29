@@ -28,8 +28,13 @@ ASYNC_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresq
     "postgresql+psycopg2://", "postgresql+asyncpg://"
 )
 
-# Create async SQLAlchemy engine for PostgreSQL
-async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
+# Create async SQLAlchemy engine for PostgreSQL with connection pool settings
+async_engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,  # Verify connections before use to avoid stale connection errors
+    pool_recycle=3600,  # Recycle connections after 1 hour to prevent stale connections
+)
 
 # Create AsyncSessionLocal class for async database sessions
 AsyncSessionLocal = async_sessionmaker(

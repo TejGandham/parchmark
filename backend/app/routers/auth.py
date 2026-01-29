@@ -13,10 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS,
-    authenticate_user,
     create_access_token,
     create_refresh_token,
     verify_refresh_token,
+    verify_user_password,
 )
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
@@ -58,19 +58,9 @@ async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_asyn
     Raises:
         HTTPException: 401 if credentials are invalid
     """
-    # Get user from database
+    # Get user from database and verify password
     user = await _get_user_by_username(db, user_credentials.username)
-
-    # Define a sync helper for authenticate_user (it expects a sync callable)
-    def get_user_from_result(username: str):
-        return user if user and user.username == username else None
-
-    # Authenticate user using the auth utility function
-    authenticated_user = authenticate_user(
-        username=user_credentials.username,
-        password=user_credentials.password,
-        user_db_check_func=get_user_from_result,
-    )
+    authenticated_user = verify_user_password(user, user_credentials.password)
 
     if not authenticated_user:
         # Return the same error message as the frontend expects
