@@ -3,10 +3,12 @@ Notes CRUD routes for ParchMark backend API.
 Handles note creation, reading, updating, and deletion with user authorization.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -19,6 +21,8 @@ from app.schemas.schemas import (
     NoteUpdate,
 )
 from app.utils.markdown import markdown_service
+
+logger = logging.getLogger(__name__)
 
 # Create router for notes endpoints
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -101,9 +105,14 @@ async def create_note(
         content=formatted_content,
     )
 
-    db.add(db_note)
-    await db.commit()
-    await db.refresh(db_note)
+    try:
+        db.add(db_note)
+        await db.commit()
+        await db.refresh(db_note)
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Failed to create note: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
     return NoteResponse.model_validate(
         {
@@ -162,8 +171,13 @@ async def update_note(
         # If only title is provided, update it directly
         db_note.title = note_data.title  # type: ignore[assignment]
 
-    await db.commit()
-    await db.refresh(db_note)
+    try:
+        await db.commit()
+        await db.refresh(db_note)
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Failed to update note {note_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
     return NoteResponse.model_validate(
         {
@@ -208,8 +222,13 @@ async def delete_note(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     # Delete the note
-    await db.delete(db_note)
-    await db.commit()
+    try:
+        await db.delete(db_note)
+        await db.commit()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Failed to delete note {note_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
     return DeleteResponse(message="Note deleted successfully", deleted_id=note_id)
 
