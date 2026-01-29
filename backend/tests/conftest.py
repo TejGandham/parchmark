@@ -71,11 +71,17 @@ def test_async_db_engine(test_db_engine):
     tears down the session. The connection pool cleanup is automatic.
     """
     # Get the sync URL and convert to async
-    sync_url = str(test_db_engine.url)
+    # IMPORTANT: Use render_as_string(hide_password=False) to preserve the actual password
+    # str(engine.url) masks the password as '***' which causes authentication failures
+    sync_url = test_db_engine.url.render_as_string(hide_password=False)
     async_url = sync_url.replace("postgresql://", "postgresql+asyncpg://").replace(
         "postgresql+psycopg2://", "postgresql+asyncpg://"
     )
-    async_engine = create_async_engine(async_url, echo=False)
+    # Use pool_pre_ping to verify connections and poolclass=NullPool to avoid
+    # connection pooling issues between sync and async sessions
+    from sqlalchemy.pool import NullPool
+
+    async_engine = create_async_engine(async_url, echo=False, poolclass=NullPool)
     yield async_engine
     # Note: We don't explicitly dispose here because:
     # 1. The testcontainer (postgres) will be stopped at session end, closing all connections
