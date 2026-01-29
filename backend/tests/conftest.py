@@ -62,7 +62,13 @@ def test_db_engine():
 @pytest.fixture(scope="session")
 def test_async_db_engine(test_db_engine):
     """
-    Create an async engine from the same PostgreSQL container.
+    Create an async PostgreSQL engine for testing.
+
+    This fixture reuses the database container from test_db_engine but creates
+    an async engine using asyncpg.
+
+    NOTE: Engine disposal is handled at session end via atexit or when pytest
+    tears down the session. The connection pool cleanup is automatic.
     """
     # Get the sync URL and convert to async
     sync_url = str(test_db_engine.url)
@@ -71,6 +77,9 @@ def test_async_db_engine(test_db_engine):
     )
     async_engine = create_async_engine(async_url, echo=False)
     yield async_engine
+    # Note: We don't explicitly dispose here because:
+    # 1. The testcontainer (postgres) will be stopped at session end, closing all connections
+    # 2. Explicit dispose would require async context which is complex in sync fixtures
 
 
 @pytest.fixture(scope="function")
@@ -78,16 +87,19 @@ def test_db_session(test_db_engine):
     """
     Create a database session for testing with automatic cleanup.
 
-    This fixture ensures test isolation by truncating all tables before and after
+    This fixture ensures test isolation by deleting data before and after
     each test. With pytest-xdist parallel execution:
     - Each worker has its own database (from test_db_engine)
-    - TRUNCATE operations only affect the worker's own database
+    - DELETE operations only affect the worker's own database
     - No race conditions between workers (databases are isolated)
-    - TRUNCATE acquires ACCESS EXCLUSIVE lock, ensuring isolation within worker
+
+    NOTE: Uses DELETE instead of TRUNCATE to avoid ACCESS EXCLUSIVE lock
+    conflicts with async connection pools.
     """
     # Clean tables before each test to ensure clean state
     with test_db_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+        conn.execute(text("DELETE FROM notes"))
+        conn.execute(text("DELETE FROM users"))
 
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
 
@@ -102,7 +114,8 @@ def test_db_session(test_db_engine):
 
         # Clean up all data after the test
         with test_db_engine.begin() as conn:
-            conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+            conn.execute(text("DELETE FROM notes"))
+            conn.execute(text("DELETE FROM users"))
 
 
 @pytest.fixture(scope="function")
@@ -111,9 +124,12 @@ def test_async_db_session(test_db_engine, test_async_db_engine):
     Create an async database session for testing.
     Uses a sync session internally to share data with the test_db_session fixture.
     """
-    # Clean tables before each test to ensure clean state
+    # Clean tables before each test using DELETE instead of TRUNCATE.
+    # DELETE doesn't require ACCESS EXCLUSIVE lock, avoiding conflicts with
+    # async connection pool that may have open connections.
     with test_db_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+        conn.execute(text("DELETE FROM notes"))
+        conn.execute(text("DELETE FROM users"))
 
     TestingAsyncSessionLocal = async_sessionmaker(
         bind=test_async_db_engine,
@@ -125,9 +141,10 @@ def test_async_db_session(test_db_engine, test_async_db_engine):
 
     yield TestingAsyncSessionLocal
 
-    # Clean up all data after the test
+    # Clean up all data after the test using DELETE to avoid lock contention
     with test_db_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+        conn.execute(text("DELETE FROM notes"))
+        conn.execute(text("DELETE FROM users"))
 
 
 @pytest.fixture(scope="function")
@@ -142,12 +159,16 @@ def client(test_db_session, test_async_db_session):
             pass
 
     # Override async get_async_db
+    # NOTE: We avoid 'async with' context manager here because TestClient
+    # runs in a separate thread with its own event loop. Using async with
+    # can cause hangs during cleanup when the context manager's __aexit__
+    # tries to run after the event loop is being shut down.
     async def override_get_async_db():
-        async with test_async_db_session() as session:
-            try:
-                yield session
-            finally:
-                await session.close()
+        session = test_async_db_session()
+        try:
+            yield session
+        finally:
+            await session.close()
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_async_db] = override_get_async_db
