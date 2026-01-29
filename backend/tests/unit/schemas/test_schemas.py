@@ -296,13 +296,11 @@ class TestNoteSchemas:
             assert note.title == "Test Note"
             assert note.content == "# Test Note\n\nThis is test content."
 
-        def test_note_create_missing_title(self):
-            """Test NoteCreate with missing title."""
-            with pytest.raises(ValidationError) as exc_info:
-                NoteCreate(content="Test content")
-
-            errors = exc_info.value.errors()
-            assert any(error["loc"] == ("title",) for error in errors)
+        def test_note_create_missing_title_succeeds(self):
+            """Test NoteCreate with missing title succeeds (title is optional)."""
+            note = NoteCreate(content="Test content")
+            assert note.content == "Test content"
+            assert note.title is None
 
         def test_note_create_missing_content(self):
             """Test NoteCreate with missing content."""
@@ -346,7 +344,7 @@ class TestNoteSchemas:
             assert any(error["loc"] == ("content",) for error in errors)
 
         def test_note_create_title_too_short(self):
-            """Test NoteCreate with title too short (3 chars)."""
+            """Test NoteCreate with title too short (3 chars, min is 4)."""
             with pytest.raises(ValidationError) as exc_info:
                 NoteCreate(title="abc", content="Test content")
 
@@ -354,7 +352,7 @@ class TestNoteSchemas:
             assert any(error["loc"] == ("title",) for error in errors)
 
         def test_note_create_minimum_length_boundary(self):
-            """Test NoteCreate with exactly minimum length (4 chars)."""
+            """Test NoteCreate with exactly minimum length (4 char title, 4 char content)."""
             note = NoteCreate(title="abcd", content="test")
             assert note.title == "abcd"
             assert note.content == "test"
