@@ -132,16 +132,28 @@ class TestCreateNoteEndpoint:
         assert data["id"].startswith("note-")
         assert len(data["id"]) > 5
 
-    def test_create_note_title_extraction(self, client: TestClient, auth_headers):
-        """Test note creation with automatic title extraction."""
-        note_data = {"title": "Original Title", "content": "# Extracted Title\n\nContent here."}
+    def test_create_note_with_explicit_title(self, client: TestClient, auth_headers):
+        """Test note creation honors client-provided title."""
+        note_data = {"title": "Explicit Title", "content": "# H1 Title\n\nContent here."}
 
         response = client.post("/api/notes/", headers=auth_headers, json=note_data)
 
         assert response.status_code == status.HTTP_200_OK
 
         data = response.json()
-        # Title should be extracted from markdown content
+        # Client-provided title should be used, not extracted from H1
+        assert data["title"] == "Explicit Title"
+
+    def test_create_note_without_title_extracts_from_h1(self, client: TestClient, auth_headers):
+        """Test note creation extracts title from H1 when not provided."""
+        note_data = {"content": "# Extracted Title\n\nContent here."}
+
+        response = client.post("/api/notes/", headers=auth_headers, json=note_data)
+
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        # Title should be extracted from markdown content H1
         assert data["title"] == "Extracted Title"
 
     def test_create_note_content_formatting(self, client: TestClient, auth_headers):
@@ -169,13 +181,16 @@ class TestCreateNoteEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_create_note_missing_title(self, client: TestClient, auth_headers):
-        """Test creating note with missing title."""
+    def test_create_note_missing_title_succeeds(self, client: TestClient, auth_headers):
+        """Test creating note with missing title succeeds (title extracted from content)."""
         note_data = {"content": "# Test Note\n\nContent here."}
 
         response = client.post("/api/notes/", headers=auth_headers, json=note_data)
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        # Title is optional - should succeed with title extracted from H1
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["title"] == "Test Note"
 
     def test_create_note_missing_content(self, client: TestClient, auth_headers):
         """Test creating note with missing content."""
@@ -185,12 +200,13 @@ class TestCreateNoteEndpoint:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    def test_create_note_empty_title(self, client: TestClient, auth_headers):
-        """Test creating note with empty title."""
+    def test_create_note_empty_title_fails_validation(self, client: TestClient, auth_headers):
+        """Test creating note with empty title fails validation (min_length=4)."""
         note_data = {"title": "", "content": "# Test Note\n\nContent here."}
 
         response = client.post("/api/notes/", headers=auth_headers, json=note_data)
 
+        # Empty string fails min_length=4 validation
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_create_note_empty_content(self, client: TestClient, auth_headers):

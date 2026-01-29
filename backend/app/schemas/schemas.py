@@ -54,8 +54,13 @@ class RefreshTokenRequest(BaseModel):
 class NoteCreate(BaseModel):
     """Schema for note creation requests."""
 
-    title: str = Field(..., min_length=4, max_length=255, description="Title of the note")
     content: str = Field(..., min_length=4, description="Markdown content of the note")
+    title: str | None = Field(
+        None,
+        min_length=4,
+        max_length=255,
+        description="Optional title. If not provided, extracted from content H1.",
+    )
 
 
 class NoteUpdate(BaseModel):

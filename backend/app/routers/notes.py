@@ -84,15 +84,20 @@ async def create_note(
     # Generate unique ID similar to frontend (note-{timestamp})
     note_id = f"note-{int(datetime.now().timestamp() * 1000)}"
 
-    # Format content and extract title
+    # Format content
     formatted_content = markdown_service.format_content(note_data.content)
-    extracted_title = markdown_service.extract_title(formatted_content)
+
+    # Use client-provided title if given, otherwise extract from content
+    if note_data.title:
+        title = note_data.title
+    else:
+        title = markdown_service.extract_title(formatted_content)
 
     # Create new note
     db_note = Note(
         id=note_id,
         user_id=current_user.id,
-        title=extracted_title,
+        title=title,
         content=formatted_content,
     )
 
