@@ -8,7 +8,7 @@ from app.services.health_service import health_service
 
 
 class DummySession:
-    """Lightweight stand-in for a SQLAlchemy session."""
+    """Lightweight stand-in for a SQLAlchemy async session."""
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ async def test_health_check_returns_service_payload(monkeypatch):
 
     expected_payload = {"status": "healthy", "database": "connected"}
 
-    def fake_get_health_status(db):  # pragma: no cover - simple stub
+    async def fake_get_health_status(db):  # pragma: no cover - simple stub
         assert isinstance(db, DummySession)
         return expected_payload
 
@@ -32,7 +32,7 @@ async def test_health_check_returns_service_payload(monkeypatch):
 async def test_health_check_raises_http_exception_on_service_failure(monkeypatch):
     """The endpoint should convert service errors into HTTP 503 responses."""
 
-    def fake_get_health_status(_):  # pragma: no cover - simple stub
+    async def fake_get_health_status(_):  # pragma: no cover - simple stub
         raise RuntimeError("boom")
 
     monkeypatch.setattr(health_service, "get_health_status", fake_get_health_status)

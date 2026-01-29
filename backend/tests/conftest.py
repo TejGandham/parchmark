@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.postgres import PostgresContainer
 
@@ -23,7 +24,7 @@ os.environ["ALLOWED_ORIGINS"] = (
 from app.auth.auth import create_access_token, get_password_hash
 
 # Import application components
-from app.database.database import Base, get_db
+from app.database.database import Base, get_async_db, get_db
 from app.main import app
 from app.models.models import Note, User
 from tests.factories import (
@@ -58,6 +59,20 @@ def test_db_engine():
         yield engine
 
 
+@pytest.fixture(scope="session")
+def test_async_db_engine(test_db_engine):
+    """
+    Create an async engine from the same PostgreSQL container.
+    """
+    # Get the sync URL and convert to async
+    sync_url = str(test_db_engine.url)
+    async_url = sync_url.replace("postgresql://", "postgresql+asyncpg://").replace(
+        "postgresql+psycopg2://", "postgresql+asyncpg://"
+    )
+    async_engine = create_async_engine(async_url, echo=False)
+    yield async_engine
+
+
 @pytest.fixture(scope="function")
 def test_db_session(test_db_engine):
     """
@@ -70,8 +85,6 @@ def test_db_session(test_db_engine):
     - No race conditions between workers (databases are isolated)
     - TRUNCATE acquires ACCESS EXCLUSIVE lock, ensuring isolation within worker
     """
-    from sqlalchemy import text
-
     # Clean tables before each test to ensure clean state
     with test_db_engine.begin() as conn:
         conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
@@ -93,16 +106,51 @@ def test_db_session(test_db_engine):
 
 
 @pytest.fixture(scope="function")
-def client(test_db_session):
+def test_async_db_session(test_db_engine, test_async_db_engine):
+    """
+    Create an async database session for testing.
+    Uses a sync session internally to share data with the test_db_session fixture.
+    """
+    # Clean tables before each test to ensure clean state
+    with test_db_engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+
+    TestingAsyncSessionLocal = async_sessionmaker(
+        bind=test_async_db_engine,
+        class_=AsyncSession,
+        autocommit=False,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+    yield TestingAsyncSessionLocal
+
+    # Clean up all data after the test
+    with test_db_engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE notes, users RESTART IDENTITY CASCADE"))
+
+
+@pytest.fixture(scope="function")
+def client(test_db_session, test_async_db_session):
     """Create a test client with database dependency override."""
 
+    # Override sync get_db (kept for backwards compatibility)
     def override_get_db():
         try:
             yield test_db_session
         finally:
             pass
 
+    # Override async get_async_db
+    async def override_get_async_db():
+        async with test_async_db_session() as session:
+            try:
+                yield session
+            finally:
+                await session.close()
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
 
     with TestClient(app) as test_client:
         yield test_client

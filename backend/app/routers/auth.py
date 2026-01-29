@@ -7,7 +7,8 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -17,8 +18,8 @@ from app.auth.auth import (
     create_refresh_token,
     verify_refresh_token,
 )
-from app.auth.dependencies import get_current_user, get_user_by_username
-from app.database.database import get_db
+from app.auth.dependencies import get_current_user
+from app.database.database import get_async_db
 from app.models.models import User
 from app.schemas.schemas import MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
 
@@ -29,8 +30,14 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
 
+async def _get_user_by_username(db: AsyncSession, username: str) -> User | None:
+    """Async helper to get user by username."""
+    result = await db.execute(select(User).filter(User.username == username))
+    return result.scalar_one_or_none()
+
+
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
+async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_async_db)):
     """
     Authenticate user and return JWT access token.
 
@@ -43,7 +50,7 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 
     Args:
         user_credentials: UserLogin schema with username and password
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         Token: JWT access token and token type
@@ -51,19 +58,21 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     Raises:
         HTTPException: 401 if credentials are invalid
     """
+    # Get user from database
+    user = await _get_user_by_username(db, user_credentials.username)
 
-    # Define a helper function for database user lookup
-    def get_user_from_db(username: str):
-        return get_user_by_username(db, username)
+    # Define a sync helper for authenticate_user (it expects a sync callable)
+    def get_user_from_result(username: str):
+        return user if user and user.username == username else None
 
     # Authenticate user using the auth utility function
-    user = authenticate_user(
+    authenticated_user = authenticate_user(
         username=user_credentials.username,
         password=user_credentials.password,
-        user_db_check_func=get_user_from_db,
+        user_db_check_func=get_user_from_result,
     )
 
-    if not user:
+    if not authenticated_user:
         # Return the same error message as the frontend expects
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -75,14 +84,14 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
-    refresh_token = create_refresh_token(data={"sub": user.username}, expires_delta=refresh_token_expires)
+    access_token = create_access_token(data={"sub": authenticated_user.username}, expires_delta=access_token_expires)
+    refresh_token = create_refresh_token(data={"sub": authenticated_user.username}, expires_delta=refresh_token_expires)
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(refresh_request: RefreshTokenRequest, db: Session = Depends(get_db)):
+async def refresh_token(refresh_request: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db)):
     """
     Refresh an access token using a valid refresh token.
 
@@ -93,7 +102,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest, db: Session = Depe
 
     Args:
         refresh_request: RefreshTokenRequest with refresh_token
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         Token: New JWT access and refresh tokens
@@ -115,7 +124,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest, db: Session = Depe
         raise credentials_exception
 
     # Get the user from database
-    user = get_user_by_username(db, token_data.username)
+    user = await _get_user_by_username(db, token_data.username)
     if not user:
         raise credentials_exception
 

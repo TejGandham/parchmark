@@ -11,11 +11,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import get_password_hash, verify_password
 from app.auth.dependencies import get_current_user
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.models.models import Note, User
 from app.schemas.schemas import (
     AccountDeleteRequest,
@@ -31,7 +32,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 @router.get("/user-info", response_model=UserInfoResponse)
 async def get_user_info(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get detailed user information including account creation date and note count.
@@ -41,12 +42,13 @@ async def get_user_info(
 
     Args:
         current_user: Current authenticated user from JWT token
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         UserInfoResponse: User information with statistics and auth provider
     """
-    notes_count = db.query(Note).filter(Note.user_id == current_user.id).count()
+    result = await db.execute(select(func.count()).select_from(Note).filter(Note.user_id == current_user.id))
+    notes_count = result.scalar() or 0
 
     return UserInfoResponse(
         username=current_user.username,  # type: ignore[arg-type]
@@ -61,7 +63,7 @@ async def get_user_info(
 async def change_password(
     request: PasswordChangeRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Change user password after verifying current password.
@@ -72,7 +74,7 @@ async def change_password(
     Args:
         request: Password change request with current and new passwords
         current_user: Current authenticated user from JWT token
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         MessageResponse: Confirmation message
@@ -105,7 +107,7 @@ async def change_password(
 
     # Update password
     current_user.password_hash = get_password_hash(request.new_password)  # type: ignore[assignment]
-    db.commit()
+    await db.commit()
 
     return MessageResponse(message="Password changed successfully")
 
@@ -113,7 +115,7 @@ async def change_password(
 @router.get("/export-notes")
 async def export_notes(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Export all user notes as a ZIP archive with markdown files and metadata.
@@ -124,13 +126,14 @@ async def export_notes(
 
     Args:
         current_user: Current authenticated user from JWT token
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         StreamingResponse: ZIP file download with all notes
     """
     # Get all user's notes
-    notes = db.query(Note).filter(Note.user_id == current_user.id).all()
+    result = await db.execute(select(Note).filter(Note.user_id == current_user.id))
+    notes = result.scalars().all()
 
     # Create in-memory ZIP file
     zip_buffer = io.BytesIO()
@@ -183,7 +186,7 @@ async def export_notes(
 async def delete_account(
     request: AccountDeleteRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete user account and all associated notes after password verification.
@@ -199,7 +202,7 @@ async def delete_account(
     Args:
         request: Account deletion request with password confirmation
         current_user: Current authenticated user from JWT token
-        db: Database session dependency
+        db: Async database session dependency
 
     Returns:
         MessageResponse: Confirmation message
@@ -227,7 +230,7 @@ async def delete_account(
     username = current_user.username
 
     # Delete user (notes will cascade delete due to relationship)
-    db.delete(current_user)
-    db.commit()
+    await db.delete(current_user)
+    await db.commit()
 
     return MessageResponse(message=f"Account '{username}' deleted successfully")

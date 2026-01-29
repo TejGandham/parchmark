@@ -3,36 +3,36 @@ Health check service for monitoring application and database status.
 """
 
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class HealthService:
     """Service for performing health checks on application components."""
 
     @staticmethod
-    def check_database_connection(db: Session) -> bool:
+    async def check_database_connection(db: AsyncSession) -> bool:
         """
         Check if database connection is working.
 
         Args:
-            db: Database session
+            db: Async database session
 
         Returns:
             bool: True if connection is healthy, False otherwise
         """
         try:
-            db.execute(text("SELECT 1"))
+            await db.execute(text("SELECT 1"))
             return True
         except Exception:
             return False
 
     @staticmethod
-    def get_health_status(db: Session) -> dict:
+    async def get_health_status(db: AsyncSession) -> dict:
         """
         Get comprehensive health status of the application.
 
         Args:
-            db: Database session
+            db: Async database session
 
         Returns:
             dict: Health status including database connectivity
@@ -40,7 +40,7 @@ class HealthService:
         Raises:
             Exception: If database connection fails
         """
-        is_db_healthy = HealthService.check_database_connection(db)
+        is_db_healthy = await HealthService.check_database_connection(db)
 
         if not is_db_healthy:
             raise Exception("Database connection failed")
