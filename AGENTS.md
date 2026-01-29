@@ -31,6 +31,16 @@ bd sync
 
 **Warning:** Never use `bd edit` - it opens $EDITOR which blocks agents.
 
+**When to create issues:**
+- Multi-step implementation work (before writing code)
+- Bugs/issues discovered during ANY work (including research)
+- Improvements identified while exploring code
+- Remaining/incomplete work at session end
+
+**When NOT to create issues:**
+- Single-line trivial fixes
+- One-off questions with no follow-up work
+
 Run `bd prime` for full workflow context after session restart.
 
 ## Project Overview
