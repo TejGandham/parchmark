@@ -156,6 +156,7 @@ def test_async_db_session(test_db_engine, test_async_db_engine):
 @pytest.fixture(scope="function")
 def client(test_db_session, test_async_db_session):
     """Create a test client with database dependency override."""
+    from unittest.mock import patch
 
     # Override sync get_db (kept for backwards compatibility)
     def override_get_db():
@@ -179,8 +180,12 @@ def client(test_db_session, test_async_db_session):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_async_db] = override_get_async_db
 
-    with TestClient(app) as test_client:
-        yield test_client
+    # Mock init_database during app startup since test fixtures handle table creation.
+    # The lifespan event calls init_database() which would try to connect to the
+    # production database URL, not our test container.
+    with patch("app.main.init_database", return_value=True):
+        with TestClient(app) as test_client:
+            yield test_client
 
     # Clean up dependency override
     app.dependency_overrides.clear()
