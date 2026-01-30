@@ -43,18 +43,7 @@ export default function NotesLayout() {
         <Flex flex="1" overflow="hidden">
           {isSidebarOpen && (
             <Box as="nav" aria-label="Notes navigation">
-              <Sidebar
-                notes={notes}
-                currentNoteId={noteId || ''}
-                onSelectNote={(id) => navigate(`/notes/${id}`)}
-                onCreateNote={() => {
-                  // Handled by form action in Sidebar
-                }}
-                onDeleteNote={() => {
-                  // Handled by form action in Sidebar
-                }}
-                isLoading={false}
-              />
+              <Sidebar notes={notes} currentNoteId={noteId || ''} />
             </Box>
           )}
 
