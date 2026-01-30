@@ -49,8 +49,8 @@ Run `bd prime` for full workflow context after session restart.
 
 | Layer | Stack |
 |-------|-------|
-| Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 |
-| Backend | FastAPI, Python 3.13, SQLAlchemy, JWT Auth, PostgreSQL |
+| Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 (Data Router) |
+| Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT Auth, PostgreSQL |
 | Deploy | Docker, Nginx, GitHub Actions, GHCR |
 
 ## Directory Structure
@@ -59,6 +59,7 @@ Run `bd prime` for full workflow context after session restart.
 parchmark/
 ├── ui/                      # Frontend (React)
 │   ├── src/features/        # auth/, notes/, ui/ (feature-first)
+│   ├── src/router.tsx       # Data Router config (loaders, actions, routes)
 │   ├── src/services/        # API client
 │   ├── src/utils/           # errorHandler, markdown
 │   ├── src/config/          # Type-safe constants (api, storage)
@@ -171,6 +172,28 @@ useNotesStore  // Notes CRUD, current note
 useUIStore     // Sidebar, preferences
 ```
 
+### React Router Data Router
+```typescript
+// Route loaders fetch data before render (ui/src/router.tsx)
+loader: async () => { const notes = await api.getNotes(); return { notes }; }
+
+// Route actions handle mutations (ui/src/features/notes/actions.ts)
+action: createNoteAction  // Form submissions via useFetcher().submit()
+
+// Access loader data in components
+const { notes } = useRouteLoaderData('notes-layout');
+```
+
+### Async SQLAlchemy (Backend)
+```python
+# Use async session dependency
+from app.database.database import get_async_db
+
+async def my_endpoint(db: AsyncSession = Depends(get_async_db)):
+    result = await db.execute(select(Model))
+    return result.scalars().all()
+```
+
 ## Testing Patterns
 
 ### Frontend (Vitest + RTL)
@@ -218,6 +241,7 @@ fireEvent.submit(form);                      // Use submit, not click
 - Access tokens: 30min, Refresh tokens: 7 days
 - `useTokenExpirationMonitor()` logs out 1 min before expiry
 - 10-second clock skew buffer for client/server time differences
+- Route protection via `requireAuth()` loader in router.tsx (no ProtectedRoute component)
 
 ### Migrations
 - Run automatically on container startup (`APPLY_MIGRATIONS=true`)
