@@ -17,14 +17,20 @@ export async function updateNoteAction({
   request,
   params,
 }: ActionFunctionArgs) {
+  if (!params.noteId) {
+    throw new Response('Note ID required', { status: 400 });
+  }
   const formData = await request.formData();
   const content = formData.get('content') as string;
 
-  await api.updateNote(params.noteId!, { content });
+  await api.updateNote(params.noteId, { content });
   return { ok: true };
 }
 
 export async function deleteNoteAction({ params }: ActionFunctionArgs) {
-  await api.deleteNote(params.noteId!);
+  if (!params.noteId) {
+    throw new Response('Note ID required', { status: 400 });
+  }
+  await api.deleteNote(params.noteId);
   return redirect('/notes');
 }

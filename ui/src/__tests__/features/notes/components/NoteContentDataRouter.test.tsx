@@ -233,8 +233,41 @@ describe('NoteContent with Data Router', () => {
       });
       renderComponent();
       fireEvent.click(screen.getByTestId('save-button'));
-      expect(mockFetcherSubmit).toHaveBeenCalled();
+      expect(mockFetcherSubmit).toHaveBeenCalledWith(
+        { content: '# First Note\n\nContent' },
+        { method: 'post', action: '/notes/note-1' }
+      );
+    });
+
+    it('clears editing state only after save succeeds', () => {
+      // Initial state: editing
+      setupMocks({
+        noteId: 'note-1',
+        isEditing: true,
+        editedContent: '# First Note\n\nContent',
+      });
+      const { rerender } = renderComponent();
+      fireEvent.click(screen.getByTestId('save-button'));
+
+      // State should NOT be cleared immediately
+      expect(mockSetSearchParams).not.toHaveBeenCalled();
+
+      // Simulate fetcher completing with success
+      vi.mocked(routerDom.useFetcher).mockReturnValue({
+        submit: mockFetcherSubmit,
+        state: 'idle',
+        data: { ok: true },
+      } as unknown as ReturnType<typeof routerDom.useFetcher>);
+
+      rerender(
+        <ChakraProvider>
+          <NoteContent />
+        </ChakraProvider>
+      );
+
+      // Now state should be cleared
       expect(mockSetSearchParams).toHaveBeenCalledWith({});
+      expect(mockSetEditedContent).toHaveBeenCalledWith(null);
     });
   });
 

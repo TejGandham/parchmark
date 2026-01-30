@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import {
   useParams,
   useRouteLoaderData,
@@ -50,10 +50,22 @@ const NoteContent = () => {
   const editedContent = useNotesUIStore((s) => s.editedContent);
   const setEditedContent = useNotesUIStore((s) => s.setEditedContent);
 
+  // Track pending save to clear state after success
+  const pendingSaveRef = useRef(false);
+
   // Derived state
   const isEditing = searchParams.get('editing') === 'true';
   const currentNote = notes.find((n) => n.id === noteId) || null;
   const isSaving = fetcher.state === 'submitting';
+
+  // Clear editing state only after save completes successfully
+  useEffect(() => {
+    if (pendingSaveRef.current && fetcher.state === 'idle' && fetcher.data?.ok) {
+      setSearchParams({});
+      setEditedContent(null);
+      pendingSaveRef.current = false;
+    }
+  }, [fetcher.state, fetcher.data, setSearchParams, setEditedContent]);
 
   // Handlers
   const startEditing = () => {
@@ -65,12 +77,11 @@ const NoteContent = () => {
 
   const saveNote = () => {
     if (!noteId || !editedContent) return;
+    pendingSaveRef.current = true;
     fetcher.submit(
       { content: editedContent },
       { method: 'post', action: `/notes/${noteId}` }
     );
-    setSearchParams({});
-    setEditedContent(null);
   };
 
   const createNewNote = () => {
