@@ -162,8 +162,8 @@ describe('Sidebar with Data Router', () => {
       renderComponent();
       fireEvent.click(screen.getByTestId('delete-note-1'));
       expect(mockFetcherSubmit).toHaveBeenCalledWith(null, {
-        method: 'delete',
-        action: '/notes/note-1',
+        method: 'post',
+        action: '/notes/note-1/delete',
       });
     });
   });

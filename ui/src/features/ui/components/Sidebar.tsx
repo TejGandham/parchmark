@@ -97,8 +97,8 @@ const Sidebar = ({ notes, currentNoteId, isLoading = false }: SidebarProps) => {
   const handleDeleteNote = useCallback(
     (id: string) => {
       fetcher.submit(null, {
-        method: 'delete',
-        action: `/notes/${id}`,
+        method: 'post',
+        action: `/notes/${id}/delete`,
       });
     },
     [fetcher]
