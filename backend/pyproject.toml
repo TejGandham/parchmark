@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv==1.0.0",
     "httpx>=0.26.0",
     "alembic>=1.17.2",
+    "stream-zip>=0.0.83",
 ]
 
 [project.optional-dependencies]
