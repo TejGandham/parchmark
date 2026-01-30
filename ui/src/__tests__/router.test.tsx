@@ -145,4 +145,35 @@ describe('router', () => {
       expect(router.state.location.pathname).toBe('/settings');
     });
   });
+
+  it('displays error boundary when API fails', async () => {
+    const { useAuthStore } = await import('../features/auth/store');
+    const api = await import('../services/api');
+
+    (useAuthStore.getState as ReturnType<typeof vi.fn>).mockReturnValue({
+      isAuthenticated: true,
+    });
+
+    // Simulate API failure
+    (api.getNotes as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Network error')
+    );
+
+    const { routes } = await import('../router');
+
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/notes'],
+    });
+
+    render(
+      <ChakraProvider>
+        <RouterProvider router={router} />
+      </ChakraProvider>
+    );
+
+    // The error should be caught by RouteError
+    await waitFor(() => {
+      expect(router.state.errors).toBeDefined();
+    });
+  });
 });
