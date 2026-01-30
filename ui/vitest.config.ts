@@ -28,6 +28,8 @@ export default defineConfig({
         'vitest.setup.ts',
         '.eslintrc.cjs',
         'babel.config.cjs',
+        // Browser-side initialization that's hard to unit test
+        'src/utils/mermaidInit.ts',
       ],
       thresholds: {
         branches: 90,
