@@ -99,4 +99,50 @@ describe('router', () => {
       expect(router.state.location.pathname).toBe('/notes');
     });
   });
+
+  it('redirects unauthenticated users from /settings to /login', async () => {
+    const { useAuthStore } = await import('../features/auth/store');
+    (useAuthStore.getState as ReturnType<typeof vi.fn>).mockReturnValue({
+      isAuthenticated: false,
+    });
+
+    const { routes } = await import('../router');
+
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/settings'],
+    });
+
+    render(
+      <ChakraProvider>
+        <RouterProvider router={router} />
+      </ChakraProvider>
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/login');
+    });
+  });
+
+  it('allows authenticated users to access /settings', async () => {
+    const { useAuthStore } = await import('../features/auth/store');
+    (useAuthStore.getState as ReturnType<typeof vi.fn>).mockReturnValue({
+      isAuthenticated: true,
+    });
+
+    const { routes } = await import('../router');
+
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/settings'],
+    });
+
+    render(
+      <ChakraProvider>
+        <RouterProvider router={router} />
+      </ChakraProvider>
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/settings');
+    });
+  });
 });

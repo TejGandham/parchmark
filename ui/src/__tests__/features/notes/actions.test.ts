@@ -78,6 +78,31 @@ describe('notes actions', () => {
       });
       expect(result).toEqual({ ok: true });
     });
+
+    it('throws 400 error when noteId is missing', async () => {
+      const { updateNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      const formData = new FormData();
+      formData.append('content', '# Test');
+
+      const request = new Request('http://localhost/notes', {
+        method: 'POST',
+        body: formData,
+      });
+
+      await expect(
+        updateNoteAction({ request, params: {} })
+      ).rejects.toBeInstanceOf(Response);
+
+      try {
+        await updateNoteAction({ request, params: {} });
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(400);
+      }
+    });
   });
 
   describe('deleteNoteAction', () => {
@@ -93,6 +118,23 @@ describe('notes actions', () => {
 
       expect(deleteNote).toHaveBeenCalledWith('note-123');
       expect(redirect).toHaveBeenCalledWith('/notes');
+    });
+
+    it('throws 400 error when noteId is missing', async () => {
+      const { deleteNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      await expect(deleteNoteAction({ params: {} })).rejects.toBeInstanceOf(
+        Response
+      );
+
+      try {
+        await deleteNoteAction({ params: {} });
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(400);
+      }
     });
   });
 });
