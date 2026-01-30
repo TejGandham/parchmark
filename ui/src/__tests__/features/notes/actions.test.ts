@@ -44,6 +44,24 @@ describe('notes actions', () => {
       });
       expect(redirect).toHaveBeenCalledWith('/notes/new-note-123?editing=true');
     });
+
+    it('throws 500 error when API fails', async () => {
+      const { createNote } = await import('../../../services/api');
+      const { createNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (createNote as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      try {
+        await createNoteAction();
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(500);
+      }
+    });
   });
 
   describe('updateNoteAction', () => {
@@ -103,6 +121,32 @@ describe('notes actions', () => {
         expect((error as Response).status).toBe(400);
       }
     });
+
+    it('throws 500 error when API fails', async () => {
+      const { updateNote } = await import('../../../services/api');
+      const { updateNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (updateNote as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      const formData = new FormData();
+      formData.append('content', '# Test');
+
+      const request = new Request('http://localhost/notes/note-123', {
+        method: 'POST',
+        body: formData,
+      });
+
+      try {
+        await updateNoteAction({ request, params: { noteId: 'note-123' } });
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(500);
+      }
+    });
   });
 
   describe('deleteNoteAction', () => {
@@ -134,6 +178,24 @@ describe('notes actions', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(400);
+      }
+    });
+
+    it('throws 500 error when API fails', async () => {
+      const { deleteNote } = await import('../../../services/api');
+      const { deleteNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (deleteNote as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      try {
+        await deleteNoteAction({ params: { noteId: 'note-123' } });
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(500);
       }
     });
   });
