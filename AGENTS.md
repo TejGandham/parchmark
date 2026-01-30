@@ -208,6 +208,7 @@ fireEvent.submit(form);                      // Use submit, not click
 - Backend tests require Docker (testcontainers)
 - Frontend form tests: use `fireEvent.submit()`, not button click
 - Mock stores for isolated component tests
+- **Important:** The `codecov/patch` GitHub check is NOT informational - it's a required check. It requires ~97% coverage on changed/new lines. Always ensure new code has adequate test coverage before pushing.
 
 ### Markdown
 - `removeH1()` removes only the FIRST H1, not all

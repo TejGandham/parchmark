@@ -85,4 +85,24 @@ describe('RouteError', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     expect(screen.getByText('Something broke')).toBeInTheDocument();
   });
+
+  it('renders unknown error for non-Error objects', async () => {
+    vi.mocked(routerDom.useRouteError).mockReturnValue('string error');
+    vi.mocked(routerDom.isRouteErrorResponse).mockReturnValue(false);
+
+    const { default: RouteError } = await import(
+      '../../../../features/ui/components/RouteError'
+    );
+
+    render(
+      <ChakraProvider>
+        <MemoryRouter>
+          <RouteError />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Unknown error')).toBeInTheDocument();
+  });
 });

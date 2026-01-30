@@ -45,7 +45,7 @@ describe('notes actions', () => {
       expect(redirect).toHaveBeenCalledWith('/notes/new-note-123?editing=true');
     });
 
-    it('throws 500 error when API fails', async () => {
+    it('throws 500 error when API fails with Error', async () => {
       const { createNote } = await import('../../../services/api');
       const { createNoteAction } = await import(
         '../../../features/notes/actions'
@@ -60,6 +60,28 @@ describe('notes actions', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(500);
+        const text = await (error as Response).text();
+        expect(text).toBe('Network error');
+      }
+    });
+
+    it('throws 500 error with default message for non-Error', async () => {
+      const { createNote } = await import('../../../services/api');
+      const { createNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (createNote as ReturnType<typeof vi.fn>).mockRejectedValue(
+        'string error'
+      );
+
+      try {
+        await createNoteAction();
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(500);
+        const text = await (error as Response).text();
+        expect(text).toBe('Failed to create note');
       }
     });
   });
@@ -122,7 +144,7 @@ describe('notes actions', () => {
       }
     });
 
-    it('throws 500 error when API fails', async () => {
+    it('throws 500 error when API fails with Error', async () => {
       const { updateNote } = await import('../../../services/api');
       const { updateNoteAction } = await import(
         '../../../features/notes/actions'
@@ -145,6 +167,36 @@ describe('notes actions', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(500);
+        const text = await (error as Response).text();
+        expect(text).toBe('Network error');
+      }
+    });
+
+    it('throws 500 error with default message for non-Error', async () => {
+      const { updateNote } = await import('../../../services/api');
+      const { updateNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (updateNote as ReturnType<typeof vi.fn>).mockRejectedValue(
+        'string error'
+      );
+
+      const formData = new FormData();
+      formData.append('content', '# Test');
+
+      const request = new Request('http://localhost/notes/note-123', {
+        method: 'POST',
+        body: formData,
+      });
+
+      try {
+        await updateNoteAction({ request, params: { noteId: 'note-123' } });
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(500);
+        const text = await (error as Response).text();
+        expect(text).toBe('Failed to update note');
       }
     });
   });
@@ -181,7 +233,7 @@ describe('notes actions', () => {
       }
     });
 
-    it('throws 500 error when API fails', async () => {
+    it('throws 500 error when API fails with Error', async () => {
       const { deleteNote } = await import('../../../services/api');
       const { deleteNoteAction } = await import(
         '../../../features/notes/actions'
@@ -196,6 +248,28 @@ describe('notes actions', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(500);
+        const text = await (error as Response).text();
+        expect(text).toBe('Network error');
+      }
+    });
+
+    it('throws 500 error with default message for non-Error', async () => {
+      const { deleteNote } = await import('../../../services/api');
+      const { deleteNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (deleteNote as ReturnType<typeof vi.fn>).mockRejectedValue(
+        'string error'
+      );
+
+      try {
+        await deleteNoteAction({ params: { noteId: 'note-123' } });
+      } catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(500);
+        const text = await (error as Response).text();
+        expect(text).toBe('Failed to delete note');
       }
     });
   });
