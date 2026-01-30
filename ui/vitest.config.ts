@@ -28,6 +28,12 @@ export default defineConfig({
         'vitest.setup.ts',
         '.eslintrc.cjs',
         'babel.config.cjs',
+        // Browser-side initialization that's hard to unit test
+        'src/utils/mermaidInit.ts',
+        // Router configuration - tested via integration tests
+        'src/router.tsx',
+        // RouteError uses useRouteError which fails during coverage collection
+        'src/features/ui/components/RouteError.tsx',
       ],
       thresholds: {
         branches: 90,

@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { useNavigate, useFetcher } from 'react-router-dom';
 import {
   Box,
   Flex,
@@ -37,9 +38,6 @@ import { useUIStore } from '../store';
 interface SidebarProps {
   notes: Note[];
   currentNoteId: string;
-  onSelectNote: (id: string | null) => void;
-  onCreateNote: () => void;
-  onDeleteNote: (id: string) => void;
   isLoading?: boolean;
 }
 
@@ -57,14 +55,10 @@ const VIRTUALIZATION_THRESHOLD = 50;
 // Approximate height for virtualized list (viewport minus header, search, etc.)
 const VIRTUALIZED_LIST_HEIGHT = 400;
 
-const Sidebar = ({
-  notes,
-  currentNoteId,
-  onSelectNote,
-  onCreateNote,
-  onDeleteNote,
-  isLoading = false,
-}: SidebarProps) => {
+const Sidebar = ({ notes, currentNoteId, isLoading = false }: SidebarProps) => {
+  const navigate = useNavigate();
+  const fetcher = useFetcher();
+
   const notesSortBy = useUIStore((state) => state.notesSortBy);
   const notesSearchQuery = useUIStore((state) => state.notesSearchQuery);
   const notesGroupByDate = useUIStore((state) => state.notesGroupByDate);
@@ -92,14 +86,30 @@ const Sidebar = ({
 
   // Stable callbacks for NoteItem to enable memoization
   const handleSelectNote = useCallback(
-    (id: string | null) => onSelectNote(id),
-    [onSelectNote]
+    (id: string | null) => {
+      if (id) {
+        navigate(`/notes/${id}`);
+      }
+    },
+    [navigate]
   );
 
   const handleDeleteNote = useCallback(
-    (id: string) => onDeleteNote(id),
-    [onDeleteNote]
+    (id: string) => {
+      fetcher.submit(null, {
+        method: 'post',
+        action: `/notes/${id}/delete`,
+      });
+    },
+    [fetcher]
   );
+
+  const handleCreateNote = useCallback(() => {
+    fetcher.submit(null, {
+      method: 'post',
+      action: '/notes',
+    });
+  }, [fetcher]);
 
   return (
     <Box
@@ -129,7 +139,7 @@ const Sidebar = ({
           aria-label="Create new note"
           icon={<FontAwesomeIcon icon={faPlus} />}
           size="sm"
-          onClick={onCreateNote}
+          onClick={handleCreateNote}
           colorScheme="primary"
           bgGradient="linear(to-r, primary.800, primary.600)"
           color="white"
@@ -336,7 +346,7 @@ const Sidebar = ({
             <Button
               size="sm"
               colorScheme="primary"
-              onClick={onCreateNote}
+              onClick={handleCreateNote}
               leftIcon={<Icon as={AddIcon} />}
               boxShadow="sm"
               _hover={{

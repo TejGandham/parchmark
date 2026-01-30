@@ -1,4 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
+import {
+  useParams,
+  useRouteLoaderData,
+  useSearchParams,
+  useFetcher,
+} from 'react-router-dom';
 import {
   Box,
   Flex,
@@ -24,30 +30,70 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import Mermaid from '../../../components/Mermaid';
+import { useNotesUIStore } from '../../../store';
 
 // Stable reference for markdown plugins - prevents recreation on each render
 const remarkPlugins = [remarkGfm];
 const rehypePlugins = [rehypeRaw];
 
-interface NoteContentProps {
-  currentNote: Note | null | undefined;
-  isEditing: boolean;
-  editedContent: string;
-  setEditedContent: (content: string | null) => void;
-  startEditing: () => void;
-  saveNote: () => void;
-  createNewNote: () => void;
-}
+const NoteContent = () => {
+  // Data router hooks
+  const { noteId } = useParams<{ noteId: string }>();
+  const loaderData = useRouteLoaderData('notes-layout') as
+    | { notes: Note[] }
+    | undefined;
+  const notes = loaderData?.notes ?? [];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fetcher = useFetcher();
 
-const NoteContent = ({
-  currentNote,
-  isEditing,
-  editedContent,
-  setEditedContent,
-  startEditing,
-  saveNote,
-  createNewNote,
-}: NoteContentProps) => {
+  // UI state from store
+  const editedContent = useNotesUIStore((s) => s.editedContent);
+  const setEditedContent = useNotesUIStore((s) => s.setEditedContent);
+
+  // Track pending save to clear state after success
+  // Stores the noteId that was being saved to handle rapid saves correctly
+  const pendingSaveNoteIdRef = useRef<string | null>(null);
+
+  // Derived state
+  const isEditing = searchParams.get('editing') === 'true';
+  const currentNote = notes.find((n) => n.id === noteId) || null;
+  const isSaving = fetcher.state === 'submitting';
+
+  // Clear editing state only after save completes successfully
+  // Check that the completed save matches the note we're viewing to handle rapid saves
+  useEffect(() => {
+    if (
+      pendingSaveNoteIdRef.current === noteId &&
+      fetcher.state === 'idle' &&
+      fetcher.data?.ok
+    ) {
+      setSearchParams({});
+      setEditedContent(null);
+      pendingSaveNoteIdRef.current = null;
+    }
+  }, [fetcher.state, fetcher.data, noteId, setSearchParams, setEditedContent]);
+
+  // Handlers
+  const startEditing = () => {
+    if (currentNote) {
+      setEditedContent(currentNote.content);
+      setSearchParams({ editing: 'true' });
+    }
+  };
+
+  const saveNote = () => {
+    if (!noteId || !editedContent) return;
+    pendingSaveNoteIdRef.current = noteId;
+    fetcher.submit(
+      { content: editedContent },
+      { method: 'post', action: `/notes/${noteId}` }
+    );
+  };
+
+  const createNewNote = () => {
+    fetcher.submit(null, { method: 'post', action: '/notes' });
+  };
+
   // Memoize markdown components to prevent recreation on every render
   // Must be called before any early returns to satisfy Rules of Hooks
   const markdownComponents = useMemo(
@@ -90,6 +136,7 @@ const NoteContent = ({
                 /* Already editing */
               }}
               onSave={saveNote}
+              isSaving={isSaving}
             />
           </Flex>
           <Box className="edit-mode-indicator">
@@ -177,7 +224,7 @@ const NoteContent = ({
   const renderContent = () => {
     if (isEditing) {
       // When editing, show the full content
-      return editedContent;
+      return editedContent ?? '';
     }
 
     // Remove the H1 title to prevent duplication in the rendered output
@@ -186,7 +233,7 @@ const NoteContent = ({
 
   // Get the title - when editing use the H1 heading from content
   const title = isEditing
-    ? extractTitleFromMarkdown(editedContent)
+    ? extractTitleFromMarkdown(editedContent ?? '')
     : currentNote.title;
 
   const previewContent = renderContent();
@@ -222,6 +269,7 @@ const NoteContent = ({
           isEditing={isEditing}
           onEdit={startEditing}
           onSave={saveNote}
+          isSaving={isSaving}
         />
       </Flex>
 
@@ -230,7 +278,7 @@ const NoteContent = ({
         {isEditing ? (
           <Box className="edit-mode-indicator">
             <Textarea
-              value={editedContent}
+              value={editedContent ?? ''}
               onChange={(e) => {
                 setEditedContent(e.target.value);
               }}
