@@ -1,32 +1,43 @@
 // ui/src/__tests__/features/ui/components/RouteError.test.tsx
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ChakraProvider } from '@chakra-ui/react';
+import { MemoryRouter } from 'react-router-dom';
+import * as routerDom from 'react-router-dom';
 
-// We'll test RouteError by triggering actual route errors
+// Mock the useRouteError hook and isRouteErrorResponse
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useRouteError: vi.fn(),
+    isRouteErrorResponse: vi.fn(),
+  };
+});
+
 describe('RouteError', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders 401 error with login link', async () => {
+    const error = { status: 401, statusText: 'Unauthorized', data: null };
+    vi.mocked(routerDom.useRouteError).mockReturnValue(error);
+    vi.mocked(routerDom.isRouteErrorResponse).mockReturnValue(true);
+
     const { default: RouteError } = await import(
       '../../../../features/ui/components/RouteError'
     );
 
-    const router = createMemoryRouter(
-      [
-        {
-          path: '/',
-          element: <div>Home</div>,
-          errorElement: <RouteError />,
-          loader: () => {
-            throw new Response('Unauthorized', { status: 401 });
-          },
-        },
-      ],
-      { initialEntries: ['/'] }
+    render(
+      <ChakraProvider>
+        <MemoryRouter>
+          <RouteError />
+        </MemoryRouter>
+      </ChakraProvider>
     );
 
-    render(<RouterProvider router={router} />);
-
-    expect(await screen.findByText('Session Expired')).toBeInTheDocument();
+    expect(screen.getByText('Session Expired')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute(
       'href',
       '/login'
@@ -34,55 +45,44 @@ describe('RouteError', () => {
   });
 
   it('renders generic HTTP error', async () => {
+    const error = { status: 404, statusText: 'Not Found', data: null };
+    vi.mocked(routerDom.useRouteError).mockReturnValue(error);
+    vi.mocked(routerDom.isRouteErrorResponse).mockReturnValue(true);
+
     const { default: RouteError } = await import(
       '../../../../features/ui/components/RouteError'
     );
 
-    const router = createMemoryRouter(
-      [
-        {
-          path: '/',
-          element: <div>Home</div>,
-          errorElement: <RouteError />,
-          loader: () => {
-            throw new Response('Not Found', {
-              status: 404,
-              statusText: 'Not Found',
-            });
-          },
-        },
-      ],
-      { initialEntries: ['/'] }
+    render(
+      <ChakraProvider>
+        <MemoryRouter>
+          <RouteError />
+        </MemoryRouter>
+      </ChakraProvider>
     );
 
-    render(<RouterProvider router={router} />);
-
-    expect(await screen.findByText('404')).toBeInTheDocument();
+    expect(screen.getByText('404')).toBeInTheDocument();
     expect(screen.getByText('Not Found')).toBeInTheDocument();
   });
 
   it('renders thrown Error', async () => {
+    const error = new Error('Something broke');
+    vi.mocked(routerDom.useRouteError).mockReturnValue(error);
+    vi.mocked(routerDom.isRouteErrorResponse).mockReturnValue(false);
+
     const { default: RouteError } = await import(
       '../../../../features/ui/components/RouteError'
     );
 
-    const router = createMemoryRouter(
-      [
-        {
-          path: '/',
-          element: <div>Home</div>,
-          errorElement: <RouteError />,
-          loader: () => {
-            throw new Error('Something broke');
-          },
-        },
-      ],
-      { initialEntries: ['/'] }
+    render(
+      <ChakraProvider>
+        <MemoryRouter>
+          <RouteError />
+        </MemoryRouter>
+      </ChakraProvider>
     );
 
-    render(<RouterProvider router={router} />);
-
-    expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     expect(screen.getByText('Something broke')).toBeInTheDocument();
   });
 });
