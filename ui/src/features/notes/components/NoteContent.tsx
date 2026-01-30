@@ -60,7 +60,11 @@ const NoteContent = () => {
 
   // Clear editing state only after save completes successfully
   useEffect(() => {
-    if (pendingSaveRef.current && fetcher.state === 'idle' && fetcher.data?.ok) {
+    if (
+      pendingSaveRef.current &&
+      fetcher.state === 'idle' &&
+      fetcher.data?.ok
+    ) {
       setSearchParams({});
       setEditedContent(null);
       pendingSaveRef.current = false;
