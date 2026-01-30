@@ -1,6 +1,6 @@
 // ui/src/features/ui/components/RouteError.tsx
 import { useRouteError, isRouteErrorResponse, Link } from 'react-router-dom';
-import { Box, Heading, Text, Button, Center, VStack } from '@chakra-ui/react';
+import { Heading, Text, Button, Center, VStack } from '@chakra-ui/react';
 
 export default function RouteError() {
   const error = useRouteError();

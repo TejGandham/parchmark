@@ -53,7 +53,10 @@ vi.mock('../../../../features/notes/components/NoteItem', () => ({
       >
         {note.title}
       </button>
-      <button onClick={() => onDelete(note.id)} data-testid={`delete-${note.id}`}>
+      <button
+        onClick={() => onDelete(note.id)}
+        data-testid={`delete-${note.id}`}
+      >
         Delete
       </button>
     </li>
@@ -109,10 +112,15 @@ describe('Sidebar with Data Router', () => {
     cleanup();
   });
 
-  function renderComponent(props: Partial<{ notes: typeof mockNotes; currentNoteId: string }> = {}) {
+  function renderComponent(
+    props: Partial<{ notes: typeof mockNotes; currentNoteId: string }> = {}
+  ) {
     return render(
       <ChakraProvider>
-        <Sidebar notes={props.notes ?? mockNotes} currentNoteId={props.currentNoteId ?? 'note-1'} />
+        <Sidebar
+          notes={props.notes ?? mockNotes}
+          currentNoteId={props.currentNoteId ?? 'note-1'}
+        />
       </ChakraProvider>
     );
   }

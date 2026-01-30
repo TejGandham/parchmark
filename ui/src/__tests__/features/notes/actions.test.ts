@@ -36,7 +36,7 @@ describe('notes actions', () => {
         content: '# Untitled\n\n',
       });
 
-      const result = await createNoteAction();
+      await createNoteAction();
 
       expect(createNote).toHaveBeenCalledWith({
         title: 'Untitled',

@@ -1,7 +1,7 @@
 // ui/src/__tests__/router.test.tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 
 // Mock auth store

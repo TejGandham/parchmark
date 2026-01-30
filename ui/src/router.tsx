@@ -2,7 +2,11 @@
 import { createBrowserRouter, redirect, RouteObject } from 'react-router-dom';
 import * as api from './services/api';
 import { useAuthStore } from './features/auth/store';
-import { createNoteAction, updateNoteAction, deleteNoteAction } from './features/notes/actions';
+import {
+  createNoteAction,
+  updateNoteAction,
+  deleteNoteAction,
+} from './features/notes/actions';
 import RouteError from './features/ui/components/RouteError';
 
 const requireAuth = async () => {
@@ -24,14 +28,18 @@ export const routes: RouteObject[] = [
   {
     path: '/login',
     lazy: async () => {
-      const { default: Component } = await import('./features/auth/components/LoginForm');
+      const { default: Component } = await import(
+        './features/auth/components/LoginForm'
+      );
       return { Component };
     },
   },
   {
     path: '/oidc/callback',
     lazy: async () => {
-      const { default: Component } = await import('./features/auth/components/OIDCCallback');
+      const { default: Component } = await import(
+        './features/auth/components/OIDCCallback'
+      );
       return { Component };
     },
   },
@@ -45,7 +53,9 @@ export const routes: RouteObject[] = [
     },
     action: createNoteAction,
     lazy: async () => {
-      const { default: Component } = await import('./features/notes/components/NotesLayout');
+      const { default: Component } = await import(
+        './features/notes/components/NotesLayout'
+      );
       return { Component };
     },
     errorElement: <RouteError />,
@@ -58,7 +68,9 @@ export const routes: RouteObject[] = [
         path: ':noteId',
         action: updateNoteAction,
         lazy: async () => {
-          const { default: Component } = await import('./features/notes/components/NoteContent');
+          const { default: Component } = await import(
+            './features/notes/components/NoteContent'
+          );
           return { Component };
         },
         errorElement: <RouteError />,
@@ -75,14 +87,18 @@ export const routes: RouteObject[] = [
     path: '/settings',
     loader: requireAuth,
     lazy: async () => {
-      const { default: Component } = await import('./features/settings/components/Settings');
+      const { default: Component } = await import(
+        './features/settings/components/Settings'
+      );
       return { Component };
     },
   },
   {
     path: '*',
     lazy: async () => {
-      const { default: Component } = await import('./features/ui/components/NotFoundPage');
+      const { default: Component } = await import(
+        './features/ui/components/NotFoundPage'
+      );
       return { Component };
     },
   },

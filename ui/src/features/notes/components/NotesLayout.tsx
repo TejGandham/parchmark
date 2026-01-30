@@ -1,6 +1,12 @@
 // ui/src/features/notes/components/NotesLayout.tsx
 import { useEffect } from 'react';
-import { Outlet, useLoaderData, useNavigate, useParams, Link } from 'react-router-dom';
+import {
+  Outlet,
+  useLoaderData,
+  useNavigate,
+  useParams,
+  Link,
+} from 'react-router-dom';
 import { Box, Flex } from '@chakra-ui/react';
 import { useUIStore } from '../../../store';
 import Header from '../../ui/components/Header';

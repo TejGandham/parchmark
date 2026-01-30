@@ -1,6 +1,6 @@
 // ui/src/__tests__/features/ui/components/RouteError.test.tsx
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 // We'll test RouteError by triggering actual route errors
@@ -45,7 +45,10 @@ describe('RouteError', () => {
           element: <div>Home</div>,
           errorElement: <RouteError />,
           loader: () => {
-            throw new Response('Not Found', { status: 404, statusText: 'Not Found' });
+            throw new Response('Not Found', {
+              status: 404,
+              statusText: 'Not Found',
+            });
           },
         },
       ],

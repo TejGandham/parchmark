@@ -13,7 +13,10 @@ export async function createNoteAction() {
   return redirect(`/notes/${newNote.id}?editing=true`);
 }
 
-export async function updateNoteAction({ request, params }: ActionFunctionArgs) {
+export async function updateNoteAction({
+  request,
+  params,
+}: ActionFunctionArgs) {
   const formData = await request.formData();
   const content = formData.get('content') as string;
 

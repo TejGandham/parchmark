@@ -99,11 +99,13 @@ describe('NoteContent with Data Router', () => {
   const mockSetEditedContent = vi.fn();
   const mockNavigate = vi.fn();
 
-  function setupMocks(options: {
-    noteId?: string;
-    isEditing?: boolean;
-    editedContent?: string | null;
-  } = {}) {
+  function setupMocks(
+    options: {
+      noteId?: string;
+      isEditing?: boolean;
+      editedContent?: string | null;
+    } = {}
+  ) {
     const {
       noteId = 'note-1',
       isEditing = false,
@@ -111,7 +113,9 @@ describe('NoteContent with Data Router', () => {
     } = options;
 
     vi.mocked(routerDom.useParams).mockReturnValue({ noteId });
-    vi.mocked(routerDom.useRouteLoaderData).mockReturnValue({ notes: mockNotes });
+    vi.mocked(routerDom.useRouteLoaderData).mockReturnValue({
+      notes: mockNotes,
+    });
     vi.mocked(routerDom.useSearchParams).mockReturnValue([
       new URLSearchParams(isEditing ? 'editing=true' : ''),
       mockSetSearchParams,
