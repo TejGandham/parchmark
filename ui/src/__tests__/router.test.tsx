@@ -11,6 +11,11 @@ vi.mock('../features/auth/store', () => ({
   },
 }));
 
+// Mock RouteError to avoid useRouteError hook issues in tests
+vi.mock('../features/ui/components/RouteError', () => ({
+  default: () => <div data-testid="route-error">Route Error</div>,
+}));
+
 // Mock API
 vi.mock('../services/api', () => ({
   getNotes: vi.fn().mockResolvedValue([]),
