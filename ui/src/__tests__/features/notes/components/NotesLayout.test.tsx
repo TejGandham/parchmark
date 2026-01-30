@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
+import NotesLayout from '../../../../features/notes/components/NotesLayout';
 
 // Mock UI store
 vi.mock('../../../../store', () => ({
@@ -74,32 +75,28 @@ const mockNotes = [
 ];
 
 function renderWithRouter(initialEntries = ['/notes']) {
-  return import('../../../../features/notes/components/NotesLayout').then(
-    ({ default: NotesLayout }) => {
-      const router = createMemoryRouter(
-        [
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/notes',
+        element: <NotesLayout />,
+        loader: () => ({ notes: mockNotes }),
+        children: [
+          { index: true, element: null },
           {
-            path: '/notes',
-            element: <NotesLayout />,
-            loader: () => ({ notes: mockNotes }),
-            children: [
-              { index: true, element: null },
-              {
-                path: ':noteId',
-                element: <div data-testid="note-content">Note Content</div>,
-              },
-            ],
+            path: ':noteId',
+            element: <div data-testid="note-content">Note Content</div>,
           },
         ],
-        { initialEntries }
-      );
+      },
+    ],
+    { initialEntries }
+  );
 
-      return render(
-        <ChakraProvider>
-          <RouterProvider router={router} />
-        </ChakraProvider>
-      );
-    }
+  return render(
+    <ChakraProvider>
+      <RouterProvider router={router} />
+    </ChakraProvider>
   );
 }
 
@@ -109,7 +106,7 @@ describe('NotesLayout', () => {
   });
 
   it('renders sidebar with notes from loader', async () => {
-    await renderWithRouter();
+    renderWithRouter();
 
     await waitFor(() => {
       expect(screen.getByText('First Note')).toBeInTheDocument();
@@ -118,7 +115,7 @@ describe('NotesLayout', () => {
   });
 
   it('renders header', async () => {
-    await renderWithRouter();
+    renderWithRouter();
 
     await waitFor(() => {
       expect(screen.getByText('Notes')).toBeInTheDocument();
@@ -126,7 +123,7 @@ describe('NotesLayout', () => {
   });
 
   it('renders sidebar when isSidebarOpen is true', async () => {
-    await renderWithRouter();
+    renderWithRouter();
 
     await waitFor(() => {
       expect(screen.getByTestId('sidebar')).toBeInTheDocument();
@@ -134,7 +131,7 @@ describe('NotesLayout', () => {
   });
 
   it('renders child routes via Outlet', async () => {
-    await renderWithRouter(['/notes/note-1']);
+    renderWithRouter(['/notes/note-1']);
 
     await waitFor(() => {
       expect(screen.getByTestId('note-content')).toBeInTheDocument();
