@@ -23,11 +23,14 @@ export default function NotesLayout() {
   const toggleSidebar = useUIStore((s) => s.actions.toggleSidebar);
 
   // Redirect to first note if none selected
+  // Using firstNoteId to stabilize dependency - only triggers when noteId or firstNoteId changes,
+  // not on every notes array reference change
+  const firstNoteId = notes[0]?.id;
   useEffect(() => {
-    if (!noteId && notes.length > 0) {
-      navigate(`/notes/${notes[0].id}`, { replace: true });
+    if (!noteId && firstNoteId) {
+      navigate(`/notes/${firstNoteId}`, { replace: true });
     }
-  }, [noteId, notes, navigate]);
+  }, [noteId, firstNoteId, navigate]);
 
   return (
     <Box minH="100vh" bg="bg.canvas" className="bg-texture">

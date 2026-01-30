@@ -51,7 +51,8 @@ const NoteContent = () => {
   const setEditedContent = useNotesUIStore((s) => s.setEditedContent);
 
   // Track pending save to clear state after success
-  const pendingSaveRef = useRef(false);
+  // Stores the noteId that was being saved to handle rapid saves correctly
+  const pendingSaveNoteIdRef = useRef<string | null>(null);
 
   // Derived state
   const isEditing = searchParams.get('editing') === 'true';
@@ -59,17 +60,18 @@ const NoteContent = () => {
   const isSaving = fetcher.state === 'submitting';
 
   // Clear editing state only after save completes successfully
+  // Check that the completed save matches the note we're viewing to handle rapid saves
   useEffect(() => {
     if (
-      pendingSaveRef.current &&
+      pendingSaveNoteIdRef.current === noteId &&
       fetcher.state === 'idle' &&
       fetcher.data?.ok
     ) {
       setSearchParams({});
       setEditedContent(null);
-      pendingSaveRef.current = false;
+      pendingSaveNoteIdRef.current = null;
     }
-  }, [fetcher.state, fetcher.data, setSearchParams, setEditedContent]);
+  }, [fetcher.state, fetcher.data, noteId, setSearchParams, setEditedContent]);
 
   // Handlers
   const startEditing = () => {
@@ -81,7 +83,7 @@ const NoteContent = () => {
 
   const saveNote = () => {
     if (!noteId || !editedContent) return;
-    pendingSaveRef.current = true;
+    pendingSaveNoteIdRef.current = noteId;
     fetcher.submit(
       { content: editedContent },
       { method: 'post', action: `/notes/${noteId}` }

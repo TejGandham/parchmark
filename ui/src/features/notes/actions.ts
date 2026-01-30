@@ -7,30 +7,55 @@ import {
 } from '../../services/markdownService';
 
 export async function createNoteAction() {
-  const content = createEmptyNoteContent('Untitled');
-  const title = extractTitleFromMarkdown(content);
-  const newNote = await api.createNote({ title, content });
-  return redirect(`/notes/${newNote.id}?editing=true`);
+  try {
+    const content = createEmptyNoteContent('Untitled');
+    const title = extractTitleFromMarkdown(content);
+    const newNote = await api.createNote({ title, content });
+    return redirect(`/notes/${newNote.id}?editing=true`);
+  } catch (error) {
+    throw new Response(
+      error instanceof Error ? error.message : 'Failed to create note',
+      { status: 500 }
+    );
+  }
 }
 
 export async function updateNoteAction({
   request,
   params,
 }: ActionFunctionArgs) {
-  if (!params.noteId) {
+  const noteId = params.noteId;
+  if (!noteId) {
     throw new Response('Note ID required', { status: 400 });
   }
-  const formData = await request.formData();
-  const content = formData.get('content') as string;
 
-  await api.updateNote(params.noteId, { content });
-  return { ok: true };
+  try {
+    const formData = await request.formData();
+    const content = formData.get('content') as string;
+
+    await api.updateNote(noteId, { content });
+    return { ok: true };
+  } catch (error) {
+    throw new Response(
+      error instanceof Error ? error.message : 'Failed to update note',
+      { status: 500 }
+    );
+  }
 }
 
 export async function deleteNoteAction({ params }: ActionFunctionArgs) {
-  if (!params.noteId) {
+  const noteId = params.noteId;
+  if (!noteId) {
     throw new Response('Note ID required', { status: 400 });
   }
-  await api.deleteNote(params.noteId);
-  return redirect('/notes');
+
+  try {
+    await api.deleteNote(noteId);
+    return redirect('/notes');
+  } catch (error) {
+    throw new Response(
+      error instanceof Error ? error.message : 'Failed to delete note',
+      { status: 500 }
+    );
+  }
 }
