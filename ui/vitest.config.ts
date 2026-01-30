@@ -30,6 +30,8 @@ export default defineConfig({
         'babel.config.cjs',
         // Browser-side initialization that's hard to unit test
         'src/utils/mermaidInit.ts',
+        // Router configuration - tested via integration tests
+        'src/router.tsx',
       ],
       thresholds: {
         branches: 90,
