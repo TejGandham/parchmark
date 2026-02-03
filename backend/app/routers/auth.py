@@ -1,27 +1,23 @@
 """
 Authentication routes for ParchMark backend API.
 Handles user login and logout operations with JWT token management.
+This router is a thin controller that delegates business logic to AuthService.
 """
-
-from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.auth import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    REFRESH_TOKEN_EXPIRE_DAYS,
-    create_access_token,
-    create_refresh_token,
-    verify_refresh_token,
-    verify_user_password,
-)
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
 from app.models.models import User
 from app.schemas.schemas import MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
+from app.services.auth_service import (
+    AuthenticationError,
+    AuthService,
+    InvalidRefreshTokenError,
+    LoginInput,
+)
 
 # Create router for authentication endpoints
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -30,14 +26,16 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
 
-async def _get_user_by_username(db: AsyncSession, username: str) -> User | None:
-    """Async helper to get user by username."""
-    result = await db.execute(select(User).filter(User.username == username))
-    return result.scalar_one_or_none()
+def get_auth_service(db: AsyncSession = Depends(get_async_db)) -> AuthService:
+    """Dependency to get AuthService instance."""
+    return AuthService(db)
 
 
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_async_db)):
+async def login(
+    user_credentials: UserLogin,
+    service: AuthService = Depends(get_auth_service),
+):
     """
     Authenticate user and return JWT access token.
 
@@ -50,7 +48,7 @@ async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_asyn
 
     Args:
         user_credentials: UserLogin schema with username and password
-        db: Async database session dependency
+        service: AuthService instance
 
     Returns:
         Token: JWT access token and token type
@@ -58,30 +56,27 @@ async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_asyn
     Raises:
         HTTPException: 401 if credentials are invalid
     """
-    # Get user from database and verify password
-    user = await _get_user_by_username(db, user_credentials.username)
-    authenticated_user = verify_user_password(user, user_credentials.password)
-
-    if not authenticated_user:
-        # Return the same error message as the frontend expects
+    try:
+        input_data = LoginInput(username=user_credentials.username, password=user_credentials.password)
+        result = await service.login(input_data)
+        return {
+            "access_token": result.access_token,
+            "refresh_token": result.refresh_token,
+            "token_type": result.token_type,
+        }
+    except AuthenticationError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Create JWT tokens with user's username as subject
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    access_token = create_access_token(data={"sub": authenticated_user.username}, expires_delta=access_token_expires)
-    refresh_token = create_refresh_token(data={"sub": authenticated_user.username}, expires_delta=refresh_token_expires)
-
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        ) from None
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(refresh_request: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db)):
+async def refresh_token(
+    refresh_request: RefreshTokenRequest,
+    service: AuthService = Depends(get_auth_service),
+):
     """
     Refresh an access token using a valid refresh token.
 
@@ -92,7 +87,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest, db: AsyncSession =
 
     Args:
         refresh_request: RefreshTokenRequest with refresh_token
-        db: Async database session dependency
+        service: AuthService instance
 
     Returns:
         Token: New JWT access and refresh tokens
@@ -100,32 +95,19 @@ async def refresh_token(refresh_request: RefreshTokenRequest, db: AsyncSession =
     Raises:
         HTTPException: 401 if refresh token is invalid or expired
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate refresh token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    # Verify the refresh token
-    token_data = verify_refresh_token(refresh_request.refresh_token, credentials_exception)
-
-    # Ensure username is present in token
-    if not token_data.username:
-        raise credentials_exception
-
-    # Get the user from database
-    user = await _get_user_by_username(db, token_data.username)
-    if not user:
-        raise credentials_exception
-
-    # Create new tokens
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    new_access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
-    new_refresh_token = create_refresh_token(data={"sub": user.username}, expires_delta=refresh_token_expires)
-
-    return {"access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+    try:
+        result = await service.refresh_tokens(refresh_request.refresh_token)
+        return {
+            "access_token": result.access_token,
+            "refresh_token": result.refresh_token,
+            "token_type": result.token_type,
+        }
+    except InvalidRefreshTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
 
 
 @router.post("/logout", response_model=MessageResponse)

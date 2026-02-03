@@ -126,7 +126,7 @@ class TestLoginEndpoint:
         data = response.json()
         assert "access_token" in data
 
-    @patch("app.routers.auth._get_user_by_username")
+    @patch("app.services.auth_service.AuthService.get_user_by_username")
     def test_login_database_error(self, mock_get_user, client: TestClient):
         """Test login when database error occurs."""
         mock_get_user.side_effect = Exception("Database connection failed")
