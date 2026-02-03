@@ -5,12 +5,11 @@ This router is a thin controller that delegates business logic to NoteService.
 """
 
 import logging
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.database.database import get_async_db
 from app.models.models import User
 from app.schemas.schemas import (
     DeleteResponse,
@@ -21,20 +20,15 @@ from app.schemas.schemas import (
 from app.services.note_service import (
     CreateNoteInput,
     NoteNotFoundError,
-    NoteService,
     NoteServiceError,
     UpdateNoteInput,
+    note_service,
 )
 
 logger = logging.getLogger(__name__)
 
 # Create router for notes endpoints
 router = APIRouter(prefix="/notes", tags=["notes"])
-
-
-def get_note_service(db: AsyncSession = Depends(get_async_db)) -> NoteService:
-    """Dependency to get NoteService instance."""
-    return NoteService(db)
 
 
 def _note_to_response(note) -> NoteResponse:
@@ -53,7 +47,6 @@ def _note_to_response(note) -> NoteResponse:
 @router.get("/", response_model=list[NoteResponse])
 async def get_notes(
     current_user: User = Depends(get_current_user),
-    service: NoteService = Depends(get_note_service),
 ):
     """
     Get all notes for the authenticated user.
@@ -63,12 +56,11 @@ async def get_notes(
 
     Args:
         current_user: Current authenticated user
-        service: NoteService instance
 
     Returns:
         List[NoteResponse]: List of user's notes
     """
-    notes = await service.get_notes_by_user(current_user.id)
+    notes = await note_service.get_notes_by_user(cast(int, current_user.id))
     return [_note_to_response(note) for note in notes]
 
 
@@ -76,7 +68,6 @@ async def get_notes(
 async def create_note(
     note_data: NoteCreate,
     current_user: User = Depends(get_current_user),
-    service: NoteService = Depends(get_note_service),
 ):
     """
     Create a new note for the authenticated user.
@@ -89,14 +80,13 @@ async def create_note(
     Args:
         note_data: Note creation data (content required, title optional)
         current_user: Current authenticated user
-        service: NoteService instance
 
     Returns:
         NoteResponse: The created note
     """
     try:
         input_data = CreateNoteInput(content=note_data.content, title=note_data.title)
-        note = await service.create_note(current_user.id, input_data)
+        note = await note_service.create_note(cast(int, current_user.id), input_data)
         return _note_to_response(note)
     except NoteServiceError:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
@@ -107,7 +97,6 @@ async def update_note(
     note_id: str,
     note_data: NoteUpdate,
     current_user: User = Depends(get_current_user),
-    service: NoteService = Depends(get_note_service),
 ):
     """
     Update an existing note for the authenticated user.
@@ -121,7 +110,6 @@ async def update_note(
         note_id: ID of the note to update
         note_data: Note update data (title and/or content)
         current_user: Current authenticated user
-        service: NoteService instance
 
     Returns:
         NoteResponse: The updated note
@@ -131,7 +119,7 @@ async def update_note(
     """
     try:
         input_data = UpdateNoteInput(content=note_data.content, title=note_data.title)
-        note = await service.update_note(note_id, current_user.id, input_data)
+        note = await note_service.update_note(note_id, cast(int, current_user.id), input_data)
         return _note_to_response(note)
     except NoteNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found") from None
@@ -143,7 +131,6 @@ async def update_note(
 async def delete_note(
     note_id: str,
     current_user: User = Depends(get_current_user),
-    service: NoteService = Depends(get_note_service),
 ):
     """
     Delete a note for the authenticated user.
@@ -155,7 +142,6 @@ async def delete_note(
     Args:
         note_id: ID of the note to delete
         current_user: Current authenticated user
-        service: NoteService instance
 
     Returns:
         DeleteResponse: Confirmation message with deleted note ID
@@ -164,7 +150,7 @@ async def delete_note(
         HTTPException: 404 if note not found or not owned by user
     """
     try:
-        deleted_id = await service.delete_note(note_id, current_user.id)
+        deleted_id = await note_service.delete_note(note_id, cast(int, current_user.id))
         return DeleteResponse(message="Note deleted successfully", deleted_id=deleted_id)
     except NoteNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found") from None
@@ -176,7 +162,6 @@ async def delete_note(
 async def get_note(
     note_id: str,
     current_user: User = Depends(get_current_user),
-    service: NoteService = Depends(get_note_service),
 ):
     """
     Get a specific note for the authenticated user.
@@ -184,7 +169,6 @@ async def get_note(
     Args:
         note_id: ID of the note to retrieve
         current_user: Current authenticated user
-        service: NoteService instance
 
     Returns:
         NoteResponse: The requested note
@@ -193,7 +177,7 @@ async def get_note(
         HTTPException: 404 if note not found or not owned by user
     """
     try:
-        note = await service.get_note_by_id(note_id, current_user.id)
+        note = await note_service.get_note_by_id(note_id, cast(int, current_user.id))
         return _note_to_response(note)
     except NoteNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found") from None

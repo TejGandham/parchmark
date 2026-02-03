@@ -1,11 +1,15 @@
 """
 Health check service for monitoring application and database status.
+
+This service is a singleton - it uses contextvars to access the request-scoped
+database session without requiring it to be passed as a parameter.
 """
 
 import logging
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.context import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -13,31 +17,24 @@ logger = logging.getLogger(__name__)
 class HealthService:
     """Service for performing health checks on application components."""
 
-    @staticmethod
-    async def check_database_connection(db: AsyncSession) -> bool:
+    async def check_database_connection(self) -> bool:
         """
         Check if database connection is working.
-
-        Args:
-            db: Async database session
 
         Returns:
             bool: True if connection is healthy, False otherwise
         """
         try:
+            db = get_db()
             await db.execute(text("SELECT 1"))
             return True
         except Exception as e:
             logger.warning(f"Database health check failed: {e}")
             return False
 
-    @staticmethod
-    async def get_health_status(db: AsyncSession) -> dict:
+    async def get_health_status(self) -> dict:
         """
         Get comprehensive health status of the application.
-
-        Args:
-            db: Async database session
 
         Returns:
             dict: Health status including database connectivity
@@ -45,7 +42,7 @@ class HealthService:
         Raises:
             Exception: If database connection fails
         """
-        is_db_healthy = await HealthService.check_database_connection(db)
+        is_db_healthy = await self.check_database_connection()
 
         if not is_db_healthy:
             raise Exception("Database connection failed")

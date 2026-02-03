@@ -6,17 +6,15 @@ This router is a thin controller that delegates business logic to AuthService.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.database.database import get_async_db
 from app.models.models import User
 from app.schemas.schemas import MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
 from app.services.auth_service import (
     AuthenticationError,
-    AuthService,
     InvalidRefreshTokenError,
     LoginInput,
+    auth_service,
 )
 
 # Create router for authentication endpoints
@@ -26,15 +24,9 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
 
 
-def get_auth_service(db: AsyncSession = Depends(get_async_db)) -> AuthService:
-    """Dependency to get AuthService instance."""
-    return AuthService(db)
-
-
 @router.post("/login", response_model=Token)
 async def login(
     user_credentials: UserLogin,
-    service: AuthService = Depends(get_auth_service),
 ):
     """
     Authenticate user and return JWT access token.
@@ -48,7 +40,6 @@ async def login(
 
     Args:
         user_credentials: UserLogin schema with username and password
-        service: AuthService instance
 
     Returns:
         Token: JWT access token and token type
@@ -58,7 +49,7 @@ async def login(
     """
     try:
         input_data = LoginInput(username=user_credentials.username, password=user_credentials.password)
-        result = await service.login(input_data)
+        result = await auth_service.login(input_data)
         return {
             "access_token": result.access_token,
             "refresh_token": result.refresh_token,
@@ -75,7 +66,6 @@ async def login(
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     refresh_request: RefreshTokenRequest,
-    service: AuthService = Depends(get_auth_service),
 ):
     """
     Refresh an access token using a valid refresh token.
@@ -87,7 +77,6 @@ async def refresh_token(
 
     Args:
         refresh_request: RefreshTokenRequest with refresh_token
-        service: AuthService instance
 
     Returns:
         Token: New JWT access and refresh tokens
@@ -96,7 +85,7 @@ async def refresh_token(
         HTTPException: 401 if refresh token is invalid or expired
     """
     try:
-        result = await service.refresh_tokens(refresh_request.refresh_token)
+        result = await auth_service.refresh_tokens(refresh_request.refresh_token)
         return {
             "access_token": result.access_token,
             "refresh_token": result.refresh_token,

@@ -4,13 +4,18 @@ Validates Authelia-issued JWT tokens and extracts user claims.
 """
 
 import asyncio
+import json
 import logging
 import os
 from datetime import UTC, datetime
+from typing import cast
 
 import httpx
+import jwt
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from dotenv import load_dotenv
-from jose import JWTError, jwt
+from jwt.algorithms import RSAAlgorithm
+from jwt.exceptions import PyJWTError
 
 load_dotenv()
 
@@ -111,7 +116,7 @@ class OIDCValidator:
             dict: Token claims including user identifier
 
         Raises:
-            JWTError: If token validation fails
+            PyJWTError: If token validation fails
         """
         try:
             # Get unverified header to extract kid (key ID)
@@ -119,7 +124,7 @@ class OIDCValidator:
             kid = unverified_header.get("kid")
 
             if not kid:
-                raise JWTError("No 'kid' in token header")
+                raise PyJWTError("No 'kid' in token header")
 
             # Fetch JWKS
             jwks = await self.get_jwks()
@@ -133,10 +138,13 @@ class OIDCValidator:
                     break
 
             if not key_data:
-                raise JWTError(f"Key '{kid}' not found in JWKS")
+                raise PyJWTError(f"Key '{kid}' not found in JWKS")
+
+            # Convert JWK to public key for PyJWT
+            public_key = cast(RSAPublicKey, RSAAlgorithm.from_jwk(json.dumps(key_data)))
 
             # Decode and validate token
-            # jwt.decode() accepts JWK dict directly for RS256 validation
+            # jwt.decode() requires a proper key object for RS256 validation
             # Note: jwt.decode() automatically validates expiration (exp claim)
             #
             # First try with audience validation, fall back to no audience check
@@ -144,25 +152,25 @@ class OIDCValidator:
             try:
                 payload = jwt.decode(
                     token,
-                    key_data,
+                    public_key,
                     algorithms=["RS256"],
                     audience=self.audience,
                     issuer=self.issuer_url,
                 )
-            except JWTError as e:
+            except PyJWTError as e:
                 if "audience" in str(e).lower():
                     # Retry without audience validation, check client_id instead
                     logger.info("Audience validation failed, checking client_id")
                     payload = jwt.decode(
                         token,
-                        key_data,
+                        public_key,
                         algorithms=["RS256"],
                         issuer=self.issuer_url,
                         options={"verify_aud": False},
                     )
                     # Verify client_id matches as fallback
                     if payload.get("client_id") != self.audience:
-                        raise JWTError(
+                        raise PyJWTError(
                             f"client_id '{payload.get('client_id')}' does not match expected '{self.audience}'"
                         ) from None
                 else:
@@ -170,7 +178,7 @@ class OIDCValidator:
 
             return payload
 
-        except JWTError as e:
+        except PyJWTError as e:
             logger.warning(f"OIDC token validation failed: {e}")
             raise
 

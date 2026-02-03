@@ -29,8 +29,9 @@ class TestAuthServiceGetUserByUsername:
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-        result = await service.get_user_by_username("testuser")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+            result = await service.get_user_by_username("testuser")
 
         assert result == mock_user
         mock_db.execute.assert_called_once()
@@ -43,8 +44,9 @@ class TestAuthServiceGetUserByUsername:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-        result = await service.get_user_by_username("nonexistent")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+            result = await service.get_user_by_username("nonexistent")
 
         assert result is None
 
@@ -63,11 +65,12 @@ class TestAuthServiceLogin:
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-        input_data = LoginInput(username="testuser", password="password123")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+            input_data = LoginInput(username="testuser", password="password123")
 
-        with patch("app.services.auth_service.verify_user_password", return_value=mock_user):
-            result = await service.login(input_data)
+            with patch("app.services.auth_service.verify_user_password", return_value=mock_user):
+                result = await service.login(input_data)
 
         assert isinstance(result, TokenResult)
         assert result.access_token is not None
@@ -82,12 +85,13 @@ class TestAuthServiceLogin:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-        input_data = LoginInput(username="nonexistent", password="password123")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+            input_data = LoginInput(username="nonexistent", password="password123")
 
-        with patch("app.services.auth_service.verify_user_password", return_value=None):
-            with pytest.raises(AuthenticationError):
-                await service.login(input_data)
+            with patch("app.services.auth_service.verify_user_password", return_value=None):
+                with pytest.raises(AuthenticationError):
+                    await service.login(input_data)
 
     @pytest.mark.asyncio
     async def test_login_invalid_password(self):
@@ -99,12 +103,13 @@ class TestAuthServiceLogin:
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-        input_data = LoginInput(username="testuser", password="wrongpassword")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+            input_data = LoginInput(username="testuser", password="wrongpassword")
 
-        with patch("app.services.auth_service.verify_user_password", return_value=None):
-            with pytest.raises(AuthenticationError):
-                await service.login(input_data)
+            with patch("app.services.auth_service.verify_user_password", return_value=None):
+                with pytest.raises(AuthenticationError):
+                    await service.login(input_data)
 
 
 class TestAuthServiceRefreshTokens:
@@ -120,14 +125,15 @@ class TestAuthServiceRefreshTokens:
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-
         # Create a mock TokenData
         mock_token_data = MagicMock()
         mock_token_data.username = "testuser"
 
-        with patch("app.services.auth_service.verify_refresh_token", return_value=mock_token_data):
-            result = await service.refresh_tokens("valid_refresh_token")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+
+            with patch("app.services.auth_service.verify_refresh_token", return_value=mock_token_data):
+                result = await service.refresh_tokens("valid_refresh_token")
 
         assert isinstance(result, TokenResult)
         assert result.access_token is not None
@@ -138,29 +144,33 @@ class TestAuthServiceRefreshTokens:
     async def test_refresh_tokens_invalid_token(self):
         """Should raise InvalidRefreshTokenError when token is invalid."""
         mock_db = MagicMock()
-        service = AuthService(mock_db)
 
         from fastapi import HTTPException
 
-        with patch(
-            "app.services.auth_service.verify_refresh_token",
-            side_effect=HTTPException(status_code=401, detail="Invalid token"),
-        ):
-            with pytest.raises(InvalidRefreshTokenError):
-                await service.refresh_tokens("invalid_token")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+
+            with patch(
+                "app.services.auth_service.verify_refresh_token",
+                side_effect=HTTPException(status_code=401, detail="Invalid token"),
+            ):
+                with pytest.raises(InvalidRefreshTokenError):
+                    await service.refresh_tokens("invalid_token")
 
     @pytest.mark.asyncio
     async def test_refresh_tokens_no_username_in_token(self):
         """Should raise InvalidRefreshTokenError when token has no username."""
         mock_db = MagicMock()
-        service = AuthService(mock_db)
 
         mock_token_data = MagicMock()
         mock_token_data.username = None
 
-        with patch("app.services.auth_service.verify_refresh_token", return_value=mock_token_data):
-            with pytest.raises(InvalidRefreshTokenError):
-                await service.refresh_tokens("token_without_username")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+
+            with patch("app.services.auth_service.verify_refresh_token", return_value=mock_token_data):
+                with pytest.raises(InvalidRefreshTokenError):
+                    await service.refresh_tokens("token_without_username")
 
     @pytest.mark.asyncio
     async def test_refresh_tokens_user_not_found(self):
@@ -170,14 +180,15 @@ class TestAuthServiceRefreshTokens:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = AuthService(mock_db)
-
         mock_token_data = MagicMock()
         mock_token_data.username = "deleteduser"
 
-        with patch("app.services.auth_service.verify_refresh_token", return_value=mock_token_data):
-            with pytest.raises(InvalidRefreshTokenError):
-                await service.refresh_tokens("valid_token_deleted_user")
+        with patch("app.services.auth_service.get_db", return_value=mock_db):
+            service = AuthService()
+
+            with patch("app.services.auth_service.verify_refresh_token", return_value=mock_token_data):
+                with pytest.raises(InvalidRefreshTokenError):
+                    await service.refresh_tokens("valid_token_deleted_user")
 
 
 class TestAuthServiceCreateTokens:
@@ -186,8 +197,7 @@ class TestAuthServiceCreateTokens:
     @pytest.mark.asyncio
     async def test_create_tokens_returns_token_result(self):
         """Should return TokenResult with all fields populated."""
-        mock_db = MagicMock()
-        service = AuthService(mock_db)
+        service = AuthService()
 
         result = service._create_tokens("testuser")
 
@@ -201,8 +211,7 @@ class TestAuthServiceCreateTokens:
     @pytest.mark.asyncio
     async def test_create_tokens_different_tokens(self):
         """Access and refresh tokens should be different."""
-        mock_db = MagicMock()
-        service = AuthService(mock_db)
+        service = AuthService()
 
         result = service._create_tokens("testuser")
 

@@ -83,8 +83,9 @@ class TestNoteServiceGetNotes:
         mock_result.scalars.return_value = mock_scalars
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = NoteService(mock_db)
-        result = await service.get_notes_by_user(user_id=1)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            result = await service.get_notes_by_user(user_id=1)
 
         assert len(result) == 2
         mock_db.execute.assert_called_once()
@@ -99,8 +100,9 @@ class TestNoteServiceGetNotes:
         mock_result.scalars.return_value = mock_scalars
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = NoteService(mock_db)
-        result = await service.get_notes_by_user(user_id=999)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            result = await service.get_notes_by_user(user_id=999)
 
         assert result == []
 
@@ -117,8 +119,9 @@ class TestNoteServiceGetNoteById:
         mock_result.scalar_one_or_none.return_value = mock_note
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = NoteService(mock_db)
-        result = await service.get_note_by_id("note-123", user_id=1)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            result = await service.get_note_by_id("note-123", user_id=1)
 
         assert result == mock_note
 
@@ -130,10 +133,11 @@ class TestNoteServiceGetNoteById:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = NoteService(mock_db)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
 
-        with pytest.raises(NoteNotFoundError) as exc_info:
-            await service.get_note_by_id("nonexistent", user_id=1)
+            with pytest.raises(NoteNotFoundError) as exc_info:
+                await service.get_note_by_id("nonexistent", user_id=1)
 
         assert exc_info.value.note_id == "nonexistent"
 
@@ -146,33 +150,35 @@ class TestNoteServiceCreateNote:
         """Should create note with generated ID and processed content."""
         mock_db = MagicMock()
         mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
+        mock_db.flush = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        service = NoteService(mock_db)
-        input_data = CreateNoteInput(content="# Test\n\nContent")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = CreateNoteInput(content="# Test\n\nContent")
 
-        with patch.object(NoteService, "generate_note_id", return_value="note-12345"):
-            result = await service.create_note(user_id=1, input_data=input_data)
+            with patch.object(NoteService, "generate_note_id", return_value="note-12345"):
+                result = await service.create_note(user_id=1, input_data=input_data)
 
         assert result.id == "note-12345"
         assert result.user_id == 1
         assert result.title == "Test"
         mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_note_with_custom_title(self):
         """Should use provided title instead of extracting."""
         mock_db = MagicMock()
         mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock()
+        mock_db.flush = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        service = NoteService(mock_db)
-        input_data = CreateNoteInput(content="# Header\n\nContent", title="Custom Title")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = CreateNoteInput(content="# Header\n\nContent", title="Custom Title")
 
-        result = await service.create_note(user_id=1, input_data=input_data)
+            result = await service.create_note(user_id=1, input_data=input_data)
 
         assert result.title == "Custom Title"
 
@@ -181,17 +187,16 @@ class TestNoteServiceCreateNote:
         """Should raise NoteServiceError on database failure."""
         mock_db = MagicMock()
         mock_db.add = MagicMock()
-        mock_db.commit = AsyncMock(side_effect=SQLAlchemyError("DB error"))
-        mock_db.rollback = AsyncMock()
+        mock_db.flush = AsyncMock(side_effect=SQLAlchemyError("DB error"))
 
-        service = NoteService(mock_db)
-        input_data = CreateNoteInput(content="# Test\n\nContent")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = CreateNoteInput(content="# Test\n\nContent")
 
-        with pytest.raises(NoteServiceError) as exc_info:
-            await service.create_note(user_id=1, input_data=input_data)
+            with pytest.raises(NoteServiceError) as exc_info:
+                await service.create_note(user_id=1, input_data=input_data)
 
         assert "Failed to create note" in str(exc_info.value)
-        mock_db.rollback.assert_called_once()
 
 
 class TestNoteServiceUpdateNote:
@@ -208,16 +213,17 @@ class TestNoteServiceUpdateNote:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_note
         mock_db.execute = AsyncMock(return_value=mock_result)
-        mock_db.commit = AsyncMock()
+        mock_db.flush = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        service = NoteService(mock_db)
-        input_data = UpdateNoteInput(content="# New Title\n\nNew content")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = UpdateNoteInput(content="# New Title\n\nNew content")
 
-        result = await service.update_note("note-123", user_id=1, input_data=input_data)
+            result = await service.update_note("note-123", user_id=1, input_data=input_data)
 
         assert result == mock_note
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_note_title_only(self):
@@ -230,16 +236,17 @@ class TestNoteServiceUpdateNote:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_note
         mock_db.execute = AsyncMock(return_value=mock_result)
-        mock_db.commit = AsyncMock()
+        mock_db.flush = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        service = NoteService(mock_db)
-        input_data = UpdateNoteInput(title="New Title Only")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = UpdateNoteInput(title="New Title Only")
 
-        await service.update_note("note-123", user_id=1, input_data=input_data)
+            await service.update_note("note-123", user_id=1, input_data=input_data)
 
         # Title should be updated directly
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_note_not_found_raises(self):
@@ -249,11 +256,12 @@ class TestNoteServiceUpdateNote:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = NoteService(mock_db)
-        input_data = UpdateNoteInput(content="New content")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = UpdateNoteInput(content="New content")
 
-        with pytest.raises(NoteNotFoundError):
-            await service.update_note("nonexistent", user_id=1, input_data=input_data)
+            with pytest.raises(NoteNotFoundError):
+                await service.update_note("nonexistent", user_id=1, input_data=input_data)
 
     @pytest.mark.asyncio
     async def test_update_note_database_error_raises(self):
@@ -264,16 +272,14 @@ class TestNoteServiceUpdateNote:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_note
         mock_db.execute = AsyncMock(return_value=mock_result)
-        mock_db.commit = AsyncMock(side_effect=SQLAlchemyError("DB error"))
-        mock_db.rollback = AsyncMock()
+        mock_db.flush = AsyncMock(side_effect=SQLAlchemyError("DB error"))
 
-        service = NoteService(mock_db)
-        input_data = UpdateNoteInput(content="# New\n\nContent")
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            input_data = UpdateNoteInput(content="# New\n\nContent")
 
-        with pytest.raises(NoteServiceError):
-            await service.update_note("note-123", user_id=1, input_data=input_data)
-
-        mock_db.rollback.assert_called_once()
+            with pytest.raises(NoteServiceError):
+                await service.update_note("note-123", user_id=1, input_data=input_data)
 
 
 class TestNoteServiceDeleteNote:
@@ -289,14 +295,15 @@ class TestNoteServiceDeleteNote:
         mock_result.scalar_one_or_none.return_value = mock_note
         mock_db.execute = AsyncMock(return_value=mock_result)
         mock_db.delete = AsyncMock()
-        mock_db.commit = AsyncMock()
+        mock_db.flush = AsyncMock()
 
-        service = NoteService(mock_db)
-        result = await service.delete_note("note-123", user_id=1)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
+            result = await service.delete_note("note-123", user_id=1)
 
         assert result == "note-123"
         mock_db.delete.assert_called_once_with(mock_note)
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_delete_note_not_found_raises(self):
@@ -306,10 +313,11 @@ class TestNoteServiceDeleteNote:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = NoteService(mock_db)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
 
-        with pytest.raises(NoteNotFoundError):
-            await service.delete_note("nonexistent", user_id=1)
+            with pytest.raises(NoteNotFoundError):
+                await service.delete_note("nonexistent", user_id=1)
 
     @pytest.mark.asyncio
     async def test_delete_note_database_error_raises(self):
@@ -321,15 +329,13 @@ class TestNoteServiceDeleteNote:
         mock_result.scalar_one_or_none.return_value = mock_note
         mock_db.execute = AsyncMock(return_value=mock_result)
         mock_db.delete = AsyncMock()
-        mock_db.commit = AsyncMock(side_effect=SQLAlchemyError("DB error"))
-        mock_db.rollback = AsyncMock()
+        mock_db.flush = AsyncMock(side_effect=SQLAlchemyError("DB error"))
 
-        service = NoteService(mock_db)
+        with patch("app.services.note_service.get_db", return_value=mock_db):
+            service = NoteService()
 
-        with pytest.raises(NoteServiceError):
-            await service.delete_note("note-123", user_id=1)
-
-        mock_db.rollback.assert_called_once()
+            with pytest.raises(NoteServiceError):
+                await service.delete_note("note-123", user_id=1)
 
 
 class TestNoteNotFoundError:

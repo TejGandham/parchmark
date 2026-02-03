@@ -1,6 +1,9 @@
 """
 Note service for business logic related to note operations.
 Extracts business logic from routers for better testability and reusability.
+
+This service is a singleton - it uses contextvars to access the request-scoped
+database session without requiring it to be passed as a parameter.
 """
 
 import logging
@@ -9,8 +12,8 @@ from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.context import get_db
 from app.models.models import Note
 from app.utils.markdown import markdown_service
 
@@ -55,16 +58,10 @@ class NoteService:
 
     Handles note creation, retrieval, update, and deletion with proper
     business rules applied (title extraction, content formatting, etc.).
+
+    This is a singleton service - database session is obtained from context
+    for each operation, ensuring request isolation.
     """
-
-    def __init__(self, db: AsyncSession):
-        """
-        Initialize the note service.
-
-        Args:
-            db: Async database session for database operations.
-        """
-        self.db = db
 
     @staticmethod
     def generate_note_id() -> str:
@@ -102,7 +99,8 @@ class NoteService:
         Returns:
             List of Note objects belonging to the user.
         """
-        result = await self.db.execute(select(Note).filter(Note.user_id == user_id))
+        db = get_db()
+        result = await db.execute(select(Note).filter(Note.user_id == user_id))
         return list(result.scalars().all())
 
     async def get_note_by_id(self, note_id: str, user_id: int) -> Note:
@@ -119,7 +117,8 @@ class NoteService:
         Raises:
             NoteNotFoundError: If note doesn't exist or doesn't belong to user.
         """
-        result = await self.db.execute(select(Note).filter(Note.id == note_id, Note.user_id == user_id))
+        db = get_db()
+        result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == user_id))
         note = result.scalar_one_or_none()
 
         if not note:
@@ -141,6 +140,7 @@ class NoteService:
         Raises:
             NoteServiceError: If database operation fails.
         """
+        db = get_db()
         note_id = self.generate_note_id()
         formatted_content, title = self.process_note_content(input_data.content, input_data.title)
 
@@ -152,11 +152,10 @@ class NoteService:
         )
 
         try:
-            self.db.add(note)
-            await self.db.commit()
-            await self.db.refresh(note)
+            db.add(note)
+            await db.flush()
+            await db.refresh(note)
         except SQLAlchemyError as e:
-            await self.db.rollback()
             logger.error(f"Failed to create note: {e}")
             raise NoteServiceError("Failed to create note", e) from e
 
@@ -178,6 +177,7 @@ class NoteService:
             NoteNotFoundError: If note doesn't exist or doesn't belong to user.
             NoteServiceError: If database operation fails.
         """
+        db = get_db()
         note = await self.get_note_by_id(note_id, user_id)
 
         if input_data.content is not None:
@@ -190,10 +190,9 @@ class NoteService:
             note.title = input_data.title  # type: ignore[assignment]
 
         try:
-            await self.db.commit()
-            await self.db.refresh(note)
+            await db.flush()
+            await db.refresh(note)
         except SQLAlchemyError as e:
-            await self.db.rollback()
             logger.error(f"Failed to update note {note_id}: {e}")
             raise NoteServiceError(f"Failed to update note {note_id}", e) from e
 
@@ -214,14 +213,18 @@ class NoteService:
             NoteNotFoundError: If note doesn't exist or doesn't belong to user.
             NoteServiceError: If database operation fails.
         """
+        db = get_db()
         note = await self.get_note_by_id(note_id, user_id)
 
         try:
-            await self.db.delete(note)
-            await self.db.commit()
+            await db.delete(note)
+            await db.flush()
         except SQLAlchemyError as e:
-            await self.db.rollback()
             logger.error(f"Failed to delete note {note_id}: {e}")
             raise NoteServiceError(f"Failed to delete note {note_id}", e) from e
 
         return note_id
+
+
+# Singleton instance - use this instead of creating new instances
+note_service = NoteService()

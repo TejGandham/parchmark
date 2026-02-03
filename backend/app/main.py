@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app.database.database import async_engine
 from app.database.init_db import init_database
+from app.middleware import DBSessionMiddleware
 from app.routers import auth, health, notes, settings
 
 # Load environment variables
@@ -103,6 +104,11 @@ allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
 
 logger.info(f"CORS allowed origins: {allowed_origins}")
 
+# Add database session middleware (innermost - added first)
+# This creates a request-scoped database session accessible via contextvars
+app.add_middleware(DBSessionMiddleware)
+
+# Add CORS middleware (outermost - added last, handles preflight requests)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

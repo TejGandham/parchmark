@@ -8,9 +8,10 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
+import jwt
 from dotenv import load_dotenv
 from fastapi import HTTPException, status
-from jose import JWTError, jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 
 from app.models.models import User
@@ -91,6 +92,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire, "type": "access"})
+    # SECRET_KEY is validated at module load - safe to assert non-None
+    assert SECRET_KEY is not None
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -113,6 +116,8 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
         expire = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
     to_encode.update({"exp": expire, "type": "refresh"})
+    # SECRET_KEY is validated at module load - safe to assert non-None
+    assert SECRET_KEY is not None
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -133,18 +138,21 @@ def verify_token(token: str, credentials_exception: HTTPException, token_type: s
         HTTPException: If token is invalid or expired
     """
     try:
+        # SECRET_KEY is validated at module load - safe to assert non-None
+        assert SECRET_KEY is not None
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username_raw = payload.get("sub")
+        username: str = str(username_raw) if username_raw is not None else ""
         token_type_in_payload: str = payload.get("type", "access")
 
-        if username is None:
+        if not username:
             raise credentials_exception
         if token_type_in_payload != token_type:
             raise credentials_exception
 
         token_data = TokenData(username=username)
         return token_data
-    except JWTError as e:
+    except PyJWTError as e:
         raise credentials_exception from e
 
 

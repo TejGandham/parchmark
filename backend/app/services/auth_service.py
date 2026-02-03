@@ -1,14 +1,17 @@
 """
 Authentication service for business logic related to user authentication.
 Extracts business logic from routers for better testability and reusability.
+
+This service is a singleton - it uses contextvars to access the request-scoped
+database session without requiring it to be passed as a parameter.
 """
 
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import cast
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -18,6 +21,7 @@ from app.auth.auth import (
     verify_refresh_token,
     verify_user_password,
 )
+from app.database.context import get_db
 from app.models.models import User
 from app.schemas.schemas import TokenData
 
@@ -61,16 +65,10 @@ class AuthService:
 
     Handles user authentication, token generation, and token refresh
     with proper separation from HTTP layer concerns.
+
+    This is a singleton service - database session is obtained from context
+    for each operation, ensuring request isolation.
     """
-
-    def __init__(self, db: AsyncSession):
-        """
-        Initialize the auth service.
-
-        Args:
-            db: Async database session for database operations.
-        """
-        self.db = db
 
     async def get_user_by_username(self, username: str) -> User | None:
         """
@@ -82,7 +80,8 @@ class AuthService:
         Returns:
             User object if found, None otherwise.
         """
-        result = await self.db.execute(select(User).filter(User.username == username))
+        db = get_db()
+        result = await db.execute(select(User).filter(User.username == username))
         return result.scalar_one_or_none()
 
     def _create_tokens(self, username: str) -> TokenResult:
@@ -126,7 +125,7 @@ class AuthService:
         if not authenticated_user:
             raise AuthenticationError()
 
-        return self._create_tokens(authenticated_user.username)
+        return self._create_tokens(cast(str, authenticated_user.username))
 
     async def refresh_tokens(self, refresh_token: str) -> TokenResult:
         """
@@ -164,4 +163,8 @@ class AuthService:
         if not user:
             raise InvalidRefreshTokenError()
 
-        return self._create_tokens(user.username)
+        return self._create_tokens(cast(str, user.username))
+
+
+# Singleton instance - use this instead of creating new instances
+auth_service = AuthService()

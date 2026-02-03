@@ -10,7 +10,7 @@ dependencies = [
     "psycopg2-binary>=2.9.7",
     "asyncpg>=0.29.0",
     "greenlet>=3.0.0",  # Required for SQLAlchemy async operations
-    "python-jose[cryptography]==3.3.0",
+    "PyJWT[crypto]>=2.8.0",
     "passlib[bcrypt]==1.7.4",
     "bcrypt==3.2.0",
     "python-multipart==0.0.6",

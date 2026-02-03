@@ -165,7 +165,7 @@ def client(test_db_session, test_async_db_session):
         finally:
             pass
 
-    # Override async get_async_db
+    # Override async get_async_db (kept for backwards compatibility with any remaining usages)
     # NOTE: We avoid 'async with' context manager here because TestClient
     # runs in a separate thread with its own event loop. Using async with
     # can cause hangs during cleanup when the context manager's __aexit__
@@ -183,7 +183,14 @@ def client(test_db_session, test_async_db_session):
     # Mock init_database during app startup since test fixtures handle table creation.
     # The lifespan event calls init_database() which would try to connect to the
     # production database URL, not our test container.
-    with patch("app.main.init_database", return_value=True):
+    #
+    # Also patch AsyncSessionLocal in the middleware to use the test database session factory.
+    # The DBSessionMiddleware creates sessions from AsyncSessionLocal, so we need it to
+    # use our test database instead of the production database.
+    with (
+        patch("app.main.init_database", return_value=True),
+        patch("app.middleware.db_session.AsyncSessionLocal", test_async_db_session),
+    ):
         with TestClient(app) as test_client:
             yield test_client
 

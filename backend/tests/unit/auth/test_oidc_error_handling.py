@@ -6,7 +6,7 @@ Tests failure scenarios and error recovery mechanisms.
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from jose import JWTError
+from jwt.exceptions import PyJWTError
 
 from app.auth.oidc_validator import OIDCValidator
 
@@ -61,7 +61,7 @@ async def test_validate_oidc_token_missing_kid_in_header():
     with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
         mock_header.return_value = {"alg": "RS256"}  # No kid
 
-        with pytest.raises(JWTError, match="No 'kid'"):
+        with pytest.raises(PyJWTError, match="No 'kid'"):
             await validator.validate_oidc_token("token_without_kid")
 
 
@@ -91,9 +91,9 @@ async def test_validate_oidc_token_invalid_audience():
         with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
             with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
                 mock_header.return_value = {"kid": "test-key"}
-                mock_decode.side_effect = JWTError("Invalid audience")
+                mock_decode.side_effect = PyJWTError("Invalid audience")
 
-                with pytest.raises(JWTError):
+                with pytest.raises(PyJWTError):
                     await validator.validate_oidc_token("wrong_audience_token")
 
 
@@ -123,9 +123,9 @@ async def test_validate_oidc_token_invalid_issuer():
         with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
             with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
                 mock_header.return_value = {"kid": "test-key"}
-                mock_decode.side_effect = JWTError("Invalid issuer")
+                mock_decode.side_effect = PyJWTError("Invalid issuer")
 
-                with pytest.raises(JWTError):
+                with pytest.raises(PyJWTError):
                     await validator.validate_oidc_token("wrong_issuer_token")
 
 
@@ -200,9 +200,9 @@ async def test_validate_oidc_token_malformed_jwt():
     validator = OIDCValidator()
 
     with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
-        mock_header.side_effect = JWTError("Invalid JWT format")
+        mock_header.side_effect = PyJWTError("Invalid JWT format")
 
-        with pytest.raises(JWTError):
+        with pytest.raises(PyJWTError):
             await validator.validate_oidc_token("not.a.valid.jwt")
 
 
@@ -212,7 +212,7 @@ async def test_validate_oidc_token_empty_token():
     """Test validation of empty token."""
     validator = OIDCValidator()
 
-    with pytest.raises((JWTError, AttributeError)):
+    with pytest.raises((PyJWTError, AttributeError)):
         await validator.validate_oidc_token("")
 
 

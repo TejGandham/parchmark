@@ -3,7 +3,7 @@ Factory classes for generating test data using factory-boy and Faker.
 Provides enterprise-grade test data generation for models and schemas.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import factory
@@ -24,7 +24,7 @@ class UserFactory(factory.Factory):
     id = factory.Sequence(lambda n: n + 1)
     username = factory.Sequence(lambda n: f"user{n:04d}")
     password_hash = factory.LazyAttribute(lambda obj: get_password_hash("testpass123"))
-    created_at = factory.LazyFunction(datetime.utcnow)
+    created_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
 
 class UserDataFactory(factory.DictFactory):
@@ -51,8 +51,8 @@ class NoteFactory(factory.Factory):
     user_id = factory.SubFactory(UserFactory)
     title = factory.LazyFunction(lambda: fake.sentence(nb_words=4)[:255])
     content = factory.LazyAttribute(lambda obj: f"# {obj.title}\n\n{fake.text(max_nb_chars=500)}")
-    created_at = factory.LazyFunction(datetime.utcnow)
-    updated_at = factory.LazyFunction(datetime.utcnow)
+    created_at = factory.LazyFunction(lambda: datetime.now(UTC))
+    updated_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
 
 class NoteDataFactory(factory.DictFactory):
@@ -168,7 +168,7 @@ class DatabaseTestDataFactory:
 
         notes = []
         for i in range(num_notes):
-            note = NoteFactory(user_id=user.id, id=f"note-{user.id}-{i+1}")
+            note = NoteFactory(user_id=user.id, id=f"note-{user.id}-{i + 1}")
             session.add(note)
             notes.append(note)
 

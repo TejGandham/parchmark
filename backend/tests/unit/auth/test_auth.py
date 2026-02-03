@@ -6,9 +6,9 @@ Tests JWT token creation/validation, password hashing, and user authentication.
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
 
+import jwt
 import pytest
 from fastapi import HTTPException, status
-from jose import jwt
 
 from app.auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,

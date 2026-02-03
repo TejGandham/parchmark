@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import text
@@ -13,39 +13,38 @@ from app.services.health_service import HealthService
 @pytest.mark.asyncio
 async def test_check_database_connection_success():
     """The service should execute a lightweight query and report healthy."""
-    session = MagicMock()
-    session.execute = AsyncMock()
+    mock_db = MagicMock()
+    mock_db.execute = AsyncMock()
 
-    assert await HealthService.check_database_connection(session) is True
+    with patch("app.services.health_service.get_db", return_value=mock_db):
+        service = HealthService()
+        assert await service.check_database_connection() is True
 
-    session.execute.assert_called_once()
-    executed_query = session.execute.call_args[0][0]
+    mock_db.execute.assert_called_once()
+    executed_query = mock_db.execute.call_args[0][0]
     assert str(executed_query) == str(text("SELECT 1"))
 
 
 @pytest.mark.asyncio
 async def test_check_database_connection_failure_returns_false():
     """Database exceptions should be caught and return False."""
-    session = MagicMock()
-    session.execute = AsyncMock(side_effect=RuntimeError("db down"))
+    mock_db = MagicMock()
+    mock_db.execute = AsyncMock(side_effect=RuntimeError("db down"))
 
-    assert await HealthService.check_database_connection(session) is False
+    with patch("app.services.health_service.get_db", return_value=mock_db):
+        service = HealthService()
+        assert await service.check_database_connection() is False
 
 
 @pytest.mark.asyncio
-async def test_get_health_status_returns_expected_payload(monkeypatch):
+async def test_get_health_status_returns_expected_payload():
     """Healthy database connections should yield the full status payload."""
+    mock_db = MagicMock()
+    mock_db.execute = AsyncMock()
 
-    async def mock_check_connection(_):
-        return True
-
-    monkeypatch.setattr(
-        HealthService,
-        "check_database_connection",
-        staticmethod(mock_check_connection),
-    )
-
-    status = await HealthService.get_health_status(MagicMock())
+    with patch("app.services.health_service.get_db", return_value=mock_db):
+        service = HealthService()
+        status = await service.get_health_status()
 
     assert status == {
         "status": "healthy",
@@ -56,17 +55,13 @@ async def test_get_health_status_returns_expected_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_get_health_status_raises_when_database_unavailable(monkeypatch):
+async def test_get_health_status_raises_when_database_unavailable():
     """The service should raise when the database health check fails."""
+    mock_db = MagicMock()
+    mock_db.execute = AsyncMock(side_effect=RuntimeError("db down"))
 
-    async def mock_check_connection(_):
-        return False
+    with patch("app.services.health_service.get_db", return_value=mock_db):
+        service = HealthService()
 
-    monkeypatch.setattr(
-        HealthService,
-        "check_database_connection",
-        staticmethod(mock_check_connection),
-    )
-
-    with pytest.raises(Exception, match="Database connection failed"):
-        await HealthService.get_health_status(MagicMock())
+        with pytest.raises(Exception, match="Database connection failed"):
+            await service.get_health_status()

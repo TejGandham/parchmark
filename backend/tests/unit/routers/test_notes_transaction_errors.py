@@ -25,13 +25,11 @@ def mock_user():
 class TestCreateNoteTransactionError:
     """Test transaction error handling in create_note endpoint."""
 
-    @patch("app.routers.notes.NoteService")
-    def test_create_note_commit_failure_returns_500(self, mock_service_class, client: TestClient, auth_headers):
+    @patch("app.routers.notes.note_service")
+    def test_create_note_commit_failure_returns_500(self, mock_service, client: TestClient, auth_headers):
         """Test that NoteServiceError returns 500."""
         # Arrange
-        mock_service = MagicMock()
         mock_service.create_note = AsyncMock(side_effect=NoteServiceError("Database commit failed"))
-        mock_service_class.return_value = mock_service
 
         # Act
         response = client.post("/api/notes/", json={"content": "# Test\n\nContent"}, headers=auth_headers)
@@ -40,13 +38,11 @@ class TestCreateNoteTransactionError:
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in response.json()["detail"]
 
-    @patch("app.routers.notes.NoteService")
-    def test_create_note_refresh_failure_returns_500(self, mock_service_class, client: TestClient, auth_headers):
+    @patch("app.routers.notes.note_service")
+    def test_create_note_refresh_failure_returns_500(self, mock_service, client: TestClient, auth_headers):
         """Test that refresh failure (via NoteServiceError) returns 500."""
         # Arrange
-        mock_service = MagicMock()
         mock_service.create_note = AsyncMock(side_effect=NoteServiceError("Database refresh failed"))
-        mock_service_class.return_value = mock_service
 
         # Act
         response = client.post("/api/notes/", json={"content": "# Test\n\nContent"}, headers=auth_headers)
@@ -59,15 +55,11 @@ class TestCreateNoteTransactionError:
 class TestUpdateNoteTransactionError:
     """Test transaction error handling in update_note endpoint."""
 
-    @patch("app.routers.notes.NoteService")
-    def test_update_note_commit_failure_returns_500(
-        self, mock_service_class, client: TestClient, auth_headers, sample_note
-    ):
+    @patch("app.routers.notes.note_service")
+    def test_update_note_commit_failure_returns_500(self, mock_service, client: TestClient, auth_headers, sample_note):
         """Test that commit failure returns 500."""
         # Arrange
-        mock_service = MagicMock()
         mock_service.update_note = AsyncMock(side_effect=NoteServiceError("Database commit failed"))
-        mock_service_class.return_value = mock_service
 
         # Act
         response = client.put(
@@ -80,15 +72,11 @@ class TestUpdateNoteTransactionError:
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in response.json()["detail"]
 
-    @patch("app.routers.notes.NoteService")
-    def test_update_note_refresh_failure_returns_500(
-        self, mock_service_class, client: TestClient, auth_headers, sample_note
-    ):
+    @patch("app.routers.notes.note_service")
+    def test_update_note_refresh_failure_returns_500(self, mock_service, client: TestClient, auth_headers, sample_note):
         """Test that refresh failure after commit returns 500."""
         # Arrange
-        mock_service = MagicMock()
         mock_service.update_note = AsyncMock(side_effect=NoteServiceError("Database refresh failed"))
-        mock_service_class.return_value = mock_service
 
         # Act
         response = client.put(
@@ -105,15 +93,11 @@ class TestUpdateNoteTransactionError:
 class TestDeleteNoteTransactionError:
     """Test transaction error handling in delete_note endpoint."""
 
-    @patch("app.routers.notes.NoteService")
-    def test_delete_note_commit_failure_returns_500(
-        self, mock_service_class, client: TestClient, auth_headers, sample_note
-    ):
+    @patch("app.routers.notes.note_service")
+    def test_delete_note_commit_failure_returns_500(self, mock_service, client: TestClient, auth_headers, sample_note):
         """Test that commit failure returns 500."""
         # Arrange
-        mock_service = MagicMock()
         mock_service.delete_note = AsyncMock(side_effect=NoteServiceError("Database commit failed"))
-        mock_service_class.return_value = mock_service
 
         # Act
         response = client.delete(f"/api/notes/{sample_note.id}", headers=auth_headers)
@@ -122,15 +106,11 @@ class TestDeleteNoteTransactionError:
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in response.json()["detail"]
 
-    @patch("app.routers.notes.NoteService")
-    def test_delete_note_delete_failure_returns_500(
-        self, mock_service_class, client: TestClient, auth_headers, sample_note
-    ):
+    @patch("app.routers.notes.note_service")
+    def test_delete_note_delete_failure_returns_500(self, mock_service, client: TestClient, auth_headers, sample_note):
         """Test that delete failure returns 500."""
         # Arrange
-        mock_service = MagicMock()
         mock_service.delete_note = AsyncMock(side_effect=NoteServiceError("Database delete failed"))
-        mock_service_class.return_value = mock_service
 
         # Act
         response = client.delete(f"/api/notes/{sample_note.id}", headers=auth_headers)
