@@ -20,6 +20,7 @@ from app.auth.dependencies import (
     get_user_by_username,
     security,
 )
+from app.database.context import reset_db, set_db
 from app.models.models import User
 from app.schemas.schemas import TokenData
 
@@ -30,24 +31,22 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_get_current_user_success(self, client, test_db_session: Session, sample_user: User):
         """Test successful current user retrieval."""
-        # Create valid token
         token_data = {"sub": sample_user.username}
         token = create_access_token(token_data)
-
-        # Create credentials object
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
-        # Create a mock async session that returns the user
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = sample_user
         mock_session.execute.return_value = mock_result
 
-        # Call dependency
-        result = await get_current_user(credentials, mock_session)
-
-        assert result.id == sample_user.id
-        assert result.username == sample_user.username
+        token_ctx = set_db(mock_session)
+        try:
+            result = await get_current_user(credentials)
+            assert result.id == sample_user.id
+            assert result.username == sample_user.username
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_current_user_invalid_token(self):
@@ -55,69 +54,69 @@ class TestGetCurrentUser:
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid.token.here")
         mock_session = AsyncMock(spec=AsyncSession)
 
-        with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
-
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-        assert exc_info.value.detail == "Could not validate credentials"
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_user(credentials)
+            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            assert exc_info.value.detail == "Could not validate credentials"
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_current_user_expired_token(self, sample_user: User):
         """Test current user retrieval with expired token."""
         from datetime import timedelta
 
-        # Create expired token
         token_data = {"sub": sample_user.username}
         expired_token = create_access_token(token_data, expires_delta=timedelta(seconds=-1))
-
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=expired_token)
         mock_session = AsyncMock(spec=AsyncSession)
 
-        with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
-
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_user(credentials)
+            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_current_user_user_not_found(self):
         """Test current user retrieval when user doesn't exist in database."""
-        # Create token for non-existent user
         token_data = {"sub": "nonexistent_user"}
         token = create_access_token(token_data)
-
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
-        # Mock session that returns None (user not found)
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
-
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-        assert exc_info.value.detail == "Could not validate credentials"
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_user(credentials)
+            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            assert exc_info.value.detail == "Could not validate credentials"
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_current_user_malformed_token(self):
         """Test current user retrieval with malformed token."""
         mock_session = AsyncMock(spec=AsyncSession)
+        malformed_tokens = ["not.a.token", "", "header.payload", "a.b.c.d.e"]
 
-        malformed_tokens = [
-            "not.a.token",
-            "",
-            "header.payload",
-            "a.b.c.d.e",
-        ]
-
-        for token in malformed_tokens:
-            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-
-            with pytest.raises(HTTPException) as exc_info:
-                await get_current_user(credentials, mock_session)
-
-            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        token_ctx = set_db(mock_session)
+        try:
+            for token in malformed_tokens:
+                credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials)
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     @patch("app.auth.dependencies.verify_token")
@@ -126,30 +125,32 @@ class TestGetCurrentUser:
         mock_verify_token.side_effect = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token verification failed"
         )
-
         mock_session = AsyncMock(spec=AsyncSession)
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="some.token.here")
 
-        with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
-
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_user(credentials)
+            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     @patch("app.auth.dependencies.verify_token")
     async def test_get_current_user_database_error(self, mock_verify_token):
         """Test current user retrieval when database query fails."""
-        # Mock successful token verification
         mock_verify_token.return_value = TokenData(username="testuser")
-
-        # Mock async database session to raise exception
         mock_session = AsyncMock(spec=AsyncSession)
         mock_session.execute.side_effect = Exception("Database connection error")
-
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid.token.here")
 
-        with pytest.raises(Exception):
-            await get_current_user(credentials, mock_session)
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(Exception):
+                await get_current_user(credentials)
+        finally:
+            reset_db(token_ctx)
 
 
 class TestGetCurrentActiveUser:
@@ -159,7 +160,6 @@ class TestGetCurrentActiveUser:
     async def test_get_current_active_user_success(self, sample_user: User):
         """Test successful active user retrieval."""
         result = await get_current_active_user(sample_user)
-
         assert result == sample_user
         assert result.username == sample_user.username
 
@@ -169,29 +169,21 @@ class TestGetCurrentActiveUser:
         mock_user = Mock(spec=User)
         mock_user.username = "testuser"
         mock_user.id = 1
-
         result = await get_current_active_user(mock_user)
-
         assert result == mock_user
 
-    # Future test for when user status checking is implemented
     @pytest.mark.asyncio
     async def test_get_current_active_user_inactive_user_future(self):
         """Test active user retrieval with inactive user (future implementation)."""
-        # This test is for future when is_active field is added
         mock_user = Mock(spec=User)
         mock_user.username = "testuser"
         mock_user.is_active = False
-
-        # Currently this should pass, but in future should raise exception
         result = await get_current_active_user(mock_user)
         assert result == mock_user
 
-        # TODO: When is_active is implemented, this should raise HTTPException
-
 
 class TestGetUserByUsername:
-    """Test get_user_by_username helper function (now async)."""
+    """Test get_user_by_username helper function."""
 
     @pytest.mark.asyncio
     async def test_get_user_by_username_success(self, sample_user: User):
@@ -201,11 +193,14 @@ class TestGetUserByUsername:
         mock_result.scalar_one_or_none.return_value = sample_user
         mock_session.execute.return_value = mock_result
 
-        result = await get_user_by_username(mock_session, sample_user.username)
-
-        assert result is not None
-        assert result.id == sample_user.id
-        assert result.username == sample_user.username
+        token_ctx = set_db(mock_session)
+        try:
+            result = await get_user_by_username(sample_user.username)
+            assert result is not None
+            assert result.id == sample_user.id
+            assert result.username == sample_user.username
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_user_by_username_not_found(self):
@@ -215,9 +210,12 @@ class TestGetUserByUsername:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        result = await get_user_by_username(mock_session, "nonexistent_user")
-
-        assert result is None
+        token_ctx = set_db(mock_session)
+        try:
+            result = await get_user_by_username("nonexistent_user")
+            assert result is None
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_user_by_username_empty_string(self):
@@ -227,9 +225,12 @@ class TestGetUserByUsername:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        result = await get_user_by_username(mock_session, "")
-
-        assert result is None
+        token_ctx = set_db(mock_session)
+        try:
+            result = await get_user_by_username("")
+            assert result is None
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_user_by_username_database_error(self):
@@ -237,8 +238,12 @@ class TestGetUserByUsername:
         mock_session = AsyncMock(spec=AsyncSession)
         mock_session.execute.side_effect = Exception("Database error")
 
-        with pytest.raises(Exception):
-            await get_user_by_username(mock_session, "testuser")
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(Exception):
+                await get_user_by_username("testuser")
+        finally:
+            reset_db(token_ctx)
 
 
 class TestGetCurrentAdminUser:
@@ -248,7 +253,6 @@ class TestGetCurrentAdminUser:
     async def test_get_current_admin_user_success(self, sample_user: User):
         """Test successful admin user retrieval."""
         result = await get_current_admin_user(sample_user)
-
         assert result == sample_user
         assert result.username == sample_user.username
 
@@ -256,23 +260,17 @@ class TestGetCurrentAdminUser:
     async def test_get_current_admin_user_with_admin(self, sample_admin_user: User):
         """Test admin user retrieval with admin user."""
         result = await get_current_admin_user(sample_admin_user)
-
         assert result == sample_admin_user
-        assert result.username == "adminuser"  # From conftest fixture
+        assert result.username == "adminuser"
 
-    # Future test for when admin role checking is implemented
     @pytest.mark.asyncio
     async def test_get_current_admin_user_non_admin_future(self):
         """Test admin user retrieval with non-admin user (future implementation)."""
         mock_user = Mock(spec=User)
         mock_user.username = "regularuser"
         mock_user.is_admin = False
-
-        # Currently this should pass, but in future should raise exception
         result = await get_current_admin_user(mock_user)
         assert result == mock_user
-
-        # TODO: When is_admin is implemented, this should raise HTTPException
 
 
 class TestSecurityScheme:
@@ -286,7 +284,6 @@ class TestSecurityScheme:
 
     def test_security_scheme_configuration(self):
         """Test security scheme configuration."""
-        # HTTPBearer should be configured with default settings
         assert security.scheme_name == "HTTPBearer"
 
 
@@ -296,39 +293,40 @@ class TestDependencyIntegration:
     @pytest.mark.asyncio
     async def test_dependency_chain(self, sample_user: User):
         """Test the full dependency chain from token to active user."""
-        # Create valid token
         token_data = {"sub": sample_user.username}
         token = create_access_token(token_data)
-
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
-        # Mock async session
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = sample_user
         mock_session.execute.return_value = mock_result
 
-        # Test the full chain
-        current_user = await get_current_user(credentials, mock_session)
-        active_user = await get_current_active_user(current_user)
-        admin_user = await get_current_admin_user(active_user)
-
-        assert current_user == sample_user
-        assert active_user == sample_user
-        assert admin_user == sample_user
+        token_ctx = set_db(mock_session)
+        try:
+            current_user = await get_current_user(credentials)
+            active_user = await get_current_active_user(current_user)
+            admin_user = await get_current_admin_user(active_user)
+            assert current_user == sample_user
+            assert active_user == sample_user
+            assert admin_user == sample_user
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_dependency_propagated_failure(self):
         """Test that failures propagate through dependency chain."""
-        # Invalid credentials should fail at get_current_user
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid.token")
         mock_session = AsyncMock(spec=AsyncSession)
 
-        with pytest.raises(HTTPException):
-            current_user = await get_current_user(credentials, mock_session)
-            # These should not be reached due to exception above
-            await get_current_active_user(current_user)
-            await get_current_admin_user(current_user)
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(HTTPException):
+                current_user = await get_current_user(credentials)
+                await get_current_active_user(current_user)
+                await get_current_admin_user(current_user)
+        finally:
+            reset_db(token_ctx)
 
 
 class TestDependencyErrorHandling:
@@ -340,33 +338,31 @@ class TestDependencyErrorHandling:
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid.token")
         mock_session = AsyncMock(spec=AsyncSession)
 
-        with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(credentials, mock_session)
-
-        # Verify exception details are preserved
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-        assert "WWW-Authenticate" in exc_info.value.headers
-        assert exc_info.value.headers["WWW-Authenticate"] == "Bearer"
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_user(credentials)
+            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            assert "WWW-Authenticate" in exc_info.value.headers
+            assert exc_info.value.headers["WWW-Authenticate"] == "Bearer"
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_database_session_handling(self):
         """Test proper handling of database session errors."""
-        # Create a valid token first
-        from app.auth.auth import create_access_token
-
         token = create_access_token({"sub": "testuser"})
-
         mock_session = AsyncMock(spec=AsyncSession)
         mock_session.execute.side_effect = Exception("Database unavailable")
-
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
-        # Should propagate database errors after token validation
-        with pytest.raises(Exception) as exc_info:
-            await get_current_user(credentials, mock_session)
-
-        # The error might be wrapped or transformed
-        assert exc_info.value is not None
+        token_ctx = set_db(mock_session)
+        try:
+            with pytest.raises(Exception) as exc_info:
+                await get_current_user(credentials)
+            assert exc_info.value is not None
+        finally:
+            reset_db(token_ctx)
 
 
 class TestOIDCUserCreationRaceCondition:
@@ -375,17 +371,11 @@ class TestOIDCUserCreationRaceCondition:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_race_condition_recovery(self, test_db_session: Session):
-        """Test that race condition during OIDC user creation is handled properly.
-
-        Scenario: Two concurrent requests both try to create the same OIDC user.
-        One succeeds, the other gets IntegrityError and should recover by fetching
-        the already-created user.
-        """
+        """Test that race condition during OIDC user creation is handled properly."""
         oidc_sub = "race-condition-test-user"
         oidc_username = "raceuser"
         oidc_email = "race@test.com"
 
-        # First, create a user that simulates having been created by a concurrent request
         existing_user = User(
             username=oidc_username,
             email=oidc_email,
@@ -397,7 +387,6 @@ class TestOIDCUserCreationRaceCondition:
         test_db_session.commit()
         test_db_session.refresh(existing_user)
 
-        # Mock OIDC validation to return user info for this user
         mock_oidc_claims = {
             "sub": oidc_sub,
             "preferred_username": oidc_username,
@@ -409,13 +398,10 @@ class TestOIDCUserCreationRaceCondition:
             "email": oidc_email,
         }
 
-        # Now test the recovery path by simulating what happens when we try to
-        # create a user that already exists (IntegrityError followed by lookup)
         with patch("app.auth.dependencies.oidc_validator") as mock_validator:
             mock_validator.validate_oidc_token = AsyncMock(return_value=mock_oidc_claims)
             mock_validator.extract_user_info.return_value = mock_user_info
 
-            # Mock async session that returns the user
             mock_session = AsyncMock(spec=AsyncSession)
             mock_result = Mock()
             mock_result.scalar_one_or_none.return_value = existing_user
@@ -423,24 +409,24 @@ class TestOIDCUserCreationRaceCondition:
 
             credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="mock-oidc-token")
 
-            # Since local JWT will fail, it will try OIDC, find the user by oidc_sub
             with patch("app.auth.dependencies.verify_token") as mock_verify:
                 mock_verify.side_effect = HTTPException(status_code=401, detail="Invalid local token")
 
-                result = await get_current_user(credentials, mock_session)
-
-                # Should find the existing user
-                assert result.oidc_sub == oidc_sub
-                assert result.username == oidc_username
+                token_ctx = set_db(mock_session)
+                try:
+                    result = await get_current_user(credentials)
+                    assert result.oidc_sub == oidc_sub
+                    assert result.username == oidc_username
+                finally:
+                    reset_db(token_ctx)
 
 
 class TestGetUserByOidcSub:
-    """Test get_user_by_oidc_sub helper function (now async)."""
+    """Test get_user_by_oidc_sub helper function."""
 
     @pytest.mark.asyncio
     async def test_get_user_by_oidc_sub_success(self):
         """Test successful user retrieval by OIDC subject."""
-        # Create a mock OIDC user
         oidc_user = Mock(spec=User)
         oidc_user.username = "oidcuser"
         oidc_user.oidc_sub = "test-oidc-sub-123"
@@ -450,11 +436,14 @@ class TestGetUserByOidcSub:
         mock_result.scalar_one_or_none.return_value = oidc_user
         mock_session.execute.return_value = mock_result
 
-        result = await get_user_by_oidc_sub(mock_session, "test-oidc-sub-123")
-
-        assert result is not None
-        assert result.oidc_sub == "test-oidc-sub-123"
-        assert result.username == "oidcuser"
+        token_ctx = set_db(mock_session)
+        try:
+            result = await get_user_by_oidc_sub("test-oidc-sub-123")
+            assert result is not None
+            assert result.oidc_sub == "test-oidc-sub-123"
+            assert result.username == "oidcuser"
+        finally:
+            reset_db(token_ctx)
 
     @pytest.mark.asyncio
     async def test_get_user_by_oidc_sub_not_found(self):
@@ -464,6 +453,9 @@ class TestGetUserByOidcSub:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        result = await get_user_by_oidc_sub(mock_session, "nonexistent-sub")
-
-        assert result is None
+        token_ctx = set_db(mock_session)
+        try:
+            result = await get_user_by_oidc_sub("nonexistent-sub")
+            assert result is None
+        finally:
+            reset_db(token_ctx)

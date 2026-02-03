@@ -29,6 +29,12 @@ from app.services.note_service import (
     UpdateNoteInput,
     note_service,
 )
+from app.services.settings_service import (
+    AccountDeletionError,
+    PasswordChangeError,
+    SettingsService,
+    settings_service,
+)
 
 __all__ = [
     # Auth service
@@ -48,4 +54,9 @@ __all__ = [
     "NoteServiceError",
     "CreateNoteInput",
     "UpdateNoteInput",
+    # Settings service
+    "SettingsService",
+    "settings_service",
+    "PasswordChangeError",
+    "AccountDeletionError",
 ]

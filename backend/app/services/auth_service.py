@@ -84,6 +84,47 @@ class AuthService:
         result = await db.execute(select(User).filter(User.username == username))
         return result.scalar_one_or_none()
 
+    async def get_user_by_oidc_sub(self, oidc_sub: str) -> User | None:
+        """
+        Retrieve a user by their OIDC subject claim.
+
+        Args:
+            oidc_sub: The OIDC subject identifier.
+
+        Returns:
+            User object if found, None otherwise.
+        """
+        db = get_db()
+        result = await db.execute(select(User).filter(User.oidc_sub == oidc_sub))
+        return result.scalar_one_or_none()
+
+    async def create_oidc_user(self, user_info: dict) -> User:
+        """
+        Create a new OIDC user.
+
+        Args:
+            user_info: Dictionary with 'oidc_sub', 'username', and optional 'email'.
+
+        Returns:
+            The created User object.
+
+        Note:
+            Uses flush() not commit() - middleware handles transaction.
+            Caller should handle IntegrityError for race conditions.
+        """
+        db = get_db()
+        user = User(
+            username=user_info["username"],
+            email=user_info.get("email"),
+            oidc_sub=user_info["oidc_sub"],
+            auth_provider="oidc",
+            password_hash=None,
+        )
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+        return user
+
     def _create_tokens(self, username: str) -> TokenResult:
         """
         Create access and refresh tokens for a user.

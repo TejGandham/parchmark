@@ -7,23 +7,25 @@ Supports both local and OIDC authentication providers.
 import json
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from stream_zip import ZIP_32, stream_zip
 
-from app.auth.auth import get_password_hash, verify_password
+from app.auth.auth import verify_password
 from app.auth.dependencies import get_current_user
-from app.database.database import get_async_db
-from app.models.models import Note, User
+from app.models.models import User
 from app.schemas.schemas import (
     AccountDeleteRequest,
     MessageResponse,
     PasswordChangeRequest,
     UserInfoResponse,
+)
+from app.services.settings_service import (
+    AccountDeletionError,
+    PasswordChangeError,
+    settings_service,
 )
 
 # Batch size for streaming notes from database
@@ -36,7 +38,6 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 @router.get("/user-info", response_model=UserInfoResponse)
 async def get_user_info(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get detailed user information including account creation date and note count.
@@ -46,13 +47,11 @@ async def get_user_info(
 
     Args:
         current_user: Current authenticated user from JWT token
-        db: Async database session dependency
 
     Returns:
         UserInfoResponse: User information with statistics and auth provider
     """
-    result = await db.execute(select(func.count()).select_from(Note).filter(Note.user_id == current_user.id))
-    notes_count = result.scalar() or 0
+    notes_count = await settings_service.get_user_note_count(cast(int, current_user.id))
 
     return UserInfoResponse(
         username=current_user.username,  # type: ignore[arg-type]
@@ -67,7 +66,6 @@ async def get_user_info(
 async def change_password(
     request: PasswordChangeRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Change user password after verifying current password.
@@ -78,7 +76,6 @@ async def change_password(
     Args:
         request: Password change request with current and new passwords
         current_user: Current authenticated user from JWT token
-        db: Async database session dependency
 
     Returns:
         MessageResponse: Confirmation message
@@ -88,32 +85,17 @@ async def change_password(
         HTTPException: 401 if current password is incorrect
         HTTPException: 400 if new password is same as current
     """
-    # Check if user can change password (local auth only)
-    if current_user.auth_provider != "local" or current_user.password_hash is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password change is not available for OIDC accounts. Please change your password through your identity provider.",
-        )
-
-    # Verify current password
-    if not verify_password(request.current_password, current_user.password_hash):  # type: ignore[arg-type]
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Current password is incorrect",
-        )
-
-    # Check if new password is different
-    if verify_password(request.new_password, current_user.password_hash):  # type: ignore[arg-type]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be different from current password",
-        )
-
-    # Update password
-    current_user.password_hash = get_password_hash(request.new_password)  # type: ignore[assignment]
-    await db.commit()
-
-    return MessageResponse(message="Password changed successfully")
+    try:
+        await settings_service.change_user_password(current_user, request.current_password, request.new_password)
+        return MessageResponse(message="Password changed successfully")
+    except PasswordChangeError as e:
+        # Map specific error messages to status codes
+        if "OIDC" in str(e):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from None
+        elif "incorrect" in str(e).lower():
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from None
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from None
 
 
 def _sanitize_filename(title: str, used_filenames: set[str]) -> str:
@@ -139,49 +121,6 @@ def _sanitize_filename(title: str, used_filenames: set[str]) -> str:
     used_filenames.add(filename)
 
     return filename
-
-
-async def _collect_notes_for_export(
-    db: AsyncSession, user_id: int
-) -> tuple[list[tuple[str, str]], list[dict[str, Any]]]:
-    """Collect all notes for a user, preparing filenames and metadata.
-
-    This fetches notes in batches to avoid loading everything at once,
-    but collects all data needed for the ZIP generation.
-
-    Args:
-        db: Async database session
-        user_id: The user's ID
-
-    Returns:
-        Tuple of (list of (filename, content) pairs, list of metadata dicts)
-    """
-    used_filenames: set[str] = set()
-    note_files: list[tuple[str, str]] = []
-    notes_metadata: list[dict[str, Any]] = []
-
-    # Stream notes in batches to reduce memory pressure during fetch
-    result = await db.stream(
-        select(Note).filter(Note.user_id == user_id).execution_options(yield_per=EXPORT_BATCH_SIZE)
-    )
-
-    async for note in result.scalars():
-        # Prepare file entry
-        filename = _sanitize_filename(str(note.title), used_filenames)
-        note_files.append((filename, str(note.content)))
-
-        # Prepare metadata entry
-        notes_metadata.append(
-            {
-                "id": note.id,
-                "title": note.title,
-                "content": note.content,
-                "createdAt": note.created_at.isoformat(),
-                "updatedAt": note.updated_at.isoformat(),
-            }
-        )
-
-    return note_files, notes_metadata
 
 
 def _generate_zip_entries(
@@ -214,7 +153,6 @@ def _generate_zip_entries(
 @router.get("/export-notes")
 async def export_notes(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Export all user notes as a ZIP archive with markdown files and metadata.
@@ -228,13 +166,12 @@ async def export_notes(
 
     Args:
         current_user: Current authenticated user from JWT token
-        db: Async database session dependency
 
     Returns:
         StreamingResponse: Streamed ZIP file download with all notes
     """
     # Collect notes data (streamed from DB in batches)
-    note_files, notes_metadata = await _collect_notes_for_export(db, current_user.id)  # type: ignore[arg-type]
+    note_files, notes_metadata = await settings_service.collect_notes_for_export(cast(int, current_user.id))
 
     # Generate filename with timestamp
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -258,7 +195,6 @@ async def export_notes(
 async def delete_account(
     request: AccountDeleteRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete user account and all associated notes after password verification.
@@ -274,7 +210,6 @@ async def delete_account(
     Args:
         request: Account deletion request with password confirmation
         current_user: Current authenticated user from JWT token
-        db: Async database session dependency
 
     Returns:
         MessageResponse: Confirmation message
@@ -296,13 +231,9 @@ async def delete_account(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Password is incorrect",
             )
-    # For OIDC users without password, the request body password acts as confirmation
-    # (frontend should require typing "DELETE" or similar)
 
-    username = current_user.username
-
-    # Delete user (notes will cascade delete due to relationship)
-    await db.delete(current_user)
-    await db.commit()
-
-    return MessageResponse(message=f"Account '{username}' deleted successfully")
+    try:
+        username = await settings_service.delete_user_account(current_user)
+        return MessageResponse(message=f"Account '{username}' deleted successfully")
+    except AccountDeletionError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from None
