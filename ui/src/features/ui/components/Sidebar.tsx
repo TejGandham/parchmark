@@ -76,10 +76,10 @@ const Sidebar = ({ notes, currentNoteId, isLoading = false }: SidebarProps) => {
 
   const groupedNotes = React.useMemo(() => {
     if (notesGroupByDate) {
-      return groupNotesByDate(processedNotes);
+      return groupNotesByDate(processedNotes, notesSortDirection);
     }
     return null;
-  }, [processedNotes, notesGroupByDate]);
+  }, [processedNotes, notesGroupByDate, notesSortDirection]);
 
   const currentSortLabel =
     sortOptions.find((opt) => opt.value === notesSortBy)?.label ||

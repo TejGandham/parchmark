@@ -161,6 +161,44 @@ describe('dateGrouping utilities', () => {
         'Note C',
       ]);
     });
+
+    it('should reverse group order when direction is ascending', () => {
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const twoWeeksAgo = new Date(now);
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const notes: Note[] = [
+        createNote('1', 'Today Note', now.toISOString()),
+        createNote('2', 'Yesterday Note', yesterday.toISOString()),
+        createNote('3', 'This Month Note', twoWeeksAgo.toISOString()),
+      ];
+
+      const groupedAsc = groupNotesByDate(notes, 'asc');
+
+      // Ascending: oldest groups first
+      expect(groupedAsc[0].group).toBe('This Month');
+      expect(groupedAsc[groupedAsc.length - 1].group).toBe('Today');
+    });
+
+    it('should default to descending group order (newest first)', () => {
+      const now = new Date();
+      const twoWeeksAgo = new Date(now);
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const notes: Note[] = [
+        createNote('1', 'Today Note', now.toISOString()),
+        createNote('2', 'This Month Note', twoWeeksAgo.toISOString()),
+      ];
+
+      const groupedDefault = groupNotesByDate(notes);
+      const groupedDesc = groupNotesByDate(notes, 'desc');
+
+      // Default and explicit desc should both be newest first
+      expect(groupedDefault[0].group).toBe('Today');
+      expect(groupedDesc[0].group).toBe('Today');
+    });
   });
 
   describe('sortNotes', () => {
