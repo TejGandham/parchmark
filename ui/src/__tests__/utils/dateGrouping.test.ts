@@ -72,13 +72,13 @@ describe('dateGrouping utilities', () => {
     const createNote = (
       id: string,
       title: string,
-      updated_at: string
+      updatedAt: string
     ): Note => ({
       id,
       title,
       content: `# ${title}\n\nContent`,
-      created_at: updated_at,
-      updated_at,
+      createdAt: updatedAt,
+      updatedAt,
     });
 
     it('should group notes by date categories', () => {
@@ -205,18 +205,18 @@ describe('dateGrouping utilities', () => {
     const createNote = (
       id: string,
       title: string,
-      created_at: string,
-      updated_at: string
+      createdAt: string,
+      updatedAt: string
     ): Note => ({
       id,
       title,
       content: `# ${title}\n\nContent`,
-      created_at,
-      updated_at,
+      createdAt,
+      updatedAt,
     });
 
     describe('lastModified sorting', () => {
-      it('should sort by updated_at descending (newest first)', () => {
+      it('should sort by updatedAt descending (newest first)', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -243,7 +243,7 @@ describe('dateGrouping utilities', () => {
         expect(sorted.map((n) => n.title)).toEqual(['New', 'Medium', 'Old']);
       });
 
-      it('should handle same updated_at timestamps', () => {
+      it('should handle same updatedAt timestamps', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -351,7 +351,7 @@ describe('dateGrouping utilities', () => {
     });
 
     describe('createdDate sorting', () => {
-      it('should sort by created_at descending (newest first)', () => {
+      it('should sort by createdAt descending (newest first)', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -378,7 +378,7 @@ describe('dateGrouping utilities', () => {
         expect(sorted.map((n) => n.title)).toEqual(['New', 'Medium', 'Old']);
       });
 
-      it('should handle same created_at timestamps', () => {
+      it('should handle same createdAt timestamps', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -598,8 +598,8 @@ describe('dateGrouping utilities', () => {
       id,
       title,
       content,
-      created_at: '2024-01-01T10:00:00.000Z',
-      updated_at: '2024-01-01T10:00:00.000Z',
+      createdAt: '2024-01-01T10:00:00.000Z',
+      updatedAt: '2024-01-01T10:00:00.000Z',
     });
 
     it('should return all notes when search query is empty', () => {

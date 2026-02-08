@@ -71,7 +71,7 @@ export const groupNotesByDate = (
     direction === 'asc' ? [...newestFirst].reverse() : newestFirst;
 
   notes.forEach((note) => {
-    const group = getDateGroup(new Date(note.updated_at));
+    const group = getDateGroup(new Date(note.updatedAt));
     const existingNotes = groups.get(group) ?? [];
     groups.set(group, [...existingNotes, note]);
   });
@@ -107,7 +107,7 @@ export const sortNotes = (
       return sorted.sort(
         (a, b) =>
           dir *
-          (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
+          (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime())
       );
     case 'alphabetical':
       return sorted.sort(
@@ -119,7 +119,7 @@ export const sortNotes = (
       return sorted.sort(
         (a, b) =>
           dir *
-          (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       );
     default:
       return sorted;
