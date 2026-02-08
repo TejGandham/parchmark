@@ -2,16 +2,18 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
 import { STORAGE_KEYS } from '../../../config/storage';
-import { SortOption } from '../../../utils/dateGrouping';
+import { SortOption, SortDirection } from '../../../utils/dateGrouping';
 
 export type UIState = {
   isSidebarOpen: boolean;
   notesSortBy: SortOption;
+  notesSortDirection: SortDirection;
   notesSearchQuery: string;
   notesGroupByDate: boolean;
   actions: {
     toggleSidebar: () => void;
     setNotesSortBy: (sortBy: SortOption) => void;
+    toggleNotesSortDirection: () => void;
     setNotesSearchQuery: (query: string) => void;
     setNotesGroupByDate: (enabled: boolean) => void;
   };
@@ -32,6 +34,13 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
     });
   };
 
+  const toggleNotesSortDirection = () => {
+    set((state: UIState) => {
+      state.notesSortDirection =
+        state.notesSortDirection === 'desc' ? 'asc' : 'desc';
+    });
+  };
+
   const setNotesSearchQuery = (query: string) => {
     set((state: UIState) => {
       state.notesSearchQuery = query;
@@ -47,6 +56,7 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
   return {
     toggleSidebar,
     setNotesSortBy,
+    toggleNotesSortDirection,
     setNotesSearchQuery,
     setNotesGroupByDate,
   };
@@ -61,6 +71,7 @@ export const useUIStore = create<UIState>()(
       return {
         isSidebarOpen: true,
         notesSortBy: 'lastModified' as SortOption,
+        notesSortDirection: 'desc' as SortDirection,
         notesSearchQuery: '',
         notesGroupByDate: true,
         actions,

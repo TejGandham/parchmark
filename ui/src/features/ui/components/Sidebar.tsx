@@ -33,6 +33,7 @@ import {
   groupNotesByDate,
   SortOption,
 } from '../../../utils/dateGrouping';
+import { TriangleDownIcon, TriangleUpIcon } from '@chakra-ui/icons';
 import { useUIStore } from '../store';
 
 interface SidebarProps {
@@ -60,18 +61,18 @@ const Sidebar = ({ notes, currentNoteId, isLoading = false }: SidebarProps) => {
   const fetcher = useFetcher();
 
   const notesSortBy = useUIStore((state) => state.notesSortBy);
+  const notesSortDirection = useUIStore((state) => state.notesSortDirection);
   const notesSearchQuery = useUIStore((state) => state.notesSearchQuery);
   const notesGroupByDate = useUIStore((state) => state.notesGroupByDate);
-  const { setNotesSortBy, setNotesSearchQuery } = useUIStore(
-    (state) => state.actions
-  );
+  const { setNotesSortBy, toggleNotesSortDirection, setNotesSearchQuery } =
+    useUIStore((state) => state.actions);
 
   // Process notes: filter, sort, and group
   const processedNotes = React.useMemo(() => {
     let result = filterNotes(notes, notesSearchQuery);
-    result = sortNotes(result, notesSortBy);
+    result = sortNotes(result, notesSortBy, notesSortDirection);
     return result;
-  }, [notes, notesSearchQuery, notesSortBy]);
+  }, [notes, notesSearchQuery, notesSortBy, notesSortDirection]);
 
   const groupedNotes = React.useMemo(() => {
     if (notesGroupByDate) {
@@ -83,6 +84,17 @@ const Sidebar = ({ notes, currentNoteId, isLoading = false }: SidebarProps) => {
   const currentSortLabel =
     sortOptions.find((opt) => opt.value === notesSortBy)?.label ||
     'Last Modified';
+
+  const handleSortOptionClick = useCallback(
+    (value: SortOption) => {
+      if (value === notesSortBy) {
+        toggleNotesSortDirection();
+      } else {
+        setNotesSortBy(value);
+      }
+    },
+    [notesSortBy, setNotesSortBy, toggleNotesSortDirection]
+  );
 
   // Stable callbacks for NoteItem to enable memoization
   const handleSelectNote = useCallback(
@@ -190,20 +202,37 @@ const Sidebar = ({ notes, currentNoteId, isLoading = false }: SidebarProps) => {
             {currentSortLabel}
           </MenuButton>
           <MenuList fontSize="sm">
-            {sortOptions.map((option) => (
-              <MenuItem
-                key={option.value}
-                onClick={() => setNotesSortBy(option.value)}
-                fontWeight={
-                  notesSortBy === option.value ? 'semibold' : 'normal'
-                }
-                color={
-                  notesSortBy === option.value ? 'primary.600' : 'text.primary'
-                }
-              >
-                {option.label}
-              </MenuItem>
-            ))}
+            {sortOptions.map((option) => {
+              const isActive = notesSortBy === option.value;
+              return (
+                <MenuItem
+                  key={option.value}
+                  onClick={() => handleSortOptionClick(option.value)}
+                  fontWeight={isActive ? 'semibold' : 'normal'}
+                  color={isActive ? 'primary.600' : 'text.primary'}
+                >
+                  <Flex justify="space-between" align="center" width="100%">
+                    <Text>{option.label}</Text>
+                    {isActive && (
+                      <Icon
+                        as={
+                          notesSortDirection === 'asc'
+                            ? TriangleUpIcon
+                            : TriangleDownIcon
+                        }
+                        boxSize={3}
+                        color="primary.600"
+                        aria-label={
+                          notesSortDirection === 'asc'
+                            ? 'Ascending'
+                            : 'Descending'
+                        }
+                      />
+                    )}
+                  </Flex>
+                </MenuItem>
+              );
+            })}
           </MenuList>
         </Menu>
       </Box>

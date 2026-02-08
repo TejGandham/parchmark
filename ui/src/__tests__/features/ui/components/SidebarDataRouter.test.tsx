@@ -20,10 +20,12 @@ vi.mock('../../../../features/ui/store', () => ({
   useUIStore: vi.fn((selector) => {
     const state = {
       notesSortBy: 'lastModified' as const,
+      notesSortDirection: 'desc' as const,
       notesSearchQuery: '',
       notesGroupByDate: false,
       actions: {
         setNotesSortBy: vi.fn(),
+        toggleNotesSortDirection: vi.fn(),
         setNotesSearchQuery: vi.fn(),
         setNotesGroupByDate: vi.fn(),
       },

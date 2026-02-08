@@ -89,24 +89,34 @@ export const groupNotesByDate = (notes: Note[]): GroupedNotes[] => {
  * Sort notes by different criteria
  */
 export type SortOption = 'lastModified' | 'alphabetical' | 'createdDate';
+export type SortDirection = 'asc' | 'desc';
 
-export const sortNotes = (notes: Note[], sortBy: SortOption): Note[] => {
+export const sortNotes = (
+  notes: Note[],
+  sortBy: SortOption,
+  direction: SortDirection = 'desc'
+): Note[] => {
   const sorted = [...notes];
+  const dir = direction === 'asc' ? 1 : -1;
 
   switch (sortBy) {
     case 'lastModified':
       return sorted.sort(
         (a, b) =>
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          dir *
+          (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
       );
     case 'alphabetical':
-      return sorted.sort((a, b) =>
-        a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+      return sorted.sort(
+        (a, b) =>
+          dir *
+          a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
       );
     case 'createdDate':
       return sorted.sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          dir *
+          (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       );
     default:
       return sorted;
