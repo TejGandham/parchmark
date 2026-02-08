@@ -52,6 +52,22 @@ vi.mock('../../../../features/notes/components/NoteActions', () => ({
   ),
 }));
 
+vi.mock('../../../../features/notes/components/NoteMetadata', () => ({
+  default: ({
+    createdAt,
+    updatedAt,
+  }: {
+    createdAt: string;
+    updatedAt: string;
+  }) => (
+    <div
+      data-testid="note-metadata"
+      data-created={createdAt}
+      data-updated={updatedAt}
+    />
+  ),
+}));
+
 // Mock markdown service
 vi.mock('../../../../services/markdownService', () => ({
   extractTitleFromMarkdown: (content: string) => {
@@ -83,6 +99,8 @@ const mockNotes = [
     content: '# First Note\n\nThis is the content.',
     created_at: '2026-01-29T10:00:00Z',
     updated_at: '2026-01-29T10:00:00Z',
+    createdAt: '2026-01-29T10:00:00Z',
+    updatedAt: '2026-01-29T10:00:00Z',
   },
   {
     id: 'note-2',
@@ -90,6 +108,8 @@ const mockNotes = [
     content: '# Second Note\n\nMore content here.',
     created_at: '2026-01-29T09:00:00Z',
     updated_at: '2026-01-29T09:00:00Z',
+    createdAt: '2026-01-29T09:00:00Z',
+    updatedAt: '2026-01-29T09:00:00Z',
   },
 ];
 
@@ -174,6 +194,16 @@ describe('NoteContent with Data Router', () => {
       expect(editButton).not.toBeDisabled();
     });
 
+    it('renders NoteMetadata in view mode with the selected note dates', () => {
+      setupMocks({ noteId: 'note-1' });
+      renderComponent();
+
+      const metadata = screen.getByTestId('note-metadata');
+      expect(metadata).toBeInTheDocument();
+      expect(metadata).toHaveAttribute('data-created', '2026-01-29T10:00:00Z');
+      expect(metadata).toHaveAttribute('data-updated', '2026-01-29T10:00:00Z');
+    });
+
     it('calls startEditing when edit button clicked', () => {
       setupMocks({ noteId: 'note-1' });
       renderComponent();
@@ -207,6 +237,17 @@ describe('NoteContent with Data Router', () => {
       renderComponent();
       const saveButton = screen.getByTestId('save-button');
       expect(saveButton).not.toBeDisabled();
+    });
+
+    it('does not render NoteMetadata in edit mode', () => {
+      setupMocks({
+        noteId: 'note-1',
+        isEditing: true,
+        editedContent: '# First Note\n\nThis is the content.',
+      });
+      renderComponent();
+
+      expect(screen.queryByTestId('note-metadata')).not.toBeInTheDocument();
     });
 
     it('updates content when textarea changes', () => {

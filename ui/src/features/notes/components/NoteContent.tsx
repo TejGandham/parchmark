@@ -24,6 +24,7 @@ import {
   removeH1FromContent,
 } from '../../../services/markdownService';
 import NoteActions from './NoteActions';
+import NoteMetadata from './NoteMetadata';
 import '../styles/notes.css';
 import '../styles/markdown.css';
 import ReactMarkdown from 'react-markdown';
@@ -272,6 +273,13 @@ const NoteContent = () => {
           isSaving={isSaving}
         />
       </Flex>
+
+      {!isEditing && (
+        <NoteMetadata
+          createdAt={currentNote.createdAt}
+          updatedAt={currentNote.updatedAt}
+        />
+      )}
 
       {/* Content area */}
       <Box mt={4}>

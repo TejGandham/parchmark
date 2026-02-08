@@ -1,9 +1,13 @@
-import { vi } from 'vitest';
-import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TestProvider } from '../../../__mocks__/testUtils';
 import NoteItem from '../../../../features/notes/components/NoteItem';
 import { List } from '@chakra-ui/react';
+import { formatRelativeDate } from '../../../../utils/dateFormatting';
+
+vi.mock('../../../../utils/dateFormatting', () => ({
+  formatRelativeDate: vi.fn(),
+}));
 
 describe('NoteItem Component', () => {
   const defaultProps = {
@@ -21,6 +25,7 @@ describe('NoteItem Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(formatRelativeDate).mockReturnValue('Jan 1, 2023');
   });
 
   const renderComponent = (props = {}) => {
@@ -37,6 +42,14 @@ describe('NoteItem Component', () => {
     renderComponent();
 
     expect(screen.getByText('Test Note')).toBeInTheDocument();
+  });
+
+  it('should render relative date text from formatRelativeDate', () => {
+    vi.mocked(formatRelativeDate).mockReturnValue('updated recently');
+    renderComponent();
+
+    expect(screen.getByText('updated recently')).toBeInTheDocument();
+    expect(formatRelativeDate).toHaveBeenCalledWith('2023-01-01T00:00:00.000Z');
   });
 
   it('should call onSelect when clicked', () => {
