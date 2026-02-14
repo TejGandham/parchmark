@@ -91,9 +91,13 @@ async def get_current_user(
         # Local JWT failed, log reason and try OIDC fallback
         logger.debug(f"Local JWT validation failed (will try OIDC): status={e.status_code}, detail={e.detail}")
 
-    # Try OIDC validation
+    # Try OIDC validation (supports both JWT and opaque access tokens)
     try:
-        oidc_claims = await oidc_validator.validate_oidc_token(token)
+        if oidc_validator.is_opaque_token(token):
+            logger.debug("Opaque token detected, validating via userinfo endpoint")
+            oidc_claims = await oidc_validator.validate_opaque_token(token)
+        else:
+            oidc_claims = await oidc_validator.validate_oidc_token(token)
         user_info = oidc_validator.extract_user_info(oidc_claims)
 
         # Validate required OIDC claims
@@ -154,7 +158,7 @@ async def get_current_user(
             )
             raise credentials_exception
 
-    except (JWTError, httpx.TimeoutException, httpx.HTTPError) as e:
+    except (JWTError, httpx.TimeoutException, httpx.HTTPError, ValueError) as e:
         # Expected OIDC validation failures - log at debug level
         logger.debug(f"OIDC token validation failed (expected): {type(e).__name__}: {e}")
     except IntegrityError as e:

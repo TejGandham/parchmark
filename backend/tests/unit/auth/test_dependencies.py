@@ -369,6 +369,95 @@ class TestDependencyErrorHandling:
         assert exc_info.value is not None
 
 
+class TestOIDCOpaqueTokenValidation:
+    """Test opaque token validation flow through get_current_user."""
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_with_opaque_token_existing_user(self):
+        """Test get_current_user resolves an existing OIDC user via opaque token."""
+        existing_user = Mock(spec=User)
+        existing_user.username = "oidcuser"
+        existing_user.oidc_sub = "authelia-sub-opaque-123"
+        existing_user.auth_provider = "oidc"
+
+        mock_oidc_claims = {
+            "sub": "authelia-sub-opaque-123",
+            "preferred_username": "oidcuser",
+            "email": "oidc@example.com",
+        }
+        mock_user_info = {
+            "oidc_sub": "authelia-sub-opaque-123",
+            "username": "oidcuser",
+            "email": "oidc@example.com",
+        }
+
+        with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+            mock_validator.is_opaque_token.return_value = True
+            mock_validator.validate_opaque_token = AsyncMock(return_value=mock_oidc_claims)
+            mock_validator.extract_user_info.return_value = mock_user_info
+
+            mock_session = AsyncMock(spec=AsyncSession)
+            mock_result = Mock()
+            mock_result.scalar_one_or_none.return_value = existing_user
+            mock_session.execute.return_value = mock_result
+
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="authelia_at_opaque_token")
+
+            with patch("app.auth.dependencies.verify_token") as mock_verify:
+                mock_verify.side_effect = HTTPException(status_code=401, detail="Invalid local token")
+
+                result = await get_current_user(credentials, mock_session)
+
+                assert result.username == "oidcuser"
+                assert result.oidc_sub == "authelia-sub-opaque-123"
+                mock_validator.is_opaque_token.assert_called_once_with("authelia_at_opaque_token")
+                mock_validator.validate_opaque_token.assert_called_once_with("authelia_at_opaque_token")
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_with_opaque_token_new_user(self):
+        """Test get_current_user auto-creates a new OIDC user via opaque token."""
+        new_user = Mock(spec=User)
+        new_user.username = "newoidcuser"
+        new_user.oidc_sub = "authelia-sub-opaque-new"
+        new_user.auth_provider = "oidc"
+        new_user.email = "new@example.com"
+
+        mock_oidc_claims = {
+            "sub": "authelia-sub-opaque-new",
+            "preferred_username": "newoidcuser",
+            "email": "new@example.com",
+        }
+        mock_user_info = {
+            "oidc_sub": "authelia-sub-opaque-new",
+            "username": "newoidcuser",
+            "email": "new@example.com",
+        }
+
+        with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+            mock_validator.is_opaque_token.return_value = True
+            mock_validator.validate_opaque_token = AsyncMock(return_value=mock_oidc_claims)
+            mock_validator.extract_user_info.return_value = mock_user_info
+
+            # First call returns None (user not found), subsequent calls return created user
+            mock_session = AsyncMock(spec=AsyncSession)
+            mock_result_none = Mock()
+            mock_result_none.scalar_one_or_none.return_value = None
+            mock_session.execute.return_value = mock_result_none
+
+            credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="authelia_at_opaque_token")
+
+            with patch("app.auth.dependencies.verify_token") as mock_verify:
+                mock_verify.side_effect = HTTPException(status_code=401, detail="Invalid local token")
+                with patch("app.auth.dependencies._create_oidc_user", new_callable=AsyncMock) as mock_create:
+                    mock_create.return_value = new_user
+
+                    result = await get_current_user(credentials, mock_session)
+
+                    assert result.username == "newoidcuser"
+                    assert result.oidc_sub == "authelia-sub-opaque-new"
+                    mock_create.assert_called_once_with(mock_session, mock_user_info)
+
+
 class TestOIDCUserCreationRaceCondition:
     """Test race condition handling in OIDC user creation."""
 

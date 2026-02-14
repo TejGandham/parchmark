@@ -7,6 +7,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
 import pytest
 
 from app.auth.oidc_validator import OIDCValidator
@@ -266,6 +267,123 @@ async def test_validate_oidc_token_invalid_kid(oidc_validator):
 
             with pytest.raises(JWTError, match="not found in JWKS"):
                 await oidc_validator.validate_oidc_token("invalid_token")
+
+
+@pytest.mark.unit
+def test_is_opaque_token_with_authelia_prefix():
+    """Test that Authelia opaque access tokens are detected as opaque."""
+    assert OIDCValidator.is_opaque_token("authelia_at_mFwMCsXWWuBDld5t_Tm8u48NNZXK") is True
+
+
+@pytest.mark.unit
+def test_is_opaque_token_with_non_jwt_format():
+    """Test that tokens without 3 dot-separated parts are detected as opaque."""
+    assert OIDCValidator.is_opaque_token("some_random_token_string") is True
+    assert OIDCValidator.is_opaque_token("two.parts") is True
+    assert OIDCValidator.is_opaque_token("a.b.c.d") is True
+    assert OIDCValidator.is_opaque_token("") is True
+
+
+@pytest.mark.unit
+def test_is_opaque_token_with_jwt_format():
+    """Test that tokens with JWT structure (3 dot-separated parts) are not opaque."""
+    assert OIDCValidator.is_opaque_token("header.payload.signature") is False
+    assert OIDCValidator.is_opaque_token("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.sig") is False
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_success(oidc_validator):
+    """Test successful opaque token validation via userinfo endpoint."""
+    userinfo_response = {
+        "sub": "user-123",
+        "preferred_username": "testuser",
+        "email": "test@example.com",
+    }
+
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.return_value = userinfo_response
+
+        result = await oidc_validator.validate_opaque_token("authelia_at_opaque_token")
+
+        assert result == userinfo_response
+        assert result["sub"] == "user-123"
+        mock_userinfo.assert_called_once_with("authelia_at_opaque_token")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_missing_sub(oidc_validator):
+    """Test opaque token validation fails when userinfo response lacks 'sub' claim."""
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.return_value = {"preferred_username": "testuser", "email": "test@example.com"}
+
+        with pytest.raises(ValueError, match="missing required 'sub' claim"):
+            await oidc_validator.validate_opaque_token("authelia_at_opaque_token")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_rejected_by_provider(oidc_validator):
+    """Test opaque token validation fails when userinfo endpoint rejects the token."""
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.side_effect = httpx.HTTPStatusError(
+            "401 Unauthorized",
+            request=httpx.Request("GET", "https://auth.engen.tech/userinfo"),
+            response=httpx.Response(401),
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await oidc_validator.validate_opaque_token("authelia_at_invalid_token")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_discovery_document_caching(oidc_validator, mock_discovery_endpoint):
+    """Test discovery document is cached and second call doesn't hit network."""
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_get = AsyncMock()
+        mock_client.return_value.__aenter__.return_value.get = mock_get
+
+        discovery_response = Mock()
+        discovery_response.json.return_value = mock_discovery_endpoint
+        mock_get.return_value = discovery_response
+
+        # First call - fetches from network
+        result1 = await oidc_validator.get_discovery_document()
+        assert result1 == mock_discovery_endpoint
+        assert mock_get.call_count == 1
+
+        # Second call - uses cache
+        result2 = await oidc_validator.get_discovery_document()
+        assert result2 == mock_discovery_endpoint
+        assert mock_get.call_count == 1  # No additional HTTP call
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_get_userinfo_uses_cached_discovery(oidc_validator, mock_discovery_endpoint):
+    """Test get_userinfo uses cached discovery document instead of fetching again."""
+    # Pre-populate discovery cache
+    oidc_validator._discovery_cache = mock_discovery_endpoint
+    oidc_validator._discovery_cache_time = datetime.now(UTC)
+
+    with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
+        mock_get = AsyncMock()
+        mock_client.return_value.__aenter__.return_value.get = mock_get
+
+        userinfo_response = Mock()
+        userinfo_response.json.return_value = {
+            "sub": "user-123",
+            "preferred_username": "testuser",
+        }
+        mock_get.return_value = userinfo_response
+
+        result = await oidc_validator.get_userinfo("test_token")
+
+        assert result["sub"] == "user-123"
+        # Only 1 HTTP call (userinfo), NOT 2 (discovery + userinfo)
+        assert mock_get.call_count == 1
 
 
 @pytest.mark.unit

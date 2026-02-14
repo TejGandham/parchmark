@@ -1,6 +1,6 @@
 """
 OIDC token validation for hybrid authentication.
-Validates Authelia-issued JWT tokens and extracts user claims.
+Validates Authelia-issued tokens (both JWT and opaque) and extracts user claims.
 """
 
 import asyncio
@@ -23,7 +23,7 @@ OIDC_USERNAME_CLAIM = os.getenv("OIDC_USERNAME_CLAIM", "preferred_username")
 
 
 class OIDCValidator:
-    """Validates OIDC tokens issued by Authelia."""
+    """Validates OIDC tokens issued by Authelia (both JWT and opaque access tokens)."""
 
     # Overall timeout for JWKS fetch operation (discovery + JWKS fetch)
     # Individual HTTP requests have 10s timeout, but overall operation is capped at 15s
@@ -38,6 +38,65 @@ class OIDCValidator:
         self.jwks_cache_time: datetime | None = None
         self.jwks_cache_ttl_seconds = 3600  # 1 hour
         self._jwks_lock = asyncio.Lock()  # Lock to prevent concurrent JWKS fetches
+        self._discovery_cache: dict | None = None
+        self._discovery_cache_time: datetime | None = None
+        self._discovery_lock = asyncio.Lock()  # Lock to prevent concurrent discovery fetches
+
+    @staticmethod
+    def is_opaque_token(token: str) -> bool:
+        """Check if a token is opaque (not a JWT).
+
+        JWTs have exactly 3 dot-separated base64url segments (header.payload.signature).
+        Opaque tokens (e.g., Authelia's ``authelia_at_`` format) lack this structure.
+
+        Args:
+            token: The access token to inspect
+
+        Returns:
+            bool: True if the token is opaque, False if it has JWT structure
+        """
+        return len(token.split(".")) != 3
+
+    async def get_discovery_document(self) -> dict:
+        """Fetch and cache the OIDC discovery document.
+
+        Uses double-checked locking to prevent concurrent fetches during cache expiration.
+
+        Returns:
+            dict: OIDC discovery document
+
+        Raises:
+            Exception: If unable to fetch discovery document
+        """
+        # Fast path: check cache without lock
+        if self._discovery_cache and self._discovery_cache_time:
+            age_seconds = (datetime.now(UTC) - self._discovery_cache_time).total_seconds()
+            if age_seconds < self.jwks_cache_ttl_seconds:
+                return self._discovery_cache
+
+        # Slow path: acquire lock for cache update
+        async with self._discovery_lock:
+            # Double-check after acquiring lock
+            if self._discovery_cache and self._discovery_cache_time:
+                age_seconds = (datetime.now(UTC) - self._discovery_cache_time).total_seconds()
+                if age_seconds < self.jwks_cache_ttl_seconds:
+                    return self._discovery_cache
+
+            try:
+                async with httpx.AsyncClient() as client:
+                    discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
+                    response = await client.get(discovery_url, timeout=10.0)
+                    response.raise_for_status()
+
+                    discovery_result = response.json()
+                    self._discovery_cache = discovery_result
+                    self._discovery_cache_time = datetime.now(UTC)
+                    logger.debug("Discovery document cache updated successfully")
+
+                    return discovery_result
+            except Exception as e:
+                logger.error(f"Failed to fetch discovery document: {e}")
+                raise
 
     async def get_jwks(self) -> dict:
         """
@@ -70,19 +129,13 @@ class OIDCValidator:
             # Overall timeout prevents slow responses from blocking requests
             try:
                 async with asyncio.timeout(self.JWKS_FETCH_TIMEOUT_SECONDS):
+                    discovery_data = await self.get_discovery_document()
+                    jwks_uri = discovery_data.get("jwks_uri")
+
+                    if not jwks_uri:
+                        raise ValueError("No jwks_uri in discovery endpoint")
+
                     async with httpx.AsyncClient() as client:
-                        # Get OIDC discovery endpoint
-                        discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
-                        discovery_response = await client.get(discovery_url, timeout=10.0)
-                        discovery_response.raise_for_status()
-
-                        discovery_data = discovery_response.json()
-                        jwks_uri = discovery_data.get("jwks_uri")
-
-                        if not jwks_uri:
-                            raise ValueError("No jwks_uri in discovery endpoint")
-
-                        # Fetch JWKS
                         jwks_response = await client.get(jwks_uri, timeout=10.0)
                         jwks_response.raise_for_status()
 
@@ -174,6 +227,30 @@ class OIDCValidator:
             logger.warning(f"OIDC token validation failed: {e}")
             raise
 
+    async def validate_opaque_token(self, token: str) -> dict:
+        """Validate an opaque access token via the userinfo endpoint.
+
+        Per OAuth 2.0 / OIDC spec, opaque access tokens are validated by presenting
+        them to the authorization server's userinfo endpoint. If the server accepts
+        the token, it returns user claims; if rejected, it returns an HTTP error.
+
+        Args:
+            token: Opaque access token (e.g., Authelia's ``authelia_at_`` format)
+
+        Returns:
+            dict: User claims from the userinfo endpoint (sub, preferred_username, email, etc.)
+
+        Raises:
+            ValueError: If userinfo response is missing the required ``sub`` claim
+            httpx.HTTPStatusError: If the userinfo endpoint rejects the token
+        """
+        userinfo = await self.get_userinfo(token)
+
+        if not userinfo.get("sub"):
+            raise ValueError("Userinfo response missing required 'sub' claim")
+
+        return userinfo
+
     def extract_username(self, token_claims: dict) -> str | None:
         """
         Extract username from OIDC token claims.
@@ -217,31 +294,27 @@ class OIDCValidator:
         """
         Fetch user info from the OIDC userinfo endpoint.
 
-        Used when access token doesn't contain user claims (preferred_username, email).
+        Used for validating opaque access tokens and fetching user claims
+        when the access token doesn't contain them directly.
 
         Args:
-            access_token: Valid OIDC access token
+            access_token: Valid OIDC access token (JWT or opaque)
 
         Returns:
             dict: User info from userinfo endpoint
 
         Raises:
-            Exception: If unable to fetch userinfo
+            httpx.HTTPStatusError: If the userinfo endpoint rejects the token
+            ValueError: If discovery document lacks userinfo_endpoint
         """
         try:
+            discovery_data = await self.get_discovery_document()
+            userinfo_url = discovery_data.get("userinfo_endpoint")
+
+            if not userinfo_url:
+                raise ValueError("No userinfo_endpoint in discovery document")
+
             async with httpx.AsyncClient() as client:
-                # Get userinfo endpoint from discovery
-                discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
-                discovery_response = await client.get(discovery_url, timeout=10.0)
-                discovery_response.raise_for_status()
-
-                discovery_data = discovery_response.json()
-                userinfo_url = discovery_data.get("userinfo_endpoint")
-
-                if not userinfo_url:
-                    raise ValueError("No userinfo_endpoint in discovery document")
-
-                # Call userinfo endpoint with access token
                 userinfo_response = await client.get(
                     userinfo_url,
                     headers={"Authorization": f"Bearer {access_token}"},
