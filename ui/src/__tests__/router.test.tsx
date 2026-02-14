@@ -181,4 +181,35 @@ describe('router', () => {
       expect(router.state.errors).toBeDefined();
     });
   });
+
+  it('redirects to /login when fetch aborts during OIDC logout', async () => {
+    const { useAuthStore } = await import('../features/auth/store');
+    const api = await import('../services/api');
+
+    (useAuthStore.getState as ReturnType<typeof vi.fn>).mockReturnValue({
+      isAuthenticated: true,
+    });
+
+    localStorage.removeItem('parchmark-auth');
+
+    (api.getNotes as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new TypeError('NetworkError when attempting to fetch resource.')
+    );
+
+    const { routes } = await import('../router');
+
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/notes'],
+    });
+
+    render(
+      <ChakraProvider>
+        <RouterProvider router={router} />
+      </ChakraProvider>
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/login');
+    });
+  });
 });
