@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 # OIDC Configuration from environment
 OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL", "https://auth.engen.tech")
+# Separate URL for fetching discovery/JWKS — allows using internal cluster DNS
+# to bypass CDN challenges (e.g., Cloudflare JS challenges block non-browser clients).
+# Defaults to OIDC_ISSUER_URL for backward compatibility.
+OIDC_DISCOVERY_URL = os.getenv("OIDC_DISCOVERY_URL", OIDC_ISSUER_URL)
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "parchmark")
 OIDC_USERNAME_CLAIM = os.getenv("OIDC_USERNAME_CLAIM", "preferred_username")
 OIDC_OPAQUE_TOKEN_PREFIX = os.getenv("OIDC_OPAQUE_TOKEN_PREFIX", "")
@@ -35,6 +39,7 @@ class OIDCValidator:
     def __init__(self):
         """Initialize OIDC validator with discovery endpoint configuration."""
         self.issuer_url = OIDC_ISSUER_URL
+        self.discovery_url = OIDC_DISCOVERY_URL
         self.audience = OIDC_AUDIENCE
         self.username_claim = OIDC_USERNAME_CLAIM
         self.jwks_cache: dict | None = None
@@ -111,7 +116,7 @@ class OIDCValidator:
 
             try:
                 client = await self._get_client()
-                discovery_url = f"{self.issuer_url}/.well-known/openid-configuration"
+                discovery_url = f"{self.discovery_url}/.well-known/openid-configuration"
                 response = await client.get(discovery_url)
                 response.raise_for_status()
 
