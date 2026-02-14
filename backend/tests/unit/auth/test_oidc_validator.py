@@ -54,7 +54,8 @@ async def test_get_jwks_success(oidc_validator, mock_jwks, mock_discovery_endpoi
     """Test successful JWKS fetch."""
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         # First call: discovery endpoint (use Mock, not AsyncMock - json() is sync)
         discovery_response = Mock()
@@ -78,7 +79,8 @@ async def test_get_jwks_caching(oidc_validator, mock_jwks, mock_discovery_endpoi
     """Test JWKS caching - second call should use cached result."""
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         # Setup responses (use Mock, not AsyncMock - json() is sync)
         discovery_response = Mock()
@@ -107,7 +109,8 @@ async def test_get_jwks_failure(oidc_validator, mock_discovery_endpoint):
     """Test JWKS fetch failure."""
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         # Discovery succeeds, but JWKS fails (use Mock - json() is sync)
         discovery_response = Mock()
@@ -186,7 +189,8 @@ async def test_validate_oidc_token_success(oidc_validator, mock_jwks, mock_disco
     # Mock JWT decode to return valid payload
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         # Use Mock, not AsyncMock - json() is sync
         discovery_response = Mock()
@@ -214,7 +218,8 @@ async def test_validate_oidc_token_expired(oidc_validator, mock_jwks, mock_disco
     """Test validation of expired OIDC token."""
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         # Mock HTTP responses for JWKS fetch
         discovery_response = Mock()
@@ -245,7 +250,8 @@ async def test_validate_oidc_token_invalid_kid(oidc_validator):
 
         with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
             mock_get = AsyncMock()
-            mock_client.return_value.__aenter__.return_value.get = mock_get
+            mock_client.return_value.get = mock_get
+            mock_client.return_value.is_closed = False
 
             mock_discovery_endpoint = {
                 "issuer": "https://auth.engen.tech",
@@ -277,11 +283,10 @@ def test_is_opaque_token_with_authelia_prefix():
 
 @pytest.mark.unit
 def test_is_opaque_token_with_non_jwt_format():
-    """Test that tokens without 3 dot-separated parts are detected as opaque."""
-    assert OIDCValidator.is_opaque_token("some_random_token_string") is True
-    assert OIDCValidator.is_opaque_token("two.parts") is True
-    assert OIDCValidator.is_opaque_token("a.b.c.d") is True
-    assert OIDCValidator.is_opaque_token("") is True
+    """Test that sufficiently long tokens without 3 dot-separated parts are detected as opaque."""
+    assert OIDCValidator.is_opaque_token("some_random_token_string_that_is_long_enough") is True
+    assert OIDCValidator.is_opaque_token("a" * 20) is True
+    assert OIDCValidator.is_opaque_token("a.b.c.d.e.f.g.h.i.j.k") is True
 
 
 @pytest.mark.unit
@@ -343,7 +348,8 @@ async def test_get_discovery_document_caching(oidc_validator, mock_discovery_end
     """Test discovery document is cached and second call doesn't hit network."""
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         discovery_response = Mock()
         discovery_response.json.return_value = mock_discovery_endpoint
@@ -370,7 +376,8 @@ async def test_get_userinfo_uses_cached_discovery(oidc_validator, mock_discovery
 
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
+        mock_client.return_value.is_closed = False
 
         userinfo_response = Mock()
         userinfo_response.json.return_value = {
@@ -422,7 +429,8 @@ async def test_concurrent_jwks_fetch_uses_lock(mock_jwks, mock_discovery_endpoin
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = mock_get_with_delay
-        mock_client.return_value.__aenter__.return_value = mock_instance
+        mock_client.return_value = mock_instance
+        mock_instance.is_closed = False
 
         # Launch 5 concurrent JWKS fetch requests
         tasks = [validator.get_jwks() for _ in range(5)]
@@ -467,7 +475,8 @@ async def test_jwks_cache_expiration_triggers_single_refresh(mock_jwks, mock_dis
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = mock_get
-        mock_client.return_value.__aenter__.return_value = mock_instance
+        mock_client.return_value = mock_instance
+        mock_instance.is_closed = False
 
         # First fetch - populates cache
         result1 = await validator.get_jwks()
@@ -488,3 +497,123 @@ async def test_jwks_cache_expiration_triggers_single_refresh(mock_jwks, mock_dis
 
         # Only one set of HTTP calls should occur (discovery + jwks)
         assert http_call_count[0] == 2, f"Expected 2 HTTP calls after expiration, got {http_call_count[0]}"
+
+
+@pytest.mark.unit
+def test_is_opaque_token_rejects_short_garbage():
+    """Test that short garbage tokens are rejected (not classified as opaque)."""
+    assert OIDCValidator.is_opaque_token("") is False
+    assert OIDCValidator.is_opaque_token("invalid") is False
+    assert OIDCValidator.is_opaque_token("a.b") is False
+    assert OIDCValidator.is_opaque_token("short_token") is False
+    assert OIDCValidator.is_opaque_token("x" * 19) is False  # Just under min length
+
+
+@pytest.mark.unit
+def test_is_opaque_token_with_prefix_filter():
+    """Test that prefix filtering works when configured."""
+    from unittest.mock import patch
+
+    with patch("app.auth.oidc_validator.OIDC_OPAQUE_TOKEN_PREFIX", "authelia_at_"):
+        # Matching prefix — accepted
+        assert OIDCValidator.is_opaque_token("authelia_at_mFwMCsXWWuBDld5t_Tm8u48NNZXK") is True
+        # Wrong prefix — rejected
+        assert OIDCValidator.is_opaque_token("keycloak_at_mFwMCsXWWuBDld5t_Tm8u48NNZXK") is False
+        # No prefix (but long enough) — still rejected when prefix is configured
+        assert OIDCValidator.is_opaque_token("a_long_token_without_the_right_prefix") is False
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_wrong_client_id(oidc_validator):
+    """Test opaque token validation rejects tokens from wrong client."""
+    userinfo_response = {
+        "sub": "user-123",
+        "preferred_username": "testuser",
+        "client_id": "other-app",
+    }
+
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.return_value = userinfo_response
+
+        with pytest.raises(ValueError, match="does not match expected"):
+            await oidc_validator.validate_opaque_token("authelia_at_opaque_token_value")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_matching_client_id(oidc_validator):
+    """Test opaque token validation passes when client_id matches audience."""
+    userinfo_response = {
+        "sub": "user-123",
+        "preferred_username": "testuser",
+        "client_id": "parchmark",
+    }
+
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.return_value = userinfo_response
+
+        result = await oidc_validator.validate_opaque_token("authelia_at_opaque_token_value")
+        assert result["sub"] == "user-123"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_no_client_id_passes(oidc_validator):
+    """Test opaque token validation passes when no client_id/azp claim is present."""
+    userinfo_response = {
+        "sub": "user-123",
+        "preferred_username": "testuser",
+        "email": "test@example.com",
+    }
+
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.return_value = userinfo_response
+
+        result = await oidc_validator.validate_opaque_token("authelia_at_opaque_token_value")
+        assert result["sub"] == "user-123"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validate_opaque_token_azp_mismatch(oidc_validator):
+    """Test opaque token validation rejects tokens with wrong azp claim."""
+    userinfo_response = {
+        "sub": "user-123",
+        "preferred_username": "testuser",
+        "azp": "different-app",
+    }
+
+    with patch.object(oidc_validator, "get_userinfo", new_callable=AsyncMock) as mock_userinfo:
+        mock_userinfo.return_value = userinfo_response
+
+        with pytest.raises(ValueError, match="does not match expected"):
+            await oidc_validator.validate_opaque_token("authelia_at_opaque_token_value")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_shared_http_client_reused(oidc_validator):
+    """Test that the shared HTTP client is reused across calls."""
+    mock_client = AsyncMock(spec=httpx.AsyncClient)
+    mock_client.is_closed = False
+    oidc_validator._http_client = mock_client
+
+    client1 = await oidc_validator._get_client()
+    client2 = await oidc_validator._get_client()
+
+    assert client1 is client2
+    assert client1 is mock_client
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_close_shuts_down_client(oidc_validator):
+    """Test that close() properly closes the HTTP client."""
+    mock_client = AsyncMock(spec=httpx.AsyncClient)
+    mock_client.is_closed = False
+    oidc_validator._http_client = mock_client
+
+    await oidc_validator.close()
+
+    mock_client.aclose.assert_called_once()

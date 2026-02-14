@@ -458,6 +458,29 @@ class TestOIDCOpaqueTokenValidation:
                     mock_create.assert_called_once_with(mock_session, mock_user_info)
 
 
+class TestOIDCTimeoutHandling:
+    """Test that TimeoutError from asyncio.timeout is handled gracefully."""
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_timeout_error_handled_gracefully(self):
+        """Test that TimeoutError (from asyncio.timeout in get_jwks) is caught
+        in the expected exception tuple, not logged as an unexpected error."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid.jwt.token")
+
+        with patch("app.auth.dependencies.verify_token") as mock_verify:
+            mock_verify.side_effect = HTTPException(status_code=401, detail="Invalid local token")
+
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(side_effect=TimeoutError("JWKS fetch timed out"))
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == 401
+
+
 class TestOIDCUserCreationRaceCondition:
     """Test race condition handling in OIDC user creation."""
 
