@@ -227,15 +227,19 @@ export const useAuthStore = create<AuthState>()(
           _activeRefreshPromise = null;
 
           if (wasOIDC) {
-            try {
-              // Clear persisted state so the user returns unauthenticated
-              // after the OIDC provider redirects back. Avoid updating React
-              // state here — that triggers a Router redirect to /login which
-              // races with signoutRedirect's page navigation and breaks
-              // dynamic chunk imports.
-              localStorage.removeItem(STORAGE_KEYS.AUTH);
-              await logoutOIDC();
-            } catch (error) {
+            // Clear persisted state so the user returns unauthenticated
+            // after the OIDC provider redirects back. Avoid updating React
+            // state here — that triggers a Router redirect to /login which
+            // races with signoutRedirect's page navigation and breaks
+            // dynamic chunk imports.
+            localStorage.removeItem(STORAGE_KEYS.AUTH);
+            // Don't await — signoutRedirect navigates the page away and its
+            // promise never resolves (the page unloads). Awaiting it would
+            // keep the JS event loop alive during page teardown, allowing
+            // aborted in-flight fetches to propagate as NetworkErrors to
+            // React Router error boundaries. If the redirect fails, the
+            // catch handler falls back to local cleanup.
+            return logoutOIDC().catch((error) => {
               const errorDetails =
                 error instanceof Error
                   ? `${error.name}: ${error.message}`
@@ -253,7 +257,7 @@ export const useAuthStore = create<AuthState>()(
                 state.oidcLogoutWarning =
                   'Your session may still be active on the identity provider. For complete logout, close your browser or visit the identity provider directly.';
               });
-            }
+            });
           } else {
             set((state) => {
               state.isAuthenticated = false;

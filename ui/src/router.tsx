@@ -8,6 +8,7 @@ import {
   deleteNoteAction,
 } from './features/notes/actions';
 import RouteError from './features/ui/components/RouteError';
+import { STORAGE_KEYS } from './config/storage';
 
 const requireAuth = async () => {
   const { isAuthenticated } = useAuthStore.getState();
@@ -48,8 +49,18 @@ export const routes: RouteObject[] = [
     path: '/notes',
     loader: async () => {
       await requireAuth();
-      const notes = await api.getNotes();
-      return { notes };
+      try {
+        const notes = await api.getNotes();
+        return { notes };
+      } catch (error) {
+        if (
+          error instanceof TypeError &&
+          !localStorage.getItem(STORAGE_KEYS.AUTH)
+        ) {
+          throw redirect('/login');
+        }
+        throw error;
+      }
     },
     action: createNoteAction,
     lazy: async () => {
