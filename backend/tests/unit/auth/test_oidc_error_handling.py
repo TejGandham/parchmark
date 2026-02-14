@@ -19,7 +19,7 @@ async def test_get_jwks_network_timeout():
 
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
 
         import httpx
 
@@ -37,7 +37,7 @@ async def test_get_jwks_missing_jwks_uri():
 
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
 
         # Use Mock, not AsyncMock - json() is sync
         discovery_response = Mock()
@@ -74,7 +74,7 @@ async def test_validate_oidc_token_invalid_audience():
 
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
 
         # Mock HTTP responses for JWKS fetch
         discovery_response = Mock()
@@ -106,7 +106,7 @@ async def test_validate_oidc_token_invalid_issuer():
 
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
 
         # Mock HTTP responses for JWKS fetch
         discovery_response = Mock()
@@ -159,7 +159,7 @@ async def test_get_jwks_cache_expiration():
 
     with patch("app.auth.oidc_validator.httpx.AsyncClient") as mock_client:
         mock_get = AsyncMock()
-        mock_client.return_value.__aenter__.return_value.get = mock_get
+        mock_client.return_value.get = mock_get
 
         # Use Mock, not AsyncMock - json() is sync
         discovery_response = Mock()
@@ -181,8 +181,9 @@ async def test_get_jwks_cache_expiration():
         from datetime import UTC, datetime, timedelta
 
         validator.jwks_cache_time = datetime.now(UTC) - timedelta(seconds=2)
+        validator._discovery_cache_time = datetime.now(UTC) - timedelta(seconds=2)
 
-        # Reset mock to test refresh
+        # Reset mock to test refresh (discovery + jwks fetched again)
         mock_get.side_effect = [discovery_response, jwks_response]
 
         # Second call should fetch again because cache expired

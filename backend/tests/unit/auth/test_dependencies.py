@@ -524,6 +524,7 @@ class TestOIDCUserCreationRaceCondition:
         # Now test the recovery path by simulating what happens when we try to
         # create a user that already exists (IntegrityError followed by lookup)
         with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+            mock_validator.is_opaque_token.return_value = False
             mock_validator.validate_oidc_token = AsyncMock(return_value=mock_oidc_claims)
             mock_validator.extract_user_info.return_value = mock_user_info
 
