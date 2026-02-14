@@ -178,21 +178,25 @@ describe('OIDC Utils', () => {
   });
 
   describe('logoutOIDC', () => {
-    it('calls userManager.removeUser to clear local session', async () => {
-      mockFns.removeUser.mockResolvedValue(undefined);
+    it('calls signoutRedirect to end OIDC provider session', async () => {
+      mockFns.signoutRedirect.mockResolvedValue(undefined);
 
       await logoutOIDC();
 
-      expect(mockFns.removeUser).toHaveBeenCalledTimes(1);
+      expect(mockFns.signoutRedirect).toHaveBeenCalledTimes(1);
+      expect(mockFns.removeUser).not.toHaveBeenCalled();
     });
 
-    it('throws and logs error on failure', async () => {
-      const error = new Error('Remove user failed');
-      mockFns.removeUser.mockRejectedValue(error);
+    it('falls back to removeUser and throws when signoutRedirect fails', async () => {
+      const error = new Error('Provider unreachable');
+      mockFns.signoutRedirect.mockRejectedValue(error);
+      mockFns.removeUser.mockResolvedValue(undefined);
 
-      await expect(logoutOIDC()).rejects.toThrow('Remove user failed');
+      await expect(logoutOIDC()).rejects.toThrow('Provider unreachable');
+      expect(mockFns.signoutRedirect).toHaveBeenCalledTimes(1);
+      expect(mockFns.removeUser).toHaveBeenCalledTimes(1);
       expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('OIDC logout failed'),
+        expect.stringContaining('OIDC logout redirect failed'),
         expect.any(Object)
       );
     });
