@@ -226,19 +226,14 @@ export const useAuthStore = create<AuthState>()(
 
           _activeRefreshPromise = null;
 
-          // Clear local auth state before OIDC redirect since
-          // signoutRedirect() navigates the browser away
-          set((state) => {
-            state.isAuthenticated = false;
-            state.user = null;
-            state.token = null;
-            state.refreshToken = null;
-            state.error = null;
-            state.oidcLogoutWarning = null;
-          });
-
           if (wasOIDC) {
             try {
+              // Clear persisted state so the user returns unauthenticated
+              // after the OIDC provider redirects back. Avoid updating React
+              // state here — that triggers a Router redirect to /login which
+              // races with signoutRedirect's page navigation and breaks
+              // dynamic chunk imports.
+              localStorage.removeItem(STORAGE_KEYS.AUTH);
               await logoutOIDC();
             } catch (error) {
               const errorDetails =
@@ -250,10 +245,24 @@ export const useAuthStore = create<AuthState>()(
                 { original: error }
               );
               set((state) => {
+                state.isAuthenticated = false;
+                state.user = null;
+                state.token = null;
+                state.refreshToken = null;
+                state.error = null;
                 state.oidcLogoutWarning =
                   'Your session may still be active on the identity provider. For complete logout, close your browser or visit the identity provider directly.';
               });
             }
+          } else {
+            set((state) => {
+              state.isAuthenticated = false;
+              state.user = null;
+              state.token = null;
+              state.refreshToken = null;
+              state.error = null;
+              state.oidcLogoutWarning = null;
+            });
           }
         },
 
