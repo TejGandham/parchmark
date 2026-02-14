@@ -187,18 +187,63 @@ describe('OIDC Utils', () => {
       expect(mockFns.removeUser).not.toHaveBeenCalled();
     });
 
-    it('falls back to removeUser and throws when signoutRedirect fails', async () => {
-      const error = new Error('Provider unreachable');
-      mockFns.signoutRedirect.mockRejectedValue(error);
+    it('falls back to native provider logout when signoutRedirect fails', async () => {
+      const assignSpy = vi
+        .spyOn(window.location, 'assign')
+        .mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFns.signoutRedirect.mockRejectedValue(
+        new Error('No end session endpoint')
+      );
       mockFns.removeUser.mockResolvedValue(undefined);
 
-      await expect(logoutOIDC()).rejects.toThrow('Provider unreachable');
-      expect(mockFns.signoutRedirect).toHaveBeenCalledTimes(1);
+      const resultPromise = logoutOIDC();
+
+      await vi.waitFor(() => {
+        expect(assignSpy).toHaveBeenCalledTimes(1);
+      });
+
       expect(mockFns.removeUser).toHaveBeenCalledTimes(1);
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('OIDC logout redirect failed'),
-        expect.any(Object)
+
+      const assignedUrl = assignSpy.mock.calls[0][0] as string;
+      expect(assignedUrl).toContain('/logout?rd=');
+      expect(assignedUrl).toContain(encodeURIComponent('/login'));
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OIDC signoutRedirect unavailable')
       );
+
+      assignSpy.mockRestore();
+      warnSpy.mockRestore();
+
+      // Verify the promise stays pending (page navigates away in production).
+      let resolved = false;
+      resultPromise.then(() => {
+        resolved = true;
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(resolved).toBe(false);
+    });
+
+    it('redirects to native logout even when removeUser fails', async () => {
+      const assignSpy = vi
+        .spyOn(window.location, 'assign')
+        .mockImplementation(() => {});
+      mockFns.signoutRedirect.mockRejectedValue(
+        new Error('No end session endpoint')
+      );
+      mockFns.removeUser.mockRejectedValue(new Error('Storage error'));
+
+      logoutOIDC();
+
+      await vi.waitFor(() => {
+        expect(assignSpy).toHaveBeenCalledTimes(1);
+      });
+
+      const assignedUrl = assignSpy.mock.calls[0][0] as string;
+      expect(assignedUrl).toContain('/logout?rd=');
+
+      assignSpy.mockRestore();
     });
   });
 });
