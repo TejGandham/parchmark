@@ -141,6 +141,9 @@ SECRET_KEY=your-secret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
+OIDC_ISSUER_URL=https://auth.engen.tech
+OIDC_AUDIENCE=parchmark
+OIDC_OPAQUE_TOKEN_PREFIX=           # Optional: restrict opaque token format (e.g. "authelia_at_")
 ```
 
 ## Code Patterns
@@ -229,6 +232,8 @@ fireEvent.submit(form);                      // Use submit, not click
 
 ### Testing
 - Backend tests require Docker (testcontainers)
+- Some unit tests (`TestGetCurrentUser`, `TestDependencyIntegration`, etc.) depend on conftest fixtures that need Docker — these error locally without Docker running but pass in CI
+- Run focused unit tests without Docker: `cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v`
 - Frontend form tests: use `fireEvent.submit()`, not button click
 - Mock stores for isolated component tests
 - **Important:** The `codecov/patch` GitHub check is NOT informational - it's a required check. It requires ~97% coverage on changed/new lines. Always ensure new code has adequate test coverage before pushing.
@@ -242,11 +247,21 @@ fireEvent.submit(form);                      // Use submit, not click
 - `useTokenExpirationMonitor()` logs out 1 min before expiry
 - 10-second clock skew buffer for client/server time differences
 - Route protection via `requireAuth()` loader in router.tsx (no ProtectedRoute component)
+- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens)
+- OIDC validator (`app/auth/oidc_validator.py`): shared httpx client, discovery/JWKS caching with double-checked locking
+- Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
+- OIDC env vars: `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_USERNAME_CLAIM`, `OIDC_OPAQUE_TOKEN_PREFIX`
 
 ### Migrations
 - Run automatically on container startup (`APPLY_MIGRATIONS=true`)
 - Test locally before deploying: `cd backend && uv run alembic upgrade head`
 - Downgrade may fail if data constraints violated
+
+### Git Remotes
+- `origin` = Gitea on brahma (`brahma.myth-gecko.ts.net:3000`), primary remote
+- `github` = GitHub mirror (`github.com/TejGandham/parchmark`)
+- `gh` CLI works with GitHub remote only; use Gitea API for origin PRs
+- Push to both: `git push origin <branch> && git push github <branch>`
 
 ### Deployment
 - Tests must pass before images build (CI gate)
