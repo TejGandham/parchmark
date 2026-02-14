@@ -53,11 +53,13 @@ export const getDateGroup = (date: Date): DateGroup => {
 /**
  * Group notes by date
  */
-export const groupNotesByDate = (notes: Note[]): GroupedNotes[] => {
+export const groupNotesByDate = (
+  notes: Note[],
+  direction: SortDirection = 'desc'
+): GroupedNotes[] => {
   const groups: Map<DateGroup, Note[]> = new Map();
 
-  // Initialize known groups to maintain deterministic ordering
-  const allGroups: DateGroup[] = [
+  const newestFirst: DateGroup[] = [
     'Today',
     'Yesterday',
     'This Week',
@@ -65,14 +67,15 @@ export const groupNotesByDate = (notes: Note[]): GroupedNotes[] => {
     'Older',
   ];
 
-  // Group notes dynamically so the fallback branch executes when a bucket is empty
+  const allGroups =
+    direction === 'asc' ? [...newestFirst].reverse() : newestFirst;
+
   notes.forEach((note) => {
-    const group = getDateGroup(new Date(note.updated_at));
+    const group = getDateGroup(new Date(note.updatedAt));
     const existingNotes = groups.get(group) ?? [];
     groups.set(group, [...existingNotes, note]);
   });
 
-  // Convert to array and filter out empty groups
   return allGroups
     .map((group) => {
       const groupedNotes = groups.get(group) ?? [];
@@ -89,24 +92,34 @@ export const groupNotesByDate = (notes: Note[]): GroupedNotes[] => {
  * Sort notes by different criteria
  */
 export type SortOption = 'lastModified' | 'alphabetical' | 'createdDate';
+export type SortDirection = 'asc' | 'desc';
 
-export const sortNotes = (notes: Note[], sortBy: SortOption): Note[] => {
+export const sortNotes = (
+  notes: Note[],
+  sortBy: SortOption,
+  direction: SortDirection = 'desc'
+): Note[] => {
   const sorted = [...notes];
+  const dir = direction === 'asc' ? 1 : -1;
 
   switch (sortBy) {
     case 'lastModified':
       return sorted.sort(
         (a, b) =>
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          dir *
+          (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime())
       );
     case 'alphabetical':
-      return sorted.sort((a, b) =>
-        a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+      return sorted.sort(
+        (a, b) =>
+          dir *
+          a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
       );
     case 'createdDate':
       return sorted.sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          dir *
+          (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       );
     default:
       return sorted;

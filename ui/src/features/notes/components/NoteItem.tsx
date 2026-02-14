@@ -1,8 +1,9 @@
 import React, { useCallback } from 'react';
-import { HStack, Text, IconButton, ListItem } from '@chakra-ui/react';
+import { HStack, VStack, Text, IconButton, ListItem } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faFile } from '@fortawesome/free-solid-svg-icons';
 import { Note } from '../../../types';
+import { formatRelativeDate } from '../../../utils/dateFormatting';
 
 interface NoteItemProps {
   note: Note;
@@ -71,10 +72,24 @@ const NoteItem = React.memo<NoteItemProps>(
         className="note-transition"
         transition="all 0.2s"
       >
-        <HStack justify="space-between">
-          <HStack>
-            <FontAwesomeIcon icon={faFile} aria-hidden="true" />
-            <Text noOfLines={1}>{note.title}</Text>
+        <HStack justify="space-between" align="start" spacing={2}>
+          <HStack align="start" spacing={2} flex={1} minW={0}>
+            <FontAwesomeIcon
+              icon={faFile}
+              aria-hidden="true"
+              style={{ marginTop: '3px', flexShrink: 0 }}
+            />
+            <VStack align="start" spacing={0} minW={0}>
+              <Text noOfLines={1}>{note.title}</Text>
+              <Text
+                fontSize="xs"
+                color="text.muted"
+                noOfLines={1}
+                title={note.updatedAt}
+              >
+                {formatRelativeDate(note.updatedAt)}
+              </Text>
+            </VStack>
           </HStack>
           <IconButton
             aria-label={`Delete note: ${note.title}`}
@@ -85,6 +100,7 @@ const NoteItem = React.memo<NoteItemProps>(
             colorScheme="secondary"
             onClick={handleDelete}
             onKeyDown={handleDeleteKeyPress}
+            mt="2px"
           />
         </HStack>
       </ListItem>

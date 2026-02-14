@@ -4,6 +4,7 @@ import {
   groupNotesByDate,
   sortNotes,
   filterNotes,
+  SortOption,
 } from '../../utils/dateGrouping';
 import { Note } from '../../types';
 
@@ -71,13 +72,13 @@ describe('dateGrouping utilities', () => {
     const createNote = (
       id: string,
       title: string,
-      updated_at: string
+      updatedAt: string
     ): Note => ({
       id,
       title,
       content: `# ${title}\n\nContent`,
-      created_at: updated_at,
-      updated_at,
+      createdAt: updatedAt,
+      updatedAt,
     });
 
     it('should group notes by date categories', () => {
@@ -160,24 +161,62 @@ describe('dateGrouping utilities', () => {
         'Note C',
       ]);
     });
+
+    it('should reverse group order when direction is ascending', () => {
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const twoWeeksAgo = new Date(now);
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const notes: Note[] = [
+        createNote('1', 'Today Note', now.toISOString()),
+        createNote('2', 'Yesterday Note', yesterday.toISOString()),
+        createNote('3', 'This Month Note', twoWeeksAgo.toISOString()),
+      ];
+
+      const groupedAsc = groupNotesByDate(notes, 'asc');
+
+      // Ascending: oldest groups first
+      expect(groupedAsc[0].group).toBe('This Month');
+      expect(groupedAsc[groupedAsc.length - 1].group).toBe('Today');
+    });
+
+    it('should default to descending group order (newest first)', () => {
+      const now = new Date();
+      const twoWeeksAgo = new Date(now);
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const notes: Note[] = [
+        createNote('1', 'Today Note', now.toISOString()),
+        createNote('2', 'This Month Note', twoWeeksAgo.toISOString()),
+      ];
+
+      const groupedDefault = groupNotesByDate(notes);
+      const groupedDesc = groupNotesByDate(notes, 'desc');
+
+      // Default and explicit desc should both be newest first
+      expect(groupedDefault[0].group).toBe('Today');
+      expect(groupedDesc[0].group).toBe('Today');
+    });
   });
 
   describe('sortNotes', () => {
     const createNote = (
       id: string,
       title: string,
-      created_at: string,
-      updated_at: string
+      createdAt: string,
+      updatedAt: string
     ): Note => ({
       id,
       title,
       content: `# ${title}\n\nContent`,
-      created_at,
-      updated_at,
+      createdAt,
+      updatedAt,
     });
 
     describe('lastModified sorting', () => {
-      it('should sort by updated_at descending (newest first)', () => {
+      it('should sort by updatedAt descending (newest first)', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -204,7 +243,7 @@ describe('dateGrouping utilities', () => {
         expect(sorted.map((n) => n.title)).toEqual(['New', 'Medium', 'Old']);
       });
 
-      it('should handle same updated_at timestamps', () => {
+      it('should handle same updatedAt timestamps', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -228,7 +267,7 @@ describe('dateGrouping utilities', () => {
     });
 
     describe('alphabetical sorting', () => {
-      it('should sort by title ascending (A-Z)', () => {
+      it('should sort by title descending (Z-A) by default', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -252,10 +291,10 @@ describe('dateGrouping utilities', () => {
 
         const sorted = sortNotes(notes, 'alphabetical');
 
-        expect(sorted.map((n) => n.title)).toEqual(['Apple', 'Mango', 'Zebra']);
+        expect(sorted.map((n) => n.title)).toEqual(['Zebra', 'Mango', 'Apple']);
       });
 
-      it('should handle case-insensitive sorting', () => {
+      it('should handle case-insensitive sorting descending', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -279,7 +318,7 @@ describe('dateGrouping utilities', () => {
 
         const sorted = sortNotes(notes, 'alphabetical');
 
-        expect(sorted.map((n) => n.title)).toEqual(['Apple', 'MANGO', 'zebra']);
+        expect(sorted.map((n) => n.title)).toEqual(['zebra', 'MANGO', 'Apple']);
       });
 
       it('should handle special characters and numbers', () => {
@@ -312,7 +351,7 @@ describe('dateGrouping utilities', () => {
     });
 
     describe('createdDate sorting', () => {
-      it('should sort by created_at descending (newest first)', () => {
+      it('should sort by createdAt descending (newest first)', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -339,7 +378,7 @@ describe('dateGrouping utilities', () => {
         expect(sorted.map((n) => n.title)).toEqual(['New', 'Medium', 'Old']);
       });
 
-      it('should handle same created_at timestamps', () => {
+      it('should handle same createdAt timestamps', () => {
         const notes: Note[] = [
           createNote(
             '1',
@@ -359,6 +398,140 @@ describe('dateGrouping utilities', () => {
 
         // Order should be stable
         expect(sorted).toHaveLength(2);
+      });
+    });
+
+    describe('ascending direction', () => {
+      it('should sort lastModified ascending (oldest first)', () => {
+        const notes: Note[] = [
+          createNote(
+            '1',
+            'Old',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'New',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Medium',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-10T10:00:00.000Z'
+          ),
+        ];
+
+        const sorted = sortNotes(notes, 'lastModified', 'asc');
+
+        expect(sorted.map((n) => n.title)).toEqual(['Old', 'Medium', 'New']);
+      });
+
+      it('should sort alphabetical descending (Z-A)', () => {
+        const notes: Note[] = [
+          createNote(
+            '1',
+            'Zebra',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'Apple',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Mango',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+        ];
+
+        const sorted = sortNotes(notes, 'alphabetical', 'desc');
+
+        expect(sorted.map((n) => n.title)).toEqual(['Zebra', 'Mango', 'Apple']);
+      });
+
+      it('should sort alphabetical ascending (A-Z) explicitly', () => {
+        const notes: Note[] = [
+          createNote(
+            '1',
+            'Zebra',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'Apple',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Mango',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+        ];
+
+        const sorted = sortNotes(notes, 'alphabetical', 'asc');
+
+        expect(sorted.map((n) => n.title)).toEqual(['Apple', 'Mango', 'Zebra']);
+      });
+
+      it('should sort createdDate ascending (oldest first)', () => {
+        const notes: Note[] = [
+          createNote(
+            '1',
+            'Old',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'New',
+            '2024-01-15T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '3',
+            'Medium',
+            '2024-01-10T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+        ];
+
+        const sorted = sortNotes(notes, 'createdDate', 'asc');
+
+        expect(sorted.map((n) => n.title)).toEqual(['Old', 'Medium', 'New']);
+      });
+
+      it('should default to descending when direction is omitted', () => {
+        const notes: Note[] = [
+          createNote(
+            '1',
+            'Old',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-01T10:00:00.000Z'
+          ),
+          createNote(
+            '2',
+            'New',
+            '2024-01-01T10:00:00.000Z',
+            '2024-01-15T10:00:00.000Z'
+          ),
+        ];
+
+        const withDefault = sortNotes(notes, 'lastModified');
+        const withExplicit = sortNotes(notes, 'lastModified', 'desc');
+
+        expect(withDefault.map((n) => n.title)).toEqual(
+          withExplicit.map((n) => n.title)
+        );
       });
     });
 
@@ -425,8 +598,8 @@ describe('dateGrouping utilities', () => {
       id,
       title,
       content,
-      created_at: '2024-01-01T10:00:00.000Z',
-      updated_at: '2024-01-01T10:00:00.000Z',
+      createdAt: '2024-01-01T10:00:00.000Z',
+      updatedAt: '2024-01-01T10:00:00.000Z',
     });
 
     it('should return all notes when search query is empty', () => {

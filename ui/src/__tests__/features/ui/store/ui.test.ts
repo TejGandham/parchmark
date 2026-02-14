@@ -8,6 +8,7 @@ describe('UI Store', () => {
       useUIStore.setState({
         isSidebarOpen: true,
         notesSortBy: 'lastModified',
+        notesSortDirection: 'desc',
         notesSearchQuery: '',
         notesGroupByDate: true,
         actions: useUIStore.getState().actions,
@@ -19,10 +20,12 @@ describe('UI Store', () => {
     const state = useUIStore.getState();
     expect(state.isSidebarOpen).toBe(true);
     expect(state.notesSortBy).toBe('lastModified');
+    expect(state.notesSortDirection).toBe('desc');
     expect(state.notesSearchQuery).toBe('');
     expect(state.notesGroupByDate).toBe(true);
     expect(typeof state.actions.toggleSidebar).toBe('function');
     expect(typeof state.actions.setNotesSortBy).toBe('function');
+    expect(typeof state.actions.toggleNotesSortDirection).toBe('function');
     expect(typeof state.actions.setNotesSearchQuery).toBe('function');
     expect(typeof state.actions.setNotesGroupByDate).toBe('function');
   });
@@ -167,6 +170,50 @@ describe('UI Store', () => {
     });
   });
 
+  describe('toggleNotesSortDirection', () => {
+    it('should toggle sort direction from desc to asc', () => {
+      expect(useUIStore.getState().notesSortDirection).toBe('desc');
+
+      act(() => {
+        useUIStore.getState().actions.toggleNotesSortDirection();
+      });
+
+      expect(useUIStore.getState().notesSortDirection).toBe('asc');
+    });
+
+    it('should toggle sort direction from asc to desc', () => {
+      act(() => {
+        useUIStore.setState({ notesSortDirection: 'asc' });
+      });
+      expect(useUIStore.getState().notesSortDirection).toBe('asc');
+
+      act(() => {
+        useUIStore.getState().actions.toggleNotesSortDirection();
+      });
+
+      expect(useUIStore.getState().notesSortDirection).toBe('desc');
+    });
+
+    it('should work with multiple toggles in sequence', () => {
+      expect(useUIStore.getState().notesSortDirection).toBe('desc');
+
+      act(() => {
+        useUIStore.getState().actions.toggleNotesSortDirection();
+      });
+      expect(useUIStore.getState().notesSortDirection).toBe('asc');
+
+      act(() => {
+        useUIStore.getState().actions.toggleNotesSortDirection();
+      });
+      expect(useUIStore.getState().notesSortDirection).toBe('desc');
+
+      act(() => {
+        useUIStore.getState().actions.toggleNotesSortDirection();
+      });
+      expect(useUIStore.getState().notesSortDirection).toBe('asc');
+    });
+  });
+
   describe('setNotesSearchQuery', () => {
     it('should update notesSearchQuery to a search term', () => {
       act(() => {
@@ -292,12 +339,14 @@ describe('UI Store', () => {
       act(() => {
         useUIStore.getState().actions.setNotesSearchQuery('test');
         useUIStore.getState().actions.setNotesSortBy('createdDate');
+        useUIStore.getState().actions.toggleNotesSortDirection();
         useUIStore.getState().actions.setNotesGroupByDate(false);
       });
 
       const state = useUIStore.getState();
       expect(state.notesSearchQuery).toBe('test');
       expect(state.notesSortBy).toBe('createdDate');
+      expect(state.notesSortDirection).toBe('asc');
       expect(state.notesGroupByDate).toBe(false);
     });
 

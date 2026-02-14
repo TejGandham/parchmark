@@ -20,10 +20,12 @@ vi.mock('../../../../features/ui/store', () => ({
   useUIStore: vi.fn((selector) => {
     const state = {
       notesSortBy: 'lastModified' as const,
+      notesSortDirection: 'desc' as const,
       notesSearchQuery: '',
       notesGroupByDate: false,
       actions: {
         setNotesSortBy: vi.fn(),
+        toggleNotesSortDirection: vi.fn(),
         setNotesSearchQuery: vi.fn(),
         setNotesGroupByDate: vi.fn(),
       },
@@ -78,15 +80,15 @@ const mockNotes = [
     id: 'note-1',
     title: 'First Note',
     content: '# First Note\n\nContent',
-    created_at: '2026-01-29T10:00:00Z',
-    updated_at: '2026-01-29T10:00:00Z',
+    createdAt: '2026-01-29T10:00:00Z',
+    updatedAt: '2026-01-29T10:00:00Z',
   },
   {
     id: 'note-2',
     title: 'Second Note',
     content: '# Second Note\n\nMore content',
-    created_at: '2026-01-29T09:00:00Z',
-    updated_at: '2026-01-29T09:00:00Z',
+    createdAt: '2026-01-29T09:00:00Z',
+    updatedAt: '2026-01-29T09:00:00Z',
   },
 ];
 

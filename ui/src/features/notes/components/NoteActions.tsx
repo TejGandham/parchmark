@@ -6,15 +6,23 @@ interface NoteActionsProps {
   isEditing: boolean;
   onEdit: () => void;
   onSave: () => void;
+  isSaving?: boolean;
 }
 
-const NoteActions = ({ isEditing, onEdit, onSave }: NoteActionsProps) => {
+const NoteActions = ({
+  isEditing,
+  onEdit,
+  onSave,
+  isSaving = false,
+}: NoteActionsProps) => {
   return (
     <HStack>
       {isEditing ? (
         <Button
           leftIcon={<FontAwesomeIcon icon={faSave} />}
           onClick={onSave}
+          isLoading={isSaving}
+          loadingText="Saving"
           variant="secondary"
           aria-label="Save note changes"
           _hover={{ transform: 'scale(1.05)' }}
