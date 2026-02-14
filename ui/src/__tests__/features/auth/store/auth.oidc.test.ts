@@ -298,7 +298,7 @@ describe('Auth Store - OIDC Methods', () => {
       removeItemSpy.mockRestore();
     });
 
-    it('sets oidcLogoutWarning when OIDC logout fails', async () => {
+    it('sets oidcLogoutWarning when logoutOIDC rejects unexpectedly', async () => {
       act(() => {
         useAuthStore.setState({
           isAuthenticated: true,
@@ -316,13 +316,39 @@ describe('Auth Store - OIDC Methods', () => {
       await store.actions.logout();
 
       const newState = useAuthStore.getState();
-      // Local logout should still succeed
       expect(newState.isAuthenticated).toBe(false);
       expect(newState.token).toBeNull();
-      // But warning should be set
       expect(newState.oidcLogoutWarning).toContain(
         'session may still be active'
       );
+    });
+
+    it('does not set oidcLogoutWarning when logoutOIDC resolves (native fallback redirect)', async () => {
+      const removeItemSpy = vi.spyOn(localStorage, 'removeItem');
+
+      act(() => {
+        useAuthStore.setState({
+          isAuthenticated: true,
+          token: 'oidc-token',
+          tokenSource: 'oidc',
+          user: { username: 'oidcuser', password: '' },
+        });
+      });
+
+      (oidcUtils.logoutOIDC as Mock).mockReturnValue(
+        new Promise<never>(() => {})
+      );
+
+      const store = useAuthStore.getState();
+      store.actions.logout();
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      const newState = useAuthStore.getState();
+      expect(removeItemSpy).toHaveBeenCalledWith('parchmark-auth');
+      expect(newState.oidcLogoutWarning).toBeNull();
+
+      removeItemSpy.mockRestore();
     });
 
     it('does not call logoutOIDC for local token source', async () => {

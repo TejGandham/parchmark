@@ -92,27 +92,38 @@ export const renewOIDCToken = async (): Promise<OIDCResult<User | null>> => {
  * Logout from OIDC (Authelia)
  * Redirects to the OIDC provider's end_session endpoint to terminate the
  * provider-side session, then redirects back to post_logout_redirect_uri.
- * Falls back to clearing the local session only if the redirect fails.
+ *
+ * When signoutRedirect fails (e.g., provider doesn't advertise
+ * end_session_endpoint — Authelia omits it), falls back to the provider's
+ * native logout page: `{authority}/logout?rd={post_logout_redirect_uri}`.
+ * This navigates the browser away, so the returned promise never resolves.
  */
 export const logoutOIDC = async () => {
   try {
-    // Redirect to the OIDC provider's end_session endpoint.
-    // This terminates the session on the identity provider and redirects
-    // back to post_logout_redirect_uri (configured in OIDC_CONFIG).
     await userManager.signoutRedirect();
   } catch (error) {
-    // If redirect fails (e.g., missing id_token, provider unreachable),
-    // fall back to clearing the local OIDC session only.
-    await userManager.removeUser();
+    try {
+      await userManager.removeUser();
+    } catch {
+      /* best-effort local cleanup */
+    }
+
     const errorDetails =
       error instanceof Error
         ? `${error.name}: ${error.message}`
         : String(error);
-    console.error(
-      `OIDC logout redirect failed, cleared local session: ${errorDetails}`,
-      { original: error }
+    console.warn(
+      `OIDC signoutRedirect unavailable, using native provider logout: ${errorDetails}`
     );
-    throw error;
+
+    // Authelia omits end_session_endpoint from OIDC discovery —
+    // redirect to its native /logout page which accepts `rd` for post-logout redirect.
+    const postLogoutUri = OIDC_CONFIG.post_logout_redirect_uri;
+    const logoutUrl = `${OIDC_CONFIG.authority}/logout?rd=${encodeURIComponent(postLogoutUri)}`;
+    window.location.assign(logoutUrl);
+
+    // Page is navigating away — never resolve so caller doesn't run teardown code.
+    return new Promise<never>(() => {});
   }
 };
 
