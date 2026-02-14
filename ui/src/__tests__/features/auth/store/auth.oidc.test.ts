@@ -274,7 +274,9 @@ describe('Auth Store - OIDC Methods', () => {
   });
 
   describe('OIDC logout', () => {
-    it('clears auth state on successful OIDC logout', async () => {
+    it('clears persisted state and calls signoutRedirect on successful OIDC logout', async () => {
+      const removeItemSpy = vi.spyOn(localStorage, 'removeItem');
+
       act(() => {
         useAuthStore.setState({
           isAuthenticated: true,
@@ -290,13 +292,10 @@ describe('Auth Store - OIDC Methods', () => {
       const store = useAuthStore.getState();
       await store.actions.logout();
 
-      const newState = useAuthStore.getState();
-      expect(newState.isAuthenticated).toBe(false);
-      expect(newState.token).toBeNull();
-      expect(newState.refreshToken).toBeNull();
-      expect(newState.user).toBeNull();
-      expect(newState.oidcLogoutWarning).toBeNull();
       expect(oidcUtils.logoutOIDC).toHaveBeenCalledTimes(1);
+      expect(removeItemSpy).toHaveBeenCalledWith('parchmark-auth');
+
+      removeItemSpy.mockRestore();
     });
 
     it('sets oidcLogoutWarning when OIDC logout fails', async () => {
@@ -399,7 +398,9 @@ describe('Auth Store - OIDC Methods', () => {
       expect(useAuthStore.getState().tokenSource).toBe('oidc');
     });
 
-    it('resets tokenSource to local on logout', async () => {
+    it('clears localStorage on successful OIDC logout for clean rehydration', async () => {
+      const removeItemSpy = vi.spyOn(localStorage, 'removeItem');
+
       act(() => {
         useAuthStore.setState({
           isAuthenticated: true,
@@ -413,10 +414,10 @@ describe('Auth Store - OIDC Methods', () => {
       const store = useAuthStore.getState();
       await store.actions.logout();
 
-      // After logout, a new login would start with 'local' as default
-      // The tokenSource isn't explicitly reset but auth state is cleared
-      const newState = useAuthStore.getState();
-      expect(newState.isAuthenticated).toBe(false);
+      expect(removeItemSpy).toHaveBeenCalledWith('parchmark-auth');
+      expect(oidcUtils.logoutOIDC).toHaveBeenCalledTimes(1);
+
+      removeItemSpy.mockRestore();
     });
   });
 
