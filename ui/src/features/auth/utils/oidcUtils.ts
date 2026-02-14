@@ -90,21 +90,28 @@ export const renewOIDCToken = async (): Promise<OIDCResult<User | null>> => {
 
 /**
  * Logout from OIDC (Authelia)
- * Clears local OIDC session. Does not redirect to IDP - Authelia session remains active.
- * User will need to visit https://auth.engen.tech/logout manually for full IDP logout.
+ * Redirects to the OIDC provider's end_session endpoint to terminate the
+ * provider-side session, then redirects back to post_logout_redirect_uri.
+ * Falls back to clearing the local session only if the redirect fails.
  */
 export const logoutOIDC = async () => {
   try {
-    // Clear the local OIDC session
-    await userManager.removeUser();
-    // Note: Authelia session remains active. Logging back in will be seamless
-    // if the Authelia session hasn't expired.
+    // Redirect to the OIDC provider's end_session endpoint.
+    // This terminates the session on the identity provider and redirects
+    // back to post_logout_redirect_uri (configured in OIDC_CONFIG).
+    await userManager.signoutRedirect();
   } catch (error) {
+    // If redirect fails (e.g., missing id_token, provider unreachable),
+    // fall back to clearing the local OIDC session only.
+    await userManager.removeUser();
     const errorDetails =
       error instanceof Error
         ? `${error.name}: ${error.message}`
         : String(error);
-    console.error(`OIDC logout failed: ${errorDetails}`, { original: error });
+    console.error(
+      `OIDC logout redirect failed, cleared local session: ${errorDetails}`,
+      { original: error }
+    );
     throw error;
   }
 };

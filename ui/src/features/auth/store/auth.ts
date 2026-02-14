@@ -222,16 +222,25 @@ export const useAuthStore = create<AuthState>()(
 
         logout: async () => {
           const state = useAuthStore.getState();
-          let oidcLogoutFailed = false;
-          let oidcErrorMessage = '';
+          const wasOIDC = state.tokenSource === 'oidc';
 
-          // Logout from OIDC if applicable
-          if (state.tokenSource === 'oidc') {
+          _activeRefreshPromise = null;
+
+          // Clear local auth state before OIDC redirect since
+          // signoutRedirect() navigates the browser away
+          set((state) => {
+            state.isAuthenticated = false;
+            state.user = null;
+            state.token = null;
+            state.refreshToken = null;
+            state.error = null;
+            state.oidcLogoutWarning = null;
+          });
+
+          if (wasOIDC) {
             try {
               await logoutOIDC();
             } catch (error) {
-              // Log OIDC logout errors but continue with local logout
-              // OIDC provider may be temporarily unavailable, but we should still clear local auth state
               const errorDetails =
                 error instanceof Error
                   ? `${error.name}: ${error.message}`
@@ -240,25 +249,12 @@ export const useAuthStore = create<AuthState>()(
                 `OIDC logout failed but continuing with local logout: ${errorDetails}`,
                 { original: error }
               );
-              oidcLogoutFailed = true;
-              oidcErrorMessage =
-                'Your session may still be active on the identity provider. For complete logout, close your browser or visit the identity provider directly.';
+              set((state) => {
+                state.oidcLogoutWarning =
+                  'Your session may still be active on the identity provider. For complete logout, close your browser or visit the identity provider directly.';
+              });
             }
           }
-
-          // Clear module-level refresh promise on logout
-          _activeRefreshPromise = null;
-
-          set((state) => {
-            state.isAuthenticated = false;
-            state.user = null;
-            state.token = null;
-            state.refreshToken = null;
-            state.error = null;
-            state.oidcLogoutWarning = oidcLogoutFailed
-              ? oidcErrorMessage
-              : null;
-          });
         },
 
         clearError: () => {
