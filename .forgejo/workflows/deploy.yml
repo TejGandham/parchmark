@@ -132,7 +132,7 @@ jobs:
           kubectl --kubeconfig=/tmp/kubeconfig rollout status deploy/parchmark-backend --timeout=120s
           kubectl --kubeconfig=/tmp/kubeconfig rollout status deploy/parchmark-frontend --timeout=120s
 
-      - name: Health check
+      - name: Verify health
         run: |
           kubectl --kubeconfig=/tmp/kubeconfig exec deploy/parchmark-backend -- curl -sf http://localhost:8000/health
 
