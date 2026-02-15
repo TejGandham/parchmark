@@ -159,13 +159,13 @@ jobs:
 
       - name: Deploy
         run: |
-          tailscale ssh --accept-risks=lose-ssh root@brahma \
+          tailscale ssh root@brahma \
             "kubectl rollout restart deploy/parchmark-backend deploy/parchmark-frontend && \
              kubectl rollout status deploy/parchmark-backend deploy/parchmark-frontend --timeout=120s"
 
       - name: Verify
         run: |
-          tailscale ssh --accept-risks=lose-ssh root@brahma \
+          tailscale ssh root@brahma \
             "kubectl exec deploy/parchmark-backend -- curl -sf http://localhost:8000/health"
 
       - name: Summary
