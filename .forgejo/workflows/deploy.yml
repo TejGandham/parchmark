@@ -16,6 +16,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Run Tests
+    env:
+      DOCKER_HOST: tcp://localhost:2375
 
     steps:
       - name: Checkout code
@@ -59,6 +61,8 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     name: Build Backend Image
+    env:
+      DOCKER_HOST: tcp://localhost:2375
 
     steps:
       - name: Checkout code
@@ -83,6 +87,8 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     name: Build Frontend Image
+    env:
+      DOCKER_HOST: tcp://localhost:2375
 
     steps:
       - name: Checkout code
