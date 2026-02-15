@@ -1,0 +1,73 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  ui-tests:
+    runs-on: ubuntu-latest
+    name: UI Tests
+
+    steps:
+      - name: Checkout code
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: https://code.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: make test-ui-install
+
+      - name: Run linting
+        run: make test-ui-lint
+
+      - name: Run tests
+        run: make test-ui-test
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    name: Backend Tests
+    env:
+      DOCKER_HOST: tcp://localhost:2375
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+
+    steps:
+      - name: Checkout code
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Install uv
+        uses: https://github.com/astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Setup Python with uv
+        run: |
+          cd backend
+          uv python install ${{ matrix.python-version }}
+          uv python pin ${{ matrix.python-version }}
+
+      - name: Sync dependencies with uv
+        run: make test-backend-install
+
+      - name: Run ruff linting check
+        run: make test-backend-lint
+
+      - name: Run ruff formatting check
+        run: make test-backend-format
+
+      - name: Run type checking
+        run: make test-backend-types
+
+      - name: Run tests with coverage
+        run: make test-backend-pytest-limited
