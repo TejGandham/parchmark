@@ -1,0 +1,134 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: brahma.myth-gecko.ts.net:3000
+  REGISTRY_OWNER: stackhouse
+
+jobs:
+  # ============================================================================
+  # JOB 1: RUN TESTS (gate before deploy)
+  # ============================================================================
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+
+    steps:
+      - name: Checkout code
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: https://code.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install uv
+        uses: https://github.com/astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Setup Python
+        run: |
+          cd backend
+          uv python install 3.13
+          uv python pin 3.13
+
+      - name: Install dependencies
+        run: make install-all
+
+      - name: Run all tests
+        run: |
+          make test-ui-lint
+          make test-ui-test
+          make test-backend-lint
+          make test-backend-format
+          make test-backend-types
+          make test-backend-pytest
+
+  # ============================================================================
+  # JOB 2: BUILD AND PUSH BACKEND IMAGE
+  # ============================================================================
+  build-backend:
+    needs: [test]
+    runs-on: ubuntu-latest
+    name: Build Backend Image
+
+    steps:
+      - name: Checkout code
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Log in to Forgejo registry
+        run: echo "${{ secrets.FORGEJO_TOKEN }}" | docker login ${{ env.REGISTRY }} -u woodhouse --password-stdin
+
+      - name: Build and push backend image
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:latest \
+            -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:sha-${SHORT_SHA} \
+            -f ./backend/Dockerfile.prod ./backend
+          docker push --all-tags ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend
+
+  # ============================================================================
+  # JOB 3: BUILD AND PUSH FRONTEND IMAGE
+  # ============================================================================
+  build-frontend:
+    needs: [test]
+    runs-on: ubuntu-latest
+    name: Build Frontend Image
+
+    steps:
+      - name: Checkout code
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Log in to Forgejo registry
+        run: echo "${{ secrets.FORGEJO_TOKEN }}" | docker login ${{ env.REGISTRY }} -u woodhouse --password-stdin
+
+      - name: Build and push frontend image
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:latest \
+            -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:sha-${SHORT_SHA} \
+            -f ./ui/Dockerfile ./ui
+          docker push --all-tags ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend
+
+  # ============================================================================
+  # JOB 4: DEPLOY TO K3S
+  # ============================================================================
+  deploy:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    name: Deploy to k3s
+
+    steps:
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          install -m 755 kubectl /usr/local/bin/kubectl
+
+      - name: Setup kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > /tmp/kubeconfig
+          chmod 600 /tmp/kubeconfig
+
+      - name: Deploy
+        run: |
+          kubectl --kubeconfig=/tmp/kubeconfig rollout restart deploy/parchmark-backend deploy/parchmark-frontend
+          kubectl --kubeconfig=/tmp/kubeconfig rollout status deploy/parchmark-backend --timeout=120s
+          kubectl --kubeconfig=/tmp/kubeconfig rollout status deploy/parchmark-frontend --timeout=120s
+
+      - name: Verify
+        run: |
+          kubectl --kubeconfig=/tmp/kubeconfig exec deploy/parchmark-backend -- curl -sf http://localhost:8000/health
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/kubeconfig
