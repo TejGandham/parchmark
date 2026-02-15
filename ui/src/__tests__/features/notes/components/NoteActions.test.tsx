@@ -9,6 +9,7 @@ describe('NoteActions Component', () => {
     isEditing: false,
     onEdit: vi.fn(),
     onSave: vi.fn(),
+    onCancel: vi.fn(),
   };
 
   beforeEach(() => {
@@ -38,6 +39,13 @@ describe('NoteActions Component', () => {
       expect(saveButton).not.toBeInTheDocument();
     });
 
+    it('should not render the cancel button when not in editing mode', () => {
+      renderComponent();
+
+      const cancelButton = screen.queryByRole('button', { name: /cancel/i });
+      expect(cancelButton).not.toBeInTheDocument();
+    });
+
     it('should call onEdit when edit button is clicked', () => {
       renderComponent();
 
@@ -59,7 +67,7 @@ describe('NoteActions Component', () => {
     it('should not render the edit button when in editing mode', () => {
       renderComponent({ isEditing: true });
 
-      const editButton = screen.queryByRole('button', { name: /edit/i });
+      const editButton = screen.queryByRole('button', { name: 'Edit note' });
       expect(editButton).not.toBeInTheDocument();
     });
 
@@ -70,6 +78,42 @@ describe('NoteActions Component', () => {
       fireEvent.click(saveButton);
 
       expect(defaultProps.onSave).toHaveBeenCalled();
+    });
+
+    it('should render the cancel button when in editing mode', () => {
+      renderComponent({ isEditing: true });
+
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
+      expect(cancelButton).toBeInTheDocument();
+    });
+
+    it('should call onCancel when cancel button is clicked', () => {
+      renderComponent({ isEditing: true });
+
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
+      fireEvent.click(cancelButton);
+
+      expect(defaultProps.onCancel).toHaveBeenCalled();
+    });
+
+    it('should render cancel button before save button', () => {
+      renderComponent({ isEditing: true });
+
+      const buttons = screen.getAllByRole('button');
+      const cancelIndex = buttons.findIndex(
+        (b) => b.getAttribute('aria-label') === 'Cancel editing'
+      );
+      const saveIndex = buttons.findIndex(
+        (b) => b.getAttribute('aria-label') === 'Save note changes'
+      );
+      expect(cancelIndex).toBeLessThan(saveIndex);
+    });
+
+    it('should disable cancel button while saving', () => {
+      renderComponent({ isEditing: true, isSaving: true });
+
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
+      expect(cancelButton).toBeDisabled();
     });
   });
 

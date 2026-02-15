@@ -30,17 +30,24 @@ vi.mock('../../../../features/notes/components/NoteActions', () => ({
     isEditing,
     onEdit,
     onSave,
+    onCancel,
     isSaving,
   }: {
     isEditing: boolean;
     onEdit: () => void;
     onSave: () => void;
+    onCancel?: () => void;
     isSaving?: boolean;
   }) => (
     <div data-testid="note-actions">
       <button data-testid="edit-button" onClick={onEdit} disabled={isEditing}>
         Edit
       </button>
+      {isEditing && (
+        <button data-testid="cancel-button" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
       <button
         data-testid="save-button"
         onClick={onSave}
@@ -305,6 +312,46 @@ describe('NoteContent with Data Router', () => {
       // Now state should be cleared
       expect(mockSetSearchParams).toHaveBeenCalledWith({});
       expect(mockSetEditedContent).toHaveBeenCalledWith(null);
+    });
+  });
+
+  describe('Cancel Editing', () => {
+    it('clears editing state when cancel is clicked', () => {
+      setupMocks({
+        noteId: 'note-1',
+        isEditing: true,
+        editedContent: '# First Note\n\nModified content',
+      });
+      renderComponent();
+
+      fireEvent.click(screen.getByTestId('cancel-button'));
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith({});
+      expect(mockSetEditedContent).toHaveBeenCalledWith(null);
+    });
+
+    it('clears editing state when Escape key is pressed', () => {
+      setupMocks({
+        noteId: 'note-1',
+        isEditing: true,
+        editedContent: '# First Note\n\nModified content',
+      });
+      renderComponent();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith({});
+      expect(mockSetEditedContent).toHaveBeenCalledWith(null);
+    });
+
+    it('does not respond to Escape key when not editing', () => {
+      setupMocks({ noteId: 'note-1', isEditing: false });
+      renderComponent();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(mockSetSearchParams).not.toHaveBeenCalled();
+      expect(mockSetEditedContent).not.toHaveBeenCalled();
     });
   });
 

@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   useParams,
   useRouteLoaderData,
@@ -82,6 +82,11 @@ const NoteContent = () => {
     }
   };
 
+  const cancelEditing = useCallback(() => {
+    setSearchParams({});
+    setEditedContent(null);
+  }, [setSearchParams, setEditedContent]);
+
   const saveNote = () => {
     if (!noteId || !editedContent) return;
     pendingSaveNoteIdRef.current = noteId;
@@ -90,6 +95,20 @@ const NoteContent = () => {
       { method: 'post', action: `/notes/${noteId}` }
     );
   };
+
+  // Escape key exits edit mode
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cancelEditing();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, cancelEditing]);
 
   const createNewNote = () => {
     fetcher.submit(null, { method: 'post', action: '/notes' });
@@ -137,6 +156,7 @@ const NoteContent = () => {
                 /* Already editing */
               }}
               onSave={saveNote}
+              onCancel={cancelEditing}
               isSaving={isSaving}
             />
           </Flex>
@@ -270,6 +290,7 @@ const NoteContent = () => {
           isEditing={isEditing}
           onEdit={startEditing}
           onSave={saveNote}
+          onCancel={cancelEditing}
           isSaving={isSaving}
         />
       </Flex>
