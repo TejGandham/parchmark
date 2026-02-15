@@ -143,27 +143,35 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.GITHUB_USERNAME }}/parchmark-frontend:buildcache,mode=max
 
   # ============================================================================
-  # JOB 4: BUILD SUMMARY
+  # JOB 4: DEPLOY TO K3S
   # ============================================================================
-  build-summary:
+  deploy:
     needs: [build-and-push-backend, build-and-push-frontend]
     runs-on: ubuntu-latest
-    name: Build Summary
+    name: Deploy to k3s
 
     steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTH_KEY }}
+          tags: tag:ci
+
+      - name: Deploy
+        run: |
+          tailscale ssh --accept-risks=lose-ssh root@brahma \
+            "kubectl rollout restart deploy/parchmark-backend deploy/parchmark-frontend && \
+             kubectl rollout status deploy/parchmark-backend deploy/parchmark-frontend --timeout=120s"
+
+      - name: Verify
+        run: |
+          tailscale ssh --accept-risks=lose-ssh root@brahma \
+            "kubectl exec deploy/parchmark-backend -- curl -sf http://localhost:8000/health"
+
       - name: Summary
         run: |
-          echo "## Build Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployed :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Images have been pushed to GHCR:" >> $GITHUB_STEP_SUMMARY
+          echo "Images built and deployed to brahma k3s:" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ env.GITHUB_USERNAME }}/parchmark-backend:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ env.GITHUB_USERNAME }}/parchmark-frontend:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Deploy to Production" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "SSH into the production server and run:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "cd /home/deploy/parchmark" >> $GITHUB_STEP_SUMMARY
-          echo "git pull origin main" >> $GITHUB_STEP_SUMMARY
-          echo "./deploy/update.sh" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
