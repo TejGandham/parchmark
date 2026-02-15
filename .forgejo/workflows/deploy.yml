@@ -18,6 +18,7 @@ jobs:
     name: Run Tests
     env:
       DOCKER_HOST: tcp://localhost:2375
+      TESTCONTAINERS_RYUK_DISABLED: "true"
 
     steps:
       - name: Checkout code
@@ -52,7 +53,7 @@ jobs:
           make test-backend-lint
           make test-backend-format
           make test-backend-types
-          make test-backend-pytest
+          make test-backend-pytest-limited
 
   # ============================================================================
   # JOB 2: BUILD AND PUSH BACKEND IMAGE

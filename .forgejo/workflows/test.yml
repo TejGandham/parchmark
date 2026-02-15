@@ -36,6 +36,7 @@ jobs:
     name: Backend Tests
     env:
       DOCKER_HOST: tcp://localhost:2375
+      TESTCONTAINERS_RYUK_DISABLED: "true"
     strategy:
       matrix:
         python-version: ["3.13"]
@@ -69,4 +70,4 @@ jobs:
         run: make test-backend-types
 
       - name: Run tests with coverage
-        run: make test-backend-pytest
+        run: make test-backend-pytest-limited
