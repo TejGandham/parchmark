@@ -10,12 +10,18 @@ export type UIState = {
   notesSortDirection: SortDirection;
   notesSearchQuery: string;
   notesGroupByDate: boolean;
+  isPaletteOpen: boolean;
+  paletteSearchQuery: string;
   actions: {
     toggleSidebar: () => void;
     setNotesSortBy: (sortBy: SortOption) => void;
     toggleNotesSortDirection: () => void;
     setNotesSearchQuery: (query: string) => void;
     setNotesGroupByDate: (enabled: boolean) => void;
+    openPalette: () => void;
+    closePalette: () => void;
+    togglePalette: () => void;
+    setPaletteSearchQuery: (query: string) => void;
   };
 };
 
@@ -53,12 +59,44 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
     });
   };
 
+  const openPalette = () => {
+    set((state: UIState) => {
+      state.isPaletteOpen = true;
+    });
+  };
+
+  const closePalette = () => {
+    set((state: UIState) => {
+      state.isPaletteOpen = false;
+      state.paletteSearchQuery = '';
+    });
+  };
+
+  const togglePalette = () => {
+    set((state: UIState) => {
+      state.isPaletteOpen = !state.isPaletteOpen;
+      if (!state.isPaletteOpen) {
+        state.paletteSearchQuery = '';
+      }
+    });
+  };
+
+  const setPaletteSearchQuery = (query: string) => {
+    set((state: UIState) => {
+      state.paletteSearchQuery = query;
+    });
+  };
+
   return {
     toggleSidebar,
     setNotesSortBy,
     toggleNotesSortDirection,
     setNotesSearchQuery,
     setNotesGroupByDate,
+    openPalette,
+    closePalette,
+    togglePalette,
+    setPaletteSearchQuery,
   };
 };
 
@@ -74,17 +112,41 @@ export const useUIStore = create<UIState>()(
         notesSortDirection: 'desc' as SortDirection,
         notesSearchQuery: '',
         notesGroupByDate: true,
+        isPaletteOpen: false,
+        paletteSearchQuery: '',
         actions,
       };
     }),
     {
       name: STORAGE_KEYS.UI_PREFERENCES,
+      version: 2,
+      migrate: (
+        persistedState: unknown,
+        version: number
+      ): UIState | Promise<UIState> => {
+        const state = persistedState as Partial<UIState>;
+        if (version === 0 || version === 1) {
+          return {
+            ...state,
+            isPaletteOpen: false,
+            paletteSearchQuery: '',
+          } as UIState;
+        }
+        return state as UIState;
+      },
       // Ensure actions are preserved during hydration
       merge: (persistedState, currentState) => {
         return {
           ...persistedState,
           actions: currentState.actions,
         };
+      },
+      // Exclude ephemeral palette state from persistence
+      partialize: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { isPaletteOpen, paletteSearchQuery, actions, ...persisted } =
+          state;
+        return persisted as UIState;
       },
     }
   )
