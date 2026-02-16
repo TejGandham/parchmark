@@ -309,7 +309,7 @@ Wave 3 (After Wave 2):
 
 ---
 
-- [ ] 3. Frontend: Layout Rewire — Full-Width Editor
+- [x] 3. Frontend: Layout Rewire — Full-Width Editor
 
   **What to do**:
   - Modify `NotesLayout.tsx`: remove Sidebar import/render, full-width editor, mount CommandPalette, pass notes via `useRouteLoaderData`
@@ -368,7 +368,7 @@ Wave 3 (After Wave 2):
 
 ---
 
-- [ ] 4. Frontend: Palette Features — Sections + Search
+- [x] 4. Frontend: Palette Features — Sections + Search
 
   **What to do**:
   - "Recent" section: last 5 by `updatedAt` desc. Header "RECENT", single-line items (title left, compact time right)
@@ -428,7 +428,7 @@ Wave 3 (After Wave 2):
 
 ---
 
-- [ ] 5. Frontend: "For You" Scoring + Access Integration
+- [x] 5. Frontend: "For You" Scoring + Access Integration
 
   **What to do**:
   - Create `noteScoring.ts`:
