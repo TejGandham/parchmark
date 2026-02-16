@@ -3,6 +3,8 @@ Pydantic schemas for ParchMark backend API.
 Defines request/response models for validation matching frontend data structures.
 """
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -81,6 +83,8 @@ class NoteResponse(BaseModel):
     content: str = Field(..., description="Markdown content of the note")
     createdAt: str = Field(..., description="ISO timestamp when the note was created")
     updatedAt: str = Field(..., description="ISO timestamp when the note was last updated")
+    accessCount: int | None = Field(None, description="Number of times the note has been accessed")
+    lastAccessedAt: datetime | None = Field(None, description="Timestamp of the last access")
 
     model_config = ConfigDict(from_attributes=True)
 

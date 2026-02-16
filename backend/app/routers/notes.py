@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
 
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
@@ -57,6 +58,8 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
             "content": note.content,
             "createdAt": note.created_at.isoformat(),
             "updatedAt": note.updated_at.isoformat(),
+            "accessCount": note.access_count,
+            "lastAccessedAt": note.last_accessed_at,
         }
         note_responses.append(NoteResponse.model_validate(note_dict))
 
@@ -121,6 +124,8 @@ async def create_note(
             "content": db_note.content,
             "createdAt": db_note.created_at.isoformat(),
             "updatedAt": db_note.updated_at.isoformat(),
+            "accessCount": db_note.access_count,
+            "lastAccessedAt": db_note.last_accessed_at,
         }
     )
 
@@ -186,6 +191,8 @@ async def update_note(
             "content": db_note.content,
             "createdAt": db_note.created_at.isoformat(),
             "updatedAt": db_note.updated_at.isoformat(),
+            "accessCount": db_note.access_count,
+            "lastAccessedAt": db_note.last_accessed_at,
         }
     )
 
@@ -267,17 +274,48 @@ async def get_note(
             "content": db_note.content,
             "createdAt": db_note.created_at.isoformat(),
             "updatedAt": db_note.updated_at.isoformat(),
+            "accessCount": db_note.access_count,
+            "lastAccessedAt": db_note.last_accessed_at,
         }
     )
 
 
-# Health check endpoint for notes service
+@router.post("/{note_id}/access", response_model=NoteResponse)
+async def track_note_access(
+    note_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
+    db_note = result.scalar_one_or_none()
+
+    if not db_note:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+
+    db_note.access_count = db_note.access_count + 1  # type: ignore[assignment]
+    db_note.last_accessed_at = func.now()  # type: ignore[assignment]
+
+    try:
+        await db.commit()
+        await db.refresh(db_note)
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Failed to track access for note {note_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
+
+    return NoteResponse.model_validate(
+        {
+            "id": db_note.id,
+            "title": db_note.title,
+            "content": db_note.content,
+            "createdAt": db_note.created_at.isoformat(),
+            "updatedAt": db_note.updated_at.isoformat(),
+            "accessCount": db_note.access_count,
+            "lastAccessedAt": db_note.last_accessed_at,
+        }
+    )
+
+
 @router.get("/health/check")
 async def notes_health_check():
-    """
-    Health check endpoint for notes service.
-
-    Returns:
-        dict: Status message indicating notes service is operational
-    """
     return {"status": "Notes service is healthy"}
