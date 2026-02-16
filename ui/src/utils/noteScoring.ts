@@ -1,4 +1,4 @@
-import type { Note } from '../types';
+import type { Note, SimilarNote } from '../types';
 
 // Score = (0.6 * recency) + (0.4 * frequency)
 // recency = 1/(1+hours)  frequency = min(count/20, 1.0)
@@ -34,5 +34,40 @@ export const getForYouNotes = (
 
   scored.sort((a, b) => b.score - a.score);
 
+  return scored.slice(0, count).map((item) => item.note);
+};
+
+/**
+ * Blend heuristic scores with AI similarity scores.
+ * When similarity data is available:
+ *   finalScore = 0.4 * heuristic + 0.6 * similarity
+ * When no similarity data:
+ *   Falls back to heuristic-only scoring.
+ */
+export const getBlendedForYouNotes = (
+  notes: Note[],
+  currentNoteId: string | null,
+  similarNotes: SimilarNote[],
+  count: number = 3
+): Note[] => {
+  const candidates = notes.filter((note) => note.id !== currentNoteId);
+
+  if (similarNotes.length === 0) {
+    return getForYouNotes(notes, currentNoteId, count);
+  }
+
+  const similarityMap = new Map<string, number>();
+  for (const sn of similarNotes) {
+    similarityMap.set(sn.id, sn.similarity);
+  }
+
+  const scored = candidates.map((note) => {
+    const heuristic = computeForYouScore(note);
+    const similarity = similarityMap.get(note.id) ?? 0;
+    const blended = 0.4 * heuristic + 0.6 * similarity;
+    return { note, score: blended };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, count).map((item) => item.note);
 };
