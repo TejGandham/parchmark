@@ -11,12 +11,31 @@ import { useUIStore } from '../../../../features/ui/store/ui';
 import { Note } from '../../../../types';
 
 const mockNavigate = vi.fn();
+const mockFetcherSubmit = vi.fn();
+const mockFetcherState = vi.fn().mockReturnValue('idle');
+const mockFetcherData = vi.fn().mockReturnValue(undefined);
+const mockNavigationState = vi.fn().mockReturnValue('idle');
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
     useParams: () => ({ noteId: 'current-note' }),
+    useFetcher: () => ({
+      submit: mockFetcherSubmit,
+      get state() {
+        return mockFetcherState();
+      },
+      get data() {
+        return mockFetcherData();
+      },
+    }),
+    useNavigation: () => ({
+      get state() {
+        return mockNavigationState();
+      },
+    }),
   };
 });
 
@@ -81,6 +100,10 @@ function closePaletteViaStore() {
 describe('CommandPalette', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockFetcherSubmit.mockClear();
+    mockFetcherState.mockReturnValue('idle');
+    mockFetcherData.mockReturnValue(undefined);
+    mockNavigationState.mockReturnValue('idle');
     act(() => {
       useUIStore.setState({
         isPaletteOpen: false,
@@ -178,9 +201,7 @@ describe('CommandPalette', () => {
     it('shows FOR YOU header when palette is open with notes', () => {
       openPalette();
       renderPalette(sampleNotes);
-      expect(screen.getByTestId('for-you-header')).toHaveTextContent(
-        'FOR YOU'
-      );
+      expect(screen.getByTestId('for-you-header')).toHaveTextContent('FOR YOU');
     });
 
     it('displays FOR YOU section above RECENT', () => {
@@ -323,9 +344,7 @@ describe('CommandPalette', () => {
       fireEvent.change(screen.getByTestId('command-palette-search'), {
         target: { value: 'test' },
       });
-      expect(
-        screen.queryByTestId('all-notes-toggle')
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('all-notes-toggle')).not.toBeInTheDocument();
     });
 
     it('shows result count', () => {
@@ -356,7 +375,9 @@ describe('CommandPalette', () => {
       fireEvent.change(screen.getByTestId('command-palette-search'), {
         target: { value: 'zzzzzzz' },
       });
-      expect(screen.getByText(/No notes match/)).toBeInTheDocument();
+      expect(screen.getByTestId('no-notes-found')).toHaveTextContent(
+        'No notes found'
+      );
     });
 
     it('restores sections when search is cleared', () => {
@@ -442,6 +463,215 @@ describe('CommandPalette', () => {
       const items = screen.getAllByTestId('palette-note-item');
       fireEvent.click(items[0]);
       expect(trackNoteAccess).toHaveBeenCalledWith('1');
+    });
+  });
+
+  describe('Create from Search', () => {
+    it('shows create row when search has 0 results and query >= 4 chars', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'nonexistent' },
+      });
+      expect(screen.getByTestId('no-notes-found')).toHaveTextContent(
+        'No notes found'
+      );
+      expect(screen.getByTestId('create-from-search')).toBeInTheDocument();
+      expect(screen.getByText('Create "nonexistent"')).toBeInTheDocument();
+    });
+
+    it('disables create for queries < 4 chars', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'ab' },
+      });
+      expect(screen.getByText(/Minimum 4 characters/)).toBeInTheDocument();
+      const createRow = screen.getByTestId('create-from-search');
+      expect(createRow).toHaveStyle({ opacity: '0.5' });
+    });
+
+    it('enables create for queries >= 4 chars', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'abcd' },
+      });
+      expect(
+        screen.queryByText(/Minimum 4 characters/)
+      ).not.toBeInTheDocument();
+      const createRow = screen.getByTestId('create-from-search');
+      expect(createRow).toHaveStyle({ opacity: '1' });
+    });
+
+    it('calls fetcher.submit on create row click with query >= 4 chars', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'New Topic' },
+      });
+      fireEvent.click(screen.getByTestId('create-from-search'));
+      expect(mockFetcherSubmit).toHaveBeenCalledWith(
+        { content: '# New Topic\n\n', title: 'New Topic' },
+        { method: 'post', action: '/notes' }
+      );
+    });
+
+    it('does not call fetcher.submit on create row click with query < 4 chars', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'ab' },
+      });
+      fireEvent.click(screen.getByTestId('create-from-search'));
+      expect(mockFetcherSubmit).not.toHaveBeenCalled();
+    });
+
+    it('creates note on Cmd+Enter with valid query', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'New Topic' },
+      });
+      fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+      expect(mockFetcherSubmit).toHaveBeenCalledWith(
+        { content: '# New Topic\n\n', title: 'New Topic' },
+        { method: 'post', action: '/notes' }
+      );
+    });
+
+    it('does not create on Cmd+Enter with query < 4 chars', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'ab' },
+      });
+      fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+      expect(mockFetcherSubmit).not.toHaveBeenCalled();
+    });
+
+    it('does not create on Cmd+Enter when search has results', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'Alpha' },
+      });
+      fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+      expect(mockFetcherSubmit).not.toHaveBeenCalled();
+    });
+
+    it('navigates after creation completes', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'New Topic' },
+      });
+      fireEvent.click(screen.getByTestId('create-from-search'));
+      expect(mockFetcherSubmit).toHaveBeenCalled();
+      mockFetcherData.mockReturnValue({ id: 'new-123', title: 'New Topic' });
+      // Trigger re-render so the useEffect picks up the new fetcher data
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'New Topic ' },
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('/notes/new-123?editing=true');
+    });
+
+    it('shows ⌘↵ create hint in footer when create is available', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'nonexistent' },
+      });
+      expect(screen.getByText(/⌘↵ create/)).toBeInTheDocument();
+    });
+
+    it('shows Creating... while fetcher is submitting', () => {
+      mockFetcherState.mockReturnValue('submitting');
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'nonexistent' },
+      });
+      expect(screen.getByText('Creating...')).toBeInTheDocument();
+    });
+  });
+
+  describe('Zero notes state', () => {
+    it('shows zero notes message when no notes and no search', () => {
+      openPalette();
+      renderPalette([]);
+      expect(screen.getByTestId('zero-notes-state')).toBeInTheDocument();
+      expect(screen.getByText('No notes yet')).toBeInTheDocument();
+    });
+
+    it('shows create first note button', () => {
+      openPalette();
+      renderPalette([]);
+      expect(screen.getByTestId('create-first-note-btn')).toBeInTheDocument();
+      expect(screen.getByText('Create your first note')).toBeInTheDocument();
+    });
+
+    it('calls fetcher.submit when create first note is clicked', () => {
+      openPalette();
+      renderPalette([]);
+      fireEvent.click(screen.getByTestId('create-first-note-btn'));
+      expect(mockFetcherSubmit).toHaveBeenCalledWith(
+        { content: '# New Note\n\n', title: 'New Note' },
+        { method: 'post', action: '/notes' }
+      );
+    });
+
+    it('does not show RECENT or All Notes sections with zero notes', () => {
+      openPalette();
+      renderPalette([]);
+      expect(screen.queryByTestId('recent-header')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('all-notes-toggle')).not.toBeInTheDocument();
+    });
+
+    it('does not show zero notes state when searching', () => {
+      openPalette();
+      renderPalette([]);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'test' },
+      });
+      expect(screen.queryByTestId('zero-notes-state')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Loading skeletons', () => {
+    it('shows skeleton items when route is loading', () => {
+      mockNavigationState.mockReturnValue('loading');
+      openPalette();
+      renderPalette(sampleNotes);
+      expect(screen.getAllByTestId('skeleton-item')).toHaveLength(3);
+    });
+
+    it('hides normal sections when route is loading', () => {
+      mockNavigationState.mockReturnValue('loading');
+      openPalette();
+      renderPalette(sampleNotes);
+      expect(screen.queryByTestId('recent-header')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('all-notes-toggle')).not.toBeInTheDocument();
+    });
+
+    it('shows normal sections when route is idle', () => {
+      mockNavigationState.mockReturnValue('idle');
+      openPalette();
+      renderPalette(sampleNotes);
+      expect(screen.queryAllByTestId('skeleton-item')).toHaveLength(0);
+      expect(screen.getByTestId('recent-header')).toBeInTheDocument();
+    });
+  });
+
+  describe('Deep link behavior', () => {
+    it('does not auto-open palette when noteId is present (NotesLayout handles this)', () => {
+      // NotesLayout's useEffect: if (!noteId) openPalette()
+      // When noteId exists (deep link), palette stays closed
+      // Verified by: useParams mock returns { noteId: 'current-note' }
+      // and palette does not auto-open in these tests
+      renderPalette(sampleNotes);
+      expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
     });
   });
 

@@ -6,11 +6,21 @@ import {
   createEmptyNoteContent,
 } from '../../services/markdownService';
 
-export async function createNoteAction() {
+export async function createNoteAction({ request }: ActionFunctionArgs) {
   try {
-    const content = createEmptyNoteContent('Untitled');
-    const title = extractTitleFromMarkdown(content);
+    const formData = await request.formData();
+    const customTitle = formData.get('title') as string | null;
+    const customContent = formData.get('content') as string | null;
+
+    const content = customContent || createEmptyNoteContent('Untitled');
+    const title = customTitle || extractTitleFromMarkdown(content);
     const newNote = await api.createNote({ title, content });
+
+    // Return data for programmatic callers (e.g., command palette useFetcher)
+    if (customTitle) {
+      return { id: newNote.id, title: newNote.title };
+    }
+
     return redirect(`/notes/${newNote.id}?editing=true`);
   } catch (error) {
     throw new Response(
