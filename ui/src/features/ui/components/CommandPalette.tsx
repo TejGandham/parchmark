@@ -16,9 +16,16 @@ import {
   VStack,
   HStack,
   Flex,
+  Skeleton,
+  Button,
 } from '@chakra-ui/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
+import {
+  useNavigate,
+  useParams,
+  useFetcher,
+  useNavigation,
+} from 'react-router-dom';
 import { List, type RowComponentProps } from 'react-window';
 import { useUIStore } from '../store/ui';
 import { Note } from '../../../types';
@@ -140,6 +147,10 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
   ) as MutableRefObject<HTMLInputElement | null>;
   const navigate = useNavigate();
   const { noteId: currentNoteId } = useParams<{ noteId: string }>();
+  const fetcher = useFetcher<{ id: string; title: string }>();
+  const navigation = useNavigation();
+  const isRouteLoading = navigation.state === 'loading';
+  const createInitiatedRef = useRef(false);
 
   const [isAllNotesExpanded, setIsAllNotesExpanded] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -184,6 +195,12 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     return recentNotes;
   }, [searchQuery, filteredNotes, recentNotes]);
 
+  const isSearching = searchQuery.length > 0;
+  const hasResults = filteredNotes.length > 0;
+  const canCreate = searchQuery.length >= 4;
+  const isCreating =
+    fetcher.state === 'submitting' || fetcher.state === 'loading';
+
   useEffect(() => {
     setActiveIndex(0);
   }, [searchQuery]);
@@ -207,10 +224,43 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     [navigate, closePalette]
   );
 
+  const handleCreate = useCallback(
+    (title?: string) => {
+      if (isCreating) return;
+      const noteTitle = title || searchQuery;
+      createInitiatedRef.current = true;
+      fetcher.submit(
+        { content: `# ${noteTitle}\n\n`, title: noteTitle },
+        { method: 'post', action: '/notes' }
+      );
+    },
+    [fetcher, searchQuery, isCreating]
+  );
+
+  useEffect(() => {
+    if (
+      createInitiatedRef.current &&
+      fetcher.state === 'idle' &&
+      fetcher.data?.id
+    ) {
+      createInitiatedRef.current = false;
+      navigate(`/notes/${fetcher.data.id}?editing=true`);
+      closePalette();
+    }
+  }, [fetcher.state, fetcher.data, navigate, closePalette]);
+
   useEffect(() => {
     if (!isPaletteOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        if (isSearching && !hasResults && canCreate) {
+          e.preventDefault();
+          handleCreate();
+        }
+        return;
+      }
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setActiveIndex((prev) => Math.min(prev + 1, visibleNotes.length - 1));
@@ -225,7 +275,16 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteOpen, activeIndex, visibleNotes, handleSelect]);
+  }, [
+    isPaletteOpen,
+    activeIndex,
+    visibleNotes,
+    handleSelect,
+    isSearching,
+    hasResults,
+    canCreate,
+    handleCreate,
+  ]);
 
   const handleBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) closePalette();
@@ -245,7 +304,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     setAllNotesSortDir((prev) => (prev === 'desc' ? 'asc' : 'desc'));
   }, []);
 
-  const isSearching = searchQuery.length > 0;
   const useVirtualScroll =
     isAllNotesExpanded && allNotesSorted.length > VIRTUALIZATION_THRESHOLD;
 
@@ -308,7 +366,33 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                 overflowY="auto"
                 maxHeight="50vh"
               >
-                {isSearching && (
+                {isRouteLoading && (
+                  <>
+                    <Box
+                      px={4}
+                      py={1.5}
+                      bg="gray.50"
+                      borderBottom="1px"
+                      borderColor="gray.100"
+                    >
+                      <Skeleton height="12px" width="60px" />
+                    </Box>
+                    {[...Array(3)].map((_, i) => (
+                      <HStack
+                        key={i}
+                        px={4}
+                        py={2}
+                        spacing={3}
+                        data-testid="skeleton-item"
+                      >
+                        <Skeleton height="16px" flex={1} />
+                        <Skeleton height="12px" width="30px" />
+                      </HStack>
+                    ))}
+                  </>
+                )}
+
+                {!isRouteLoading && isSearching && (
                   <>
                     <Box
                       px={4}
@@ -336,16 +420,69 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                       />
                     ))}
                     {filteredNotes.length === 0 && (
-                      <Box px={4} py={6} textAlign="center">
-                        <Text fontSize="sm" color="text.muted">
-                          No notes match &ldquo;{searchQuery}&rdquo;
-                        </Text>
-                      </Box>
+                      <>
+                        <Box px={4} py={3} textAlign="center">
+                          <Text
+                            fontSize="sm"
+                            color="text.muted"
+                            data-testid="no-notes-found"
+                          >
+                            No notes found
+                          </Text>
+                        </Box>
+                        <Box
+                          px={4}
+                          py={3}
+                          cursor={canCreate ? 'pointer' : 'not-allowed'}
+                          opacity={canCreate ? 1 : 0.5}
+                          _hover={canCreate ? { bg: 'red.50' } : {}}
+                          onClick={() => canCreate && handleCreate()}
+                          data-testid="create-from-search"
+                        >
+                          <Text
+                            color={canCreate ? 'red.700' : 'text.muted'}
+                            fontWeight="medium"
+                            fontSize="sm"
+                          >
+                            {isCreating
+                              ? 'Creating...'
+                              : `Create "${searchQuery}"`}
+                          </Text>
+                          {!canCreate && (
+                            <Text fontSize="xs" color="text.muted" mt={1}>
+                              Minimum 4 characters required
+                            </Text>
+                          )}
+                        </Box>
+                      </>
                     )}
                   </>
                 )}
 
-                {!isSearching && forYouNotes.length > 0 && (
+                {!isRouteLoading && !isSearching && notes.length === 0 && (
+                  <VStack
+                    spacing={4}
+                    p={8}
+                    align="center"
+                    data-testid="zero-notes-state"
+                  >
+                    <Text color="text.muted" fontSize="sm">
+                      No notes yet
+                    </Text>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="solid"
+                      isLoading={isCreating}
+                      onClick={() => handleCreate('New Note')}
+                      data-testid="create-first-note-btn"
+                    >
+                      Create your first note
+                    </Button>
+                  </VStack>
+                )}
+
+                {!isRouteLoading && !isSearching && forYouNotes.length > 0 && (
                   <>
                     <Box
                       px={4}
@@ -375,7 +512,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                   </>
                 )}
 
-                {!isSearching && (
+                {!isRouteLoading && !isSearching && notes.length > 0 && (
                   <>
                     <Box
                       px={4}
@@ -405,7 +542,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                   </>
                 )}
 
-                {!isSearching && (
+                {!isRouteLoading && !isSearching && notes.length > 0 && (
                   <>
                     <Box
                       px={4}
@@ -523,7 +660,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                 bg="gray.50"
               >
                 <Text fontSize="xs" color="gray.600">
-                  ↑↓ navigate • ↵ open • esc to close
+                  {`↑↓ navigate • ↵ open${isSearching && !hasResults && canCreate ? ' • ⌘↵ create' : ''} • esc to close`}
                 </Text>
               </Box>
             </Box>
