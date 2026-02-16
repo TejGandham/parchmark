@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { computeForYouScore, getForYouNotes } from '../../utils/noteScoring';
-import type { Note } from '../../types';
+import {
+  computeForYouScore,
+  getForYouNotes,
+  getBlendedForYouNotes,
+} from '../../utils/noteScoring';
+import type { Note, SimilarNote } from '../../types';
 
 const makeNote = (overrides: Partial<Note> = {}): Note => ({
   id: 'note-1',
@@ -236,6 +240,78 @@ describe('noteScoring', () => {
       expect(result[0]).toHaveProperty('id');
       expect(result[0]).toHaveProperty('title');
       expect(result[0]).not.toHaveProperty('score');
+    });
+  });
+
+  describe('getBlendedForYouNotes', () => {
+    const notes: Note[] = [
+      makeNote({
+        id: '1',
+        lastAccessedAt: '2024-01-15T12:00:00.000Z',
+        accessCount: 10,
+      }),
+      makeNote({
+        id: '2',
+        lastAccessedAt: '2024-01-08T12:00:00.000Z',
+        accessCount: 0,
+      }),
+      makeNote({
+        id: '3',
+        lastAccessedAt: '2024-01-15T11:00:00.000Z',
+        accessCount: 5,
+      }),
+      makeNote({
+        id: '4',
+        lastAccessedAt: '2024-01-15T10:00:00.000Z',
+        accessCount: 15,
+      }),
+    ];
+
+    it('returns heuristic-only when similarNotes is empty array', () => {
+      const blended = getBlendedForYouNotes(notes, null, [], 3);
+      const heuristic = getForYouNotes(notes, null, 3);
+      expect(blended.map((n) => n.id)).toEqual(heuristic.map((n) => n.id));
+    });
+
+    it('returns blended scores when similarNotes provided', () => {
+      const similarNotes: SimilarNote[] = [
+        { id: '2', title: 'Note 2', similarity: 0.95, updatedAt: '' },
+      ];
+      const result = getBlendedForYouNotes(notes, null, similarNotes, 4);
+      expect(result).toHaveLength(4);
+    });
+
+    it('excludes current note from results', () => {
+      const similarNotes: SimilarNote[] = [
+        { id: '2', title: 'Note 2', similarity: 0.9, updatedAt: '' },
+      ];
+      const result = getBlendedForYouNotes(notes, '1', similarNotes, 3);
+      expect(result).not.toContainEqual(expect.objectContaining({ id: '1' }));
+    });
+
+    it('similarity-heavy notes rank higher when similar', () => {
+      const similarNotes: SimilarNote[] = [
+        { id: '2', title: 'Note 2', similarity: 1.0, updatedAt: '' },
+      ];
+      const result = getBlendedForYouNotes(notes, null, similarNotes, 4);
+      expect(result[0].id).toBe('2');
+    });
+
+    it('returns at most count notes', () => {
+      const similarNotes: SimilarNote[] = [
+        { id: '2', title: 'Note 2', similarity: 0.8, updatedAt: '' },
+      ];
+      const result = getBlendedForYouNotes(notes, null, similarNotes, 2);
+      expect(result).toHaveLength(2);
+    });
+
+    it('handles notes not in similarity map (similarity = 0)', () => {
+      const similarNotes: SimilarNote[] = [
+        { id: '3', title: 'Note 3', similarity: 0.99, updatedAt: '' },
+      ];
+      const result = getBlendedForYouNotes(notes, null, similarNotes, 4);
+      const note3Idx = result.findIndex((n) => n.id === '3');
+      expect(note3Idx).toBe(0);
     });
   });
 });

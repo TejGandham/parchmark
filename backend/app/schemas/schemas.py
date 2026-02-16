@@ -89,6 +89,15 @@ class NoteResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SimilarNoteResponse(BaseModel):
+    id: str = Field(..., description="Note ID")
+    title: str = Field(..., description="Note title")
+    similarity: float = Field(..., description="Cosine similarity score (0-1)")
+    updatedAt: str = Field(..., description="ISO timestamp of last update")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Error Response Schemas
 class ErrorResponse(BaseModel):
     """Schema for error responses."""
@@ -100,7 +109,7 @@ class ValidationErrorResponse(BaseModel):
     """Schema for validation error responses."""
 
     detail: str = Field(..., description="Validation error message")
-    errors: list | None = Field(None, description="List of specific validation errors")
+    errors: list[object] | None = Field(None, description="List of specific validation errors")
 
 
 # Success Response Schemas

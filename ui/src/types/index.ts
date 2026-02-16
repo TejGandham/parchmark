@@ -8,6 +8,13 @@ export interface Note {
   lastAccessedAt?: string;
 }
 
+export interface SimilarNote {
+  id: string;
+  title: string;
+  similarity: number;
+  updatedAt: string;
+}
+
 export interface User {
   username: string;
   password: string;

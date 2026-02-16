@@ -5,6 +5,7 @@ Handles note creation, reading, updating, and deletion with user authorization.
 
 import logging
 from datetime import datetime
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -20,6 +21,7 @@ from app.schemas.schemas import (
     NoteCreate,
     NoteResponse,
     NoteUpdate,
+    SimilarNoteResponse,
 )
 from app.utils.markdown import markdown_service
 
@@ -112,6 +114,17 @@ async def create_note(
         db.add(db_note)
         await db.commit()
         await db.refresh(db_note)
+
+        from app.services.embeddings import generate_embedding
+
+        try:
+            embedding = await generate_embedding(formatted_content)
+            if embedding is not None:
+                db_note.embedding = embedding  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
+                await db.commit()
+                await db.refresh(db_note)
+        except Exception as e:
+            logger.warning(f"Failed to generate embedding for note {note_id}: {e}")
     except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"Failed to create note: {e}")
@@ -165,20 +178,32 @@ async def update_note(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     # Update fields if provided
+    formatted_content: str | None = None
     if note_data.content is not None:
-        # Format content and extract title (matches frontend behavior)
         formatted_content = markdown_service.format_content(note_data.content)
         extracted_title = markdown_service.extract_title(formatted_content)
 
-        db_note.content = formatted_content  # type: ignore[assignment]
-        db_note.title = extracted_title  # type: ignore[assignment]
+        db_note.content = formatted_content  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
+        db_note.title = extracted_title  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
     elif note_data.title is not None:
         # If only title is provided, update it directly
-        db_note.title = note_data.title  # type: ignore[assignment]
+        db_note.title = note_data.title  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
 
     try:
         await db.commit()
         await db.refresh(db_note)
+
+        if note_data.content is not None and formatted_content is not None:
+            from app.services.embeddings import generate_embedding
+
+            try:
+                embedding = await generate_embedding(formatted_content)
+                if embedding is not None:
+                    db_note.embedding = embedding  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
+                    await db.commit()
+                    await db.refresh(db_note)
+            except Exception as e:
+                logger.warning(f"Failed to regenerate embedding for note {note_id}: {e}")
     except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"Failed to update note {note_id}: {e}")
@@ -240,6 +265,61 @@ async def delete_note(
     return DeleteResponse(message="Note deleted successfully", deleted_id=note_id)
 
 
+@router.get("/{note_id}/similar", response_model=list[SimilarNoteResponse])
+async def get_similar_notes(
+    note_id: str,
+    count: int = 5,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Get notes similar to the specified note based on content embeddings."""
+    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
+    target_note = result.scalar_one_or_none()
+
+    if not target_note:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+
+    target_embedding = cast(list[float] | None, cast(object, target_note.embedding))
+    if not target_embedding:
+        return []
+
+    result = await db.execute(
+        select(Note).filter(
+            Note.user_id == current_user.id,
+            Note.id != note_id,
+            Note.embedding.isnot(None),
+        )
+    )
+    other_notes = result.scalars().all()
+
+    if not other_notes:
+        return []
+
+    from app.services.embeddings import compute_similarity
+
+    scored: list[tuple[Note, float]] = []
+    for note in other_notes:
+        note_embedding = cast(list[float] | None, cast(object, note.embedding))
+        if not note_embedding:
+            continue
+        similarity = compute_similarity(target_embedding, note_embedding)
+        if similarity > 0:
+            scored.append((note, similarity))
+
+    scored.sort(key=lambda item: item[1], reverse=True)
+    top = scored[:count]
+
+    return [
+        SimilarNoteResponse(
+            id=str(note.id),  # type: ignore[arg-type]
+            title=str(note.title),  # type: ignore[arg-type]
+            similarity=round(sim, 4),
+            updatedAt=note.updated_at.isoformat(),
+        )
+        for note, sim in top
+    ]
+
+
 @router.get("/{note_id}", response_model=NoteResponse)
 async def get_note(
     note_id: str,
@@ -292,8 +372,8 @@ async def track_note_access(
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
-    db_note.access_count = db_note.access_count + 1  # type: ignore[assignment]
-    db_note.last_accessed_at = func.now()  # type: ignore[assignment]
+    db_note.access_count = db_note.access_count + 1  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
+    db_note.last_accessed_at = func.now()  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
 
     try:
         await db.commit()

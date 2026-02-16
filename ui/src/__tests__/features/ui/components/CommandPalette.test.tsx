@@ -39,7 +39,11 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../../../../services/api', async () => {
   const actual = await vi.importActual('../../../../services/api');
-  return { ...actual, trackNoteAccess: vi.fn().mockResolvedValue(undefined) };
+  return {
+    ...actual,
+    trackNoteAccess: vi.fn().mockResolvedValue(undefined),
+    getSimilarNotes: vi.fn().mockResolvedValue([]),
+  };
 });
 
 function makeNote(overrides: Partial<Note> & { id: string }): Note {
@@ -662,12 +666,48 @@ describe('CommandPalette', () => {
     });
   });
 
+  describe('Similar notes integration', () => {
+    it('fetches similar notes when palette opens with currentNoteId', async () => {
+      const { getSimilarNotes } = await import('../../../../services/api');
+      openPalette();
+      renderPalette(sampleNotes);
+      expect(getSimilarNotes).toHaveBeenCalledWith('current-note');
+    });
+
+    it('does NOT fetch similar notes when no currentNoteId', async () => {
+      const { getSimilarNotes } = await import('../../../../services/api');
+      vi.mocked(getSimilarNotes).mockClear();
+
+      renderPalette(sampleNotes);
+      expect(getSimilarNotes).not.toHaveBeenCalled();
+    });
+
+    it('clears similar notes when palette closes', async () => {
+      const { getSimilarNotes } = await import('../../../../services/api');
+      vi.mocked(getSimilarNotes).mockResolvedValue([
+        { id: '2', title: 'Note 2', similarity: 0.9, updatedAt: '' },
+      ]);
+
+      openPalette();
+      renderPalette(sampleNotes);
+      expect(getSimilarNotes).toHaveBeenCalled();
+
+      closePaletteViaStore();
+    });
+
+    it('falls back to heuristic when getSimilarNotes returns empty array', async () => {
+      const { getSimilarNotes } = await import('../../../../services/api');
+      vi.mocked(getSimilarNotes).mockResolvedValue([]);
+
+      openPalette();
+      renderPalette(sampleNotes);
+
+      expect(screen.getByTestId('for-you-header')).toBeInTheDocument();
+    });
+  });
+
   describe('Deep link behavior', () => {
     it('does not auto-open palette when noteId is present (NotesLayout handles this)', () => {
-      // NotesLayout's useEffect: if (!noteId) openPalette()
-      // When noteId exists (deep link), palette stays closed
-      // Verified by: useParams mock returns { noteId: 'current-note' }
-      // and palette does not auto-open in these tests
       renderPalette(sampleNotes);
       expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
     });

@@ -3,7 +3,7 @@ SQLAlchemy models for ParchMark backend.
 Defines User and Note models matching the frontend data structures.
 """
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy import JSON, CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -62,6 +62,7 @@ class Note(Base):
     )
     access_count = Column(Integer, server_default=text("0"), nullable=False)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
+    embedding = Column(JSON, nullable=True)
 
     # Relationship to user
     owner = relationship("User", back_populates="notes")

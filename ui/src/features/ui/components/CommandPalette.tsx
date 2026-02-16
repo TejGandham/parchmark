@@ -27,7 +27,7 @@ import {
 } from 'react-router-dom';
 import { List, type RowComponentProps } from 'react-window';
 import { useUIStore } from '../store/ui';
-import { Note } from '../../../types';
+import { Note, SimilarNote } from '../../../types';
 import {
   filterNotes,
   sortNotes,
@@ -37,8 +37,8 @@ import {
   type GroupedNotes,
 } from '../../../utils/dateGrouping';
 import { formatCompactTime } from '../../../utils/compactTime';
-import { getForYouNotes } from '../../../utils/noteScoring';
-import { trackNoteAccess } from '../../../services/api';
+import { getBlendedForYouNotes } from '../../../utils/noteScoring';
+import { trackNoteAccess, getSimilarNotes } from '../../../services/api';
 import {
   VIRTUALIZATION_THRESHOLD,
   PALETTE_ITEM_HEIGHT,
@@ -139,6 +139,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
   const [allNotesSortBy, setAllNotesSortBy] =
     useState<SortOption>('lastModified');
   const [allNotesSortDir, setAllNotesSortDir] = useState<SortDirection>('desc');
+  const [similarNotes, setSimilarNotes] = useState<SimilarNote[]>([]);
 
   const setSearchInputRef = useCallback((node: HTMLInputElement | null) => {
     searchInputRef.current = node;
@@ -147,14 +148,32 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!isPaletteOpen || !currentNoteId) {
+      setSimilarNotes([]);
+      return;
+    }
+
+    let cancelled = false;
+    getSimilarNotes(currentNoteId).then((result) => {
+      if (!cancelled) {
+        setSimilarNotes(result);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPaletteOpen, currentNoteId]);
+
   const recentNotes = useMemo(
     () => sortNotes(notes, 'lastModified', 'desc').slice(0, 5),
     [notes]
   );
 
   const forYouNotes = useMemo(
-    () => getForYouNotes(notes, currentNoteId ?? null, 3),
-    [notes, currentNoteId]
+    () => getBlendedForYouNotes(notes, currentNoteId ?? null, similarNotes, 3),
+    [notes, currentNoteId, similarNotes]
   );
 
   const filteredNotes = useMemo(
