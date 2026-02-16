@@ -16,6 +16,8 @@ import {
   Input,
   Textarea,
   Icon,
+  Skeleton,
+  SkeletonText,
 } from '@chakra-ui/react';
 import { AddIcon, EditIcon, InfoIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
@@ -140,7 +142,8 @@ const NoteContent = () => {
     [] // Empty deps - components definition is stable
   );
 
-  // Handle case when no note is selected, or we're in the process of creating one
+  const isDeleting = fetcher.formAction?.includes('/delete') ?? false;
+
   if (!currentNote) {
     // If we're editing (creating a new note) but currentNote is not yet set
     if (isEditing && editedContent) {
@@ -205,7 +208,7 @@ const NoteContent = () => {
             textAlign="center"
             maxW="400px"
           >
-            Select a note from the sidebar or create a new one to get started
+            Press ⌘K to search or create a new note to get started
           </Text>
         </VStack>
 
@@ -259,8 +262,22 @@ const NoteContent = () => {
 
   const previewContent = renderContent();
 
+  if (isSaving && !isEditing) {
+    return (
+      <Box data-testid="note-loading-skeleton">
+        <Skeleton height="32px" width="60%" mb={4} />
+        <Skeleton height="16px" width="40%" mb={6} />
+        <SkeletonText noOfLines={8} spacing={4} />
+      </Box>
+    );
+  }
+
   return (
-    <Box>
+    <Box
+      opacity={isDeleting ? 0.3 : 1}
+      transition="opacity 0.3s ease"
+      data-testid="note-content-wrapper"
+    >
       <Flex justifyContent="space-between" alignItems="flex-start" mb={4}>
         <Heading size="lg" fontFamily="'Playfair Display', serif" mb={2}>
           {isEditing ? (

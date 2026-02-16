@@ -4,6 +4,8 @@ export interface Note {
   content: string;
   createdAt: string;
   updatedAt: string;
+  accessCount?: number;
+  lastAccessedAt?: string;
 }
 
 export interface User {

@@ -11,21 +11,23 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useLoaderData: vi.fn(),
-    useNavigate: vi.fn(),
     useParams: vi.fn(),
   };
 });
+
+const mockOpenPalette = vi.fn();
 
 // Mock UI store
 vi.mock('../../../../store', () => ({
   useUIStore: vi.fn((selector) => {
     const state = {
-      isSidebarOpen: true,
       notesSortBy: 'lastModified',
       notesSearchQuery: '',
       notesGroupByDate: true,
+      isPaletteOpen: false,
+      paletteSearchQuery: '',
       actions: {
-        toggleSidebar: vi.fn(),
+        openPalette: mockOpenPalette,
         setNotesSortBy: vi.fn(),
         setNotesSearchQuery: vi.fn(),
         setNotesGroupByDate: vi.fn(),
@@ -37,35 +39,15 @@ vi.mock('../../../../store', () => ({
 
 // Mock Header component
 vi.mock('../../../../features/ui/components/Header', () => ({
-  default: ({ toggleSidebar }: { toggleSidebar: () => void }) => (
+  default: () => (
     <header data-testid="header">
       <span>Notes</span>
-      <button onClick={toggleSidebar}>Toggle</button>
     </header>
   ),
 }));
 
-// Mock Sidebar component
-vi.mock('../../../../features/ui/components/Sidebar', () => ({
-  default: ({
-    notes,
-    currentNoteId,
-  }: {
-    notes: Array<{ id: string; title: string }>;
-    currentNoteId: string;
-  }) => (
-    <nav data-testid="sidebar">
-      {notes.map((note) => (
-        <div
-          key={note.id}
-          data-testid={`note-item-${note.id}`}
-          data-selected={note.id === currentNoteId}
-        >
-          {note.title}
-        </div>
-      ))}
-    </nav>
-  ),
+vi.mock('../../../../features/ui/components/CommandPalette', () => ({
+  CommandPalette: () => <div data-testid="command-palette" />,
 }));
 
 const mockNotes = [
@@ -86,12 +68,9 @@ const mockNotes = [
 ];
 
 describe('NotesLayout', () => {
-  const mockNavigate = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(routerDom.useLoaderData).mockReturnValue({ notes: mockNotes });
-    vi.mocked(routerDom.useNavigate).mockReturnValue(mockNavigate);
     vi.mocked(routerDom.useParams).mockReturnValue({});
   });
 
@@ -111,33 +90,41 @@ describe('NotesLayout', () => {
     );
   }
 
-  it('renders sidebar with notes from loader', async () => {
-    await renderComponent();
-
-    expect(screen.getByText('First Note')).toBeInTheDocument();
-    expect(screen.getByText('Second Note')).toBeInTheDocument();
-  });
-
   it('renders header', async () => {
     await renderComponent();
-
-    expect(screen.getByText('Notes')).toBeInTheDocument();
+    expect(screen.getByTestId('header')).toBeInTheDocument();
   });
 
-  it('renders sidebar when isSidebarOpen is true', async () => {
+  it('mounts command palette', async () => {
     await renderComponent();
-
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument();
   });
 
-  it('renders child routes via Outlet', async () => {
-    await renderComponent('note-1');
+  it('shows empty state with palette hint when no noteId', async () => {
+    await renderComponent();
+    expect(screen.getByText('Press ⌘K to search notes')).toBeInTheDocument();
+    expect(screen.getByText('2 notes available')).toBeInTheDocument();
+  });
 
-    // The Outlet is rendered (even if empty, sidebar still shows the note as selected)
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('note-item-note-1')).toHaveAttribute(
-      'data-selected',
-      'true'
-    );
+  it('auto-opens palette when no noteId selected', async () => {
+    await renderComponent();
+    expect(mockOpenPalette).toHaveBeenCalled();
+  });
+
+  it('does not auto-open palette when noteId is present', async () => {
+    await renderComponent('note-1');
+    expect(mockOpenPalette).not.toHaveBeenCalled();
+  });
+
+  it('renders Outlet for child routes when noteId present', async () => {
+    await renderComponent('note-1');
+    expect(
+      screen.queryByText('Press ⌘K to search notes')
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders full-width layout without sidebar', async () => {
+    await renderComponent();
+    expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
   });
 });

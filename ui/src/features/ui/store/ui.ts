@@ -5,7 +5,6 @@ import { STORAGE_KEYS } from '../../../config/storage';
 import { SortOption, SortDirection } from '../../../utils/dateGrouping';
 
 export type UIState = {
-  isSidebarOpen: boolean;
   notesSortBy: SortOption;
   notesSortDirection: SortDirection;
   notesSearchQuery: string;
@@ -13,7 +12,6 @@ export type UIState = {
   isPaletteOpen: boolean;
   paletteSearchQuery: string;
   actions: {
-    toggleSidebar: () => void;
     setNotesSortBy: (sortBy: SortOption) => void;
     toggleNotesSortDirection: () => void;
     setNotesSearchQuery: (query: string) => void;
@@ -28,12 +26,6 @@ export type UIState = {
 // Create stable references for action functions
 const createActions = (set: (fn: (state: UIState) => void) => void) => {
   // Define actions outside the store to maintain stable references
-  const toggleSidebar = () => {
-    set((state: UIState) => {
-      state.isSidebarOpen = !state.isSidebarOpen;
-    });
-  };
-
   const setNotesSortBy = (sortBy: SortOption) => {
     set((state: UIState) => {
       state.notesSortBy = sortBy;
@@ -88,7 +80,6 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
   };
 
   return {
-    toggleSidebar,
     setNotesSortBy,
     toggleNotesSortDirection,
     setNotesSearchQuery,
@@ -107,7 +98,6 @@ export const useUIStore = create<UIState>()(
       const actions = createActions(set);
 
       return {
-        isSidebarOpen: true,
         notesSortBy: 'lastModified' as SortOption,
         notesSortDirection: 'desc' as SortDirection,
         notesSearchQuery: '',
@@ -119,25 +109,31 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: STORAGE_KEYS.UI_PREFERENCES,
-      version: 2,
+      version: 3,
       migrate: (
         persistedState: unknown,
         version: number
       ): UIState | Promise<UIState> => {
-        const state = persistedState as Partial<UIState>;
-        if (version === 0 || version === 1) {
+        const state = persistedState as Record<string, unknown>;
+        if (version < 2) {
           return {
             ...state,
             isPaletteOpen: false,
             paletteSearchQuery: '',
-          } as UIState;
+          } as unknown as UIState;
+        }
+        if (version < 3) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { isSidebarOpen: _removed, ...rest } = state;
+          return rest as unknown as UIState;
         }
         return state as UIState;
       },
       // Ensure actions are preserved during hydration
       merge: (persistedState, currentState) => {
         return {
-          ...persistedState,
+          ...currentState,
+          ...(persistedState as Partial<UIState>),
           actions: currentState.actions,
         };
       },

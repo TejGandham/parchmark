@@ -6,14 +6,23 @@ import { ChakraProvider } from '@chakra-ui/react';
 import Header from '../../../../features/ui/components/Header';
 import { useAuthStore } from '../../../../features/auth/store';
 
-// Mock the auth store
 vi.mock('../../../../features/auth/store', () => ({
   useAuthStore: vi.fn(),
 }));
 
+const mockOpenPalette = vi.fn();
+
+vi.mock('../../../../features/ui/store/ui', () => ({
+  useUIStore: vi.fn((selector) => {
+    const state = {
+      actions: { openPalette: mockOpenPalette },
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 const mockUseAuthStore = useAuthStore as MockedFunction<typeof useAuthStore>;
 
-// Mock useBreakpointValue hook for UserInfo component
 const mockUseBreakpointValue = vi.fn();
 vi.mock('@chakra-ui/react', async () => {
   const actual = await import('@chakra-ui/react');
@@ -32,58 +41,50 @@ const renderWithProviders = (component: React.ReactNode) => {
 };
 
 describe('Header Component', () => {
-  const toggleSidebar = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseBreakpointValue.mockReturnValue(true); // Default to desktop view
-    mockUseAuthStore.mockReturnValue(false); // Default to not authenticated
+    mockUseBreakpointValue.mockReturnValue(true);
+    mockUseAuthStore.mockReturnValue(false);
   });
 
-  it('should render the app title', () => {
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
-
+  it('should render the app logo', () => {
+    renderWithProviders(<Header />);
     expect(screen.getByAltText(/ParchMark Logo/i)).toBeInTheDocument();
   });
 
-  it('should call toggleSidebar when menu button is clicked', () => {
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+  it('should render palette trigger button', () => {
+    renderWithProviders(<Header />);
+    const trigger = screen.getByTestId('palette-trigger');
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveTextContent(/Search notes/);
+    expect(trigger).toHaveTextContent(/⌘K/);
+  });
 
-    // Find the toggle sidebar button (there should be multiple buttons now due to UserLoginStatus)
-    const menuButton = screen.getByLabelText(/toggle sidebar/i);
-    fireEvent.click(menuButton);
-
-    expect(toggleSidebar).toHaveBeenCalledTimes(1);
+  it('should call openPalette when palette trigger is clicked', () => {
+    renderWithProviders(<Header />);
+    const trigger = screen.getByTestId('palette-trigger');
+    fireEvent.click(trigger);
+    expect(mockOpenPalette).toHaveBeenCalledTimes(1);
   });
 
   it('should render as a header element with correct structure', () => {
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+    renderWithProviders(<Header />);
 
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
-
-    // Verify the header has the expected structure
     expect(header.tagName).toBe('HEADER');
-
-    // Check that both the menu button and user status are present
-    expect(screen.getByLabelText(/toggle sidebar/i)).toBeInTheDocument();
     expect(
       screen.getByRole('region', { name: 'User authentication status' })
     ).toBeInTheDocument();
   });
 
-  it('should be accessible', () => {
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
-
-    // Check if the toggle sidebar button has accessible attributes
-    const menuButton = screen.getByLabelText(/toggle sidebar/i);
-    expect(menuButton).toHaveAttribute('aria-label');
+  it('should not have a sidebar toggle button', () => {
+    renderWithProviders(<Header />);
+    expect(screen.queryByLabelText(/toggle sidebar/i)).not.toBeInTheDocument();
   });
 
   it('should render UserLoginStatus component', () => {
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
-
-    // Should render the sign in button when not authenticated
+    renderWithProviders(<Header />);
     const signInButton = screen.getByRole('button', {
       name: /sign in to your account/i,
     });
@@ -91,7 +92,6 @@ describe('Header Component', () => {
   });
 
   it('should render user info when authenticated', () => {
-    // Mock authenticated user
     const mockUser = { username: 'testuser', password: '' };
     mockUseAuthStore.mockImplementation((selector) => {
       const state = {
@@ -102,9 +102,8 @@ describe('Header Component', () => {
       return selector(state);
     });
 
-    renderWithProviders(<Header toggleSidebar={toggleSidebar} />);
+    renderWithProviders(<Header />);
 
-    // Should render user button when authenticated
     const userButton = screen.getByRole('button', {
       name: /user menu for testuser/i,
     });
