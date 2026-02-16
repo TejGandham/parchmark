@@ -62,3 +62,38 @@
 - Task 5 ran in parallel, merged FOR YOU section + trackNoteAccess into CommandPalette and tests
 - MutableRefObject cast needed for searchInputRef.current assignment (TS readonly ref fix)
 
+
+## [2026-02-16T21:16:00Z] Task 3: Layout Rewire
+
+- useLoaderData (not useRouteLoaderData) in NotesLayout since it's the route's own loader
+- useParams to detect /notes index (no noteId) for auto-open palette
+- Full-width layout: single Box as main, no flex grid sidebar column
+- Sidebar removal: lsp_find_references found refs in NotesLayout, Header, ui.ts, and all test files
+- Header no longer accepts props — uses useUIStore directly for openPalette
+- NoteContent: added Skeleton/SkeletonText for loading, opacity transition for deletion fade
+- NoteContent "sidebar" text reference → "Press ⌘K to search" 
+- ui.ts migration: version 2→3, destructure out isSidebarOpen from old persisted state
+- partialize unchanged since isSidebarOpen was already being persisted (now just gone)
+- merge callback needed `...currentState` spread first for proper type inference
+- CommandPalette already had full Task 4 impl in working tree (parallel task)
+- CommandPalette test needed MemoryRouter wrapper since component now uses useNavigate
+- MutableRefObject cast needed for callback ref pattern in CommandPalette
+- Test count: 537 passing across 41 files after changes
+
+## [2026-02-16] Task 6: Create-from-Search + Edge Cases
+
+- useFetcher pattern: submit to action route, monitor state/data for success
+- Navigate after creation: useEffect watches fetcher.state === 'idle' && fetcher.data?.id
+- createInitiatedRef guard: prevents stale fetcher.data from triggering navigation on re-open
+- Cmd+Enter shortcut: added to existing keyboard handler useEffect, checked BEFORE regular Enter
+- Query length validation: disable create row + show hint for < 4 chars via canCreate computed
+- Zero notes state: conditional on notes.length === 0 && !isSearching && !isRouteLoading
+- Loading skeletons: useNavigation().state === 'loading' from react-router-dom, 3 skeleton items
+- Deep link: NotesLayout useEffect(!noteId) already ensures palette stays closed — verified in test
+- Unsaved changes: accept data loss, matches current behavior (documented, no dialog)
+- createNoteAction modified: accepts ActionFunctionArgs, reads formData, returns { id, title } when customTitle present (for fetcher callers), otherwise redirects (backward compat)
+- Variable ordering matters: isSearching must be defined BEFORE useEffect that references it in deps array — ReferenceError otherwise
+- Test mocking: vi.fn() getters for useFetcher/useNavigation allow per-test state control (mockFetcherState.mockReturnValue)
+- Test re-render trick: fireEvent.change to trigger re-render so useEffect picks up changed mock values
+- Prettier autofix: npx prettier --write is faster than chasing individual formatting issues
+- actions.test.ts: createNoteAction now needs { request, params } — added makeCreateRequest() helper + new test for custom title branch
