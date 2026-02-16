@@ -24,6 +24,12 @@ describe('notes actions', () => {
   });
 
   describe('createNoteAction', () => {
+    const makeCreateRequest = () =>
+      new Request('http://localhost/notes', {
+        method: 'POST',
+        body: new FormData(),
+      });
+
     it('creates note and redirects with editing flag', async () => {
       const { createNote } = await import('../../../services/api');
       const { createNoteAction } = await import(
@@ -36,13 +42,38 @@ describe('notes actions', () => {
         content: '# Untitled\n\n',
       });
 
-      await createNoteAction();
+      await createNoteAction({ request: makeCreateRequest(), params: {} });
 
       expect(createNote).toHaveBeenCalledWith({
         title: 'Untitled',
         content: '# Untitled\n\n',
       });
       expect(redirect).toHaveBeenCalledWith('/notes/new-note-123?editing=true');
+    });
+
+    it('returns data instead of redirect when custom title provided', async () => {
+      const { createNote } = await import('../../../services/api');
+      const { createNoteAction } = await import(
+        '../../../features/notes/actions'
+      );
+
+      (createNote as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: 'new-note-456',
+        title: 'My Topic',
+        content: '# My Topic\n\n',
+      });
+
+      const formData = new FormData();
+      formData.append('title', 'My Topic');
+      formData.append('content', '# My Topic\n\n');
+      const request = new Request('http://localhost/notes', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await createNoteAction({ request, params: {} });
+      expect(result).toEqual({ id: 'new-note-456', title: 'My Topic' });
+      expect(redirect).not.toHaveBeenCalled();
     });
 
     it('throws 500 error when API fails with Error', async () => {
@@ -56,7 +87,7 @@ describe('notes actions', () => {
       );
 
       try {
-        await createNoteAction();
+        await createNoteAction({ request: makeCreateRequest(), params: {} });
       } catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(500);
@@ -76,7 +107,7 @@ describe('notes actions', () => {
       );
 
       try {
-        await createNoteAction();
+        await createNoteAction({ request: makeCreateRequest(), params: {} });
       } catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(500);

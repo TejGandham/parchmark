@@ -104,7 +104,7 @@ class TestGetNotesEndpoint:
         assert len(data) == 1
 
         note = data[0]
-        required_fields = {"id", "title", "content", "createdAt", "updatedAt"}
+        required_fields = {"id", "title", "content", "createdAt", "updatedAt", "accessCount", "lastAccessedAt"}
         assert set(note.keys()) == required_fields
 
         # Verify datetime fields are ISO format strings

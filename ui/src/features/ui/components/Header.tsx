@@ -1,16 +1,22 @@
-import { Flex, HStack, Heading, IconButton, Image } from '@chakra-ui/react';
+import {
+  Flex,
+  HStack,
+  Heading,
+  IconButton,
+  Image,
+  Button,
+} from '@chakra-ui/react';
+import { SearchIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faGear } from '@fortawesome/free-solid-svg-icons';
+import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { UserLoginStatus } from '../../auth/components';
+import { useUIStore } from '../store/ui';
 import Logo from '../../../../assets/images/parchmark.svg';
 
-interface HeaderProps {
-  toggleSidebar: () => void;
-}
-
-const Header = ({ toggleSidebar }: HeaderProps) => {
+const Header = () => {
   const navigate = useNavigate();
+  const openPalette = useUIStore((s) => s.actions.openPalette);
 
   return (
     <Flex
@@ -26,17 +32,28 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
       transition="all 0.2s"
     >
       <HStack spacing={3}>
-        <IconButton
-          aria-label="Toggle sidebar"
-          icon={<FontAwesomeIcon icon={faBars} />}
-          onClick={toggleSidebar}
-          variant="ghost"
-          colorScheme="primary"
-        />
         <Heading size="md" ml={1} fontFamily="'Playfair Display', serif">
           <Image src={Logo} alt="ParchMark Logo" h="46px" mr="10px" />
         </Heading>
       </HStack>
+
+      <Button
+        onClick={openPalette}
+        variant="ghost"
+        size="sm"
+        leftIcon={<SearchIcon />}
+        color="text.muted"
+        fontWeight="normal"
+        px={4}
+        borderRadius="md"
+        border="1px solid"
+        borderColor="border.default"
+        _hover={{ bg: 'bg.subtle', borderColor: 'primary.200' }}
+        data-testid="palette-trigger"
+      >
+        Search notes… ⌘K
+      </Button>
+
       <HStack spacing={3}>
         <IconButton
           aria-label="Settings"

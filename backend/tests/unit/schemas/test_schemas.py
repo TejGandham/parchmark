@@ -476,6 +476,36 @@ class TestNoteSchemas:
             assert response.content == "# Test Note\n\nContent"
             assert response.createdAt == "2023-01-01T12:00:00"
             assert response.updatedAt == "2023-01-01T12:30:00"
+            assert response.accessCount is None
+            assert response.lastAccessedAt is None
+
+        def test_note_response_with_access_fields(self):
+            """Test NoteResponse with access tracking fields."""
+            response = NoteResponse(
+                id="note-123",
+                title="Test Note",
+                content="# Test Note\n\nContent",
+                createdAt="2023-01-01T12:00:00",
+                updatedAt="2023-01-01T12:30:00",
+                accessCount=5,
+                lastAccessedAt=datetime(2023, 1, 2, 10, 0, 0),
+            )
+
+            assert response.accessCount == 5
+            assert response.lastAccessedAt == datetime(2023, 1, 2, 10, 0, 0)
+
+        def test_note_response_access_fields_optional(self):
+            """Test NoteResponse access fields default to None."""
+            response = NoteResponse(
+                id="note-123",
+                title="Test Note",
+                content="Content",
+                createdAt="2023-01-01T12:00:00",
+                updatedAt="2023-01-01T12:30:00",
+            )
+
+            assert response.accessCount is None
+            assert response.lastAccessedAt is None
 
         def test_note_response_missing_fields(self):
             """Test NoteResponse with missing required fields."""

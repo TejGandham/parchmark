@@ -368,6 +368,9 @@ describe('NoteContent with Data Router', () => {
       expect(
         screen.getByText('Ready to capture your thoughts?')
       ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Press ⌘K to search or create a new note/)
+      ).toBeInTheDocument();
     });
   });
 
