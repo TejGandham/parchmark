@@ -148,6 +148,17 @@ export const deleteNote = (id: string): Promise<void> =>
     method: 'DELETE',
   });
 
+export const trackNoteAccess = async (noteId: string): Promise<void> => {
+  try {
+    await request(API_ENDPOINTS.NOTES.ACCESS(noteId), {
+      method: 'POST',
+    });
+  } catch {
+    // Fire-and-forget: silently swallow failures
+  }
+};
+
+
 // Settings API
 export interface UserInfo {
   username: string;
@@ -209,6 +220,7 @@ export default {
   createNote,
   updateNote,
   deleteNote,
+  trackNoteAccess,
   getUserInfo,
   changePassword,
   exportNotes,
