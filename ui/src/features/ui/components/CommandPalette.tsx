@@ -6,7 +6,6 @@ import {
   useMemo,
   type MouseEvent,
   type MutableRefObject,
-  type ReactNode,
 } from 'react';
 import {
   Portal,
@@ -40,32 +39,15 @@ import {
 import { formatCompactTime } from '../../../utils/compactTime';
 import { getForYouNotes } from '../../../utils/noteScoring';
 import { trackNoteAccess } from '../../../services/api';
-
-const VIRTUALIZATION_THRESHOLD = 50;
-const PALETTE_ITEM_HEIGHT = 40;
-const VIRTUAL_LIST_HEIGHT = 320;
+import {
+  VIRTUALIZATION_THRESHOLD,
+  PALETTE_ITEM_HEIGHT,
+  VIRTUAL_LIST_HEIGHT,
+  highlightKeyword,
+} from './commandPaletteUtils';
 
 interface CommandPaletteProps {
   notes?: Note[];
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-export function highlightKeyword(text: string, keyword: string): ReactNode {
-  if (!keyword) return text;
-  const escaped = escapeRegex(keyword);
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
-  return parts.map((part, i) =>
-    part.toLowerCase() === keyword.toLowerCase() ? (
-      <Text as="strong" key={i} fontWeight="bold" color="primary.700">
-        {part}
-      </Text>
-    ) : (
-      part
-    )
-  );
 }
 
 interface PaletteNoteItemProps {
