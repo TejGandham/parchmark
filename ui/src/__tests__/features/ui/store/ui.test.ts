@@ -11,6 +11,8 @@ describe('UI Store', () => {
         notesSortDirection: 'desc',
         notesSearchQuery: '',
         notesGroupByDate: true,
+        isPaletteOpen: false,
+        paletteSearchQuery: '',
         actions: useUIStore.getState().actions,
       });
     });
@@ -23,11 +25,17 @@ describe('UI Store', () => {
     expect(state.notesSortDirection).toBe('desc');
     expect(state.notesSearchQuery).toBe('');
     expect(state.notesGroupByDate).toBe(true);
+    expect(state.isPaletteOpen).toBe(false);
+    expect(state.paletteSearchQuery).toBe('');
     expect(typeof state.actions.toggleSidebar).toBe('function');
     expect(typeof state.actions.setNotesSortBy).toBe('function');
     expect(typeof state.actions.toggleNotesSortDirection).toBe('function');
     expect(typeof state.actions.setNotesSearchQuery).toBe('function');
     expect(typeof state.actions.setNotesGroupByDate).toBe('function');
+    expect(typeof state.actions.openPalette).toBe('function');
+    expect(typeof state.actions.closePalette).toBe('function');
+    expect(typeof state.actions.togglePalette).toBe('function');
+    expect(typeof state.actions.setPaletteSearchQuery).toBe('function');
   });
 
   describe('toggleSidebar', () => {
@@ -320,6 +328,97 @@ describe('UI Store', () => {
         useUIStore.getState().actions.setNotesGroupByDate(true);
       });
       expect(useUIStore.getState().notesGroupByDate).toBe(true);
+    });
+  });
+
+  describe('openPalette', () => {
+    it('should open the palette', () => {
+      expect(useUIStore.getState().isPaletteOpen).toBe(false);
+
+      act(() => {
+        useUIStore.getState().actions.openPalette();
+      });
+
+      expect(useUIStore.getState().isPaletteOpen).toBe(true);
+    });
+  });
+
+  describe('closePalette', () => {
+    it('should close the palette', () => {
+      act(() => {
+        useUIStore.setState({ isPaletteOpen: true });
+      });
+
+      act(() => {
+        useUIStore.getState().actions.closePalette();
+      });
+
+      expect(useUIStore.getState().isPaletteOpen).toBe(false);
+    });
+
+    it('should clear search query on close', () => {
+      act(() => {
+        useUIStore.setState({
+          isPaletteOpen: true,
+          paletteSearchQuery: 'some query',
+        });
+      });
+
+      act(() => {
+        useUIStore.getState().actions.closePalette();
+      });
+
+      expect(useUIStore.getState().paletteSearchQuery).toBe('');
+    });
+  });
+
+  describe('togglePalette', () => {
+    it('should toggle palette from closed to open', () => {
+      expect(useUIStore.getState().isPaletteOpen).toBe(false);
+
+      act(() => {
+        useUIStore.getState().actions.togglePalette();
+      });
+
+      expect(useUIStore.getState().isPaletteOpen).toBe(true);
+    });
+
+    it('should toggle palette from open to closed and clear query', () => {
+      act(() => {
+        useUIStore.setState({
+          isPaletteOpen: true,
+          paletteSearchQuery: 'test',
+        });
+      });
+
+      act(() => {
+        useUIStore.getState().actions.togglePalette();
+      });
+
+      expect(useUIStore.getState().isPaletteOpen).toBe(false);
+      expect(useUIStore.getState().paletteSearchQuery).toBe('');
+    });
+  });
+
+  describe('setPaletteSearchQuery', () => {
+    it('should update palette search query', () => {
+      act(() => {
+        useUIStore.getState().actions.setPaletteSearchQuery('hello');
+      });
+
+      expect(useUIStore.getState().paletteSearchQuery).toBe('hello');
+    });
+
+    it('should clear palette search query', () => {
+      act(() => {
+        useUIStore.getState().actions.setPaletteSearchQuery('test');
+      });
+
+      act(() => {
+        useUIStore.getState().actions.setPaletteSearchQuery('');
+      });
+
+      expect(useUIStore.getState().paletteSearchQuery).toBe('');
     });
   });
 
