@@ -158,7 +158,6 @@ export const trackNoteAccess = async (noteId: string): Promise<void> => {
   }
 };
 
-
 // Settings API
 export interface UserInfo {
   username: string;

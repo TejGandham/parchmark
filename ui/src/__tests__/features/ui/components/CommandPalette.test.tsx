@@ -3,10 +3,8 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import { act } from 'react';
-import {
-  CommandPalette,
-  highlightKeyword,
-} from '../../../../features/ui/components/CommandPalette';
+import { CommandPalette } from '../../../../features/ui/components/CommandPalette';
+import { highlightKeyword } from '../../../../features/ui/components/commandPaletteUtils';
 import { useUIStore } from '../../../../features/ui/store/ui';
 import { Note } from '../../../../types';
 

@@ -1,6 +1,6 @@
 """Integration tests for note access tracking endpoint (POST /notes/{note_id}/access)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import status
 from fastapi.testclient import TestClient
@@ -18,16 +18,18 @@ class TestTrackNoteAccessEndpoint:
         assert data["lastAccessedAt"] is not None
 
     def test_track_access_multiple_increments(self, client: TestClient, auth_headers, sample_note):
-        for i in range(3):
+        response = None
+        for _ in range(3):
             response = client.post(f"/api/notes/{sample_note.id}/access", headers=auth_headers)
             assert response.status_code == status.HTTP_200_OK
 
+        assert response is not None
         data = response.json()
         assert data["accessCount"] == 3
         assert data["lastAccessedAt"] is not None
 
         last_accessed = datetime.fromisoformat(data["lastAccessedAt"])
-        assert datetime.now(timezone.utc) - last_accessed < timedelta(seconds=10)
+        assert datetime.now(UTC) - last_accessed < timedelta(seconds=10)
 
     def test_track_access_returns_full_note_response(self, client: TestClient, auth_headers, sample_note):
         response = client.post(f"/api/notes/{sample_note.id}/access", headers=auth_headers)
