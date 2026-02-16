@@ -533,7 +533,7 @@ Wave 3 (After Wave 2):
 
 ---
 
-- [ ] 7. Cleanup: Remove Sidebar + Dead Code + Final QA
+- [x] 7. Cleanup: Remove Sidebar + Dead Code + Final QA
 
   **What to do**:
   - Delete: `Sidebar.tsx`, `SidebarDataRouter.test.tsx`, `VirtualizedNotesList.tsx` (verify not used elsewhere via `lsp_find_references`)
