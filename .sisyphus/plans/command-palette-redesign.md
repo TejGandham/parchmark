@@ -477,7 +477,7 @@ Wave 3 (After Wave 2):
 
 ---
 
-- [ ] 6. Frontend: Create-from-Search + Edge Cases
+- [x] 6. Frontend: Create-from-Search + Edge Cases
 
   **What to do**:
   - Create-from-search: 0 results → "No notes found" + "Create '{query}'" row (burgundy accent). Cmd+Enter creates via `useFetcher.submit()`, closes palette, navigates to new note with `?editing=true`. Disable for queries < 4 chars with hint.
