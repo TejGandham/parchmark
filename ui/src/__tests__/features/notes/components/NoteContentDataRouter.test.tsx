@@ -1,6 +1,12 @@
 // ui/src/__tests__/features/notes/components/NoteContentDataRouter.test.tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  cleanup,
+  within,
+} from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import * as routerDom from 'react-router-dom';
 import * as storeModule from '../../../../store';
@@ -31,16 +37,24 @@ vi.mock('../../../../features/notes/components/NoteActions', () => ({
     onEdit,
     onSave,
     onCancel,
+    onDelete,
     isSaving,
+    isDeleting,
   }: {
     isEditing: boolean;
     onEdit: () => void;
     onSave: () => void;
     onCancel?: () => void;
+    onDelete?: () => void;
     isSaving?: boolean;
+    isDeleting?: boolean;
   }) => (
     <div data-testid="note-actions">
-      <button data-testid="edit-button" onClick={onEdit} disabled={isEditing}>
+      <button
+        data-testid="edit-button"
+        onClick={onEdit}
+        disabled={isEditing || isDeleting}
+      >
         Edit
       </button>
       {isEditing && (
@@ -55,6 +69,15 @@ vi.mock('../../../../features/notes/components/NoteActions', () => ({
       >
         {isSaving ? 'Saving...' : 'Save'}
       </button>
+      {!isEditing && onDelete && (
+        <button
+          data-testid="delete-button"
+          onClick={onDelete}
+          disabled={isDeleting}
+        >
+          Delete
+        </button>
+      )}
     </div>
   ),
 }));
@@ -383,6 +406,55 @@ describe('NoteContent with Data Router', () => {
         method: 'post',
         action: '/notes',
       });
+    });
+  });
+
+  describe('Delete Note', () => {
+    it('shows delete button in view mode', () => {
+      setupMocks({ noteId: 'note-1' });
+      renderComponent();
+      expect(screen.getByTestId('delete-button')).toBeInTheDocument();
+    });
+
+    it('opens confirmation dialog when delete clicked', () => {
+      setupMocks({ noteId: 'note-1' });
+      renderComponent();
+      fireEvent.click(screen.getByTestId('delete-button'));
+      expect(screen.getByText('Delete Note')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Are you sure you want to delete/)
+      ).toBeInTheDocument();
+    });
+
+    it('submits delete action when confirmed', () => {
+      setupMocks({ noteId: 'note-1' });
+      renderComponent();
+      fireEvent.click(screen.getByTestId('delete-button'));
+      const dialog = screen.getByRole('alertdialog');
+      fireEvent.click(within(dialog).getByText('Delete'));
+      expect(mockFetcherSubmit).toHaveBeenCalledWith(null, {
+        method: 'post',
+        action: '/notes/note-1/delete',
+      });
+    });
+
+    it('closes dialog without deleting when cancel clicked', () => {
+      setupMocks({ noteId: 'note-1' });
+      renderComponent();
+      fireEvent.click(screen.getByTestId('delete-button'));
+      const dialog = screen.getByRole('alertdialog');
+      fireEvent.click(within(dialog).getByText('Cancel'));
+      expect(mockFetcherSubmit).not.toHaveBeenCalled();
+    });
+
+    it('does not show delete button in edit mode', () => {
+      setupMocks({
+        noteId: 'note-1',
+        isEditing: true,
+        editedContent: '# First Note\n\nContent',
+      });
+      renderComponent();
+      expect(screen.queryByTestId('delete-button')).not.toBeInTheDocument();
     });
   });
 });
