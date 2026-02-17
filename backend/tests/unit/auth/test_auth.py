@@ -4,7 +4,7 @@ Tests JWT token creation/validation, password hashing, and user authentication.
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException, status
@@ -14,11 +14,9 @@ from app.auth.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
     SECRET_KEY,
-    authenticate_user,
     create_access_token,
     credentials_exception,
     get_password_hash,
-    invalid_credentials_exception,
     verify_password,
     verify_token,
 )
@@ -225,98 +223,6 @@ class TestJWTTokens:
         assert token_data.username == subject
 
 
-class TestUserAuthentication:
-    """Test user authentication functionality."""
-
-    def test_authenticate_user_success(self):
-        """Test successful user authentication."""
-        username = "testuser"
-        password = "testpassword"
-        hashed_password = get_password_hash(password)
-
-        # Mock user object
-        mock_user = Mock()
-        mock_user.username = username
-        mock_user.password_hash = hashed_password
-
-        # Mock database lookup function
-        def mock_db_check(username):
-            return mock_user
-
-        result = authenticate_user(username, password, mock_db_check)
-
-        assert result == mock_user
-
-    def test_authenticate_user_wrong_password(self):
-        """Test authentication with wrong password."""
-        username = "testuser"
-        password = "testpassword"
-        wrong_password = "wrongpassword"
-        hashed_password = get_password_hash(password)
-
-        mock_user = Mock()
-        mock_user.username = username
-        mock_user.password_hash = hashed_password
-
-        def mock_db_check(username):
-            return mock_user
-
-        result = authenticate_user(username, wrong_password, mock_db_check)
-
-        assert result is None
-
-    def test_authenticate_user_not_found(self):
-        """Test authentication with non-existent user."""
-        username = "nonexistent"
-        password = "testpassword"
-
-        def mock_db_check(username):
-            return None
-
-        result = authenticate_user(username, password, mock_db_check)
-
-        assert result is None
-
-    def test_authenticate_user_db_function_exception(self):
-        """Test authentication when database function raises exception."""
-        username = "testuser"
-        password = "testpassword"
-
-        def mock_db_check(username):
-            raise Exception("Database error")
-
-        with pytest.raises(Exception):
-            authenticate_user(username, password, mock_db_check)
-
-    @pytest.mark.parametrize(
-        "username,password",
-        [
-            ("", "password"),
-            ("username", ""),
-            ("", ""),
-            (None, "password"),
-            ("username", None),
-        ],
-    )
-    def test_authenticate_user_invalid_input(self, username, password):
-        """Test authentication with invalid input values."""
-
-        def mock_db_check(username):
-            if not username:
-                return None
-            mock_user = Mock()
-            mock_user.password_hash = get_password_hash("validpassword")
-            return mock_user
-
-        # Handle None values gracefully
-        try:
-            result = authenticate_user(username, password, mock_db_check)
-            assert result is None
-        except (TypeError, AttributeError):
-            # It's acceptable to raise an exception for None values
-            pass
-
-
 class TestAuthenticationExceptions:
     """Test predefined authentication exception objects."""
 
@@ -325,12 +231,6 @@ class TestAuthenticationExceptions:
         assert credentials_exception.status_code == status.HTTP_401_UNAUTHORIZED
         assert credentials_exception.detail == "Could not validate credentials"
         assert credentials_exception.headers == {"WWW-Authenticate": "Bearer"}
-
-    def test_invalid_credentials_exception(self):
-        """Test invalid credentials exception configuration."""
-        assert invalid_credentials_exception.status_code == status.HTTP_401_UNAUTHORIZED
-        assert invalid_credentials_exception.detail == "Invalid username or password"
-        assert invalid_credentials_exception.headers == {"WWW-Authenticate": "Bearer"}
 
 
 class TestAuthenticationConfig:

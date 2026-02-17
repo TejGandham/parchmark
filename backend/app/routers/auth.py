@@ -7,7 +7,6 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import (
@@ -18,7 +17,7 @@ from app.auth.auth import (
     verify_refresh_token,
     verify_user_password,
 )
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, query_user_by_username
 from app.database.database import get_async_db
 from app.models.models import User
 from app.schemas.schemas import MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
@@ -28,12 +27,6 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 # Security scheme for logout endpoint
 security = HTTPBearer()
-
-
-async def _get_user_by_username(db: AsyncSession, username: str) -> User | None:
-    """Async helper to get user by username."""
-    result = await db.execute(select(User).filter(User.username == username))
-    return result.scalar_one_or_none()
 
 
 @router.post("/login", response_model=Token)
@@ -59,7 +52,7 @@ async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_asyn
         HTTPException: 401 if credentials are invalid
     """
     # Get user from database and verify password
-    user = await _get_user_by_username(db, user_credentials.username)
+    user = await query_user_by_username(db, user_credentials.username)
     authenticated_user = verify_user_password(user, user_credentials.password)
 
     if not authenticated_user:
@@ -114,7 +107,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest, db: AsyncSession =
         raise credentials_exception
 
     # Get the user from database
-    user = await _get_user_by_username(db, token_data.username)
+    user = await query_user_by_username(db, token_data.username)
     if not user:
         raise credentials_exception
 

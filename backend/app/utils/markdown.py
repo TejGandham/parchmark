@@ -4,16 +4,6 @@ This implementation mirrors the frontend markdown service to ensure consistency
 """
 
 import re
-from typing import Protocol
-
-
-class MarkdownProcessor(Protocol):
-    """Protocol defining the interface for markdown processing."""
-
-    def extract_title(self, content: str) -> str: ...
-    def format_content(self, content: str) -> str: ...
-    def remove_h1(self, content: str) -> str: ...
-    def create_empty_note(self, title: str = "New Note") -> str: ...
 
 
 class MarkdownService:
@@ -59,15 +49,3 @@ class MarkdownService:
 
 # Singleton instance for convenience
 markdown_service = MarkdownService()
-
-
-# Shared test cases to ensure parity with frontend
-MARKDOWN_TEST_CASES = [
-    {"input": "# Test\n\nContent", "expected_title": "Test"},
-    {"input": "No heading", "expected_title": "Untitled Note"},
-    {"input": "## Not H1\n\nContent", "expected_title": "Untitled Note"},
-    {"input": "# Multiple\n\n# Headings", "expected_title": "Multiple"},
-    {"input": "# Title with spaces  ", "expected_title": "Title with spaces"},
-    {"input": "#NoSpace", "expected_title": "Untitled Note"},
-    {"input": "", "expected_title": "Untitled Note"},
-]

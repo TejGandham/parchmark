@@ -165,43 +165,9 @@ def verify_refresh_token(token: str, credentials_exception: HTTPException) -> To
     return verify_token(token, credentials_exception, token_type="refresh")
 
 
-def authenticate_user(username: str, password: str, user_db_check_func) -> User | None:
-    """
-    Authenticate a user with username and password.
-
-    Supports local authentication only. OIDC users (with password_hash=None) cannot
-    authenticate via this method and must use OIDC authentication.
-
-    Args:
-        username: The username to authenticate
-        password: The plain text password
-        user_db_check_func: Function to get user from database by username
-
-    Returns:
-        User: User model if authentication successful, None otherwise
-    """
-    user = user_db_check_func(username)
-    if not user:
-        return None
-
-    # Prevent local login for OIDC-only users
-    if user.password_hash is None:
-        logger.debug(f"Local login attempted for OIDC user: {username} (auth_provider={user.auth_provider})")
-        return None
-
-    # Verify the password hash
-    if not verify_password(password, user.password_hash):
-        return None
-
-    return user
-
-
 def verify_user_password(user: "User | None", password: str) -> "User | None":
     """
-    Verify password for a user object directly.
-
-    This is a simpler alternative to authenticate_user() for async contexts
-    where the user has already been fetched from the database.
+    Verify password for a user object.
 
     Args:
         user: User object (or None if not found)
@@ -229,11 +195,5 @@ def verify_user_password(user: "User | None", password: str) -> "User | None":
 credentials_exception = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Could not validate credentials",
-    headers={"WWW-Authenticate": "Bearer"},
-)
-
-invalid_credentials_exception = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Invalid username or password",
     headers={"WWW-Authenticate": "Bearer"},
 )

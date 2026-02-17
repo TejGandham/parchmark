@@ -98,20 +98,6 @@ class SimilarNoteResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# Error Response Schemas
-class ErrorResponse(BaseModel):
-    """Schema for error responses."""
-
-    detail: str = Field(..., description="Error message")
-
-
-class ValidationErrorResponse(BaseModel):
-    """Schema for validation error responses."""
-
-    detail: str = Field(..., description="Validation error message")
-    errors: list[object] | None = Field(None, description="List of specific validation errors")
-
-
 # Success Response Schemas
 class MessageResponse(BaseModel):
     """Schema for simple message responses."""

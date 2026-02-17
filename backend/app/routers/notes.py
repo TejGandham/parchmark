@@ -23,12 +23,28 @@ from app.schemas.schemas import (
     NoteUpdate,
     SimilarNoteResponse,
 )
+from app.services.embeddings import compute_similarity, generate_embedding
 from app.utils.markdown import markdown_service
 
 logger = logging.getLogger(__name__)
 
 # Create router for notes endpoints
 router = APIRouter(prefix="/notes", tags=["notes"])
+
+
+def _note_to_response(note: Note) -> NoteResponse:
+    """Convert a Note ORM model to a NoteResponse schema."""
+    return NoteResponse.model_validate(
+        {
+            "id": note.id,
+            "title": note.title,
+            "content": note.content,
+            "createdAt": note.created_at.isoformat(),
+            "updatedAt": note.updated_at.isoformat(),
+            "accessCount": note.access_count,
+            "lastAccessedAt": note.last_accessed_at,
+        }
+    )
 
 
 @router.get("/", response_model=list[NoteResponse])
@@ -50,22 +66,7 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
     result = await db.execute(select(Note).filter(Note.user_id == current_user.id))
     notes = result.scalars().all()
 
-    # Convert to response format using Pydantic's model_validate
-    note_responses = []
-    for note in notes:
-        # Create a dict with proper field mapping for Pydantic
-        note_dict = {
-            "id": note.id,
-            "title": note.title,
-            "content": note.content,
-            "createdAt": note.created_at.isoformat(),
-            "updatedAt": note.updated_at.isoformat(),
-            "accessCount": note.access_count,
-            "lastAccessedAt": note.last_accessed_at,
-        }
-        note_responses.append(NoteResponse.model_validate(note_dict))
-
-    return note_responses
+    return [_note_to_response(note) for note in notes]
 
 
 @router.post("/", response_model=NoteResponse)
@@ -115,8 +116,6 @@ async def create_note(
         await db.commit()
         await db.refresh(db_note)
 
-        from app.services.embeddings import generate_embedding
-
         try:
             embedding = await generate_embedding(formatted_content)
             if embedding is not None:
@@ -130,17 +129,7 @@ async def create_note(
         logger.error(f"Failed to create note: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
-    return NoteResponse.model_validate(
-        {
-            "id": db_note.id,
-            "title": db_note.title,
-            "content": db_note.content,
-            "createdAt": db_note.created_at.isoformat(),
-            "updatedAt": db_note.updated_at.isoformat(),
-            "accessCount": db_note.access_count,
-            "lastAccessedAt": db_note.last_accessed_at,
-        }
-    )
+    return _note_to_response(db_note)
 
 
 @router.put("/{note_id}", response_model=NoteResponse)
@@ -194,8 +183,6 @@ async def update_note(
         await db.refresh(db_note)
 
         if note_data.content is not None and formatted_content is not None:
-            from app.services.embeddings import generate_embedding
-
             try:
                 embedding = await generate_embedding(formatted_content)
                 if embedding is not None:
@@ -209,17 +196,7 @@ async def update_note(
         logger.error(f"Failed to update note {note_id}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
-    return NoteResponse.model_validate(
-        {
-            "id": db_note.id,
-            "title": db_note.title,
-            "content": db_note.content,
-            "createdAt": db_note.created_at.isoformat(),
-            "updatedAt": db_note.updated_at.isoformat(),
-            "accessCount": db_note.access_count,
-            "lastAccessedAt": db_note.last_accessed_at,
-        }
-    )
+    return _note_to_response(db_note)
 
 
 @router.delete("/{note_id}", response_model=DeleteResponse)
@@ -295,8 +272,6 @@ async def get_similar_notes(
     if not other_notes:
         return []
 
-    from app.services.embeddings import compute_similarity
-
     scored: list[tuple[Note, float]] = []
     for note in other_notes:
         note_embedding = cast(list[float] | None, cast(object, note.embedding))
@@ -347,17 +322,7 @@ async def get_note(
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
-    return NoteResponse.model_validate(
-        {
-            "id": db_note.id,
-            "title": db_note.title,
-            "content": db_note.content,
-            "createdAt": db_note.created_at.isoformat(),
-            "updatedAt": db_note.updated_at.isoformat(),
-            "accessCount": db_note.access_count,
-            "lastAccessedAt": db_note.last_accessed_at,
-        }
-    )
+    return _note_to_response(db_note)
 
 
 @router.post("/{note_id}/access", response_model=NoteResponse)
@@ -383,17 +348,7 @@ async def track_note_access(
         logger.error(f"Failed to track access for note {note_id}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
-    return NoteResponse.model_validate(
-        {
-            "id": db_note.id,
-            "title": db_note.title,
-            "content": db_note.content,
-            "createdAt": db_note.created_at.isoformat(),
-            "updatedAt": db_note.updated_at.isoformat(),
-            "accessCount": db_note.access_count,
-            "lastAccessedAt": db_note.last_accessed_at,
-        }
-    )
+    return _note_to_response(db_note)
 
 
 @router.get("/health/check")

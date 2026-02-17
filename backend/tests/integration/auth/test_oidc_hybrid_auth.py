@@ -286,8 +286,8 @@ async def test_get_current_user_with_opaque_token_existing_user(test_db_session,
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_user_by_oidc_sub(test_db_session, async_session: AsyncSession):
-    """Test _query_user_by_oidc_sub helper function."""
-    from app.auth.dependencies import _query_user_by_oidc_sub
+    """Test query_user_by_oidc_sub helper function."""
+    from app.auth.dependencies import query_user_by_oidc_sub
 
     # Create OIDC user using sync session
     user = User(
@@ -301,10 +301,10 @@ async def test_get_user_by_oidc_sub(test_db_session, async_session: AsyncSession
     test_db_session.commit()
 
     # Test finding user with async query
-    found_user = await _query_user_by_oidc_sub(async_session, "authelia-sub-999")
+    found_user = await query_user_by_oidc_sub(async_session, "authelia-sub-999")
     assert found_user is not None
     assert found_user.username == "oidc_user"
 
     # Test non-existent user
-    not_found = await _query_user_by_oidc_sub(async_session, "non-existent")
+    not_found = await query_user_by_oidc_sub(async_session, "non-existent")
     assert not_found is None

@@ -26,14 +26,14 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
-async def _query_user_by_username(db: AsyncSession, username: str) -> User | None:
-    """Async helper to query user by username."""
+async def query_user_by_username(db: AsyncSession, username: str) -> User | None:
+    """Query user by username."""
     result = await db.execute(select(User).filter(User.username == username))
     return result.scalar_one_or_none()
 
 
-async def _query_user_by_oidc_sub(db: AsyncSession, oidc_sub: str) -> User | None:
-    """Async helper to query user by OIDC subject."""
+async def query_user_by_oidc_sub(db: AsyncSession, oidc_sub: str) -> User | None:
+    """Query user by OIDC subject."""
     result = await db.execute(select(User).filter(User.oidc_sub == oidc_sub))
     return result.scalar_one_or_none()
 
@@ -84,7 +84,7 @@ async def get_current_user(
         if token_data.username is None:
             raise credentials_exception
         # Run async DB operation
-        user = await _query_user_by_username(db, token_data.username)
+        user = await query_user_by_username(db, token_data.username)
         if user is not None:
             return user
     except HTTPException as e:
@@ -106,7 +106,7 @@ async def get_current_user(
             raise credentials_exception
 
         # Look up user by oidc_sub
-        user = await _query_user_by_oidc_sub(db, user_info["oidc_sub"])
+        user = await query_user_by_oidc_sub(db, user_info["oidc_sub"])
 
         if user is None and not user_info.get("username"):
             # Access token doesn't have user claims - fetch from userinfo endpoint
@@ -141,7 +141,7 @@ async def get_current_user(
                 logger.debug(f"OIDC user creation race condition detected for oidc_sub={user_info['oidc_sub']}: {e}")
                 await db.rollback()
                 # Re-fetch the user created by the other request
-                user = await _query_user_by_oidc_sub(db, user_info["oidc_sub"])
+                user = await query_user_by_oidc_sub(db, user_info["oidc_sub"])
                 if user is None:
                     logger.error(
                         f"Failed to retrieve OIDC user after race condition recovery: oidc_sub={user_info['oidc_sub']}"
@@ -173,87 +173,3 @@ async def get_current_user(
         logger.error(f"Unexpected error during OIDC validation: {type(e).__name__}: {e}", exc_info=True)
 
     raise credentials_exception
-
-
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
-    """
-    Dependency function to get the current active user.
-
-    This is an extension point for future user status checks (e.g., account disabled).
-    Currently, it just returns the authenticated user.
-
-    Args:
-        current_user: The authenticated user from get_current_user dependency
-
-    Returns:
-        User: The active user object
-
-    Raises:
-        HTTPException: If user account is inactive (future implementation)
-    """
-    # Future: Add checks for user.is_active, user.is_verified, etc.
-    # if not current_user.is_active:
-    #     raise HTTPException(status_code=400, detail="Inactive user")
-
-    return current_user
-
-
-async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
-    """
-    Helper function to get a user by username from the database.
-
-    This function is used by the authentication system to validate credentials.
-
-    Args:
-        db: Async database session
-        username: Username to search for
-
-    Returns:
-        User: User object if found, None otherwise
-    """
-    result = await db.execute(select(User).filter(User.username == username))
-    return result.scalar_one_or_none()
-
-
-async def get_user_by_oidc_sub(db: AsyncSession, oidc_sub: str) -> User | None:
-    """
-    Helper function to get a user by OIDC subject claim from the database.
-
-    Args:
-        db: Async database session
-        oidc_sub: OIDC subject identifier
-
-    Returns:
-        User: User object if found, None otherwise
-    """
-    result = await db.execute(select(User).filter(User.oidc_sub == oidc_sub))
-    return result.scalar_one_or_none()
-
-
-# Optional: Dependency for admin users (future use)
-async def get_current_admin_user(
-    current_user: User = Depends(get_current_active_user),
-) -> User:
-    """
-    Dependency function to get the current admin user.
-
-    This is a placeholder for future admin functionality.
-    Currently not used but provided for extensibility.
-
-    Args:
-        current_user: The authenticated active user
-
-    Returns:
-        User: The admin user object
-
-    Raises:
-        HTTPException: If user is not an admin
-    """
-    # Future: Add admin role checking
-    # if not current_user.is_admin:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not enough permissions"
-    #     )
-
-    return current_user
