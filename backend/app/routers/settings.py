@@ -282,22 +282,13 @@ async def delete_account(
     Raises:
         HTTPException: 401 if password is incorrect (for local users)
     """
-    # For local users, verify password
-    if current_user.auth_provider == "local" and current_user.password_hash is not None:
+    # Verify password if user has one (local or OIDC with password)
+    if current_user.password_hash is not None:
         if not verify_password(request.password, current_user.password_hash):  # type: ignore[arg-type]
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Password is incorrect",
             )
-    # For OIDC users with a password hash, verify if provided
-    elif current_user.password_hash is not None:
-        if not verify_password(request.password, current_user.password_hash):  # type: ignore[arg-type]
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Password is incorrect",
-            )
-    # For OIDC users without password, the request body password acts as confirmation
-    # (frontend should require typing "DELETE" or similar)
 
     username = current_user.username
 

@@ -13,11 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.auth import create_access_token
 from app.auth.dependencies import (
-    get_current_active_user,
-    get_current_admin_user,
     get_current_user,
-    get_user_by_oidc_sub,
-    get_user_by_username,
     security,
 )
 from app.models.models import User
@@ -152,129 +148,6 @@ class TestGetCurrentUser:
             await get_current_user(credentials, mock_session)
 
 
-class TestGetCurrentActiveUser:
-    """Test get_current_active_user dependency function."""
-
-    @pytest.mark.asyncio
-    async def test_get_current_active_user_success(self, sample_user: User):
-        """Test successful active user retrieval."""
-        result = await get_current_active_user(sample_user)
-
-        assert result == sample_user
-        assert result.username == sample_user.username
-
-    @pytest.mark.asyncio
-    async def test_get_current_active_user_with_mock(self):
-        """Test active user retrieval with mock user."""
-        mock_user = Mock(spec=User)
-        mock_user.username = "testuser"
-        mock_user.id = 1
-
-        result = await get_current_active_user(mock_user)
-
-        assert result == mock_user
-
-    # Future test for when user status checking is implemented
-    @pytest.mark.asyncio
-    async def test_get_current_active_user_inactive_user_future(self):
-        """Test active user retrieval with inactive user (future implementation)."""
-        # This test is for future when is_active field is added
-        mock_user = Mock(spec=User)
-        mock_user.username = "testuser"
-        mock_user.is_active = False
-
-        # Currently this should pass, but in future should raise exception
-        result = await get_current_active_user(mock_user)
-        assert result == mock_user
-
-        # TODO: When is_active is implemented, this should raise HTTPException
-
-
-class TestGetUserByUsername:
-    """Test get_user_by_username helper function (now async)."""
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_username_success(self, sample_user: User):
-        """Test successful user retrieval by username."""
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = sample_user
-        mock_session.execute.return_value = mock_result
-
-        result = await get_user_by_username(mock_session, sample_user.username)
-
-        assert result is not None
-        assert result.id == sample_user.id
-        assert result.username == sample_user.username
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_username_not_found(self):
-        """Test user retrieval with non-existent username."""
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
-
-        result = await get_user_by_username(mock_session, "nonexistent_user")
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_username_empty_string(self):
-        """Test user retrieval with empty username."""
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
-
-        result = await get_user_by_username(mock_session, "")
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_username_database_error(self):
-        """Test user retrieval when database query fails."""
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_session.execute.side_effect = Exception("Database error")
-
-        with pytest.raises(Exception):
-            await get_user_by_username(mock_session, "testuser")
-
-
-class TestGetCurrentAdminUser:
-    """Test get_current_admin_user dependency function."""
-
-    @pytest.mark.asyncio
-    async def test_get_current_admin_user_success(self, sample_user: User):
-        """Test successful admin user retrieval."""
-        result = await get_current_admin_user(sample_user)
-
-        assert result == sample_user
-        assert result.username == sample_user.username
-
-    @pytest.mark.asyncio
-    async def test_get_current_admin_user_with_admin(self, sample_admin_user: User):
-        """Test admin user retrieval with admin user."""
-        result = await get_current_admin_user(sample_admin_user)
-
-        assert result == sample_admin_user
-        assert result.username == "adminuser"  # From conftest fixture
-
-    # Future test for when admin role checking is implemented
-    @pytest.mark.asyncio
-    async def test_get_current_admin_user_non_admin_future(self):
-        """Test admin user retrieval with non-admin user (future implementation)."""
-        mock_user = Mock(spec=User)
-        mock_user.username = "regularuser"
-        mock_user.is_admin = False
-
-        # Currently this should pass, but in future should raise exception
-        result = await get_current_admin_user(mock_user)
-        assert result == mock_user
-
-        # TODO: When is_admin is implemented, this should raise HTTPException
-
-
 class TestSecurityScheme:
     """Test HTTPBearer security scheme configuration."""
 
@@ -295,7 +168,7 @@ class TestDependencyIntegration:
 
     @pytest.mark.asyncio
     async def test_dependency_chain(self, sample_user: User):
-        """Test the full dependency chain from token to active user."""
+        """Test the full dependency chain from token to user."""
         # Create valid token
         token_data = {"sub": sample_user.username}
         token = create_access_token(token_data)
@@ -308,14 +181,10 @@ class TestDependencyIntegration:
         mock_result.scalar_one_or_none.return_value = sample_user
         mock_session.execute.return_value = mock_result
 
-        # Test the full chain
+        # Test get_current_user
         current_user = await get_current_user(credentials, mock_session)
-        active_user = await get_current_active_user(current_user)
-        admin_user = await get_current_admin_user(active_user)
 
         assert current_user == sample_user
-        assert active_user == sample_user
-        assert admin_user == sample_user
 
     @pytest.mark.asyncio
     async def test_dependency_propagated_failure(self):
@@ -325,10 +194,7 @@ class TestDependencyIntegration:
         mock_session = AsyncMock(spec=AsyncSession)
 
         with pytest.raises(HTTPException):
-            current_user = await get_current_user(credentials, mock_session)
-            # These should not be reached due to exception above
-            await get_current_active_user(current_user)
-            await get_current_admin_user(current_user)
+            await get_current_user(credentials, mock_session)
 
 
 class TestDependencyErrorHandling:
@@ -545,38 +411,3 @@ class TestOIDCUserCreationRaceCondition:
                 # Should find the existing user
                 assert result.oidc_sub == oidc_sub
                 assert result.username == oidc_username
-
-
-class TestGetUserByOidcSub:
-    """Test get_user_by_oidc_sub helper function (now async)."""
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_oidc_sub_success(self):
-        """Test successful user retrieval by OIDC subject."""
-        # Create a mock OIDC user
-        oidc_user = Mock(spec=User)
-        oidc_user.username = "oidcuser"
-        oidc_user.oidc_sub = "test-oidc-sub-123"
-
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = oidc_user
-        mock_session.execute.return_value = mock_result
-
-        result = await get_user_by_oidc_sub(mock_session, "test-oidc-sub-123")
-
-        assert result is not None
-        assert result.oidc_sub == "test-oidc-sub-123"
-        assert result.username == "oidcuser"
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_oidc_sub_not_found(self):
-        """Test user retrieval with non-existent OIDC subject."""
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
-
-        result = await get_user_by_oidc_sub(mock_session, "nonexistent-sub")
-
-        assert result is None

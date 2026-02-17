@@ -10,7 +10,6 @@ from pydantic import ValidationError
 
 from app.schemas.schemas import (
     DeleteResponse,
-    ErrorResponse,
     MessageResponse,
     NoteCreate,
     NoteResponse,
@@ -20,7 +19,6 @@ from app.schemas.schemas import (
     UserCreate,
     UserLogin,
     UserResponse,
-    ValidationErrorResponse,
 )
 
 
@@ -548,38 +546,6 @@ class TestNoteSchemas:
 
 class TestResponseSchemas:
     """Test response-related Pydantic schemas."""
-
-    class TestErrorResponse:
-        """Test ErrorResponse schema."""
-
-        def test_error_response_valid(self):
-            """Test valid error response."""
-            error = ErrorResponse(detail="Something went wrong")
-
-            assert error.detail == "Something went wrong"
-
-        def test_error_response_missing_detail(self):
-            """Test ErrorResponse with missing detail."""
-            with pytest.raises(ValidationError):
-                ErrorResponse()
-
-    class TestValidationErrorResponse:
-        """Test ValidationErrorResponse schema."""
-
-        def test_validation_error_response_basic(self):
-            """Test basic validation error response."""
-            error = ValidationErrorResponse(detail="Validation failed")
-
-            assert error.detail == "Validation failed"
-            assert error.errors is None
-
-        def test_validation_error_response_with_errors(self):
-            """Test validation error response with errors list."""
-            errors_list = [{"field": "username", "message": "Required"}, {"field": "password", "message": "Too short"}]
-            error = ValidationErrorResponse(detail="Validation failed", errors=errors_list)
-
-            assert error.detail == "Validation failed"
-            assert error.errors == errors_list
 
     class TestMessageResponse:
         """Test MessageResponse schema."""

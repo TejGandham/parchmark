@@ -97,7 +97,7 @@ class TestSimilarNotesEndpoint:
 
 
 class TestEmbeddingGenerationOnMutations:
-    @patch("app.services.embeddings.generate_embedding")
+    @patch("app.routers.notes.generate_embedding")
     def test_create_note_generates_embedding(
         self, mock_generate_embedding, client: TestClient, auth_headers, test_db_session, sample_user
     ):
@@ -118,7 +118,7 @@ class TestEmbeddingGenerationOnMutations:
         assert stored.embedding == expected_embedding
         mock_generate_embedding.assert_called_once()
 
-    @patch("app.services.embeddings.generate_embedding")
+    @patch("app.routers.notes.generate_embedding")
     def test_update_note_regenerates_embedding_on_content_update(
         self, mock_generate_embedding, client: TestClient, auth_headers, test_db_session, sample_user
     ):
@@ -139,7 +139,7 @@ class TestEmbeddingGenerationOnMutations:
         assert updated.embedding == new_embedding
         mock_generate_embedding.assert_called_once()
 
-    @patch("app.services.embeddings.generate_embedding")
+    @patch("app.routers.notes.generate_embedding")
     def test_create_note_succeeds_when_embedding_generation_returns_none(
         self, mock_generate_embedding, client: TestClient, auth_headers, test_db_session, sample_user
     ):
