@@ -11,6 +11,7 @@ import asyncio
 import logging
 import sys
 import time
+from typing import cast
 
 from sqlalchemy import select
 
@@ -49,7 +50,7 @@ async def backfill_embeddings() -> tuple[int, int]:
         for i, note in enumerate(notes, 1):
             logger.info(f"[{i}/{total}] Processing note '{note.title}' ({note.id})")
 
-            embedding = await generate_embedding(note.content)
+            embedding = await generate_embedding(cast(str, note.content))
 
             if embedding is not None:
                 note.embedding = embedding  # type: ignore[assignment]
