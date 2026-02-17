@@ -44,9 +44,15 @@ COPY --from=builder /app/scripts/docker-entrypoint.sh /docker-entrypoint.sh
 # Don't copy env files in production - they should be mounted or provided via env_file
 # For development, you can mount .env.docker or .env.production at runtime
 
+# Version info injected at build time
+ARG GIT_SHA=dev
+ARG BUILD_DATE=unknown
+
 # Activate the virtual environment by adding it to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_DATE=$BUILD_DATE
 
 # Expose the port the app runs on
 EXPOSE 8000

@@ -1,16 +1,19 @@
-
 # === Build Stage ===
 FROM node:23-alpine AS builder
 
+ARG GIT_SHA=dev
+ARG BUILD_DATE=unknown
+
 WORKDIR /app
 
-# Copy dependency files from repo root
 COPY package.json package-lock.json ./
 
 RUN npm ci
 
-# Copy all app source and config (from repo root, NOT from infra/)
 COPY . .
+
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_DATE=$BUILD_DATE
 
 RUN npm run build
 

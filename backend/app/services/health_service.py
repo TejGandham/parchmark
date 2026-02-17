@@ -50,7 +50,9 @@ class HealthService:
         if not is_db_healthy:
             raise Exception("Database connection failed")
 
-        return {"status": "healthy", "database": "connected", "service": "ParchMark API", "version": "1.0.0"}
+        from app.version import get_version_info
+
+        return {"status": "healthy", "database": "connected", "service": "ParchMark API", **get_version_info()}
 
 
 # Singleton instance

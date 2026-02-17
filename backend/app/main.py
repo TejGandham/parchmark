@@ -16,6 +16,7 @@ from app.auth.oidc_validator import oidc_validator
 from app.database.database import async_engine
 from app.database.init_db import init_database
 from app.routers import auth, health, notes, settings
+from app.version import VERSION, get_version_info
 
 # Load environment variables
 load_dotenv()
@@ -86,7 +87,7 @@ app = FastAPI(
     Most endpoints require authentication via JWT Bearer token.
     Use the `/auth/login` endpoint to obtain a token.
     """,
-    version="1.0.0",
+    version=VERSION,
     contact={
         "name": "ParchMark API Support",
         "email": "support@parchmark.com",
@@ -166,7 +167,7 @@ async def root():
     """
     return {
         "message": "ParchMark API is running",
-        "version": "1.0.0",
+        **get_version_info(),
         "docs": "/docs",
         "redoc": "/redoc",
         "health": "/health",
@@ -178,4 +179,4 @@ async def health_check():
     """
     Health check endpoint for monitoring and load balancers.
     """
-    return {"status": "healthy", "service": "ParchMark API", "version": "1.0.0"}
+    return {"status": "healthy", "service": "ParchMark API", **get_version_info()}

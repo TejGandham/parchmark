@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import text
 
 from app.services.health_service import HealthService
+from app.version import VERSION
 
 
 @pytest.mark.asyncio
@@ -47,12 +48,12 @@ async def test_get_health_status_returns_expected_payload(monkeypatch):
 
     status = await HealthService.get_health_status(MagicMock())
 
-    assert status == {
-        "status": "healthy",
-        "database": "connected",
-        "service": "ParchMark API",
-        "version": "1.0.0",
-    }
+    assert status["status"] == "healthy"
+    assert status["database"] == "connected"
+    assert status["service"] == "ParchMark API"
+    assert status["version"] == VERSION
+    assert "gitSha" in status
+    assert "buildDate" in status
 
 
 @pytest.mark.asyncio

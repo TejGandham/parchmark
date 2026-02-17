@@ -11,6 +11,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from app.models.models import User
+from app.version import VERSION
 
 
 class TestAppConfiguration:
@@ -26,7 +27,7 @@ class TestAppConfiguration:
         info = schema["info"]
 
         assert info["title"] == "ParchMark API"
-        assert info["version"] == "1.0.0"
+        assert info["version"] == VERSION
         assert "description" in info
         assert "contact" in info
         assert "license" in info
@@ -211,7 +212,9 @@ class TestRootEndpoints:
         assert "health" in data
 
         assert data["message"] == "ParchMark API is running"
-        assert data["version"] == "1.0.0"
+        assert data["version"] == VERSION
+        assert "gitSha" in data
+        assert "buildDate" in data
         assert data["docs"] == "/docs"
         assert data["redoc"] == "/redoc"
         assert data["health"] == "/health"
@@ -229,7 +232,9 @@ class TestRootEndpoints:
 
         assert data["status"] == "healthy"
         assert data["service"] == "ParchMark API"
-        assert data["version"] == "1.0.0"
+        assert data["version"] == VERSION
+        assert "gitSha" in data
+        assert "buildDate" in data
 
     def test_health_endpoint_no_auth_required(self, client: TestClient):
         """Test that health endpoint doesn't require authentication."""
