@@ -51,11 +51,17 @@ COPY --from=builder --chown=appuser:appuser /app/scripts /app/scripts
 COPY --from=builder --chown=appuser:appuser /app/alembic.ini /app/alembic.ini
 COPY --from=builder --chown=appuser:appuser /app/migrations /app/migrations
 
+# Version info injected at build time
+ARG GIT_SHA=dev
+ARG BUILD_DATE=unknown
+
 # Activate the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_DATE=$BUILD_DATE
 
 # Switch to non-root user
 USER appuser
