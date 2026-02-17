@@ -33,18 +33,18 @@ describe('useCommandPalette', () => {
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('toggles palette on Cmd+K', () => {
+  it('toggles palette on Ctrl+Shift+P', () => {
     renderHook();
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
 
     act(() => {
-      fireEvent.keyDown(window, { key: 'k', metaKey: true });
+      fireEvent.keyDown(window, { key: 'P', ctrlKey: true, shiftKey: true });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(true);
   });
 
-  it('toggles palette on Ctrl+K', () => {
+  it('does not toggle on Ctrl+K (old shortcut)', () => {
     renderHook();
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
 
@@ -52,10 +52,10 @@ describe('useCommandPalette', () => {
       fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     });
 
-    expect(useUIStore.getState().isPaletteOpen).toBe(true);
+    expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('closes palette on Cmd+K when already open', () => {
+  it('closes palette on Ctrl+Shift+P when already open', () => {
     act(() => {
       useUIStore.getState().actions.openPalette();
     });
@@ -63,7 +63,7 @@ describe('useCommandPalette', () => {
     expect(useUIStore.getState().isPaletteOpen).toBe(true);
 
     act(() => {
-      fireEvent.keyDown(window, { key: 'k', metaKey: true });
+      fireEvent.keyDown(window, { key: 'P', ctrlKey: true, shiftKey: true });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
@@ -94,21 +94,32 @@ describe('useCommandPalette', () => {
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('does not toggle on K without modifier', () => {
+  it('does not toggle on P without modifiers', () => {
     renderHook();
 
     act(() => {
-      fireEvent.keyDown(window, { key: 'k' });
+      fireEvent.keyDown(window, { key: 'p' });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('prevents default on Cmd+K', () => {
+  it('does not toggle on Ctrl+P without Shift', () => {
+    renderHook();
+
+    act(() => {
+      fireEvent.keyDown(window, { key: 'p', ctrlKey: true });
+    });
+
+    expect(useUIStore.getState().isPaletteOpen).toBe(false);
+  });
+
+  it('prevents default on Ctrl+Shift+P', () => {
     renderHook();
     const event = new KeyboardEvent('keydown', {
-      key: 'k',
-      metaKey: true,
+      key: 'P',
+      ctrlKey: true,
+      shiftKey: true,
       cancelable: true,
       bubbles: true,
     });
@@ -126,7 +137,7 @@ describe('useCommandPalette', () => {
     unmount();
 
     act(() => {
-      fireEvent.keyDown(window, { key: 'k', metaKey: true });
+      fireEvent.keyDown(window, { key: 'P', ctrlKey: true, shiftKey: true });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
