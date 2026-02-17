@@ -18,6 +18,13 @@ import {
   Icon,
   Skeleton,
   SkeletonText,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { AddIcon, EditIcon, InfoIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
@@ -56,6 +63,13 @@ const NoteContent = () => {
   // Track pending save to clear state after success
   // Stores the noteId that was being saved to handle rapid saves correctly
   const pendingSaveNoteIdRef = useRef<string | null>(null);
+
+  const {
+    isOpen: isDeleteDialogOpen,
+    onOpen: openDeleteDialog,
+    onClose: closeDeleteDialog,
+  } = useDisclosure();
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
 
   // Derived state
   const isEditing = searchParams.get('editing') === 'true';
@@ -114,6 +128,15 @@ const NoteContent = () => {
 
   const createNewNote = () => {
     fetcher.submit(null, { method: 'post', action: '/notes' });
+  };
+
+  const confirmDelete = () => {
+    if (!noteId) return;
+    fetcher.submit(null, {
+      method: 'post',
+      action: `/notes/${noteId}/delete`,
+    });
+    closeDeleteDialog();
   };
 
   // Memoize markdown components to prevent recreation on every render
@@ -308,7 +331,9 @@ const NoteContent = () => {
           onEdit={startEditing}
           onSave={saveNote}
           onCancel={cancelEditing}
+          onDelete={openDeleteDialog}
           isSaving={isSaving}
+          isDeleting={isDeleting}
         />
       </Flex>
 
@@ -349,6 +374,32 @@ const NoteContent = () => {
           </>
         )}
       </Box>
+
+      <AlertDialog
+        isOpen={isDeleteDialogOpen}
+        leastDestructiveRef={cancelDeleteRef}
+        onClose={closeDeleteDialog}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Note
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              Are you sure you want to delete &ldquo;{currentNote.title}
+              &rdquo;? This action cannot be undone.
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelDeleteRef} onClick={closeDeleteDialog}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={confirmDelete} ml={3}>
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };

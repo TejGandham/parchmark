@@ -155,4 +155,41 @@ describe('NoteActions Component', () => {
       expect(icon).toBeTruthy();
     });
   });
+
+  describe('Delete Functionality', () => {
+    it('should render delete button in view mode when onDelete is provided', () => {
+      renderComponent({ onDelete: vi.fn() });
+      const deleteButton = screen.getByRole('button', { name: /delete note/i });
+      expect(deleteButton).toBeInTheDocument();
+    });
+
+    it('should not render delete button when onDelete is not provided', () => {
+      renderComponent();
+      const deleteButton = screen.queryByRole('button', {
+        name: /delete note/i,
+      });
+      expect(deleteButton).not.toBeInTheDocument();
+    });
+
+    it('should not render delete button in edit mode', () => {
+      renderComponent({ isEditing: true, onDelete: vi.fn() });
+      const deleteButton = screen.queryByRole('button', {
+        name: /delete note/i,
+      });
+      expect(deleteButton).not.toBeInTheDocument();
+    });
+
+    it('should call onDelete when delete button is clicked', () => {
+      const onDelete = vi.fn();
+      renderComponent({ onDelete });
+      fireEvent.click(screen.getByRole('button', { name: /delete note/i }));
+      expect(onDelete).toHaveBeenCalled();
+    });
+
+    it('should disable edit button while deleting', () => {
+      renderComponent({ onDelete: vi.fn(), isDeleting: true });
+      const editButton = screen.getByRole('button', { name: /edit/i });
+      expect(editButton).toBeDisabled();
+    });
+  });
 });
