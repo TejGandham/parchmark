@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17.2-alpine
+    image: pgvector/pgvector:pg17
     container_name: parchmark-postgres-prod
     env_file:
       - ./.env.db

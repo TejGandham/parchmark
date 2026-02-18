@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # PostgreSQL database
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     container_name: parchmark-postgres-oidc
     environment:
       POSTGRES_USER: parchmark_user
