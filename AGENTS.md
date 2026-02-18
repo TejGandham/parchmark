@@ -45,54 +45,61 @@ Run `bd prime` for full workflow context after session restart.
 
 ## Feature & Bug Workflow
 
-**Every feature or bug fix MUST start with a new branch. No exceptions.**
+**Every feature or bug fix MUST use a new worktree + branch. No exceptions.**
 
-### 1. Create a Branch (FIRST step)
+### 1. Create a Worktree (FIRST step)
 
 ```bash
 # Feature
-git checkout -b feat/<short-description>
+git worktree add .worktrees/feat/<short-description> -b feat/<short-description>
 
 # Bug fix
-git checkout -b fix/<short-description>
+git worktree add .worktrees/fix/<short-description> -b fix/<short-description>
 ```
 
-Branch off `main` (or the current default branch). Never commit directly to `main`.
+- Worktrees live in `.worktrees/` (gitignored). Create the directory if it doesn't exist.
+- Branch off `main`. Never commit directly to `main`.
+- Work inside the worktree directory for that feature/fix.
 
 ### 2. Implement & Test
 
-- Follow normal development workflow (code, `make test`, etc.)
+- Work inside `.worktrees/<branch>/` — run `make test` from there
 - Commit to the feature/fix branch
 
-### 3. Open a PR on Origin (Gitea)
-
-When work is complete, push the branch to **origin** and open a PR via the Gitea API:
+### 3. Open a PR on Origin (Forgejo) using `tea`
 
 ```bash
 # Push branch to origin
 git push -u origin <branch-name>
 
-# Create PR on origin (Gitea API)
-curl -s -X POST "https://brahma.myth-gecko.ts.net:3000/api/v1/repos/tej/parchmark/pulls" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: token $(cat ~/.gitea-token)" \
-  -d '{
-    "title": "PR title",
-    "body": "## Summary\n- ...",
-    "head": "<branch-name>",
-    "base": "main"
-  }'
+# Create PR using tea CLI
+tea pr create --title "PR title" --description "## Summary" --base main --head <branch-name>
+
+# List PRs
+tea pr list
+
+# Check PR status
+tea pr view <number>
+
+# Merge PR (after CI passes)
+tea pr merge -s merge <number>
 ```
 
-> **Do NOT use `gh pr create`** — that targets the GitHub mirror, not origin.
+> **Use `tea` for all Forgejo PR management.** Do NOT use `gh` (GitHub only) or raw `curl`.
 
 ### 4. Wait for CI
 
 **Work is NOT complete until CI passes on the PR.**
 
-- Check CI status on the Gitea PR page or via API
+- Check CI status: `tea pr view <number>`
 - If CI fails, fix the issues on the branch, push again, and wait for green
 - Only report success to the user after CI is green
+
+### 5. Clean up worktree
+
+```bash
+git worktree remove .worktrees/feat/<short-description>
+```
 
 ## Project Overview
 
@@ -337,9 +344,9 @@ fireEvent.submit(form);                      // Use submit, not click
 - Downgrade may fail if data constraints violated
 
 ### Git Remotes
-- `origin` = Gitea on brahma (`brahma.myth-gecko.ts.net:3000`), primary remote
+- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`), primary remote
 - `github` = GitHub mirror (`github.com/TejGandham/parchmark`)
-- `gh` CLI works with GitHub remote only; use Gitea API for origin PRs
+- Use `tea` CLI for origin PRs; `gh` CLI is GitHub mirror only
 - Push to both: `git push origin <branch> && git push github <branch>`
 
 ### Embeddings
@@ -412,9 +419,10 @@ bd sync
 git commit -m "..."
 git push -u origin <branch-name>
 
-# 4. Open PR on origin (Gitea) — see "Feature & Bug Workflow" above
+# 4. Open PR on origin using tea CLI — see "Feature & Bug Workflow" above
 # 5. Wait for CI to pass on the PR before reporting success
 # 6. If CI fails, fix and push again until green
+# 7. After merge, clean up: git worktree remove .worktrees/<branch>
 ```
 
 ## Landing the Plane (Session Completion)
