@@ -1,58 +1,63 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Text, Spinner, Center } from '@chakra-ui/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Box, Text, Spinner, Center, useColorMode } from '@chakra-ui/react';
 import { getMermaid } from '../utils/mermaidInit';
 
 interface MermaidProps {
   chart: string;
 }
 
+let idCounter = 0;
+
 const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { colorMode } = useColorMode();
 
-  const renderDiagram = useCallback(async () => {
-    if (!chart.trim()) {
-      setLoading(false);
-      return;
-    }
-
-    if (!containerRef.current) return;
-
+  useEffect(() => {
     let cancelled = false;
 
-    try {
-      setLoading(true);
-      setError(null);
+    const renderChart = async () => {
+      if (!chart.trim()) {
+        setLoading(false);
+        return;
+      }
 
-      // Lazily load mermaid library
-      const mermaid = await getMermaid();
+      try {
+        setLoading(true);
+        setError(null);
 
-      if (cancelled) return;
+        const mermaid = await getMermaid();
+        if (cancelled) return;
 
-      // Reset the container for re-rendering
-      const container = containerRef.current;
-      container.removeAttribute('data-processed');
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: colorMode === 'dark' ? 'dark' : 'default',
+          securityLevel: 'loose',
+        });
 
-      // Use contentLoaded to process this specific element
-      // This is the most reliable approach for mermaid in React
-      await mermaid.contentLoaded();
-    } catch (err) {
-      if (cancelled) return;
-      console.error('Mermaid rendering error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to render diagram');
-    } finally {
-      if (!cancelled) setLoading(false);
-    }
+        const id = `mermaid-${idCounter++}`;
+        const { svg: renderedSvg } = await mermaid.render(id, chart);
 
+        if (cancelled) return;
+        setSvg(renderedSvg);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Mermaid rendering error:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to render diagram'
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    renderChart();
     return () => {
       cancelled = true;
     };
-  }, [chart]);
-
-  useEffect(() => {
-    renderDiagram();
-  }, [renderDiagram]);
+  }, [chart, colorMode]);
 
   if (error) {
     return (
@@ -94,9 +99,11 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
           <Spinner size="sm" color="primary.500" />
         </Center>
       )}
-      <Box ref={containerRef} className="mermaid">
-        {chart}
-      </Box>
+      <Box
+        ref={containerRef}
+        className="mermaid-diagram"
+        dangerouslySetInnerHTML={svg ? { __html: svg } : undefined}
+      />
     </Box>
   );
 };
