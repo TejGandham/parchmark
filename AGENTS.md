@@ -52,12 +52,15 @@ Run `bd prime` for full workflow context after session restart.
 ```bash
 # Feature
 git worktree add .worktrees/feat/<short-description> -b feat/<short-description>
+export BEADS_NO_DAEMON=1  # MANDATORY: prevents beads daemon from committing to wrong branch
 
 # Bug fix
 git worktree add .worktrees/fix/<short-description> -b fix/<short-description>
+export BEADS_NO_DAEMON=1  # MANDATORY: prevents beads daemon from committing to wrong branch
 ```
 
 - Worktrees live in `.worktrees/` (gitignored). Create the directory if it doesn't exist.
+- **ALWAYS set `export BEADS_NO_DAEMON=1`** after creating a worktree. Worktrees share the beads database and the daemon may commit to the wrong branch.
 - Branch off `main`. Never commit directly to `main`.
 - Work inside the worktree directory for that feature/fix.
 
