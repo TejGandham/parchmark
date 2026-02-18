@@ -52,9 +52,11 @@ def test_db_engine():
     instead of -n auto.
     """
     # Use PostgreSQL with testcontainers (requires Docker)
-    with PostgresContainer("postgres:17.2-alpine") as postgres:
+    with PostgresContainer("pgvector/pgvector:pg17") as postgres:
         database_url = postgres.get_connection_url()
         engine = create_engine(database_url)
+        with engine.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         Base.metadata.create_all(bind=engine)
         yield engine
 

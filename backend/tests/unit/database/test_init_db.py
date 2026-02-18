@@ -78,7 +78,8 @@ class TestCreateTables:
             assert existing_user.username == "testuser"
 
     @patch("app.database.init_db.Base.metadata.create_all")
-    def test_create_tables_calls_metadata_create_all(self, mock_create_all):
+    @patch("app.database.init_db.engine")
+    def test_create_tables_calls_metadata_create_all(self, mock_engine, mock_create_all):
         """Test that create_tables calls the correct SQLAlchemy method."""
         create_tables()
 
@@ -88,7 +89,8 @@ class TestCreateTables:
         assert "bind" in kwargs
 
     @patch("app.database.init_db.Base.metadata.create_all")
-    def test_create_tables_exception_handling(self, mock_create_all):
+    @patch("app.database.init_db.engine")
+    def test_create_tables_exception_handling(self, mock_engine, mock_create_all):
         """Test create_tables handles exceptions properly."""
         mock_create_all.side_effect = Exception("Database error")
 
@@ -100,7 +102,8 @@ class TestCreateTables:
 
     @patch("builtins.print")
     @patch("app.database.init_db.Base.metadata.create_all")
-    def test_create_tables_output_messages(self, mock_create_all, mock_print):
+    @patch("app.database.init_db.engine")
+    def test_create_tables_output_messages(self, mock_engine, mock_create_all, mock_print):
         """Test that create_tables prints appropriate messages."""
         create_tables()
 

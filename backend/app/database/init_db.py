@@ -3,6 +3,8 @@ Database initialization module for ParchMark backend.
 Creates database tables and handles initial database setup.
 """
 
+from sqlalchemy import text
+
 from app.database.database import Base, engine
 from app.database.seed import check_seeding_status, seed_database
 
@@ -13,6 +15,8 @@ def create_tables():
     This function is idempotent and will not recreate existing tables.
     """
     print("Creating database tables...")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully!")
 

@@ -5,7 +5,6 @@ Handles note creation, reading, updating, and deletion with user authorization.
 
 import logging
 from datetime import datetime
-from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -23,7 +22,7 @@ from app.schemas.schemas import (
     NoteUpdate,
     SimilarNoteResponse,
 )
-from app.services.embeddings import compute_similarity, generate_embedding
+from app.services.embeddings import generate_embedding
 from app.utils.markdown import markdown_service
 
 logger = logging.getLogger(__name__)
@@ -256,42 +255,28 @@ async def get_similar_notes(
     if not target_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
-    target_embedding = cast(list[float] | None, cast(object, target_note.embedding))
-    if not target_embedding:
+    if target_note.embedding is None:
         return []
 
+    cosine_distance = Note.embedding.cosine_distance(target_note.embedding)
     result = await db.execute(
-        select(Note).filter(
+        select(Note, (1 - cosine_distance).label("similarity"))
+        .filter(
             Note.user_id == current_user.id,
             Note.id != note_id,
             Note.embedding.isnot(None),
         )
+        .order_by(cosine_distance)
+        .limit(count)
     )
-    other_notes = result.scalars().all()
-
-    if not other_notes:
-        return []
-
-    scored: list[tuple[Note, float]] = []
-    for note in other_notes:
-        note_embedding = cast(list[float] | None, cast(object, note.embedding))
-        if not note_embedding:
-            continue
-        similarity = compute_similarity(target_embedding, note_embedding)
-        if similarity > 0:
-            scored.append((note, similarity))
-
-    scored.sort(key=lambda item: item[1], reverse=True)
-    top = scored[:count]
-
     return [
         SimilarNoteResponse(
-            id=str(note.id),  # type: ignore[arg-type]
-            title=str(note.title),  # type: ignore[arg-type]
-            similarity=round(sim, 4),
+            id=str(note.id),
+            title=str(note.title),
+            similarity=round(max(0.0, float(sim)), 4),
             updatedAt=note.updated_at.isoformat(),
         )
-        for note, sim in top
+        for note, sim in result.all()
     ]
 
 
