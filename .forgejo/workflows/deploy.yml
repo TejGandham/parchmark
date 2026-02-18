@@ -75,7 +75,10 @@ jobs:
       - name: Build and push backend image
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           docker build \
+            --build-arg GIT_SHA=${{ github.sha }} \
+            --build-arg BUILD_DATE=${BUILD_DATE} \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:latest \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:sha-${SHORT_SHA} \
             -f ./backend/Dockerfile.prod ./backend
@@ -101,7 +104,10 @@ jobs:
       - name: Build and push frontend image
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           docker build \
+            --build-arg GIT_SHA=${{ github.sha }} \
+            --build-arg BUILD_DATE=${BUILD_DATE} \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:latest \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:sha-${SHORT_SHA} \
             -f ./ui/Dockerfile ./ui
