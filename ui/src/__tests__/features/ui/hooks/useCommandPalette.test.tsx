@@ -33,7 +33,18 @@ describe('useCommandPalette', () => {
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('toggles palette on Ctrl+.', () => {
+  it('toggles palette on Ctrl+Shift+Space', () => {
+    renderHook();
+    expect(useUIStore.getState().isPaletteOpen).toBe(false);
+
+    act(() => {
+      fireEvent.keyDown(window, { key: ' ', ctrlKey: true, shiftKey: true });
+    });
+
+    expect(useUIStore.getState().isPaletteOpen).toBe(true);
+  });
+
+  it('does not toggle on Ctrl+. (old shortcut)', () => {
     renderHook();
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
 
@@ -41,32 +52,10 @@ describe('useCommandPalette', () => {
       fireEvent.keyDown(window, { key: '.', ctrlKey: true });
     });
 
-    expect(useUIStore.getState().isPaletteOpen).toBe(true);
-  });
-
-  it('does not toggle on Ctrl+K (old shortcut)', () => {
-    renderHook();
-    expect(useUIStore.getState().isPaletteOpen).toBe(false);
-
-    act(() => {
-      fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
-    });
-
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('does not toggle on Ctrl+Shift+P (old shortcut)', () => {
-    renderHook();
-    expect(useUIStore.getState().isPaletteOpen).toBe(false);
-
-    act(() => {
-      fireEvent.keyDown(window, { key: 'P', ctrlKey: true, shiftKey: true });
-    });
-
-    expect(useUIStore.getState().isPaletteOpen).toBe(false);
-  });
-
-  it('closes palette on Ctrl+. when already open', () => {
+  it('closes palette on Ctrl+Shift+Space when already open', () => {
     act(() => {
       useUIStore.getState().actions.openPalette();
     });
@@ -74,7 +63,7 @@ describe('useCommandPalette', () => {
     expect(useUIStore.getState().isPaletteOpen).toBe(true);
 
     act(() => {
-      fireEvent.keyDown(window, { key: '.', ctrlKey: true });
+      fireEvent.keyDown(window, { key: ' ', ctrlKey: true, shiftKey: true });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
@@ -105,31 +94,32 @@ describe('useCommandPalette', () => {
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('does not toggle on . without Ctrl', () => {
+  it('does not toggle on Space without modifiers', () => {
     renderHook();
 
     act(() => {
-      fireEvent.keyDown(window, { key: '.' });
+      fireEvent.keyDown(window, { key: ' ' });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('does not toggle on Ctrl+Shift+.', () => {
+  it('does not toggle on Ctrl+Space without Shift', () => {
     renderHook();
 
     act(() => {
-      fireEvent.keyDown(window, { key: '.', ctrlKey: true, shiftKey: true });
+      fireEvent.keyDown(window, { key: ' ', ctrlKey: true });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
   });
 
-  it('prevents default on Ctrl+.', () => {
+  it('prevents default on Ctrl+Shift+Space', () => {
     renderHook();
     const event = new KeyboardEvent('keydown', {
-      key: '.',
+      key: ' ',
       ctrlKey: true,
+      shiftKey: true,
       cancelable: true,
       bubbles: true,
     });
@@ -147,7 +137,7 @@ describe('useCommandPalette', () => {
     unmount();
 
     act(() => {
-      fireEvent.keyDown(window, { key: '.', ctrlKey: true });
+      fireEvent.keyDown(window, { key: ' ', ctrlKey: true, shiftKey: true });
     });
 
     expect(useUIStore.getState().isPaletteOpen).toBe(false);
