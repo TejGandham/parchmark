@@ -231,7 +231,7 @@ const NoteContent = () => {
             textAlign="center"
             maxW="400px"
           >
-            Press Ctrl+Shift+P to search or create a new note to get started
+            Press Ctrl+. to search or create a new note to get started
           </Text>
         </VStack>
 
