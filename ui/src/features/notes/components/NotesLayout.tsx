@@ -74,7 +74,7 @@ export default function NotesLayout() {
                 color="text.primary"
                 fontFamily="'Playfair Display', serif"
               >
-                Press Ctrl+Shift+P to search notes
+                Press Ctrl+. to search notes
               </Heading>
               <Text fontSize="sm" color="text.muted">
                 {notes.length} {notes.length === 1 ? 'note' : 'notes'} available

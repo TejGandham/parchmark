@@ -9,7 +9,7 @@ export const useCommandPalette = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') {
+      if (e.ctrlKey && !e.shiftKey && e.key === '.') {
         e.preventDefault();
         togglePalette();
       }
