@@ -653,6 +653,26 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                 )}
               </VStack>
 
+              {!isSearching && notes.length > 0 && (
+                <Box
+                  px={4}
+                  py={2}
+                  borderTop="1px solid"
+                  borderColor="gray.100"
+                  cursor="pointer"
+                  _hover={{ bg: 'gray.50' }}
+                  onClick={() => {
+                    navigate('/notes/explore');
+                    closePalette();
+                  }}
+                  data-testid="browse-all-link"
+                >
+                  <Text fontSize="sm" color="primary.600">
+                    Browse All Notes →
+                  </Text>
+                </Box>
+              )}
+
               <Box
                 px={4}
                 py={2}

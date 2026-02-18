@@ -8,7 +8,7 @@ import {
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGear } from '@fortawesome/free-solid-svg-icons';
+import { faTableList, faGear } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { UserLoginStatus } from '../../auth/components';
 import { useUIStore } from '../store/ui';
@@ -55,6 +55,15 @@ const Header = () => {
       </Button>
 
       <HStack spacing={3}>
+        <IconButton
+          aria-label="Browse all notes"
+          icon={<FontAwesomeIcon icon={faTableList} />}
+          onClick={() => navigate('/notes/explore')}
+          variant="ghost"
+          colorScheme="primary"
+          fontSize="lg"
+          data-testid="explorer-link"
+        />
         <IconButton
           aria-label="Settings"
           icon={<FontAwesomeIcon icon={faGear} />}
