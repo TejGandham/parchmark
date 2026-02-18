@@ -29,7 +29,7 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
           onSelect(note.id);
         }
       },
-      [onSelect, note.id],
+      [onSelect, note.id]
     );
 
     const preview = getContentPreview(note.content);
@@ -105,7 +105,7 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
     prevProps.note.updatedAt === nextProps.note.updatedAt &&
     prevProps.note.createdAt === nextProps.note.createdAt &&
     prevProps.isActive === nextProps.isActive &&
-    prevProps.searchQuery === nextProps.searchQuery,
+    prevProps.searchQuery === nextProps.searchQuery
 );
 
 ExplorerNoteCard.displayName = 'ExplorerNoteCard';

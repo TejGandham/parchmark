@@ -41,7 +41,10 @@ export function stripMarkdownToPlainText(markdown: string): string {
  * - Truncates to maxLength chars with "..." if needed
  * Default maxLength: 120
  */
-export function getContentPreview(content: string, maxLength: number = 120): string {
+export function getContentPreview(
+  content: string,
+  maxLength: number = 120
+): string {
   let text = content.replace(/^#\s+(.+)($|\n)/m, '');
   text = stripMarkdownToPlainText(text);
   text = text.replace(/\s+/g, ' ').trim();

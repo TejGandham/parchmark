@@ -51,10 +51,22 @@ function makeNote(overrides: Partial<Note> & { id: string }): Note {
 
 const sampleNotes: Note[] = [
   makeNote({ id: '1', title: 'Alpha Note', updatedAt: '2026-02-16T12:00:00Z' }),
-  makeNote({ id: '2', title: 'Beta Testing', updatedAt: '2026-02-16T11:00:00Z' }),
+  makeNote({
+    id: '2',
+    title: 'Beta Testing',
+    updatedAt: '2026-02-16T11:00:00Z',
+  }),
   makeNote({ id: '3', title: 'Gamma Ray', updatedAt: '2026-02-16T10:00:00Z' }),
-  makeNote({ id: '4', title: 'Delta Force', updatedAt: '2026-02-15T12:00:00Z' }),
-  makeNote({ id: '5', title: 'Epsilon Five', updatedAt: '2026-02-14T12:00:00Z' }),
+  makeNote({
+    id: '4',
+    title: 'Delta Force',
+    updatedAt: '2026-02-15T12:00:00Z',
+  }),
+  makeNote({
+    id: '5',
+    title: 'Epsilon Five',
+    updatedAt: '2026-02-14T12:00:00Z',
+  }),
 ];
 
 async function renderExplorer(notes: Note[] = sampleNotes) {
@@ -101,7 +113,9 @@ describe('NotesExplorer', () => {
     await renderExplorer();
     const explorer = screen.getByTestId('notes-explorer');
     expect(explorer).toBeInTheDocument();
-    const textElements = screen.getAllByText(/Today|Yesterday|This Week|This Month|Older/);
+    const textElements = screen.getAllByText(
+      /Today|Yesterday|This Week|This Month|Older/
+    );
     expect(textElements.length).toBeGreaterThan(0);
   });
 
@@ -116,7 +130,9 @@ describe('NotesExplorer', () => {
       useUIStore.getState().actions.setNotesSearchQuery('Beta');
     });
     await renderExplorer();
-    expect(screen.getByTestId('search-result-count')).toHaveTextContent(/1.*result/);
+    expect(screen.getByTestId('search-result-count')).toHaveTextContent(
+      /1.*result/
+    );
   });
 
   it('shows filtered notes when searching', async () => {
@@ -133,7 +149,9 @@ describe('NotesExplorer', () => {
       useUIStore.getState().actions.setNotesSearchQuery('zzzznonexistent');
     });
     await renderExplorer();
-    expect(screen.getByTestId('no-notes-found')).toHaveTextContent('No notes found');
+    expect(screen.getByTestId('no-notes-found')).toHaveTextContent(
+      'No notes found'
+    );
   });
 
   it('shows Create button when search >= 4 chars and no results', async () => {
@@ -154,7 +172,9 @@ describe('NotesExplorer', () => {
     await renderExplorer();
     const cards = screen.getAllByTestId('explorer-note-card');
     fireEvent.click(cards[0]);
-    expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/^\/notes\//));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/notes\//)
+    );
   });
 
   it('ArrowDown key increments active index', async () => {
@@ -169,7 +189,9 @@ describe('NotesExplorer', () => {
     await renderExplorer();
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     fireEvent.keyDown(window, { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/^\/notes\//));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/notes\//)
+    );
   });
 
   it('Escape key clears search when searching', async () => {

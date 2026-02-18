@@ -24,8 +24,12 @@ describe('stripMarkdownToPlainText', () => {
   });
 
   it('removes links and keeps text', () => {
-    expect(stripMarkdownToPlainText('[link text](https://example.com)')).toBe('link text');
-    expect(stripMarkdownToPlainText('Check [this](http://example.com) out')).toBe('Check this out');
+    expect(stripMarkdownToPlainText('[link text](https://example.com)')).toBe(
+      'link text'
+    );
+    expect(
+      stripMarkdownToPlainText('Check [this](http://example.com) out')
+    ).toBe('Check this out');
   });
 
   it('removes images and keeps alt text', () => {
@@ -42,12 +46,18 @@ describe('stripMarkdownToPlainText', () => {
   });
 
   it('removes inline code backticks', () => {
-    expect(stripMarkdownToPlainText('Use `const x = 1` in code')).toBe('Use const x = 1 in code');
+    expect(stripMarkdownToPlainText('Use `const x = 1` in code')).toBe(
+      'Use const x = 1 in code'
+    );
   });
 
   it('removes blockquotes', () => {
-    expect(stripMarkdownToPlainText('> This is a quote')).toBe('This is a quote');
-    expect(stripMarkdownToPlainText('> Quote line 1\n> Quote line 2')).toBe('Quote line 1\nQuote line 2');
+    expect(stripMarkdownToPlainText('> This is a quote')).toBe(
+      'This is a quote'
+    );
+    expect(stripMarkdownToPlainText('> Quote line 1\n> Quote line 2')).toBe(
+      'Quote line 1\nQuote line 2'
+    );
   });
 
   it('removes horizontal rules', () => {
@@ -62,13 +72,17 @@ describe('stripMarkdownToPlainText', () => {
   });
 
   it('removes task list markers', () => {
-    expect(stripMarkdownToPlainText('- [ ] Unchecked task')).toBe('Unchecked task');
+    expect(stripMarkdownToPlainText('- [ ] Unchecked task')).toBe(
+      'Unchecked task'
+    );
     expect(stripMarkdownToPlainText('- [x] Checked task')).toBe('Checked task');
     expect(stripMarkdownToPlainText('- [X] Checked task')).toBe('Checked task');
   });
 
   it('removes table pipes', () => {
-    expect(stripMarkdownToPlainText('| Header 1 | Header 2 |')).toBe('Header 1 Header 2');
+    expect(stripMarkdownToPlainText('| Header 1 | Header 2 |')).toBe(
+      'Header 1 Header 2'
+    );
   });
 
   it('removes strikethrough', () => {
@@ -102,7 +116,9 @@ code block
   });
 
   it('collapses multiple whitespace', () => {
-    expect(stripMarkdownToPlainText('text   with    spaces')).toBe('text with spaces');
+    expect(stripMarkdownToPlainText('text   with    spaces')).toBe(
+      'text with spaces'
+    );
     expect(stripMarkdownToPlainText('line1\n\n\nline2')).toBe('line1\nline2');
   });
 

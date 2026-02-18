@@ -41,11 +41,9 @@ export function ExplorerToolbar({
   const notesSearchQuery = useUIStore((s) => s.notesSearchQuery);
   const setNotesSortBy = useUIStore((s) => s.actions.setNotesSortBy);
   const toggleNotesSortDirection = useUIStore(
-    (s) => s.actions.toggleNotesSortDirection,
+    (s) => s.actions.toggleNotesSortDirection
   );
-  const setNotesSearchQuery = useUIStore(
-    (s) => s.actions.setNotesSearchQuery,
-  );
+  const setNotesSearchQuery = useUIStore((s) => s.actions.setNotesSearchQuery);
 
   const [localSearch, setLocalSearch] = useState(notesSearchQuery);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -68,7 +66,7 @@ export function ExplorerToolbar({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setLocalSearch(e.target.value);
     },
-    [],
+    []
   );
 
   const handleSearchKeyDown = useCallback(
@@ -79,7 +77,7 @@ export function ExplorerToolbar({
         searchRef.current?.blur();
       }
     },
-    [setNotesSearchQuery],
+    [setNotesSearchQuery]
   );
 
   const cycleSortOption = useCallback(() => {

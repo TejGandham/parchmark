@@ -30,7 +30,9 @@ describe('ExplorerNoteCard', () => {
     vi.clearAllMocks();
   });
 
-  function renderCard(props: Partial<React.ComponentProps<typeof ExplorerNoteCard>> = {}) {
+  function renderCard(
+    props: Partial<React.ComponentProps<typeof ExplorerNoteCard>> = {}
+  ) {
     return render(
       <ChakraProvider>
         <ExplorerNoteCard
@@ -55,7 +57,9 @@ describe('ExplorerNoteCard', () => {
         content: '# My Title\n\nSome **bold** and *italic* content here.',
       }),
     });
-    expect(screen.getByText(/Some bold and italic content here/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Some bold and italic content here/)
+    ).toBeInTheDocument();
   });
 
   it('renders word count', () => {
@@ -90,10 +94,7 @@ describe('ExplorerNoteCard', () => {
   it('applies active styling when isActive=true', () => {
     renderCard({ isActive: true });
     const card = screen.getByTestId('explorer-note-card');
-    const style = window.getComputedStyle(card);
-    expect(
-      card.getAttribute('data-testid')
-    ).toBe('explorer-note-card');
+    expect(card.getAttribute('data-testid')).toBe('explorer-note-card');
     expect(card).toBeInTheDocument();
   });
 

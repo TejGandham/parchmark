@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, VStack, Button } from '@chakra-ui/react';
-import {
-  useNavigate,
-  useRouteLoaderData,
-  useFetcher,
-} from 'react-router-dom';
+import { useNavigate, useRouteLoaderData, useFetcher } from 'react-router-dom';
 import { List, type RowComponentProps } from 'react-window';
 import { useUIStore } from '../../../store';
 import { Note } from '../../../types';
@@ -143,9 +139,7 @@ export default function NotesExplorer() {
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveIndex((prev) =>
-          Math.min(prev + 1, visibleNotes.length - 1)
-        );
+        setActiveIndex((prev) => Math.min(prev + 1, visibleNotes.length - 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex((prev) => Math.max(prev - 1, 0));
@@ -246,7 +240,12 @@ export default function NotesExplorer() {
 
     return (
       <Box>
-        <Text fontSize="xs" color="text.muted" mb={3} data-testid="search-result-count">
+        <Text
+          fontSize="xs"
+          color="text.muted"
+          mb={3}
+          data-testid="search-result-count"
+        >
           {filteredNotes.length}{' '}
           {filteredNotes.length === 1 ? 'result' : 'results'} for &ldquo;
           {notesSearchQuery}&rdquo;
@@ -282,11 +281,7 @@ export default function NotesExplorer() {
 
         {filteredNotes.length === 0 && (
           <VStack spacing={3} py={8} align="center">
-            <Text
-              color="text.muted"
-              fontSize="sm"
-              data-testid="no-notes-found"
-            >
+            <Text color="text.muted" fontSize="sm" data-testid="no-notes-found">
               No notes found
             </Text>
             {canCreate && (
@@ -310,12 +305,7 @@ export default function NotesExplorer() {
   const renderEmptyState = () => {
     if (notes.length > 0 || isSearching) return null;
     return (
-      <VStack
-        spacing={4}
-        py={16}
-        align="center"
-        data-testid="zero-notes-state"
-      >
+      <VStack spacing={4} py={16} align="center" data-testid="zero-notes-state">
         <Text color="text.muted" fontSize="sm">
           No notes yet
         </Text>
