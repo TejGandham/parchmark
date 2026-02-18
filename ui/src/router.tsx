@@ -76,6 +76,15 @@ export const routes: RouteObject[] = [
         element: null,
       },
       {
+        path: 'explore',
+        lazy: async () => {
+          const { default: Component } = await import(
+            './features/notes/components/NotesExplorer'
+          );
+          return { Component };
+        },
+      },
+      {
         path: ':noteId',
         action: updateNoteAction,
         lazy: async () => {

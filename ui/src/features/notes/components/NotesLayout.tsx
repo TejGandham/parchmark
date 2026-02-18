@@ -1,6 +1,12 @@
 // ui/src/features/notes/components/NotesLayout.tsx
 import { useEffect } from 'react';
-import { Outlet, useLoaderData, useParams, Link } from 'react-router-dom';
+import {
+  Outlet,
+  useLoaderData,
+  useParams,
+  Link,
+  useMatch,
+} from 'react-router-dom';
 import { Box, Flex, VStack, Text, Heading, Icon } from '@chakra-ui/react';
 import { EditIcon } from '@chakra-ui/icons';
 import { useUIStore } from '../../../store';
@@ -13,13 +19,14 @@ export default function NotesLayout() {
   const { notes } = useLoaderData() as { notes: Note[] };
   const { noteId } = useParams();
 
+  const isExplore = useMatch('/notes/explore');
   const openPalette = useUIStore((s) => s.actions.openPalette);
 
   useEffect(() => {
-    if (!noteId) {
+    if (!noteId && !isExplore) {
       openPalette();
     }
-  }, [noteId, openPalette]);
+  }, [noteId, isExplore, openPalette]);
 
   return (
     <Box minH="100vh" bg="bg.canvas" className="bg-texture">
@@ -42,12 +49,12 @@ export default function NotesLayout() {
           as="main"
           id="main-content"
           flex="1"
-          p={6}
-          overflowY="auto"
+          p={isExplore ? 0 : 6}
+          overflowY={isExplore ? 'hidden' : 'auto'}
           className="note-transition"
           aria-label="Note content"
         >
-          {noteId ? (
+          {noteId || isExplore ? (
             <Outlet />
           ) : (
             <VStack spacing={4} align="center" justify="center" h="100%" px={8}>
@@ -72,6 +79,17 @@ export default function NotesLayout() {
               <Text fontSize="sm" color="text.muted">
                 {notes.length} {notes.length === 1 ? 'note' : 'notes'} available
               </Text>
+              <Link to="/notes/explore">
+                <Text
+                  fontSize="sm"
+                  color="primary.600"
+                  textDecoration="underline dotted"
+                  _hover={{ color: 'primary.800' }}
+                  data-testid="browse-all-notes-link"
+                >
+                  or browse all notes →
+                </Text>
+              </Link>
             </VStack>
           )}
         </Box>
