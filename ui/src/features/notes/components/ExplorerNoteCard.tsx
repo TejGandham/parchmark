@@ -47,7 +47,7 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
 
     return (
       <Box
-        p={4}
+        p={{ base: 3, md: 4 }}
         borderRadius="md"
         border="1px solid"
         borderColor={isActive ? 'primary.300' : 'border.default'}
@@ -83,7 +83,12 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
           </Text>
         </HStack>
 
-        <Text fontSize="sm" color="text.secondary" noOfLines={2} mb={2}>
+        <Text
+          fontSize="sm"
+          color="text.secondary"
+          noOfLines={{ base: 1, md: 2 }}
+          mb={2}
+        >
           {previewContent}
         </Text>
 
