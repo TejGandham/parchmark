@@ -43,6 +43,57 @@ bd sync
 
 Run `bd prime` for full workflow context after session restart.
 
+## Feature & Bug Workflow
+
+**Every feature or bug fix MUST start with a new branch. No exceptions.**
+
+### 1. Create a Branch (FIRST step)
+
+```bash
+# Feature
+git checkout -b feat/<short-description>
+
+# Bug fix
+git checkout -b fix/<short-description>
+```
+
+Branch off `main` (or the current default branch). Never commit directly to `main`.
+
+### 2. Implement & Test
+
+- Follow normal development workflow (code, `make test`, etc.)
+- Commit to the feature/fix branch
+
+### 3. Open a PR on Origin (Gitea)
+
+When work is complete, push the branch to **origin** and open a PR via the Gitea API:
+
+```bash
+# Push branch to origin
+git push -u origin <branch-name>
+
+# Create PR on origin (Gitea API)
+curl -s -X POST "https://brahma.myth-gecko.ts.net:3000/api/v1/repos/tej/parchmark/pulls" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: token $(cat ~/.gitea-token)" \
+  -d '{
+    "title": "PR title",
+    "body": "## Summary\n- ...",
+    "head": "<branch-name>",
+    "base": "main"
+  }'
+```
+
+> **Do NOT use `gh pr create`** — that targets the GitHub mirror, not origin.
+
+### 4. Wait for CI
+
+**Work is NOT complete until CI passes on the PR.**
+
+- Check CI status on the Gitea PR page or via API
+- If CI fails, fix the issues on the branch, push again, and wait for green
+- Only report success to the user after CI is green
+
 ## Project Overview
 
 **ParchMark** - Full-stack markdown note-taking app.
@@ -58,14 +109,16 @@ Run `bd prime` for full workflow context after session restart.
 ```
 parchmark/
 ├── ui/                      # Frontend (React)
-│   ├── src/features/        # auth/, notes/, ui/ (feature-first)
+│   ├── src/features/        # auth/, notes/, settings/, ui/ (feature-first)
 │   ├── src/router.tsx       # Data Router config (loaders, actions, routes)
 │   ├── src/services/        # API client
-│   ├── src/utils/           # errorHandler, markdown
+│   ├── src/utils/           # errorHandler, markdown, dateGrouping, dateFormatting, noteScoring, compactTime, mermaidInit
 │   ├── src/config/          # Type-safe constants (api, storage)
+│   ├── src/types/           # Shared TypeScript types (Note, SimilarNote)
 │   └── src/__tests__/       # Vitest tests
 ├── backend/                 # Backend (FastAPI)
 │   ├── app/                 # auth/, database/, models/, routers/, schemas/
+│   │   └── services/        # embeddings (OpenAI), health_service, backfill
 │   ├── tests/               # unit/, integration/
 │   └── migrations/          # Alembic migrations
 ├── makefiles/               # Modular make targets
@@ -115,15 +168,25 @@ See `PRODUCTION_DEPLOYMENT.md` for full deployment guide.
 ## API Endpoints
 
 ```
-POST /api/auth/login         # Returns access + refresh tokens
-POST /api/auth/refresh       # Refresh access token
-GET  /api/auth/me            # Current user
+POST /api/auth/login          # Returns access + refresh tokens
+POST /api/auth/refresh        # Refresh access token
+POST /api/auth/logout         # Signal logout (stateless, client-side token removal)
+GET  /api/auth/me             # Current user
 
-GET    /api/notes/           # List user's notes
-POST   /api/notes/           # Create note
-GET    /api/notes/{id}       # Get note
-PUT    /api/notes/{id}       # Update note
-DELETE /api/notes/{id}       # Delete note
+GET    /api/notes/            # List user's notes
+POST   /api/notes/            # Create note
+GET    /api/notes/{id}        # Get note
+PUT    /api/notes/{id}        # Update note
+DELETE /api/notes/{id}        # Delete note
+POST   /api/notes/{id}/access # Track note access (fire-and-forget, for "For You" scoring)
+GET    /api/notes/{id}/similar # Similar notes via cosine similarity on embeddings
+
+GET    /api/settings/user-info        # Account info + note count + auth_provider
+POST   /api/settings/change-password  # Local users only
+GET    /api/settings/export-notes     # Streaming ZIP of all notes
+DELETE /api/settings/delete-account   # Delete account and all notes
+
+GET /api/health               # Full health check with DB status + version info
 ```
 
 ## Environment Variables
@@ -131,7 +194,11 @@ DELETE /api/notes/{id}       # Delete note
 ### Frontend (ui/.env)
 ```bash
 VITE_API_URL=/api
-VITE_TOKEN_WARNING_SECONDS=60  # Optional
+VITE_TOKEN_WARNING_SECONDS=60       # Optional
+VITE_OIDC_ISSUER_URL=https://auth.engen.tech
+VITE_OIDC_CLIENT_ID=parchmark
+VITE_OIDC_REDIRECT_URI=<origin>/oidc/callback
+VITE_OIDC_LOGOUT_REDIRECT_URI=<origin>/login
 ```
 
 ### Backend (backend/.env)
@@ -140,10 +207,21 @@ DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parch
 SECRET_KEY=your-secret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
 OIDC_ISSUER_URL=https://auth.engen.tech
 OIDC_AUDIENCE=parchmark
 OIDC_OPAQUE_TOKEN_PREFIX=           # Optional: restrict opaque token format (e.g. "authelia_at_")
+OIDC_DISCOVERY_URL=                 # Optional: separate URL for OIDC discovery (e.g. internal cluster DNS)
+OIDC_USERNAME_CLAIM=preferred_username
+OPENAI_API_KEY=                     # Required for embeddings; feature silently disabled if absent
+EMBEDDING_MODEL=text-embedding-3-small  # Optional override
+```
+
+### Build-time (injected in Docker)
+```bash
+GIT_SHA=                            # Set at docker build for version info
+BUILD_DATE=                         # Set at docker build for version info
 ```
 
 ## Code Patterns
@@ -172,7 +250,7 @@ markdownService.removeH1(content)       // Remove first H1 only
 ```typescript
 useAuthStore   // Auth state, login/logout
 useNotesStore  // Notes CRUD, current note
-useUIStore     // Sidebar, preferences
+useUIStore     // Command palette state, preferences
 ```
 
 ### React Router Data Router
@@ -229,6 +307,7 @@ fireEvent.submit(form);                      // Use submit, not click
 - `docker-compose.dev.yml` = PostgreSQL only (for local dev)
 - `docker-compose.yml` = Full stack (for testing containers)
 - `docker-compose.prod.yml` = Production (GHCR images)
+- `docker-compose.oidc-test.yml` = PostgreSQL + Authelia (OIDC integration testing)
 
 ### Testing
 - Backend tests require Docker (testcontainers)
@@ -263,10 +342,30 @@ fireEvent.submit(form);                      // Use submit, not click
 - `gh` CLI works with GitHub remote only; use Gitea API for origin PRs
 - Push to both: `git push origin <branch> && git push github <branch>`
 
+### Embeddings
+- `OPENAI_API_KEY` is optional — embeddings and similarity search silently degrade if absent
+- Backfill existing notes: `cd backend && uv run python -m app.services.backfill`
+- Note model has `embedding` (JSON), `access_count`, `last_accessed_at` fields
+
+### Command Palette
+- Primary navigation UI (replaced sidebar); triggered via `Ctrl+Shift+P`
+- Uses `react-window` for virtualized rendering of large note lists
+- "For You" section blends heuristic scoring (recency+frequency) with AI similarity when available
+
 ### Deployment
 - Tests must pass before images build (CI gate)
 - Manual SSH deployment: `./deploy/update.sh`
 - SHA-tagged images enable rollback
+
+## CI/CD (GitHub Actions)
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `test.yml` | Push/PR to main | UI lint+test, backend lint+format+types+pytest, Codecov |
+| `deploy.yml` | Push to main, manual | Build Docker images, push to GHCR with SHA tags |
+| `oidc-testing.yml` | Push to `authelia_support` | Backend + frontend OIDC-specific tests |
+| `claude.yml` | `@claude` in issue/PR comments | Claude Code AI assistant |
+| `claude-code-review.yml` | PR opened/synchronized | Automated Claude code review |
 
 ## Visual QA
 
@@ -298,7 +397,7 @@ Use Chrome DevTools MCP before committing UI changes:
 
 ## Session Completion
 
-**Work is NOT complete until `git push` succeeds.**
+**Work is NOT complete until CI passes on the PR.**
 
 ```bash
 # 1. File issues for remaining work
@@ -307,12 +406,39 @@ bd create --title="..." --type=task
 # 2. Run quality gates
 make test
 
-# 3. Commit and push
+# 3. Commit and push (on your feature/fix branch)
 git add <files>
 bd sync
 git commit -m "..."
-git push
+git push -u origin <branch-name>
 
-# 4. Verify
-git status  # Must show "up to date with origin"
+# 4. Open PR on origin (Gitea) — see "Feature & Bug Workflow" above
+# 5. Wait for CI to pass on the PR before reporting success
+# 6. If CI fails, fix and push again until green
 ```
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
