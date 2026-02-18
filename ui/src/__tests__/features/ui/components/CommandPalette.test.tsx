@@ -713,6 +713,39 @@ describe('CommandPalette', () => {
     });
   });
 
+  describe('Browse All Notes link', () => {
+    it('renders "Browse All Notes →" when not searching and notes exist', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      const browseLink = screen.getByTestId('browse-all-link');
+      expect(browseLink).toBeInTheDocument();
+      expect(browseLink).toHaveTextContent('Browse All Notes');
+    });
+
+    it('does not render when searching', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.change(screen.getByTestId('command-palette-search'), {
+        target: { value: 'Alpha' },
+      });
+      expect(screen.queryByTestId('browse-all-link')).not.toBeInTheDocument();
+    });
+
+    it('does not render when no notes', () => {
+      openPalette();
+      renderPalette([]);
+      expect(screen.queryByTestId('browse-all-link')).not.toBeInTheDocument();
+    });
+
+    it('navigates to /notes/explore and closes palette on click', () => {
+      openPalette();
+      renderPalette(sampleNotes);
+      fireEvent.click(screen.getByTestId('browse-all-link'));
+      expect(mockNavigate).toHaveBeenCalledWith('/notes/explore');
+      expect(useUIStore.getState().isPaletteOpen).toBe(false);
+    });
+  });
+
   describe('highlightKeyword', () => {
     it('returns text as-is when keyword is empty', () => {
       expect(highlightKeyword('hello', '')).toBe('hello');

@@ -6,6 +6,16 @@ import { ChakraProvider } from '@chakra-ui/react';
 import Header from '../../../../features/ui/components/Header';
 import { useAuthStore } from '../../../../features/auth/store';
 
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock('../../../../features/auth/store', () => ({
   useAuthStore: vi.fn(),
 }));
@@ -45,6 +55,7 @@ describe('Header Component', () => {
     vi.clearAllMocks();
     mockUseBreakpointValue.mockReturnValue(true);
     mockUseAuthStore.mockReturnValue(false);
+    mockNavigate.mockClear();
   });
 
   it('should render the app logo', () => {
@@ -108,5 +119,18 @@ describe('Header Component', () => {
       name: /user menu for testuser/i,
     });
     expect(userButton).toBeInTheDocument();
+  });
+
+  it('should render explorer link button', () => {
+    renderWithProviders(<Header />);
+    const explorerLink = screen.getByTestId('explorer-link');
+    expect(explorerLink).toBeInTheDocument();
+  });
+
+  it('should navigate to /notes/explore when explorer button is clicked', () => {
+    renderWithProviders(<Header />);
+    const explorerLink = screen.getByTestId('explorer-link');
+    fireEvent.click(explorerLink);
+    expect(mockNavigate).toHaveBeenCalledWith('/notes/explore');
   });
 });
