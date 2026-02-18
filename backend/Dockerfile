@@ -47,12 +47,14 @@ COPY --from=builder /app/scripts/docker-entrypoint.sh /docker-entrypoint.sh
 # Version info injected at build time
 ARG GIT_SHA=dev
 ARG BUILD_DATE=unknown
+ARG APP_VERSION=dev
 
 # Activate the virtual environment by adding it to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 ENV GIT_SHA=$GIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
+ENV APP_VERSION=$APP_VERSION
 
 # Expose the port the app runs on
 EXPOSE 8000
