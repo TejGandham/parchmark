@@ -1,95 +1,74 @@
 /**
- * Strip markdown syntax to plain text using regex-based approach.
+ * Markdown stripping utilities for plain text extraction and content analysis
+ * Used for previews, word counts, and reading time estimates
+ */
+
+/**
+ * Strip all markdown syntax from text, returning plain text.
+ * Strips: headings, bold, italic, links, images, code blocks,
+ * blockquotes, horizontal rules, HTML tags, task lists, tables, strikethrough
  */
 export function stripMarkdownToPlainText(markdown: string): string {
-  if (!markdown) return '';
-
   let text = markdown;
 
-  // Fenced code blocks (before inline code)
+  text = text.replace(/<[^>]*>/g, '');
   text = text.replace(/```[\s\S]*?```/g, '');
   text = text.replace(/~~~[\s\S]*?~~~/g, '');
-
-  // Images (before links — both use [...](...))
-  text = text.replace(/!\[([^\]]*)\]\(.+?\)/g, '$1');
-
-  // Links
-  text = text.replace(/\[([^\]]*)\]\(.+?\)/g, '$1');
-
-  // HTML tags
-  text = text.replace(/<[^>]+>/g, '');
-
-  // Headings
-  text = text.replace(/^#{1,6}\s+/gm, '');
-
-  // Bold/italic
-  text = text.replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1');
-  text = text.replace(/_{1,3}([^_]+)_{1,3}/g, '$1');
-
-  // Strikethrough
-  text = text.replace(/~~([^~]+)~~/g, '$1');
-
-  // Inline code
-  text = text.replace(/`([^`]+)`/g, '$1');
-
-  // Blockquotes
-  text = text.replace(/^>\s?/gm, '');
-
-  // Horizontal rules
   text = text.replace(/^([-*_=])\1{2,}$/gm, '');
-
-  // Task list markers
-  text = text.replace(/^(\s*)[-*+]\s+\[[ xX]\]\s*/gm, '$1');
-
-  // Unordered list markers
-  text = text.replace(/^(\s*)[-*+]\s+/gm, '$1');
-
-  // Ordered list markers
-  text = text.replace(/^(\s*)\d+\.\s+/gm, '$1');
-
-  // Table formatting
-  text = text.replace(/\|/g, ' ');
-  text = text.replace(/^[\s-:|]+$/gm, '');
-
-  // Collapse whitespace
-  text = text.replace(/\n{2,}/g, ' ');
-  text = text.replace(/\n/g, ' ');
-  text = text.replace(/\s{2,}/g, ' ');
+  text = text.replace(/^#+\s+/gm, '');
+  text = text.replace(/\*\*(.+?)\*\*/g, '$1');
+  text = text.replace(/__(.+?)__/g, '$1');
+  text = text.replace(/\*(.+?)\*/g, '$1');
+  text = text.replace(/_(.+?)_/g, '$1');
+  text = text.replace(/~~(.+?)~~/g, '$1');
+  text = text.replace(/`(.+?)`/g, '$1');
+  text = text.replace(/!\[([^\]]*)\]\(.+?\)/g, '$1');
+  text = text.replace(/\[(.+?)\]\(.+?\)/g, '$1');
+  text = text.replace(/^>\s+/gm, '');
+  text = text.replace(/^-\s+\[[xX ]\]\s+/gm, '');
+  text = text.replace(/\|/g, '');
+  text = text.replace(/\n\n+/g, '\n');
+  text = text.replace(/[ \t]+/g, ' ');
 
   return text.trim();
 }
 
 /**
- * Get a content preview: strip markdown, remove H1 title, truncate.
+ * Get a plain text content preview from markdown content.
+ * - Strips markdown syntax
+ * - Removes the first H1 heading (title line) to avoid duplication
+ * - Collapses multiple whitespace/newlines
+ * - Truncates to maxLength chars with "..." if needed
+ * Default maxLength: 120
  */
-export function getContentPreview(
-  content: string,
-  maxLength: number = 120
-): string {
-  if (!content) return '';
+export function getContentPreview(content: string, maxLength: number = 120): string {
+  let text = content.replace(/^#\s+(.+)($|\n)/m, '');
+  text = stripMarkdownToPlainText(text);
+  text = text.replace(/\s+/g, ' ').trim();
 
-  // Remove first H1 line
-  const withoutH1 = content.replace(/^#\s+[^\n]*\n?/, '');
+  if (text.length > maxLength) {
+    return text.substring(0, maxLength) + '...';
+  }
 
-  const plain = stripMarkdownToPlainText(withoutH1);
-
-  if (plain.length <= maxLength) return plain;
-  return plain.slice(0, maxLength).trimEnd() + '...';
+  return text;
 }
 
 /**
- * Count words from plain text content.
+ * Count words in plain text (whitespace-splitting, English-centric)
  */
 export function getWordCount(content: string): number {
-  const plain = stripMarkdownToPlainText(content);
-  if (!plain) return 0;
-  return plain.split(/\s+/).filter(Boolean).length;
+  const text = stripMarkdownToPlainText(content);
+  if (!text.trim()) return 0;
+  return text.trim().split(/\s+/).length;
 }
 
 /**
- * Estimate reading time in minutes (200 WPM, minimum 1 minute).
+ * Estimate reading time in minutes.
+ * Uses 200 words per minute reading speed.
+ * Minimum 1 minute.
  */
 export function getReadingTime(wordCount: number): number {
-  if (wordCount <= 0) return 1;
-  return Math.ceil(wordCount / 200);
+  const readingSpeed = 200;
+  const minutes = Math.ceil(wordCount / readingSpeed);
+  return Math.max(1, minutes);
 }
