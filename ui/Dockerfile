@@ -3,6 +3,7 @@ FROM node:23-alpine AS builder
 
 ARG GIT_SHA=dev
 ARG BUILD_DATE=unknown
+ARG APP_VERSION=dev
 
 WORKDIR /app
 
@@ -14,6 +15,7 @@ COPY . .
 
 ENV GIT_SHA=$GIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
+ENV APP_VERSION=$APP_VERSION
 
 RUN npm run build
 

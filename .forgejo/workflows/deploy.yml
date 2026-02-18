@@ -76,9 +76,11 @@ jobs:
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          APP_VERSION=$(date -u +'%Y%m%d.%H%M').${SHORT_SHA}
           docker build \
             --build-arg GIT_SHA=${{ github.sha }} \
             --build-arg BUILD_DATE=${BUILD_DATE} \
+            --build-arg APP_VERSION=${APP_VERSION} \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:latest \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:sha-${SHORT_SHA} \
             -f ./backend/Dockerfile.prod ./backend
@@ -105,9 +107,11 @@ jobs:
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          APP_VERSION=$(date -u +'%Y%m%d.%H%M').${SHORT_SHA}
           docker build \
             --build-arg GIT_SHA=${{ github.sha }} \
             --build-arg BUILD_DATE=${BUILD_DATE} \
+            --build-arg APP_VERSION=${APP_VERSION} \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:latest \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:sha-${SHORT_SHA} \
             -f ./ui/Dockerfile ./ui

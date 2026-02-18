@@ -1,6 +1,6 @@
 [project]
 name = "parchmark-backend"
-version = "1.1.0"
+version = "0.0.0"
 description = "Backend API for ParchMark note-taking application"
 requires-python = ">=3.13"
 dependencies = [

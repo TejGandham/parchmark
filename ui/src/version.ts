@@ -10,5 +10,5 @@ export const getVersionInfo = () => ({
 
 export const getVersionString = (): string => {
   const sha = GIT_SHA.length > 7 ? GIT_SHA.slice(0, 7) : GIT_SHA;
-  return `v${APP_VERSION} (${sha})`;
+  return `${APP_VERSION} (${sha})`;
 };
