@@ -112,7 +112,7 @@ git worktree remove .worktrees/feat/<short-description>
 |-------|-------|
 | Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 (Data Router) |
 | Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT Auth, PostgreSQL |
-| Deploy | Docker, Nginx, GitHub Actions, GHCR |
+| Deploy | Docker, Nginx, k3s, Forgejo CI |
 
 ## Directory Structure
 
@@ -325,7 +325,7 @@ fireEvent.submit(form);                      // Use submit, not click
 - Run focused unit tests without Docker: `cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v`
 - Frontend form tests: use `fireEvent.submit()`, not button click
 - Mock stores for isolated component tests
-- **Important:** The `codecov/patch` GitHub check is NOT informational - it's a required check. It requires ~97% coverage on changed/new lines. Always ensure new code has adequate test coverage before pushing.
+- **Important:** Always ensure new code has adequate test coverage before pushing.
 
 ### Markdown
 - `removeH1()` removes only the FIRST H1, not all
@@ -347,35 +347,34 @@ fireEvent.submit(form);                      // Use submit, not click
 - Downgrade may fail if data constraints violated
 
 ### Git Remotes
-- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`), primary remote
-- `github` = GitHub mirror (`github.com/TejGandham/parchmark`)
+- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`), primary remote (CI + deploy)
+- `github` = GitHub mirror (`github.com/TejGandham/parchmark`), code backup only (no active CI/deploy)
 - Use `tea` CLI for origin PRs; `gh` CLI is GitHub mirror only
 - Push to both: `git push origin <branch> && git push github <branch>`
 
 ### Embeddings
 - `OPENAI_API_KEY` is optional — embeddings and similarity search silently degrade if absent
 - Backfill existing notes: `cd backend && uv run python -m app.services.backfill`
-- Note model has `embedding` (JSON), `access_count`, `last_accessed_at` fields
+- Note model has `embedding` (pgvector `Vector(1536)`), `access_count`, `last_accessed_at` fields
 
 ### Command Palette
-- Primary navigation UI (replaced sidebar); triggered via `Ctrl+Shift+P`
+- Primary navigation UI (replaced sidebar); triggered via `Ctrl+Shift+Space`
 - Uses `react-window` for virtualized rendering of large note lists
 - "For You" section blends heuristic scoring (recency+frequency) with AI similarity when available
 
 ### Deployment
 - Tests must pass before images build (CI gate)
-- Manual SSH deployment: `./deploy/update.sh`
+- Deploy: k3s via `kubectl rollout restart` (automated by Forgejo CI)
 - SHA-tagged images enable rollback
 
-## CI/CD (GitHub Actions)
+## CI/CD (Forgejo)
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `test.yml` | Push/PR to main | UI lint+test, backend lint+format+types+pytest, Codecov |
-| `deploy.yml` | Push to main, manual | Build Docker images, push to GHCR with SHA tags |
-| `oidc-testing.yml` | Push to `authelia_support` | Backend + frontend OIDC-specific tests |
-| `claude.yml` | `@claude` in issue/PR comments | Claude Code AI assistant |
-| `claude-code-review.yml` | PR opened/synchronized | Automated Claude code review |
+| `test.yml` | Push/PR to main | UI lint+test, backend lint+format+types+pytest |
+| `deploy.yml` | Push to main | Build images → push to Forgejo registry → deploy to k3s via kubectl |
+
+> **Note:** GitHub (`github` remote) is a code backup mirror only. Its workflows are inactive.
 
 ## Visual QA
 

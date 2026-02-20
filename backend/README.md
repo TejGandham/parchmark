@@ -1,6 +1,6 @@
 # ParchMark Backend API
 
-A FastAPI-based backend for the ParchMark note-taking application, providing JWT authentication and note management capabilities.
+A FastAPI-based backend for the ParchMark note-taking application, providing JWT + OIDC hybrid authentication, note management, AI-powered similarity search, and user settings.
 
 ## 🚀 Quick Start
 
@@ -58,7 +58,7 @@ Note: PostgreSQL runs in a Docker container. No local installation needed.
 The server will start at `http://localhost:8000` with the following endpoints available:
 - **API Documentation:** http://localhost:8000/docs
 - **Alternative Docs:** http://localhost:8000/redoc
-- **Health Check:** http://localhost:8000/health
+- **Health Check:** http://localhost:8000/api/health
 
 ## 📁 Project Structure
 
@@ -66,273 +66,129 @@ The server will start at `http://localhost:8000` with the following endpoints av
 backend/
 ├── app/
 │   ├── __init__.py
+│   ├── __main__.py          # Application entry point
+│   ├── main.py              # FastAPI app configuration
+│   ├── version.py           # CalVer version (YYYYMMDD.HHMM.sha)
 │   ├── auth/
-│   │   ├── __init__.py
 │   │   ├── auth.py          # JWT utilities and password hashing
-│   │   └── dependencies.py  # Authentication dependencies
+│   │   ├── dependencies.py  # Authentication dependencies
+│   │   └── oidc_validator.py # OIDC token validation (Authelia)
 │   ├── database/
-│   │   ├── __init__.py
-│   │   ├── database.py      # PostgreSQL configuration
+│   │   ├── database.py      # Async PostgreSQL configuration
 │   │   ├── init_db.py       # Database initialization
 │   │   └── seed.py          # Database seeding utilities
 │   ├── models/
-│   │   ├── __init__.py
-│   │   └── models.py        # SQLAlchemy models (User, Note)
+│   │   └── models.py        # SQLAlchemy models (User, Note w/ pgvector)
 │   ├── routers/
-│   │   ├── __init__.py
 │   │   ├── auth.py          # Authentication endpoints
-│   │   └── notes.py         # Notes CRUD endpoints
-│   └── schemas/
-│       ├── __init__.py
-│       └── schemas.py       # Pydantic schemas
-├── tests/                   # Test suite
-│   ├── unit/               # Unit tests
-│   └── integration/        # Integration tests
-├── .env                     # Environment configuration
-├── .pre-commit-config.yaml  # Pre-commit hooks configuration
-├── main.py                  # FastAPI application
-├── Makefile                 # Common development commands
-├── pyproject.toml           # Python project configuration and dependencies
-├── pytest.ini               # Pytest configuration
-├── app/__main__.py          # Application entry point
-└── README.md               # This file
+│   │   ├── notes.py         # Notes CRUD + access tracking + similar
+│   │   ├── settings.py      # User settings, export, account management
+│   │   └── health.py        # Health check endpoint
+│   ├── schemas/
+│   │   └── schemas.py       # Pydantic schemas
+│   ├── services/
+│   │   ├── embeddings.py    # OpenAI embedding generation
+│   │   ├── health_service.py # Health check logic
+│   │   └── backfill.py      # Backfill embeddings for existing notes
+│   ├── utils/
+│   │   └── markdown.py      # Markdown processing (mirrors frontend)
+│   └── middleware/           # Request middleware
+├── tests/
+│   ├── unit/                # Unit tests
+│   └── integration/         # Integration tests
+├── migrations/              # Alembic database migrations
+├── pyproject.toml
+└── README.md
 ```
 
 ## 🔐 Authentication
 
-The API uses JWT (JSON Web Tokens) for stateless authentication with refresh token support:
+The API supports hybrid authentication — local JWT and OIDC (via Authelia):
 
+- **Local Auth:** JWT (HS256) with bcrypt password hashing
+- **OIDC Auth:** Authelia SSO (opaque or JWT access tokens)
 - **Access Token Expiration:** 30 minutes (configurable)
 - **Refresh Token Expiration:** 7 days (configurable)
-- **Algorithm:** HS256
-- **Password Hashing:** bcrypt
-- **Token Refresh:** Use refresh tokens to obtain new access tokens without re-authentication
+- **OIDC Validator:** Shared httpx client, discovery/JWKS caching with double-checked locking
+- **Authelia:** Issues opaque tokens (`authelia_at_...`) validated via userinfo endpoint
 
-### Default Test User
+### Default Test Users
 
-For development and testing purposes, a default user is automatically created:
-- **Username:** `user`
-- **Password:** `password`
+Created by database initialization:
+- **Username:** `testuser` / **Password:** `testpass123`
+- **Username:** `demouser` / **Password:** `demopass`
 
 ## 📚 API Endpoints
 
-### Authentication Endpoints
+All endpoints are prefixed with `/api`.
 
-#### POST `/auth/login`
-Authenticate user and receive JWT tokens (access and refresh).
+### Authentication (`/api/auth`)
 
-**Request Body:**
-```json
-{
-  "username": "user",
-  "password": "password"
-}
-```
+| Method | Endpoint           | Description                         |
+| ------ | ------------------ | ----------------------------------- |
+| POST   | `/api/auth/login`  | Login, returns access+refresh tokens |
+| POST   | `/api/auth/refresh`| Refresh access token                |
+| POST   | `/api/auth/logout` | Signal logout (stateless)           |
+| GET    | `/api/auth/me`     | Current user info                   |
 
-**Response:**
-```json
-{
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "token_type": "bearer",
-  "user": {
-    "id": 1,
-    "username": "user",
-    "created_at": "2024-01-01T00:00:00"
-  }
-}
-```
+### Notes (`/api/notes`)
 
-#### POST `/auth/refresh`
-Refresh the access token using a valid refresh token.
+| Method | Endpoint                    | Description                              |
+| ------ | --------------------------- | ---------------------------------------- |
+| GET    | `/api/notes/`               | List user's notes                        |
+| POST   | `/api/notes/`               | Create note                              |
+| GET    | `/api/notes/{id}`           | Get note                                 |
+| PUT    | `/api/notes/{id}`           | Update note                              |
+| DELETE | `/api/notes/{id}`           | Delete note                              |
+| POST   | `/api/notes/{id}/access`    | Track note access (for "For You" scoring)|
+| GET    | `/api/notes/{id}/similar`   | Similar notes via cosine similarity      |
 
-**Request Body:**
-```json
-{
-  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-}
-```
+### Settings (`/api/settings`)
 
-**Response:**
-```json
-{
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "token_type": "bearer"
-}
-```
+| Method | Endpoint                          | Description                        |
+| ------ | --------------------------------- | ---------------------------------- |
+| GET    | `/api/settings/user-info`         | Account info + note count          |
+| POST   | `/api/settings/change-password`   | Change password (local users only) |
+| GET    | `/api/settings/export-notes`      | Streaming ZIP of all notes         |
+| DELETE | `/api/settings/delete-account`    | Delete account and all notes       |
 
-#### POST `/auth/logout`
-Client-side logout endpoint (token invalidation handled by frontend).
+### Health (`/api/health`)
 
-**Response:**
-```json
-{
-  "message": "Successfully logged out"
-}
-```
-
-#### GET `/auth/me`
-Get current authenticated user information.
-
-**Headers:**
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "username": "user",
-  "created_at": "2024-01-01T00:00:00"
-}
-```
-
-### Notes Endpoints
-
-All notes endpoints require authentication via JWT token in the Authorization header.
-
-#### GET `/notes`
-Get all notes for the authenticated user.
-
-**Headers:**
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "1",
-    "title": "Welcome to ParchMark",
-    "content": "# Welcome to ParchMark\n\nThis is a simple yet powerful...",
-    "created_at": "2024-01-01T00:00:00",
-    "updated_at": "2024-01-01T00:00:00"
-  }
-]
-```
-
-#### POST `/notes`
-Create a new note.
-
-**Headers:**
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-**Request Body:**
-```json
-{
-  "title": "My New Note",
-  "content": "# My New Note\n\nThis is the content of my note..."
-}
-```
-
-**Response:**
-```json
-{
-  "id": "generated-uuid",
-  "title": "My New Note",
-  "content": "# My New Note\n\nThis is the content of my note...",
-  "created_at": "2024-01-01T00:00:00",
-  "updated_at": "2024-01-01T00:00:00"
-}
-```
-
-#### PUT `/notes/{note_id}`
-Update an existing note.
-
-**Headers:**
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-**Request Body:**
-```json
-{
-  "title": "Updated Note Title",
-  "content": "# Updated Content\n\nThis is the updated content..."
-}
-```
-
-**Response:**
-```json
-{
-  "id": "note-id",
-  "title": "Updated Note Title",
-  "content": "# Updated Content\n\nThis is the updated content...",
-  "created_at": "2024-01-01T00:00:00",
-  "updated_at": "2024-01-01T01:00:00"
-}
-```
-
-#### DELETE `/notes/{note_id}`
-Delete a note.
-
-**Headers:**
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-**Response:**
-```json
-{
-  "message": "Note deleted successfully"
-}
-```
-
-### Utility Endpoints
-
-#### GET `/health`
-Health check endpoint for monitoring.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "ParchMark API",
-  "version": "1.0.0",
-  "timestamp": "2024-01-01T00:00:00"
-}
-```
-
-#### GET `/`
-Root endpoint with API information and navigation links.
-
-**Response:**
-```json
-{
-  "message": "Welcome to ParchMark API",
-  "version": "1.0.0",
-  "documentation": "/docs",
-  "alternative_docs": "/redoc",
-  "health_check": "/health"
-}
-```
+| Method | Endpoint       | Description                           |
+| ------ | -------------- | ------------------------------------- |
+| GET    | `/api/health`  | Health check with DB status + version |
 
 ## 🔧 Configuration
 
 The application uses environment variables for configuration. Key settings in `.env`:
 
 ```env
+# Database (PostgreSQL REQUIRED)
+DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
+
 # JWT Configuration
-SECRET_KEY=your-secret-key-here-change-in-production-32-chars-minimum-for-security
+SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
-# Database Configuration (PostgreSQL REQUIRED)
-DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
 
-# Server Configuration
+# Server
 HOST=0.0.0.0
 PORT=8000
-DEBUG=true
 
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+# OIDC (optional — enables Authelia SSO)
+OIDC_ISSUER_URL=https://auth.engen.tech
+OIDC_AUDIENCE=parchmark
+OIDC_USERNAME_CLAIM=preferred_username
+OIDC_OPAQUE_TOKEN_PREFIX=           # e.g. "authelia_at_"
+OIDC_DISCOVERY_URL=                 # optional: internal cluster DNS
+
+# Embeddings (optional — similarity search disabled if absent)
+OPENAI_API_KEY=
+EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 ## 🌐 Frontend Integration
@@ -357,15 +213,15 @@ The API is configured to accept requests from common frontend development server
 The API endpoints are designed to match the existing frontend store operations:
 
 **Auth Store (`src/features/auth/store/auth.ts`):**
-- `login()` → POST `/auth/login`
-- `logout()` → POST `/auth/logout` + client-side token removal
-- `getCurrentUser()` → GET `/auth/me`
+- `login()` → POST `/api/auth/login`
+- `logout()` → POST `/api/auth/logout` + client-side token removal
+- `getCurrentUser()` → GET `/api/auth/me`
 
 **Notes Store (`src/features/notes/store/notes.ts`):**
-- `fetchNotes()` → GET `/notes`
-- `createNote()` → POST `/notes`
-- `updateNote()` → PUT `/notes/{id}`
-- `deleteNote()` → DELETE `/notes/{id}`
+- `fetchNotes()` → GET `/api/notes`
+- `createNote()` → POST `/api/notes`
+- `updateNote()` → PUT `/api/notes/{id}`
+- `deleteNote()` → DELETE `/api/notes/{id}`
 
 ### Error Handling
 
@@ -406,6 +262,9 @@ Common HTTP status codes:
 - `content`: Text
 - `created_at`: DateTime
 - `updated_at`: DateTime
+- `access_count`: Integer (for "For You" scoring)
+- `last_accessed_at`: DateTime
+- `embedding`: Vector(1536) (pgvector, for similarity search)
 
 ### Database Operations
 
