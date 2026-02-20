@@ -2,22 +2,25 @@
 
 A modern, fast, and intuitive markdown note-taking application built with React, TypeScript, and Vite. Inspired by ancient papyrus and modern markdown, ParchMark provides a clean, distraction-free interface for creating, editing, and organizing your notes.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![Tests](https://img.shields.io/badge/tests-217%20passing-success)
+![Tests](https://img.shields.io/badge/tests-667%20passing-success)
 ![Coverage](https://img.shields.io/badge/coverage->90%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## ✨ Features
 
 - 📝 **Full Markdown Support** - GitHub Flavored Markdown (GFM) with live preview
-- 🔐 **Secure Authentication** - JWT-based auth with persistent sessions
+- 🔐 **Hybrid Authentication** - JWT + OIDC (local accounts and Authelia SSO)
 - 💾 **Auto-Save** - Changes persist automatically to backend
 - 🎨 **Beautiful UI** - Clean, responsive interface with Chakra UI
 - 🌙 **Dark/Light Mode** - Toggle between themes for comfortable viewing
 - 📊 **Mermaid Diagrams** - Built-in support for flowcharts and diagrams
+- 🔍 **Command Palette** - Quick note navigation via `Ctrl+Shift+Space`
+- 🗺️ **Notes Explorer** - Visual exploration of notes at `/notes/explore`
+- 🤖 **Similar Notes** - AI-powered related note suggestions
+- ⚙️ **Settings** - Account management, password changes, note export
 - 🚀 **Lightning Fast** - Powered by Vite for instant HMR and optimized builds
 - 📱 **Responsive Design** - Seamless experience on desktop and mobile
-- 🧪 **Battle-Tested** - 217+ tests with >90% coverage
+- 🧪 **Battle-Tested** - 667+ tests with >90% coverage
 - 🔄 **Real-time Sync** - Notes sync across sessions and devices
 
 ## 🛠️ Tech Stack
@@ -29,7 +32,7 @@ A modern, fast, and intuitive markdown note-taking application built with React,
 - **Routing**: React Router v7
 - **Markdown**: React Markdown + Remark GFM
 - **Icons**: FontAwesome
-- **Testing**: Jest + React Testing Library
+- **Testing**: Vitest + React Testing Library
 - **Code Quality**: ESLint + Prettier
 - **Containerization**: Docker + Nginx
 
@@ -45,7 +48,7 @@ A modern, fast, and intuitive markdown note-taking application built with React,
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/parchmark.git
+   git clone https://github.com/TejGandham/parchmark.git
    cd parchmark/ui
    ```
 
@@ -86,23 +89,28 @@ Access the application at `http://localhost:8080`
 ```
 src/
 ├── features/               # Feature-based modules
-│   ├── auth/              # Authentication components & logic
-│   │   ├── components/    # Login form, user status
+│   ├── auth/              # Authentication (local + OIDC)
+│   │   ├── components/    # Login form, OIDC callback
 │   │   ├── store/         # Auth state management
 │   │   └── hooks/         # Auth-related hooks
 │   ├── notes/             # Notes management
-│   │   ├── components/    # Note editor, list, content
+│   │   ├── components/    # Note editor, list, content, NotesExplorer
 │   │   ├── store/         # Notes state management
 │   │   ├── hooks/         # Router sync hooks
+│   │   ├── actions.ts     # Data Router actions
 │   │   └── styles/        # Markdown styles
+│   ├── settings/          # User settings & export
+│   │   └── components/    # Settings page, password change
 │   └── ui/                # Shared UI components
-│       ├── components/    # Header, sidebar, theme
-│       └── store/         # UI state (theme, sidebar)
-├── services/              # API and utility services
-│   ├── api.ts            # API client configuration
-│   └── markdown.ts       # Markdown utilities
-├── test-utils/           # Testing utilities
-└── __tests__/            # Test files (mirrors src)
+│       ├── components/    # Command palette, header, theme
+│       └── store/         # UI state (theme, palette)
+├── config/                # Type-safe constants (api, storage)
+├── types/                 # Shared TypeScript types (Note, SimilarNote)
+├── utils/                 # Utilities (errorHandler, markdown, scoring)
+├── services/              # API client
+├── router.tsx             # Data Router config (loaders, actions)
+├── test-utils/            # Testing utilities
+└── __tests__/             # Vitest test files
 ```
 
 ## 🏗️ Architecture
@@ -138,6 +146,12 @@ The frontend integrates with a RESTful backend API:
 | `/api/notes` | POST | Create new note |
 | `/api/notes/:id` | PUT | Update note |
 | `/api/notes/:id` | DELETE | Delete note |
+| `/api/notes/:id/access` | POST | Track note access (for "For You" scoring) |
+| `/api/notes/:id/similar` | GET | Similar notes via embeddings |
+| `/api/settings/user-info` | GET | Account info |
+| `/api/settings/change-password` | POST | Change password |
+| `/api/settings/export-notes` | GET | Export all notes as ZIP |
+| `/api/settings/delete-account` | DELETE | Delete account |
 
 ## 🧪 Testing
 
@@ -207,12 +221,8 @@ MIT License - see [LICENSE](LICENSE) file for details
 - [React Router](https://reactrouter.com/) - Routing
 - [React Markdown](https://github.com/remarkjs/react-markdown) - Markdown rendering
 - [FontAwesome](https://fontawesome.com/) - Icons
-- [Jest](https://jestjs.io/) - Testing framework
+- [Vitest](https://vitest.dev/) - Testing framework
 
 ## 📬 Support
 
-For bugs, questions, or feature requests, please [open an issue](https://github.com/yourusername/parchmark/issues).
-
----
-
-**Version 1.0.0** - Production Ready 🎉
+For bugs, questions, or feature requests, please [open an issue](https://github.com/TejGandham/parchmark/issues).

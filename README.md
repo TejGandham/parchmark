@@ -10,13 +10,17 @@ A modern, full-stack markdown note-taking application built with React and FastA
 
 - **Markdown Editor**: Full-featured markdown editor with live preview
 - **GitHub Flavored Markdown**: Support for tables, task lists, strikethrough, and more
-- **Secure Authentication**: JWT-based authentication with bcrypt password hashing
+- **Secure Authentication**: JWT + OIDC hybrid auth (local accounts and Authelia SSO)
 - **User Isolation**: Each user has their own private note collection
+- **Command Palette**: Quick navigation and note switching via `Ctrl+Shift+Space`
+- **Notes Explorer**: Visual exploration of notes at `/notes/explore`
+- **Similar Notes**: AI-powered related note suggestions via OpenAI embeddings (pgvector)
+- **"For You" Scoring**: Blends recency, frequency, and AI similarity for personalized note ranking
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Dark Mode Support**: Toggle between light and dark themes
 - **Mermaid Diagrams**: Render flowcharts and diagrams in your notes
 - **Auto-save**: Changes are automatically saved as you type
-- **Search & Organization**: Quickly find and organize your notes
+- **Settings & Export**: Account management, password changes, and bulk note export
 
 ## 🚀 Quick Start
 
@@ -34,7 +38,7 @@ A modern, full-stack markdown note-taking application built with React and FastA
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/parchmark.git
+git clone https://github.com/TejGandham/parchmark.git
 cd parchmark
 ```
 
@@ -130,7 +134,7 @@ The database initialization creates two default users:
 #### 1. Clone and Setup
 
 ```bash
-git clone https://github.com/yourusername/parchmark.git
+git clone https://github.com/TejGandham/parchmark.git
 cd parchmark
 ```
 
@@ -187,27 +191,36 @@ parchmark/
 ├── ui/                      # Frontend React application
 │   ├── src/
 │   │   ├── features/        # Feature-based modules
-│   │   │   ├── auth/        # Authentication components
-│   │   │   ├── notes/       # Notes management
-│   │   │   └── ui/          # UI components
-│   │   ├── services/        # API and utilities
-│   │   ├── styles/          # Global styles and theme
-│   │   └── __tests__/       # Test files
-│   ├── package.json         # Frontend dependencies
-│   └── vite.config.ts       # Vite configuration
+│   │   │   ├── auth/        # Authentication (local + OIDC)
+│   │   │   ├── notes/       # Notes management + Explorer
+│   │   │   ├── settings/    # User settings & export
+│   │   │   └── ui/          # UI components (command palette, theme)
+│   │   ├── config/          # Type-safe constants (api, storage)
+│   │   ├── types/           # Shared TypeScript types
+│   │   ├── utils/           # Utilities (errorHandler, markdown, scoring)
+│   │   ├── services/        # API client
+│   │   ├── router.tsx       # Data Router config (loaders, actions)
+│   │   └── __tests__/       # Vitest tests
+│   ├── package.json
+│   └── vite.config.ts
 │
 ├── backend/                 # Backend FastAPI application
 │   ├── app/
-│   │   ├── auth/            # Authentication logic
-│   │   ├── database/        # Database configuration
-│   │   ├── models/          # SQLAlchemy models
-│   │   ├── routers/         # API endpoints
+│   │   ├── auth/            # JWT + OIDC authentication
+│   │   ├── database/        # Async SQLAlchemy + PostgreSQL
+│   │   ├── models/          # SQLAlchemy models (User, Note w/ pgvector)
+│   │   ├── routers/         # API endpoints (auth, notes, settings, health)
 │   │   ├── schemas/         # Pydantic schemas
-│   │   └── main.py          # FastAPI app
-│   ├── tests/               # Backend tests
-│   └── pyproject.toml       # Python dependencies
+│   │   ├── services/        # Embeddings, health, backfill
+│   │   ├── utils/           # Markdown processing
+│   │   └── middleware/       # Request middleware
+│   ├── tests/               # unit/, integration/
+│   ├── migrations/          # Alembic migrations
+│   └── pyproject.toml
 │
-└── docker-compose.yml       # Docker orchestration
+├── makefiles/               # Modular make targets
+├── deploy/                  # Production deployment scripts
+└── docs/                    # Extended documentation
 ```
 
 ### Available Scripts
@@ -370,16 +383,19 @@ uv run python -m app.database.init_db  # Recreate
 - **Vite** for fast development and optimized builds
 - **Chakra UI v2** for consistent, accessible components
 - **Zustand** for state management with persistence
-- **React Router v7** for navigation
+- **React Router v7 (Data Router)** with loaders and actions
 - **React Markdown** with GFM for rendering
+- **Vitest** + React Testing Library for testing
 
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy** ORM with PostgreSQL (via Docker)
+- **SQLAlchemy 2.0** (async) with PostgreSQL + pgvector
 - **Pydantic** for data validation
-- **JWT** for stateless authentication
+- **JWT + OIDC** hybrid authentication (local + Authelia SSO)
 - **Bcrypt** for password hashing
+- **OpenAI embeddings** for note similarity (optional)
+- **CalVer** versioning (`YYYYMMDD.HHMM.sha`)
 - **uvicorn** ASGI server
 
 ### Key Design Patterns
@@ -403,13 +419,24 @@ uv run python -m app.database.init_db  # Recreate
 
 ### Notes Endpoints
 
-| Method | Endpoint          | Description           |
-| ------ | ----------------- | --------------------- |
-| GET    | `/api/notes/`     | List all user's notes |
-| POST   | `/api/notes/`     | Create a new note     |
-| GET    | `/api/notes/{id}` | Get specific note     |
-| PUT    | `/api/notes/{id}` | Update a note         |
-| DELETE | `/api/notes/{id}` | Delete a note         |
+| Method | Endpoint                  | Description                                       |
+| ------ | ------------------------- | ------------------------------------------------- |
+| GET    | `/api/notes/`             | List all user's notes                             |
+| POST   | `/api/notes/`             | Create a new note                                 |
+| GET    | `/api/notes/{id}`         | Get specific note                                 |
+| PUT    | `/api/notes/{id}`         | Update a note                                     |
+| DELETE | `/api/notes/{id}`         | Delete a note                                     |
+| POST   | `/api/notes/{id}/access`  | Track note access (for "For You" scoring)         |
+| GET    | `/api/notes/{id}/similar` | Similar notes via cosine similarity on embeddings |
+
+### Settings Endpoints
+
+| Method | Endpoint                         | Description                        |
+| ------ | -------------------------------- | ---------------------------------- |
+| GET    | `/api/settings/user-info`        | Account info + note count          |
+| POST   | `/api/settings/change-password`  | Change password (local users only) |
+| GET    | `/api/settings/export-notes`     | Streaming ZIP export of all notes  |
+| DELETE | `/api/settings/delete-account`   | Delete account and all notes       |
 
 ### Request/Response Examples
 
@@ -467,29 +494,20 @@ docker compose down -v
 
 ### Production Deployment
 
-ParchMark uses a server-side update script for production deployments:
+ParchMark deploys to k3s automatically via Forgejo CI:
 
 ```bash
-# 1. Push to main branch (triggers image builds)
+# Push to main branch (triggers Forgejo CI pipeline)
 git push origin main
 
-# 2. Wait for GitHub Actions to build images (check status)
-gh run list --workflow=deploy.yml --limit=3
-
-# 3. SSH into production server
-ssh deploy@your-server
-cd /home/deploy/parchmark
-
-# 4. Run the update script
-./deploy/update.sh
+# CI automatically: runs tests → builds images → deploys to k3s via kubectl
 ```
 
-The update script will:
-- Authenticate with GitHub Container Registry (optional for public images)
-- Pull latest Docker images
-- Restart services (migrations run automatically on startup)
+The Forgejo CI pipeline will:
+- Run full test suite (UI + backend)
+- Build and push Docker images to Forgejo registry (SHA-tagged)
+- Deploy to k3s via `kubectl rollout restart`
 - Verify health checks
-- Clean up old images
 
 See `deploy/SERVER_SETUP.md` for initial server configuration.
 
@@ -534,9 +552,14 @@ USE_HTTPS=true
 
 #### Frontend Environment Variables
 
-| Variable       | Description     | Default |
-| -------------- | --------------- | ------- |
-| `VITE_API_URL` | Backend API URL | `/api`  |
+| Variable                       | Description                | Default |
+| ------------------------------ | -------------------------- | ------- |
+| `VITE_API_URL`                 | Backend API URL            | `/api`  |
+| `VITE_TOKEN_WARNING_SECONDS`   | Token expiry warning (sec) | `60`    |
+| `VITE_OIDC_ISSUER_URL`        | OIDC provider URL          | —       |
+| `VITE_OIDC_CLIENT_ID`         | OIDC client ID             | —       |
+| `VITE_OIDC_REDIRECT_URI`      | OIDC callback URL          | —       |
+| `VITE_OIDC_LOGOUT_REDIRECT_URI` | Post-logout redirect     | —       |
 
 #### Backend Environment Variables
 
@@ -546,10 +569,16 @@ USE_HTTPS=true
 | `SECRET_KEY`                  | JWT signing key (128-bit hex string) | (must be set - see generation instructions)               |
 | `ALGORITHM`                   | JWT algorithm                        | `HS256`                                                   |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration                     | `30`                                                      |
+| `REFRESH_TOKEN_EXPIRE_DAYS`   | Refresh token expiration             | `7`                                                       |
 | `ALLOWED_ORIGINS`             | CORS origins                         | `http://localhost:5173`                                   |
 | `HOST`                        | Server host                          | `0.0.0.0`                                                 |
 | `PORT`                        | Server port                          | `8000`                                                    |
 | `ENVIRONMENT`                 | Environment mode                     | `development`                                             |
+| `OIDC_ISSUER_URL`             | OIDC issuer URL                      | —                                                         |
+| `OIDC_AUDIENCE`               | OIDC audience identifier             | —                                                         |
+| `OIDC_USERNAME_CLAIM`         | OIDC claim for username              | `preferred_username`                                      |
+| `OPENAI_API_KEY`              | OpenAI API key (embeddings)          | — (feature disabled if absent)                            |
+| `EMBEDDING_MODEL`             | Embedding model override             | `text-embedding-3-small`                                  |
 
 ### Nginx Configuration
 
