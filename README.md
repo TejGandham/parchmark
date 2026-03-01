@@ -12,7 +12,7 @@ A modern, full-stack markdown note-taking application built with React and FastA
 - **GitHub Flavored Markdown**: Support for tables, task lists, strikethrough, and more
 - **Secure Authentication**: JWT + OIDC hybrid auth (local accounts and Authelia SSO)
 - **User Isolation**: Each user has their own private note collection
-- **Command Palette**: Quick navigation and note switching via `Ctrl+Shift+Space`
+- **Command Palette**: Quick navigation and note switching via the header search button
 - **Notes Explorer**: Visual exploration of notes at `/notes/explore`
 - **Similar Notes**: AI-powered related note suggestions via OpenAI embeddings (pgvector)
 - **"For You" Scoring**: Blends recency, frequency, and AI similarity for personalized note ranking

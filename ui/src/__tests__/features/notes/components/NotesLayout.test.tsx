@@ -103,7 +103,7 @@ describe('NotesLayout', () => {
   it('shows empty state with palette hint when no noteId', async () => {
     await renderComponent();
     expect(
-      screen.getByText('Press Ctrl+Shift+Space to search notes')
+      screen.getByText('Click the search bar above to find notes')
     ).toBeInTheDocument();
     expect(screen.getByText('2 notes available')).toBeInTheDocument();
   });
@@ -121,7 +121,7 @@ describe('NotesLayout', () => {
   it('renders Outlet for child routes when noteId present', async () => {
     await renderComponent('note-1');
     expect(
-      screen.queryByText('Press Ctrl+Shift+Space to search notes')
+      screen.queryByText('Click the search bar above to find notes')
     ).not.toBeInTheDocument();
   });
 

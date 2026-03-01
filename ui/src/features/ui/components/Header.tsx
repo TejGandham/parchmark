@@ -51,7 +51,7 @@ const Header = () => {
         _hover={{ bg: 'bg.subtle', borderColor: 'primary.200' }}
         data-testid="palette-trigger"
       >
-        Search notes… Ctrl+Shift+Space
+        Search notes…
       </Button>
 
       <HStack spacing={3}>

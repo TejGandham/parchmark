@@ -254,6 +254,12 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     if (!isPaletteOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePalette();
+        return;
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         if (isSearching && !hasResults && canCreate) {
           e.preventDefault();
@@ -278,6 +284,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     isPaletteOpen,
+    closePalette,
     activeIndex,
     visibleNotes,
     handleSelect,

@@ -14,7 +14,7 @@ A modern, fast, and intuitive markdown note-taking application built with React,
 - 🎨 **Beautiful UI** - Clean, responsive interface with Chakra UI
 - 🌙 **Dark/Light Mode** - Toggle between themes for comfortable viewing
 - 📊 **Mermaid Diagrams** - Built-in support for flowcharts and diagrams
-- 🔍 **Command Palette** - Quick note navigation via `Ctrl+Shift+Space`
+- 🔍 **Command Palette** - Quick note navigation via the header search button
 - 🗺️ **Notes Explorer** - Visual exploration of notes at `/notes/explore`
 - 🤖 **Similar Notes** - AI-powered related note suggestions
 - ⚙️ **Settings** - Account management, password changes, note export
