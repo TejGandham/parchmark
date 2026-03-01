@@ -358,7 +358,7 @@ fireEvent.submit(form);                      // Use submit, not click
 - Note model has `embedding` (pgvector `Vector(1536)`), `access_count`, `last_accessed_at` fields
 
 ### Command Palette
-- Primary navigation UI (replaced sidebar); triggered via `Ctrl+Shift+Space`
+- Primary navigation UI (replaced sidebar); triggered via the search button in the header
 - Uses `react-window` for virtualized rendering of large note lists
 - "For You" section blends heuristic scoring (recency+frequency) with AI similarity when available
 

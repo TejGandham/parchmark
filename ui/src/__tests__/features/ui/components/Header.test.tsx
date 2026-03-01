@@ -67,8 +67,7 @@ describe('Header Component', () => {
     renderWithProviders(<Header />);
     const trigger = screen.getByTestId('palette-trigger');
     expect(trigger).toBeInTheDocument();
-    expect(trigger).toHaveTextContent(/Search notes/);
-    expect(trigger).toHaveTextContent(/Ctrl\+Shift\+Space/);
+    expect(trigger).toHaveTextContent(/Search notes…/);
   });
 
   it('should call openPalette when palette trigger is clicked', () => {

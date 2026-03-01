@@ -392,9 +392,7 @@ describe('NoteContent with Data Router', () => {
         screen.getByText('Ready to capture your thoughts?')
       ).toBeInTheDocument();
       expect(
-        screen.getByText(
-          /Press Ctrl\+Shift\+Space to search or create a new note/
-        )
+        screen.getByText(/Use the search bar to find or create a note/)
       ).toBeInTheDocument();
     });
   });
