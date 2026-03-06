@@ -6,7 +6,7 @@ Tests that database commit failures are properly handled with rollback and 500 r
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.models import Note, User
@@ -48,7 +48,7 @@ class TestCreateNoteTransactionError:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await create_note(note_data, mock_user, mock_db_session)
+            await create_note(note_data, BackgroundTasks(), mock_user, mock_db_session, None, AsyncMock)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in exc_info.value.detail
@@ -63,7 +63,7 @@ class TestCreateNoteTransactionError:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await create_note(note_data, mock_user, mock_db_session)
+            await create_note(note_data, BackgroundTasks(), mock_user, mock_db_session, None, AsyncMock)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in exc_info.value.detail
@@ -102,7 +102,7 @@ class TestUpdateNoteTransactionError:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await update_note("test-note-1", note_data, mock_user, mock_db_session)
+            await update_note("test-note-1", note_data, BackgroundTasks(), mock_user, mock_db_session, None, AsyncMock)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in exc_info.value.detail
@@ -123,7 +123,7 @@ class TestUpdateNoteTransactionError:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await update_note("test-note-1", note_data, mock_user, mock_db_session)
+            await update_note("test-note-1", note_data, BackgroundTasks(), mock_user, mock_db_session, None, AsyncMock)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Database error" in exc_info.value.detail
