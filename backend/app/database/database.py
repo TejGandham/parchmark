@@ -55,6 +55,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+def get_async_session_factory():
+    """Dependency that returns the async session factory. Overridable in tests."""
+    return AsyncSessionLocal
+
+
 # Async dependency to get database session
 async def get_async_db():
     """

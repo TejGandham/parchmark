@@ -54,12 +54,30 @@ async def lifespan(app: FastAPI):
         logger.critical(f"Database initialization error: {e}")
         raise RuntimeError(f"Database initialization failed: {e}") from e
 
+    # Initialize OpenAI client for embeddings (optional — silently disabled if no key)
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        try:
+            from openai import AsyncOpenAI
+
+            app.state.openai_client = AsyncOpenAI(api_key=api_key)
+            logger.info("OpenAI client initialized for embeddings")
+        except Exception:
+            app.state.openai_client = None
+            logger.warning("Failed to create OpenAI client — embeddings disabled")
+    else:
+        app.state.openai_client = None
+
     logger.info("ParchMark API startup complete")
 
     yield
 
     # Shutdown
     logger.info("Shutting down ParchMark API...")
+
+    # Close OpenAI client
+    if app.state.openai_client is not None:
+        await app.state.openai_client.close()
 
     # Close OIDC validator HTTP client
     await oidc_validator.close()

@@ -24,7 +24,7 @@ os.environ["ALLOWED_ORIGINS"] = (
 from app.auth.auth import create_access_token, get_password_hash
 
 # Import application components
-from app.database.database import Base, get_async_db, get_db
+from app.database.database import Base, get_async_db, get_async_session_factory, get_db
 from app.main import app
 from app.models.models import Note, User
 from tests.factories import (
@@ -181,6 +181,7 @@ def client(test_db_session, test_async_db_session):
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_async_db] = override_get_async_db
+    app.dependency_overrides[get_async_session_factory] = lambda: test_async_db_session
 
     # Mock init_database during app startup since test fixtures handle table creation.
     # The lifespan event calls init_database() which would try to connect to the

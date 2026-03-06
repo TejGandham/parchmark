@@ -9,46 +9,39 @@ from app.services import embeddings
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_returns_embedding_when_openai_call_succeeds(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+async def test_generate_embedding_returns_embedding_when_openai_call_succeeds():
     expected_embedding = [0.1, 0.2, 0.3]
     mock_response = SimpleNamespace(data=[SimpleNamespace(embedding=expected_embedding)])
     mock_client = SimpleNamespace(embeddings=SimpleNamespace(create=AsyncMock(return_value=mock_response)))
 
-    monkeypatch.setattr(embeddings, "_get_client", lambda: mock_client)
-
-    result = await embeddings.generate_embedding("hello world")
+    result = await embeddings.generate_embedding("hello world", mock_client)
 
     assert result == expected_embedding
     mock_client.embeddings.create.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_returns_none_when_api_key_not_set(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-
-    result = await embeddings.generate_embedding("hello world")
+async def test_generate_embedding_returns_none_when_client_is_none():
+    result = await embeddings.generate_embedding("hello world", None)
 
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_returns_none_for_empty_text(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+async def test_generate_embedding_returns_none_for_empty_text():
+    mock_client = SimpleNamespace()
 
-    assert await embeddings.generate_embedding("") is None
-    assert await embeddings.generate_embedding("   ") is None
+    assert await embeddings.generate_embedding("", mock_client) is None
+    assert await embeddings.generate_embedding("   ", mock_client) is None
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_returns_none_when_openai_call_fails(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+async def test_generate_embedding_returns_none_when_openai_call_fails():
     mock_client = SimpleNamespace(
         embeddings=SimpleNamespace(create=AsyncMock(side_effect=RuntimeError("upstream error"))),
     )
-    monkeypatch.setattr(embeddings, "_get_client", lambda: mock_client)
 
-    result = await embeddings.generate_embedding("hello world")
+    result = await embeddings.generate_embedding("hello world", mock_client)
 
     assert result is None
 

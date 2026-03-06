@@ -9,6 +9,7 @@ Rate-limited to avoid API throttling.
 
 import asyncio
 import logging
+import os
 import sys
 import time
 from typing import cast
@@ -32,6 +33,11 @@ async def backfill_embeddings() -> tuple[int, int]:
     Returns:
         Tuple of (processed_count, failed_count)
     """
+    from openai import AsyncOpenAI
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    client = AsyncOpenAI(api_key=api_key) if api_key else None
+
     async with AsyncSessionLocal() as db:
         # Find notes without embeddings
         result = await db.execute(select(Note).filter(Note.embedding.is_(None)))
@@ -50,7 +56,7 @@ async def backfill_embeddings() -> tuple[int, int]:
         for i, note in enumerate(notes, 1):
             logger.info(f"[{i}/{total}] Processing note '{note.title}' ({note.id})")
 
-            embedding = await generate_embedding(cast(str, note.content))
+            embedding = await generate_embedding(cast(str, note.content), client)
 
             if embedding is not None:
                 note.embedding = embedding  # type: ignore[assignment]
@@ -71,8 +77,6 @@ async def backfill_embeddings() -> tuple[int, int]:
 
 def main():
     """Entry point for CLI usage."""
-    import os
-
     if not os.getenv("OPENAI_API_KEY"):
         logger.error("OPENAI_API_KEY environment variable is not set. Cannot generate embeddings.")
         sys.exit(1)
