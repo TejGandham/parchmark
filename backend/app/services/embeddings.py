@@ -3,6 +3,9 @@ from __future__ import annotations
 import logging
 import math
 import os
+from typing import Any
+
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -10,24 +13,15 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 EMBEDDING_DIMENSIONS = 1536
 
 
-def _get_client():
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    try:
-        from openai import AsyncOpenAI
-
-        return AsyncOpenAI(api_key=api_key)
-    except Exception:
-        logger.warning("Failed to create OpenAI client")
-        return None
+def get_openai_client(request: Request) -> Any:
+    """FastAPI dependency: returns the OpenAI client stored on app.state by the lifespan."""
+    return getattr(request.app.state, "openai_client", None)
 
 
-async def generate_embedding(text: str) -> list[float] | None:
+async def generate_embedding(text: str, client: Any) -> list[float] | None:
     if not text or not text.strip():
         return None
 
-    client = _get_client()
     if client is None:
         return None
 
