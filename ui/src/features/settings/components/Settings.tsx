@@ -404,7 +404,7 @@ const Settings = () => {
                     your notes will be permanently deleted.
                   </Text>
                 </Alert>
-                <Button colorScheme="red" onClick={onDeleteModalOpen}>
+                <Button colorScheme="error" onClick={onDeleteModalOpen}>
                   Delete Account
                 </Button>
               </VStack>
@@ -509,7 +509,7 @@ const Settings = () => {
               Cancel
             </Button>
             <Button
-              colorScheme="red"
+              colorScheme="error"
               onClick={handleDeleteAccount}
               isLoading={isDeletingAccount}
               isDisabled={
