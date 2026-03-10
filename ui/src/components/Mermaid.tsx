@@ -63,12 +63,12 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
     return (
       <Box
         p={4}
-        bg="red.50"
+        bg="error.50"
         borderRadius="md"
         borderWidth="1px"
-        borderColor="red.200"
+        borderColor="error.300"
       >
-        <Text color="red.600" fontSize="sm">
+        <Text color="error.600" fontSize="sm">
           Diagram error: {error}
         </Text>
         <Box

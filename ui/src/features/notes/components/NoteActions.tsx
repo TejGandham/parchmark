@@ -58,7 +58,7 @@ const NoteActions = ({
                 size="sm"
                 color="text.muted"
                 isLoading={isDeleting}
-                _hover={{ color: 'red.500', bg: 'red.50' }}
+                _hover={{ color: 'error.500', bg: 'error.50' }}
                 onClick={onDelete}
               />
             </Tooltip>
