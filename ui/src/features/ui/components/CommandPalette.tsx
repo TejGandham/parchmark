@@ -273,8 +273,8 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
               transform="translateX(-50%)"
               width={{ base: '90vw', md: '520px' }}
               maxHeight="60vh"
-              bg="white"
-              borderRadius="14px"
+              bg="bg.surface"
+              borderRadius="xl"
               boxShadow="xl"
               overflow="hidden"
               zIndex={1500}
@@ -482,7 +482,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                   px={4}
                   py={2}
                   borderTop="1px solid"
-                  borderColor="gray.100"
+                  borderColor="border.default"
                   cursor="pointer"
                   _hover={{ bg: 'primary.50' }}
                   onClick={() => {

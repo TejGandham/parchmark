@@ -40,7 +40,7 @@ const NotFoundPage = () => {
               as="h1"
               size="4xl"
               color="primary.800"
-              fontFamily="'Playfair Display', serif"
+              fontFamily="heading"
             >
               404
             </Heading>
@@ -48,7 +48,7 @@ const NotFoundPage = () => {
               as="h2"
               size="xl"
               color="text.primary"
-              fontFamily="'Playfair Display', serif"
+              fontFamily="heading"
             >
               Note Not Found
             </Heading>
@@ -67,7 +67,7 @@ const NotFoundPage = () => {
                 boxShadow="md"
                 _hover={{
                   transform: 'translateY(-2px)',
-                  boxShadow: 'lg',
+                  boxShadow: 'primary',
                 }}
               >
                 Back to Notes

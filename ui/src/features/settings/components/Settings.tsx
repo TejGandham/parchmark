@@ -376,10 +376,10 @@ const Settings = () => {
 
           {/* Danger Zone */}
           <AccordionItem
-            bg="red.50"
+            bg="error.50"
             borderRadius="md"
             border="1px solid"
-            borderColor="red.300"
+            borderColor="error.300"
             mb={4}
           >
             <h2>
@@ -388,11 +388,11 @@ const Settings = () => {
                   flex="1"
                   textAlign="left"
                   fontWeight="semibold"
-                  color="red.600"
+                  color="error.600"
                 >
                   Danger Zone
                 </Box>
-                <AccordionIcon color="red.600" />
+                <AccordionIcon color="error.600" />
               </AccordionButton>
             </h2>
             <AccordionPanel pb={4}>
@@ -470,7 +470,7 @@ const Settings = () => {
       <Modal isOpen={isDeleteModalOpen} onClose={handleDeleteModalClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader color="red.600">Delete Account</ModalHeader>
+          <ModalHeader color="error.600">Delete Account</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4}>

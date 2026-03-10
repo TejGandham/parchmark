@@ -171,7 +171,7 @@ const NoteContent = () => {
       return (
         <Box>
           <Flex justifyContent="space-between" alignItems="flex-start" mb={4}>
-            <Heading size="lg" fontFamily="'Playfair Display', serif" mb={2}>
+            <Heading size="lg" fontFamily="heading" mb={2}>
               {extractTitleFromMarkdown(editedContent)}
             </Heading>
             <NoteActions
@@ -251,7 +251,7 @@ const NoteContent = () => {
       data-testid="note-content-wrapper"
     >
       <Flex justifyContent="space-between" alignItems="flex-start" mb={4}>
-        <Heading size="lg" fontFamily="'Playfair Display', serif" mb={2}>
+        <Heading size="lg" fontFamily="heading" mb={2}>
           {title}
         </Heading>
         <NoteActions

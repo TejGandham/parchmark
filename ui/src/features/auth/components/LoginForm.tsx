@@ -144,7 +144,7 @@ const LoginForm = () => {
             <Heading
               as="h1"
               size="2xl"
-              fontFamily="'Playfair Display', serif"
+              fontFamily="heading"
               textAlign="center"
               letterSpacing="tight"
             >
@@ -186,7 +186,7 @@ const LoginForm = () => {
               <Heading
                 as="h2"
                 size="xl"
-                fontFamily="'Playfair Display', serif"
+                fontFamily="heading"
                 color="primary.800"
                 letterSpacing="tight"
               >

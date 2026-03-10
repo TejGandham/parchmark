@@ -75,7 +75,7 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
           as="pre"
           mt={2}
           fontSize="xs"
-          color="gray.600"
+          color="text.secondary"
           whiteSpace="pre-wrap"
         >
           {chart}

@@ -74,7 +74,7 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
           <Text
             fontSize="md"
             fontWeight="semibold"
-            fontFamily="'Playfair Display', serif"
+            fontFamily="heading"
             color="text.primary"
             noOfLines={1}
             flex={1}
