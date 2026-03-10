@@ -20,13 +20,12 @@ const NoteMetadata = ({ createdAt, updatedAt }: NoteMetadataProps) => {
       spacing={4}
       mt={1}
       mb={2}
-      color="text.muted"
       fontSize="xs"
       fontWeight="normal"
       letterSpacing="wide"
     >
       <Tooltip label={formatFullDate(createdAt)} placement="bottom" hasArrow>
-        <HStack spacing={1.5} cursor="default">
+        <HStack spacing={1.5} cursor="default" color="neutral.500">
           <FontAwesomeIcon icon={faClock} fontSize="11px" />
           <Text as="span">{formatRelativeDate(createdAt)}</Text>
         </HStack>
@@ -34,7 +33,7 @@ const NoteMetadata = ({ createdAt, updatedAt }: NoteMetadataProps) => {
 
       {showModified && (
         <>
-          <Text as="span" opacity={0.4}>
+          <Text as="span" color="text.muted" opacity={0.4}>
             ·
           </Text>
           <Tooltip
@@ -42,7 +41,7 @@ const NoteMetadata = ({ createdAt, updatedAt }: NoteMetadataProps) => {
             placement="bottom"
             hasArrow
           >
-            <HStack spacing={1.5} cursor="default">
+            <HStack spacing={1.5} cursor="default" color="secondary.600">
               <FontAwesomeIcon icon={faPenToSquare} fontSize="11px" />
               <Text as="span">edited {formatRelativeDate(updatedAt)}</Text>
             </HStack>

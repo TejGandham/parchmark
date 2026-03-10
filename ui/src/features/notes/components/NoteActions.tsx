@@ -38,9 +38,11 @@ const NoteActions = ({
             onClick={onSave}
             isLoading={isSaving}
             loadingText="Saving"
-            variant="secondary"
+            bg="secondary.600"
+            color="white"
+            _hover={{ bg: 'secondary.500', transform: 'translateY(-1px)' }}
+            _active={{ bg: 'secondary.700', transform: 'translateY(0)' }}
             aria-label="Save note changes"
-            _hover={{ bg: 'primary.50' }}
           >
             Save
           </Button>

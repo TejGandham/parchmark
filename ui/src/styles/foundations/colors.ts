@@ -16,18 +16,18 @@ export const colors = {
     900: '#42061A',
   },
 
-  // Secondary (Complementary Green)
+  // Secondary (Light Burgundy / Rosé)
   secondary: {
-    50: '#E8F5ED',
-    100: '#C3E6D1',
-    200: '#9DD7B5',
-    300: '#76C899',
-    400: '#4FB97D',
-    500: '#2a7d40', // Complementary to primary
-    600: '#246B37',
-    700: '#1D592E',
-    800: '#174724',
-    900: '#11351B',
+    50: '#FDF2F4',
+    100: '#F8DDE3',
+    200: '#F0BDC7',
+    300: '#E49AAB',
+    400: '#D4778F',
+    500: '#B85A74', // Light burgundy
+    600: '#9B4460',
+    700: '#7E304C',
+    800: '#631F3A',
+    900: '#4A1029',
   },
 
   // Neutral (Warm Grays) - For text and UI elements

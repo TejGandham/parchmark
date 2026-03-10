@@ -19,5 +19,17 @@ export const semanticTokens = {
     // Interactive states
     'interactive.hover': 'neutral.100',
     'interactive.active': 'primary.50',
+
+    // Semantic action colors
+    'action.create': 'secondary.600',
+    'action.create.bg': 'secondary.50',
+    'action.create.hover': 'secondary.700',
+    'action.save': 'secondary.600',
+    'action.save.bg': 'secondary.50',
+
+    // Section header colors
+    'section.forYou': 'secondary.600',
+    'section.recent': 'primary.600',
+    'section.bg': 'neutral.100',
   },
 };

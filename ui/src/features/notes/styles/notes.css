@@ -1,5 +1,5 @@
 /* Decorative divider */
 .decorative-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, var(--chakra-colors-border-default), transparent);
+  background: linear-gradient(to right, transparent, var(--chakra-colors-primary-200), var(--chakra-colors-primary-300), var(--chakra-colors-primary-200), transparent);
 }

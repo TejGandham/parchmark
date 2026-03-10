@@ -41,12 +41,12 @@
 .markdown-preview blockquote {
   padding: 0 1em;
   border-left: 0.25em solid var(--chakra-colors-primary-600);
-  color: #6a737d;
+  color: var(--chakra-colors-neutral-600);
   margin: 1em 0;
 }
 
 .markdown-preview pre {
-  background-color: #f6f8fa;
+  background-color: var(--chakra-colors-neutral-100);
   border-radius: 3px;
   padding: 16px;
   overflow: auto;
@@ -55,7 +55,7 @@
 }
 
 .markdown-preview code {
-  background-color: rgba(27, 31, 35, 0.05);
+  background-color: var(--chakra-colors-primary-50);
   border-radius: 3px;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 85%;
@@ -96,12 +96,12 @@
 }
 
 .markdown-preview table tr {
-  background-color: #fff;
+  background-color: var(--chakra-colors-bg-surface);
   border-top: 1px solid var(--chakra-colors-border-default);
 }
 
 .markdown-preview table tr:nth-child(2n) {
-  background-color: #f6f8fa;
+  background-color: var(--chakra-colors-neutral-100);
 }
 
 .markdown-preview hr {
