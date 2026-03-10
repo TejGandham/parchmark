@@ -9,11 +9,9 @@ import {
   Box,
   Flex,
   VStack,
-  HStack,
   Text,
   Button,
   Heading,
-  Input,
   Textarea,
   Icon,
   Skeleton,
@@ -26,7 +24,7 @@ import {
   AlertDialogOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import { AddIcon, EditIcon, InfoIcon } from '@chakra-ui/icons';
+import { AddIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
 import {
   extractTitleFromMarkdown,
@@ -186,83 +184,34 @@ const NoteContent = () => {
               isSaving={isSaving}
             />
           </Flex>
-          <Box className="edit-mode-indicator">
-            <Textarea
-              value={editedContent}
-              onChange={(e) => {
-                setEditedContent(e.target.value);
-              }}
-              minH="calc(100vh - 250px)"
-              p={4}
-              width="100%"
-              placeholder="# Your Title Here&#10;&#10;Start writing content..."
-            />
-          </Box>
+          <Textarea
+            value={editedContent}
+            onChange={(e) => {
+              setEditedContent(e.target.value);
+            }}
+            minH="calc(100vh - 250px)"
+            p={4}
+            width="100%"
+            placeholder="# Your Title Here&#10;&#10;Start writing content..."
+          />
         </Box>
       );
     }
 
     // Default "no note" view
     return (
-      <VStack spacing={6} align="center" justify="center" h="100%" px={8}>
-        <Box
-          w="120px"
-          h="120px"
-          bg="primary.50"
-          borderRadius="full"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <Icon as={EditIcon} fontSize="5xl" color="primary.300" />
-        </Box>
-
-        <VStack spacing={2}>
-          <Heading
-            size="lg"
-            color="text.primary"
-            fontFamily="'Playfair Display', serif"
-          >
-            Ready to capture your thoughts?
-          </Heading>
-          <Text
-            fontSize="md"
-            color="text.muted"
-            textAlign="center"
-            maxW="400px"
-          >
-            Use the search bar to find or create a note
-          </Text>
-        </VStack>
-
+      <VStack spacing={4} align="center" justify="center" h="100%" px={8}>
+        <Text fontSize="md" color="text.muted">
+          Select a note or create a new one
+        </Text>
         <Button
-          size="lg"
+          size="md"
           colorScheme="primary"
           leftIcon={<Icon as={AddIcon} />}
           onClick={createNewNote}
-          boxShadow="md"
-          _hover={{
-            transform: 'translateY(-2px)',
-            boxShadow: 'lg',
-          }}
         >
-          Create New Note
+          New Note
         </Button>
-
-        <VStack spacing={3} mt={8} align="stretch" maxW="400px">
-          <HStack spacing={3} align="flex-start">
-            <Icon as={InfoIcon} color="primary.500" mt={0.5} />
-            <Text fontSize="sm" textAlign="left" color="text.secondary">
-              Full Markdown support for rich formatting
-            </Text>
-          </HStack>
-          <HStack spacing={3} align="flex-start">
-            <Icon as={EditIcon} color="primary.500" mt={0.5} />
-            <Text fontSize="sm" textAlign="left" color="text.secondary">
-              Click Save to keep your work safe
-            </Text>
-          </HStack>
-        </VStack>
       </VStack>
     );
   }
@@ -303,28 +252,7 @@ const NoteContent = () => {
     >
       <Flex justifyContent="space-between" alignItems="flex-start" mb={4}>
         <Heading size="lg" fontFamily="'Playfair Display', serif" mb={2}>
-          {isEditing ? (
-            <>
-              <Input
-                value={title}
-                isReadOnly={true}
-                fontWeight="bold"
-                size="lg"
-                width="100%"
-                cursor="not-allowed"
-                _hover={{
-                  borderColor: 'border.default',
-                  background: 'bg.subtle',
-                }}
-                title="Title is controlled by the H1 heading in your content"
-              />
-              <Text fontSize="xs" color="text.muted" mt={1}>
-                Title is automatically set from H1 heading.
-              </Text>
-            </>
-          ) : (
-            currentNote.title
-          )}
+          {title}
         </Heading>
         <NoteActions
           isEditing={isEditing}
@@ -347,21 +275,19 @@ const NoteContent = () => {
       {/* Content area */}
       <Box mt={4}>
         {isEditing ? (
-          <Box className="edit-mode-indicator">
-            <Textarea
-              value={editedContent ?? ''}
-              onChange={(e) => {
-                setEditedContent(e.target.value);
-              }}
-              minH="calc(100vh - 250px)"
-              p={4}
-              width="100%"
-              placeholder="# Your Title Here&#10;&#10;Start writing content..."
-            />
-          </Box>
+          <Textarea
+            value={editedContent ?? ''}
+            onChange={(e) => {
+              setEditedContent(e.target.value);
+            }}
+            minH="calc(100vh - 250px)"
+            p={4}
+            width="100%"
+            placeholder="# Your Title Here&#10;&#10;Start writing content..."
+          />
         ) : (
           <>
-            <Box className="decorative-divider" mb={5}></Box>
+            <Box className="decorative-divider" mb={5} />
             <Box className="markdown-preview" p={4}>
               <ReactMarkdown
                 remarkPlugins={remarkPlugins}

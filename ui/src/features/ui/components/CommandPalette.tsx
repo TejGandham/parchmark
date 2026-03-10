@@ -14,7 +14,6 @@ import {
   Text,
   VStack,
   HStack,
-  Flex,
   Skeleton,
   Button,
 } from '@chakra-ui/react';
@@ -25,26 +24,13 @@ import {
   useFetcher,
   useNavigation,
 } from 'react-router-dom';
-import { List, type RowComponentProps } from 'react-window';
 import { useUIStore } from '../store/ui';
 import { Note, SimilarNote } from '../../../types';
-import {
-  filterNotes,
-  sortNotes,
-  groupNotesByDate,
-  type SortOption,
-  type SortDirection,
-  type GroupedNotes,
-} from '../../../utils/dateGrouping';
+import { filterNotes, sortNotes } from '../../../utils/dateGrouping';
 import { formatCompactTime } from '../../../utils/compactTime';
 import { getBlendedForYouNotes } from '../../../utils/noteScoring';
 import { trackNoteAccess, getSimilarNotes } from '../../../services/api';
-import {
-  VIRTUALIZATION_THRESHOLD,
-  PALETTE_ITEM_HEIGHT,
-  VIRTUAL_LIST_HEIGHT,
-  highlightKeyword,
-} from './commandPaletteUtils';
+import { highlightKeyword } from './commandPaletteUtils';
 
 interface CommandPaletteProps {
   notes?: Note[];
@@ -89,34 +75,6 @@ function PaletteNoteItem({
   );
 }
 
-interface VirtualRowData {
-  notes: Note[];
-  activeIndex: number;
-  searchQuery: string;
-  onSelect: (id: string) => void;
-}
-
-function VirtualNoteRow({
-  index,
-  style,
-  notes,
-  activeIndex,
-  searchQuery,
-  onSelect,
-}: RowComponentProps<VirtualRowData>) {
-  const note = notes[index];
-  return (
-    <Box style={style}>
-      <PaletteNoteItem
-        note={note}
-        isActive={index === activeIndex}
-        searchQuery={searchQuery}
-        onSelect={onSelect}
-      />
-    </Box>
-  );
-}
-
 export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
   const isPaletteOpen = useUIStore((state) => state.isPaletteOpen);
   const closePalette = useUIStore((state) => state.actions.closePalette);
@@ -134,11 +92,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
   const isRouteLoading = navigation.state === 'loading';
   const createInitiatedRef = useRef(false);
 
-  const [isAllNotesExpanded, setIsAllNotesExpanded] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [allNotesSortBy, setAllNotesSortBy] =
-    useState<SortOption>('lastModified');
-  const [allNotesSortDir, setAllNotesSortDir] = useState<SortDirection>('desc');
   const [similarNotes, setSimilarNotes] = useState<SimilarNote[]>([]);
 
   const setSearchInputRef = useCallback((node: HTMLInputElement | null) => {
@@ -181,16 +135,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     [notes, searchQuery]
   );
 
-  const allNotesSorted = useMemo(
-    () => sortNotes(notes, allNotesSortBy, allNotesSortDir),
-    [notes, allNotesSortBy, allNotesSortDir]
-  );
-
-  const allNotesGrouped: GroupedNotes[] = useMemo(
-    () => groupNotesByDate(allNotesSorted, allNotesSortDir),
-    [allNotesSorted, allNotesSortDir]
-  );
-
   const visibleNotes = useMemo(() => {
     if (searchQuery) return filteredNotes;
     return recentNotes;
@@ -211,7 +155,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
       searchInputRef.current.focus();
     }
     if (!isPaletteOpen) {
-      setIsAllNotesExpanded(false);
       setActiveIndex(0);
     }
   }, [isPaletteOpen]);
@@ -297,23 +240,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
   const handleBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) closePalette();
   };
-
-  const cycleSortOption = useCallback(() => {
-    const options: SortOption[] = [
-      'lastModified',
-      'alphabetical',
-      'createdDate',
-    ];
-    const currentIdx = options.indexOf(allNotesSortBy);
-    setAllNotesSortBy(options[(currentIdx + 1) % options.length]);
-  }, [allNotesSortBy]);
-
-  const toggleSortDir = useCallback(() => {
-    setAllNotesSortDir((prev) => (prev === 'desc' ? 'asc' : 'desc'));
-  }, []);
-
-  const useVirtualScroll =
-    isAllNotesExpanded && allNotesSorted.length > VIRTUALIZATION_THRESHOLD;
 
   return (
     <Portal>
@@ -547,115 +473,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                         onSelect={handleSelect}
                       />
                     ))}
-                  </>
-                )}
-
-                {!isRouteLoading && !isSearching && notes.length > 0 && (
-                  <>
-                    <Box
-                      px={4}
-                      py={2}
-                      cursor="pointer"
-                      borderTop="1px"
-                      borderColor="gray.100"
-                      _hover={{ bg: 'gray.50' }}
-                      onClick={() => setIsAllNotesExpanded(!isAllNotesExpanded)}
-                      data-testid="all-notes-toggle"
-                    >
-                      <Text fontSize="sm" color="text.secondary">
-                        All Notes ({notes.length}){' '}
-                        {isAllNotesExpanded ? '▾' : '▸'}
-                      </Text>
-                    </Box>
-
-                    {isAllNotesExpanded && (
-                      <Box data-testid="all-notes-expanded">
-                        <Flex
-                          px={4}
-                          py={1.5}
-                          gap={2}
-                          bg="gray.50"
-                          borderBottom="1px"
-                          borderColor="gray.100"
-                        >
-                          <Box
-                            as="button"
-                            fontSize="xs"
-                            color="primary.600"
-                            fontWeight="medium"
-                            onClick={cycleSortOption}
-                            cursor="pointer"
-                            _hover={{ color: 'primary.800' }}
-                            data-testid="sort-option-btn"
-                          >
-                            {allNotesSortBy === 'lastModified'
-                              ? 'Modified'
-                              : allNotesSortBy === 'alphabetical'
-                                ? 'A-Z'
-                                : 'Created'}
-                          </Box>
-                          <Box
-                            as="button"
-                            fontSize="xs"
-                            color="primary.600"
-                            onClick={toggleSortDir}
-                            cursor="pointer"
-                            _hover={{ color: 'primary.800' }}
-                            data-testid="sort-dir-btn"
-                          >
-                            {allNotesSortDir === 'desc' ? '↓' : '↑'}
-                          </Box>
-                        </Flex>
-
-                        {useVirtualScroll ? (
-                          <List
-                            style={{
-                              height: VIRTUAL_LIST_HEIGHT,
-                              width: '100%',
-                            }}
-                            rowCount={allNotesSorted.length}
-                            rowHeight={PALETTE_ITEM_HEIGHT}
-                            rowComponent={VirtualNoteRow}
-                            rowProps={{
-                              notes: allNotesSorted,
-                              activeIndex: -1,
-                              searchQuery: '',
-                              onSelect: handleSelect,
-                            }}
-                            data-testid="virtual-notes-list"
-                          />
-                        ) : (
-                          allNotesGrouped.map((group) => (
-                            <Box key={group.group}>
-                              <Box px={4} py={1}>
-                                <HStack spacing={1}>
-                                  <Text
-                                    fontSize="xs"
-                                    fontWeight="semibold"
-                                    textTransform="uppercase"
-                                    letterSpacing="wide"
-                                    color="text.muted"
-                                  >
-                                    {group.group}
-                                  </Text>
-                                  <Text fontSize="xs" color="text.muted">
-                                    ({group.count})
-                                  </Text>
-                                </HStack>
-                              </Box>
-                              {group.notes.map((note) => (
-                                <PaletteNoteItem
-                                  key={note.id}
-                                  note={note}
-                                  isActive={false}
-                                  onSelect={handleSelect}
-                                />
-                              ))}
-                            </Box>
-                          ))
-                        )}
-                      </Box>
-                    )}
                   </>
                 )}
               </VStack>

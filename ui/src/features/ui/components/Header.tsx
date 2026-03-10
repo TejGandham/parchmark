@@ -21,15 +21,13 @@ const Header = () => {
   return (
     <Flex
       as="header"
-      bgGradient="linear(to-r, bg.surface, primary.50, bg.surface)"
+      bg="bg.surface"
       color="primary.800"
       p={3}
       align="center"
       justify="space-between"
       borderBottom="1px solid"
       borderColor="border.default"
-      boxShadow="sm"
-      transition="all 0.2s"
     >
       <HStack spacing={3}>
         <Heading size="md" ml={1} fontFamily="'Playfair Display', serif">
@@ -71,10 +69,7 @@ const Header = () => {
           variant="ghost"
           colorScheme="primary"
           fontSize="lg"
-          _hover={{
-            transform: 'rotate(45deg)',
-            transition: 'transform 0.3s ease',
-          }}
+          _hover={{ bg: 'bg.subtle' }}
         />
         <UserLoginStatus />
       </HStack>

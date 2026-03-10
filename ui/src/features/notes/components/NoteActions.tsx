@@ -40,7 +40,7 @@ const NoteActions = ({
             loadingText="Saving"
             variant="secondary"
             aria-label="Save note changes"
-            _hover={{ transform: 'scale(1.05)' }}
+            _hover={{ bg: 'primary.50' }}
           >
             Save
           </Button>
@@ -67,7 +67,7 @@ const NoteActions = ({
             variant="secondary"
             aria-label="Edit note"
             isDisabled={isDeleting}
-            _hover={{ transform: 'scale(1.05)' }}
+            _hover={{ bg: 'primary.50' }}
           >
             Edit
           </Button>

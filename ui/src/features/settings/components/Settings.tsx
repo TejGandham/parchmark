@@ -339,9 +339,6 @@ const Settings = () => {
                 </AccordionButton>
               </h2>
               <AccordionPanel pb={4}>
-                <Text mb={4} color="gray.600">
-                  Keep your account secure by using a strong password.
-                </Text>
                 <Button colorScheme="primary" onClick={onPasswordModalOpen}>
                   Change Password
                 </Button>
@@ -366,20 +363,14 @@ const Settings = () => {
               </AccordionButton>
             </h2>
             <AccordionPanel pb={4}>
-              <VStack spacing={4} align="stretch">
-                <Text color="gray.600">
-                  Export all your notes as a ZIP file containing markdown files
-                  and metadata.
-                </Text>
-                <Button
-                  colorScheme="primary"
-                  onClick={handleExportNotes}
-                  isLoading={isExporting}
-                  loadingText="Exporting..."
-                >
-                  Export All Notes
-                </Button>
-              </VStack>
+              <Button
+                colorScheme="primary"
+                onClick={handleExportNotes}
+                isLoading={isExporting}
+                loadingText="Exporting..."
+              >
+                Export All Notes
+              </Button>
             </AccordionPanel>
           </AccordionItem>
 
