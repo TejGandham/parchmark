@@ -52,10 +52,10 @@ const OIDCCallback = () => {
   return (
     <Center h="100vh">
       <VStack spacing={4}>
-        <Spinner size="xl" color="purple.500" thickness="4px" />
+        <Spinner size="xl" color="primary.600" thickness="4px" />
         <Box textAlign="center">
           <Text fontSize="lg">Completing authentication...</Text>
-          <Text fontSize="sm" color="gray.500" mt={2}>
+          <Text fontSize="sm" color="text.muted" mt={2}>
             You will be redirected shortly
           </Text>
         </Box>

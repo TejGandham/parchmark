@@ -69,11 +69,7 @@ export default function NotesLayout() {
               >
                 <Icon as={EditIcon} fontSize="4xl" color="primary.300" />
               </Box>
-              <Heading
-                size="md"
-                color="text.primary"
-                fontFamily="'Playfair Display', serif"
-              >
+              <Heading size="md" color="text.primary" fontFamily="heading">
                 Click the search bar above to find notes
               </Heading>
               <Text fontSize="sm" color="text.muted">

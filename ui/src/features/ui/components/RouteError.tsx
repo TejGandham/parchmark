@@ -10,7 +10,7 @@ export default function RouteError() {
       return (
         <Center h="100vh" bg="bg.canvas">
           <VStack spacing={4}>
-            <Heading size="lg" fontFamily="'Playfair Display', serif">
+            <Heading size="lg" fontFamily="heading">
               Session Expired
             </Heading>
             <Text color="text.muted">Please log in again to continue.</Text>
@@ -25,7 +25,7 @@ export default function RouteError() {
     return (
       <Center h="100vh" bg="bg.canvas">
         <VStack spacing={4}>
-          <Heading size="2xl" color="text.muted">
+          <Heading size="2xl" color="text.muted" fontFamily="heading">
             {error.status}
           </Heading>
           <Text fontSize="lg" color="text.secondary">
@@ -42,7 +42,7 @@ export default function RouteError() {
   return (
     <Center h="100vh" bg="bg.canvas">
       <VStack spacing={4}>
-        <Heading size="lg" fontFamily="'Playfair Display', serif">
+        <Heading size="lg" fontFamily="heading">
           Something went wrong
         </Heading>
         <Text color="text.muted">

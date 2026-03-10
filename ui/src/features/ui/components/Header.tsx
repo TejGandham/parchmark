@@ -30,7 +30,7 @@ const Header = () => {
       borderColor="border.default"
     >
       <HStack spacing={3}>
-        <Heading size="md" ml={1} fontFamily="'Playfair Display', serif">
+        <Heading size="md" ml={1} fontFamily="heading">
           <Image src={Logo} alt="ParchMark Logo" h="46px" mr="10px" />
         </Heading>
       </HStack>
