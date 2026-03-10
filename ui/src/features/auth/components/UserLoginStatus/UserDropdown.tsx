@@ -50,7 +50,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
     bg="transparent"
     color={isLogout ? 'error.600' : 'text.primary'}
     _hover={{
-      bg: isLogout ? 'error.50' : 'interactive.hover',
+      bg: isLogout ? 'error.50' : 'primary.50',
       color: isLogout ? 'error.700' : 'primary.800',
     }}
     _focus={{

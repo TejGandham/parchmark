@@ -177,7 +177,7 @@ export default function NotesExplorer() {
         <Text
           fontSize="xs"
           fontWeight="bold"
-          color="text.muted"
+          color="section.forYou"
           letterSpacing="wide"
           textTransform="uppercase"
           mb={2}
@@ -213,7 +213,7 @@ export default function NotesExplorer() {
           <Text
             fontSize="xs"
             fontWeight="bold"
-            color="text.muted"
+            color="section.recent"
             letterSpacing="wide"
             textTransform="uppercase"
             mb={2}

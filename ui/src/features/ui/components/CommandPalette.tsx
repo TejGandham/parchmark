@@ -55,7 +55,7 @@ function PaletteNoteItem({
       py={2}
       cursor="pointer"
       bg={isActive ? 'primary.50' : 'transparent'}
-      _hover={{ bg: isActive ? 'primary.100' : 'gray.50' }}
+      _hover={{ bg: isActive ? 'primary.100' : 'neutral.100' }}
       onClick={() => onSelect(note.id)}
       spacing={3}
       data-testid="palette-note-item"
@@ -288,9 +288,9 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                 size="lg"
                 border="none"
                 borderBottom="1px solid"
-                borderColor="gray.200"
+                borderColor="border.default"
                 borderRadius={0}
-                _focus={{ borderColor: 'blue.400', boxShadow: 'none' }}
+                _focus={{ borderColor: 'primary.300', boxShadow: 'none' }}
                 data-testid="command-palette-search"
               />
 
@@ -305,9 +305,9 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                     <Box
                       px={4}
                       py={1.5}
-                      bg="gray.50"
+                      bg="neutral.100"
                       borderBottom="1px"
-                      borderColor="gray.100"
+                      borderColor="neutral.200"
                     >
                       <Skeleton height="12px" width="60px" />
                     </Box>
@@ -332,8 +332,8 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                       px={4}
                       py={1.5}
                       borderBottom="1px"
-                      borderColor="gray.100"
-                      bg="gray.50"
+                      borderColor="neutral.200"
+                      bg="neutral.100"
                     >
                       <Text
                         fontSize="xs"
@@ -369,12 +369,12 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                           py={3}
                           cursor={canCreate ? 'pointer' : 'not-allowed'}
                           opacity={canCreate ? 1 : 0.5}
-                          _hover={canCreate ? { bg: 'red.50' } : {}}
+                          _hover={canCreate ? { bg: 'action.create.bg' } : {}}
                           onClick={() => canCreate && handleCreate()}
                           data-testid="create-from-search"
                         >
                           <Text
-                            color={canCreate ? 'red.700' : 'text.muted'}
+                            color={canCreate ? 'action.create' : 'text.muted'}
                             fontWeight="medium"
                             fontSize="sm"
                           >
@@ -422,13 +422,13 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                       px={4}
                       py={1.5}
                       borderBottom="1px"
-                      borderColor="gray.100"
-                      bg="gray.50"
+                      borderColor="secondary.100"
+                      bg="secondary.50"
                     >
                       <Text
                         fontSize="xs"
                         fontWeight="bold"
-                        color="text.muted"
+                        color="section.forYou"
                         letterSpacing="wide"
                         data-testid="for-you-header"
                       >
@@ -452,13 +452,13 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                       px={4}
                       py={1.5}
                       borderBottom="1px"
-                      borderColor="gray.100"
-                      bg="gray.50"
+                      borderColor="primary.100"
+                      bg="primary.50"
                     >
                       <Text
                         fontSize="xs"
                         fontWeight="bold"
-                        color="text.muted"
+                        color="section.recent"
                         letterSpacing="wide"
                         data-testid="recent-header"
                       >
@@ -484,7 +484,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                   borderTop="1px solid"
                   borderColor="gray.100"
                   cursor="pointer"
-                  _hover={{ bg: 'gray.50' }}
+                  _hover={{ bg: 'primary.50' }}
                   onClick={() => {
                     navigate('/notes/explore');
                     closePalette();
@@ -501,10 +501,10 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                 px={4}
                 py={2}
                 borderTop="1px solid"
-                borderColor="gray.200"
-                bg="gray.50"
+                borderColor="neutral.200"
+                bg="neutral.100"
               >
-                <Text fontSize="xs" color="gray.600">
+                <Text fontSize="xs" color="text.secondary">
                   {`↑↓ navigate • ↵ open${isSearching && !hasResults && canCreate ? ' • ⌘↵ create' : ''} • esc to close`}
                 </Text>
               </Box>

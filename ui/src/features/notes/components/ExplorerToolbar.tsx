@@ -109,6 +109,8 @@ export function ExplorerToolbar({
             size="sm"
             variant="ghost"
             onClick={cycleSortOption}
+            color="text.secondary"
+            _hover={{ bg: 'primary.50', color: 'primary.800' }}
             data-testid="explorer-sort-btn"
           >
             {SORT_LABELS[notesSortBy]}
@@ -117,6 +119,8 @@ export function ExplorerToolbar({
             size="sm"
             variant="ghost"
             onClick={toggleNotesSortDirection}
+            color="text.secondary"
+            _hover={{ bg: 'primary.50', color: 'primary.800' }}
             data-testid="explorer-sort-dir"
           >
             {notesSortDirection === 'desc' ? '↓' : '↑'}

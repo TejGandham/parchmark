@@ -51,12 +51,16 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
         borderRadius="md"
         border="1px solid"
         borderColor={isActive ? 'primary.300' : 'border.default'}
+        borderLeftWidth={isActive ? '3px' : '1px'}
+        borderLeftColor={isActive ? 'primary.600' : 'border.default'}
         bg={isActive ? 'primary.50' : 'bg.surface'}
         shadow="xs"
         cursor="pointer"
         transition="all 0.2s"
         _hover={{
-          borderColor: 'border.emphasis',
+          borderColor: 'primary.200',
+          borderLeftColor: 'primary.400',
+          borderLeftWidth: '3px',
           shadow: 'sm',
         }}
         onClick={handleSelect}
