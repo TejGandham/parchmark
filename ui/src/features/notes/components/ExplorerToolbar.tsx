@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -45,34 +45,18 @@ export function ExplorerToolbar({
   );
   const setNotesSearchQuery = useUIStore((s) => s.actions.setNotesSearchQuery);
 
-  const [localSearch, setLocalSearch] = useState(notesSearchQuery);
   const searchRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    if (notesSearchQuery === '' && localSearch !== '') {
-      setLocalSearch('');
-    }
-  }, [notesSearchQuery, localSearch]);
-
-  useEffect(() => {
-    debounceRef.current = setTimeout(() => {
-      setNotesSearchQuery(localSearch);
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [localSearch, setNotesSearchQuery]);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setLocalSearch(e.target.value);
+      setNotesSearchQuery(e.target.value);
     },
-    []
+    [setNotesSearchQuery]
   );
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Escape') {
-        setLocalSearch('');
         setNotesSearchQuery('');
         searchRef.current?.blur();
       }
@@ -111,7 +95,7 @@ export function ExplorerToolbar({
           </InputLeftElement>
           <Input
             ref={searchRef}
-            value={localSearch}
+            value={notesSearchQuery}
             onChange={handleSearchChange}
             onKeyDown={handleSearchKeyDown}
             placeholder="Search notes…"

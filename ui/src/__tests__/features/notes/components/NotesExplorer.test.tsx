@@ -250,4 +250,27 @@ describe('NotesExplorer', () => {
     await renderExplorer();
     expect(screen.queryByTestId('create-from-search')).not.toBeInTheDocument();
   });
+
+  it('typing in search input updates store and shows in input', async () => {
+    await renderExplorer();
+    const searchInput = screen.getByTestId('explorer-search');
+
+    fireEvent.change(searchInput, { target: { value: 'Alpha' } });
+
+    expect(useUIStore.getState().notesSearchQuery).toBe('Alpha');
+    expect(searchInput).toHaveValue('Alpha');
+  });
+
+  it('typing filters notes in real-time', async () => {
+    await renderExplorer();
+    const searchInput = screen.getByTestId('explorer-search');
+
+    fireEvent.change(searchInput, { target: { value: 'Beta' } });
+
+    expect(screen.getByTestId('search-result-count')).toHaveTextContent(
+      /1.*result/
+    );
+    const cards = screen.getAllByTestId('explorer-note-card');
+    expect(cards.length).toBe(1);
+  });
 });

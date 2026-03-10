@@ -137,11 +137,19 @@ export const useUIStore = create<UIState>()(
           actions: currentState.actions,
         };
       },
-      // Exclude ephemeral palette state from persistence
+      // Exclude ephemeral state from persistence
       partialize: (state) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { isPaletteOpen, paletteSearchQuery, actions, ...persisted } =
-          state;
+        const {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          isPaletteOpen,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          paletteSearchQuery,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          notesSearchQuery,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          actions,
+          ...persisted
+        } = state;
         return persisted as UIState;
       },
     }

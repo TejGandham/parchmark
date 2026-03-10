@@ -58,7 +58,6 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
         _hover={{
           borderColor: 'border.emphasis',
           shadow: 'sm',
-          transform: 'translateY(-1px)',
         }}
         onClick={handleSelect}
         onKeyDown={handleKeyDown}

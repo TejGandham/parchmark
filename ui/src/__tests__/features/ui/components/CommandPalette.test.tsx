@@ -271,65 +271,6 @@ describe('CommandPalette', () => {
     });
   });
 
-  describe('All Notes expandable', () => {
-    it('shows "All Notes (N) ▸" toggle', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      const toggle = screen.getByTestId('all-notes-toggle');
-      expect(toggle).toHaveTextContent(`All Notes (${sampleNotes.length})`);
-      expect(toggle).toHaveTextContent('▸');
-    });
-
-    it('expands to show date-grouped notes on click', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      fireEvent.click(screen.getByTestId('all-notes-toggle'));
-      expect(screen.getByTestId('all-notes-expanded')).toBeInTheDocument();
-    });
-
-    it('collapses when clicked again', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      const toggle = screen.getByTestId('all-notes-toggle');
-      fireEvent.click(toggle);
-      expect(screen.getByTestId('all-notes-expanded')).toBeInTheDocument();
-      fireEvent.click(toggle);
-      expect(
-        screen.queryByTestId('all-notes-expanded')
-      ).not.toBeInTheDocument();
-    });
-
-    it('shows sort controls when expanded', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      fireEvent.click(screen.getByTestId('all-notes-toggle'));
-      expect(screen.getByTestId('sort-option-btn')).toBeInTheDocument();
-      expect(screen.getByTestId('sort-dir-btn')).toBeInTheDocument();
-    });
-
-    it('cycles sort option on click', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      fireEvent.click(screen.getByTestId('all-notes-toggle'));
-      const sortBtn = screen.getByTestId('sort-option-btn');
-      expect(sortBtn).toHaveTextContent('Modified');
-      fireEvent.click(sortBtn);
-      expect(sortBtn).toHaveTextContent('A-Z');
-      fireEvent.click(sortBtn);
-      expect(sortBtn).toHaveTextContent('Created');
-    });
-
-    it('toggles sort direction on click', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      fireEvent.click(screen.getByTestId('all-notes-toggle'));
-      const dirBtn = screen.getByTestId('sort-dir-btn');
-      expect(dirBtn).toHaveTextContent('↓');
-      fireEvent.click(dirBtn);
-      expect(dirBtn).toHaveTextContent('↑');
-    });
-  });
-
   describe('Search transition', () => {
     it('hides RECENT section when search query is non-empty', () => {
       openPalette();
@@ -338,15 +279,6 @@ describe('CommandPalette', () => {
         target: { value: 'test' },
       });
       expect(screen.queryByTestId('recent-header')).not.toBeInTheDocument();
-    });
-
-    it('hides All Notes toggle when searching', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      fireEvent.change(screen.getByTestId('command-palette-search'), {
-        target: { value: 'test' },
-      });
-      expect(screen.queryByTestId('all-notes-toggle')).not.toBeInTheDocument();
     });
 
     it('shows result count', () => {
@@ -623,11 +555,10 @@ describe('CommandPalette', () => {
       );
     });
 
-    it('does not show RECENT or All Notes sections with zero notes', () => {
+    it('does not show RECENT section with zero notes', () => {
       openPalette();
       renderPalette([]);
       expect(screen.queryByTestId('recent-header')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('all-notes-toggle')).not.toBeInTheDocument();
     });
 
     it('does not show zero notes state when searching', () => {
@@ -654,7 +585,6 @@ describe('CommandPalette', () => {
       renderPalette(sampleNotes);
       expect(screen.queryByTestId('recent-header')).not.toBeInTheDocument();
       expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('all-notes-toggle')).not.toBeInTheDocument();
     });
 
     it('shows normal sections when route is idle', () => {
