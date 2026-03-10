@@ -405,7 +405,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                     </Text>
                     <Button
                       size="sm"
-                      colorScheme="red"
+                      colorScheme="primary"
                       variant="solid"
                       isLoading={isCreating}
                       onClick={() => handleCreate('New Note')}
