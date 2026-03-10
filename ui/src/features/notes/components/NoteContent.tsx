@@ -316,10 +316,14 @@ const NoteContent = () => {
               &rdquo;? This action cannot be undone.
             </AlertDialogBody>
             <AlertDialogFooter>
-              <Button ref={cancelDeleteRef} onClick={closeDeleteDialog}>
+              <Button
+                ref={cancelDeleteRef}
+                onClick={closeDeleteDialog}
+                variant="ghost"
+              >
                 Cancel
               </Button>
-              <Button colorScheme="red" onClick={confirmDelete} ml={3}>
+              <Button colorScheme="error" onClick={confirmDelete} ml={3}>
                 Delete
               </Button>
             </AlertDialogFooter>
