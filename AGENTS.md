@@ -6,6 +6,9 @@ Guidance for Claude Code working with the ParchMark codebase.
 
 This repo uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking.
 
+Beads uses a remote Dolt server at `brahma.myth-gecko.ts.net:30307` (Tailscale).
+No local `dolt sql-server` needed. If `bd` can't connect, verify Tailscale is up.
+
 **Do NOT use:** TodoWrite, TaskCreate, or markdown files for task tracking.
 
 ```bash
