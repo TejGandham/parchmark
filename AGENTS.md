@@ -394,6 +394,14 @@ Use Chrome DevTools MCP before committing UI changes:
 | Dev | localhost:5173 | localhost:8000/docs |
 | Production | notes.engen.tech | assets-api.engen.tech/docs |
 
+## Skills
+
+Custom skills in `.claude/skills/` automate common workflows:
+
+- **`parchmark-branch-setup`** — Use whenever you begin implementing a feature, bug fix, or any code change that requires a new branch — before writing any code.
+- **`parchmark-land`** — Use when ending any work session, before reporting completion to the user — ensures all work is committed, pushed, and beads are synced.
+- **`parchmark-markdown-sync`** — Use after modifying any markdown processing logic in either `ui/src/utils/markdown.ts` or `backend/app/utils/markdown.py` — verifies both implementations stay in sync.
+
 ## Guidelines
 
 1. Use Makefile commands from project root
