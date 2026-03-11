@@ -26,8 +26,8 @@ bd update <id> --status=in_progress  # Claim work before coding
 bd close <id>                        # Close completed issue
 bd dep add <id> <dep>                # Add dependency
 
-# Sync (REQUIRED at session end)
-bd sync
+# Sync (bd uses remote Dolt — no manual sync needed)
+bd dolt test              # Verify remote connection
 ```
 
 **Priority:** 0=critical, 1=high, 2=medium, 3=low, 4=backlog (NOT "high"/"medium"/"low")
@@ -428,7 +428,6 @@ make test
 
 # 3. Commit and push (on your feature/fix branch)
 git add <files>
-bd sync
 git commit -m "..."
 git push -u origin <branch-name>
 
@@ -450,7 +449,6 @@ git push -u origin <branch-name>
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -472,7 +470,7 @@ git push -u origin <branch-name>
 ### Why bd?
 
 - Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Auto-syncs to JSONL for version control
+- Remote Dolt backend: shared database at `brahma.myth-gecko.ts.net:30307` (Tailscale)
 - Agent-optimized: JSON output, ready work detection, discovered-from links
 - Prevents duplicate tracking systems and confusion
 
@@ -529,13 +527,13 @@ bd close bd-42 --reason "Completed" --json
    - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
 5. **Complete**: `bd close <id> --reason "Done"`
 
-### Auto-Sync
+### Remote Dolt Server
 
-bd automatically syncs with git:
+bd uses a shared Dolt SQL server on brahma (Tailscale). All Claude instances connect to the same database — no local `dolt sql-server` needed.
 
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
+- Server: `brahma.myth-gecko.ts.net:30307`
+- If `bd` can't connect, verify Tailscale is up
+- Test connection: `bd dolt test`
 
 ### Important Rules
 
