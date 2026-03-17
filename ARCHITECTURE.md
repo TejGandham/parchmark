@@ -2,7 +2,7 @@
 
 > Domain map, layer dependencies, and cross-cutting concerns for ParchMark.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a React frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate exclusively over a JSON REST API (`/api/*`).
+ParchMark is a full-stack markdown note-taking app with two domains: a React frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate exclusively over a JSON REST API (`/api/*`). For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
 
 ```
 ┌──────────────────────┐         ┌──────────────────────┐
@@ -59,11 +59,13 @@ Layers are listed bottom-up. Code may only import from layers **below** it—nev
 | Config | Nothing (environment only) |
 | Utils | Types, Config |
 | Services | Utils, Config, Types, Stores* |
-| Stores | Services, Utils, Config, Types |
+| Stores | Services, Utils, Config, Types, feature-local utils** |
 | Features | Stores, Services, Utils, Config, Types |
 | Router | Features, Stores, Services, Config |
 
-\* The API service (`services/api.ts`) reads auth tokens via `useAuthStore.getState()`. This is the one upward reach from Services → Stores, justified by the need to attach tokens to every request without threading React context through a non-React module.
+\* **Circular dependency: `api.ts` ↔ `useAuthStore`**. The API service imports `useAuthStore` to attach auth tokens to requests; the auth store imports the API service for login/refresh calls. This cycle works because Zustand defers store access—`useAuthStore.getState()` is called inside functions, not at module load time. This pattern is fragile and must not be replicated elsewhere.
+
+\*\* Stores may import from their own feature's `utils/` directory (e.g., `useAuthStore` imports `tokenUtils.ts` and `oidcUtils.ts`). Cross-feature store imports should be avoided.
 
 ### Directory Reference
 
@@ -118,7 +120,7 @@ ui/src/
 
 ### Layer Map
 
-Layers are listed bottom-up. Code may only import from layers **below** it.
+Layers are listed bottom-up. Code may only import from layers **below** it. The backend is not a strict linear stack—several justified cross-layer edges exist (documented below).
 
 ```
  ┌─────────────────────────────────────┐
@@ -157,6 +159,23 @@ Layers are listed bottom-up. Code may only import from layers **below** it.
 | Routers | Auth, Services, Models, Schemas, Database, Utils |
 | Main | All layers (wiring only) |
 
+### Known Cross-Layer Edges
+
+| Edge | Reason |
+|------|--------|
+| `models/models.py` → `database` | Models import `Base` for declarative ORM—unavoidable SQLAlchemy pattern |
+| `database/seed.py` → `auth` | Seed needs `get_password_hash` for default user passwords; runs on startup |
+| `main.py` → `auth/oidc_validator` | Lifespan imports the OIDC validator singleton for `close()` on shutdown |
+
+### Fat Routers, Thin Services
+
+Business logic currently lives in routers, not in a services layer:
+
+- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, background embedding generation, cosine similarity queries
+- **`routers/settings.py`**: filename sanitization, batched streaming export, password change with auth provider checks, cascading account deletion
+
+The `services/` package holds only embeddings, health checks, and the backfill CLI—not general business logic.
+
 ### Directory Reference
 
 ```
@@ -187,6 +206,10 @@ backend/app/
 ├── main.py                     # FastAPI app, lifespan, CORS, exception handlers
 ├── __main__.py                 # uvicorn entry point
 └── version.py                  # CalVer version info
+
+backend/
+├── tests/                      # Pytest: unit/ and integration/
+└── migrations/                 # Alembic schema migrations
 ```
 
 ### Dependency Injection
@@ -219,21 +242,29 @@ Backend: `get_current_user` dependency tries local JWT first, then OIDC. All end
 
 ### Error Handling
 
-Frontend: `handleError()` (`utils/errorHandler.ts`) normalizes all error types into `AppError` with a code and context. Used in stores, actions, and components.
+**Frontend** has two error types:
 
-Backend: `main.py` registers exception handlers that return structured JSON (`{status, detail, path}`) for HTTP and unhandled exceptions.
+| Type | Location | Purpose |
+|------|----------|---------|
+| `AppError` | `utils/errorHandler.ts` | General error normalization via `handleError()` |
+| `ApiError` | `services/api.ts` | API-specific errors with HTTP `status` and `data` |
+
+These are separate hierarchies—`ApiError` is not converted to `AppError`.
+
+**Backend**: `HTTPException` for expected errors. Custom handlers in `main.py` return structured JSON for unhandled exceptions.
 
 ### Markdown Processing
 
-Both domains implement the same markdown operations and must stay in sync:
+Both domains implement the same operations and must stay in sync:
 
-| Operation | Frontend | Backend |
-|-----------|----------|---------|
-| Extract title | `markdownService.extractTitle()` | `markdown_service.extract_title()` |
-| Remove H1 | `markdownService.removeH1()` | `markdown_service.remove_h1()` |
-| Format content | `markdownService.formatContent()` | `markdown_service.format_content()` |
+| Operation | Frontend (`utils/markdown.ts`) | Backend (`utils/markdown.py`) |
+|-----------|-------------------------------|-------------------------------|
+| Extract title | `extractTitle(content)` | `extract_title(content)` |
+| Remove first H1 | `removeH1(content)` | `remove_h1(content)` |
+| Format content | `formatContent(content)` | `format_content(content)` |
+| Create empty note | `createEmptyNote(title)` | `create_empty_note(title)` |
 
-The frontend `utils/markdown.ts` includes shared test cases (`markdownTestCases`) to verify parity.
+The frontend includes shared test cases (`markdownTestCases`) to verify parity.
 
 ### Embeddings & Similarity
 
@@ -255,6 +286,18 @@ Command Palette "For You"
 
 ---
 
+## Dependency Rules (Summary)
+
+1. **Import downward only.** Higher layers may import from any lower layer. Lower layers must not import from higher layers.
+2. **Minimize cross-feature imports.** Frontend features may import from sibling features, but keep these unidirectional.
+3. **Keep schemas/types pure.** Backend `schemas/` and frontend `types/` have zero internal dependencies.
+4. **Utils are leaf nodes.** Utility modules depend only on standard library, config constants, or external packages—never on services, stores, or features.
+5. **Stores may import feature-local utils.** A store within `features/X/store/` may import from `features/X/utils/`, but not from other features' internals.
+
+New cross-layer dependencies require explicit justification and must be documented in this file.
+
+---
+
 ## Data Flow
 
 ### Request Lifecycle
@@ -263,7 +306,7 @@ Command Palette "For You"
 User action (keyboard/click)
     → React component
     → Route action (useFetcher.submit) or store action
-    → services/api.ts (attaches Bearer token)
+    → services/api.ts (attaches Bearer token, auto-refresh on 401)
     → FastAPI router
     → Depends(get_current_user) + Depends(get_async_db)
     → SQLAlchemy async query
@@ -271,14 +314,32 @@ User action (keyboard/click)
     → Component re-renders via loader revalidation or store update
 ```
 
+Route loaders fetch data before render. Components access data via `useLoaderData()`. Mutations use route actions via `useFetcher().submit()`, which automatically revalidate affected loaders.
+
 ### State Management
 
 Three Zustand stores, each persisted to localStorage:
 
-| Store | Scope | Key State |
-|-------|-------|-----------|
-| `useAuthStore` | Auth | `token`, `refreshToken`, `user`, `isAuthenticated` |
-| `useUIStore` | Shell | `isPaletteOpen`, sort/filter/group prefs |
-| `useNotesUIStore` | Editor | `editedContent` (unsaved draft) |
+| Store | Persisted | Ephemeral |
+|-------|-----------|-----------|
+| `useAuthStore` | `isAuthenticated`, `user`, `token`, `refreshToken`, `tokenSource` | `error`, `oidcLogoutWarning` |
+| `useUIStore` | `notesSortBy`, `notesSortDirection`, `notesGroupByDate` | `isPaletteOpen`, `paletteSearchQuery`, `notesSearchQuery` |
+| `useNotesUIStore` | Nothing | `editedContent` |
 
-Route loaders (`router.tsx`) fetch server data; stores hold client-side UI state. This separation avoids duplicating server state in client stores.
+Route loaders fetch server data; stores hold client-side UI state. This separation avoids duplicating server state in client stores.
+
+---
+
+## Infrastructure
+
+```
+deploy/                       # Production deployment scripts
+docker-compose.dev.yml        # PostgreSQL only (local dev)
+docker-compose.yml            # Full stack (container testing)
+docker-compose.prod.yml       # Production (registry images)
+docker-compose.oidc-test.yml  # PostgreSQL + Authelia (OIDC testing)
+makefiles/                    # Modular make targets
+.forgejo/workflows/           # CI: test.yml (PR gate), deploy.yml (push to main)
+```
+
+CI runs on Forgejo (origin). Tests must pass before images build. Deploy is automated via k3s `kubectl rollout restart` on push to main.
