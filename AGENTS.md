@@ -261,7 +261,7 @@ markdownService.removeH1(content)       // Remove first H1 only
 ### Zustand Stores
 ```typescript
 useAuthStore   // Auth state, login/logout
-useNotesStore  // Notes CRUD, current note
+useNotesUIStore  // Editor draft content (ephemeral)
 useUIStore     // Command palette state, preferences
 ```
 
