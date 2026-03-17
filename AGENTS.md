@@ -114,6 +114,8 @@ git worktree remove .worktrees/feat/<short-description>
 | Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT Auth, PostgreSQL |
 | Deploy | Docker, Nginx, k3s, Forgejo CI |
 
+> **Architecture deep-dive:** See [`ARCHITECTURE.md`](ARCHITECTURE.md) for domain/layer maps, dependency rules, and cross-cutting concerns.
+
 ## Directory Structure
 
 ```
