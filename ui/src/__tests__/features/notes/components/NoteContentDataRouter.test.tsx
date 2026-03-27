@@ -389,20 +389,8 @@ describe('NoteContent with Data Router', () => {
       setupMocks({ noteId: 'non-existent' });
       renderComponent();
       expect(
-        screen.getByText('Select a note or create a new one')
+        screen.getByText('Select a note to view it')
       ).toBeInTheDocument();
-    });
-  });
-
-  describe('Create Note', () => {
-    it('submits create action when New Note clicked', () => {
-      setupMocks({ noteId: 'non-existent' });
-      renderComponent();
-      fireEvent.click(screen.getByText('New Note'));
-      expect(mockFetcherSubmit).toHaveBeenCalledWith(null, {
-        method: 'post',
-        action: '/notes',
-      });
     });
   });
 
