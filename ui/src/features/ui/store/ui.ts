@@ -18,7 +18,6 @@ export type UIState = {
     setNotesGroupByDate: (enabled: boolean) => void;
     openPalette: () => void;
     closePalette: () => void;
-    togglePalette: () => void;
     setPaletteSearchQuery: (query: string) => void;
   };
 };
@@ -64,15 +63,6 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
     });
   };
 
-  const togglePalette = () => {
-    set((state: UIState) => {
-      state.isPaletteOpen = !state.isPaletteOpen;
-      if (!state.isPaletteOpen) {
-        state.paletteSearchQuery = '';
-      }
-    });
-  };
-
   const setPaletteSearchQuery = (query: string) => {
     set((state: UIState) => {
       state.paletteSearchQuery = query;
@@ -86,7 +76,6 @@ const createActions = (set: (fn: (state: UIState) => void) => void) => {
     setNotesGroupByDate,
     openPalette,
     closePalette,
-    togglePalette,
     setPaletteSearchQuery,
   };
 };
