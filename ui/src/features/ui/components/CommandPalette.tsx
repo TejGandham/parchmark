@@ -3,6 +3,7 @@ import {
   useEffect,
   useState,
   useMemo,
+  useCallback,
   type MouseEvent,
   type MutableRefObject,
 } from 'react';
@@ -69,12 +70,12 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
 
   const [similarNotes, setSimilarNotes] = useState<SimilarNote[]>([]);
 
-  const setSearchInputRef = (node: HTMLInputElement | null) => {
+  const setSearchInputRef = useCallback((node: HTMLInputElement | null) => {
     searchInputRef.current = node;
     if (node) {
       node.focus();
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isPaletteOpen || !currentNoteId) {
@@ -122,6 +123,20 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     closePalette();
     trackNoteAccess(noteId);
   };
+
+  useEffect(() => {
+    if (!isPaletteOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePalette();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPaletteOpen, closePalette]);
 
   const handleBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) closePalette();
@@ -245,7 +260,7 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                     data-testid="zero-notes-state"
                   >
                     <Text color="text.muted" fontSize="sm">
-                      No notes yet
+                      No notes yet — use the + button above to create one
                     </Text>
                   </VStack>
                 )}

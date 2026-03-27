@@ -143,7 +143,9 @@ describe('NotesExplorer', () => {
   it('shows "No notes yet" empty state when notes array is empty', async () => {
     await renderExplorer([]);
     expect(screen.getByTestId('zero-notes-state')).toBeInTheDocument();
-    expect(screen.getByText('No notes yet')).toBeInTheDocument();
+    expect(
+      screen.getByText('No notes yet — use the + button above to create one')
+    ).toBeInTheDocument();
   });
 
   it('clicking a note card calls navigate with correct path', async () => {

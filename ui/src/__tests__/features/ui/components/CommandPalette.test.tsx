@@ -333,7 +333,9 @@ describe('CommandPalette', () => {
       openPalette();
       renderPalette([]);
       expect(screen.getByTestId('zero-notes-state')).toBeInTheDocument();
-      expect(screen.getByText('No notes yet')).toBeInTheDocument();
+      expect(
+        screen.getByText('No notes yet — use the + button above to create one')
+      ).toBeInTheDocument();
     });
 
     it('does not show RECENT section with zero notes', () => {

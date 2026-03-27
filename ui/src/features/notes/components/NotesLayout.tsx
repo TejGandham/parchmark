@@ -1,5 +1,5 @@
 // ui/src/features/notes/components/NotesLayout.tsx
-import { Outlet, useLoaderData, useParams } from 'react-router-dom';
+import { Outlet, useLoaderData, useParams, Link } from 'react-router-dom';
 import { Box, Flex } from '@chakra-ui/react';
 import Header from '../../ui/components/Header';
 import { CommandPalette } from '../../ui/components/CommandPalette';
@@ -12,6 +12,17 @@ export default function NotesLayout() {
 
   return (
     <Box minH="100vh" bg="bg.canvas" className="bg-texture">
+      <Link
+        to="#main-content"
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          zIndex: 9999,
+        }}
+      >
+        Skip to main content
+      </Link>
+
       <Flex h="100vh" flexDirection="column">
         <Header />
         <CommandPalette notes={notes} />

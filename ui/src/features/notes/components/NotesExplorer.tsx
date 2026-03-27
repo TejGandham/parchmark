@@ -37,7 +37,6 @@ function VirtualExplorerRow({
     <Box style={style} pb={2}>
       <ExplorerNoteCard
         note={note}
-        isActive={false}
         searchQuery={searchQuery || undefined}
         onSelect={onSelect}
       />
@@ -112,7 +111,6 @@ export default function NotesExplorer() {
             <ExplorerNoteCard
               key={`fy-${note.id}`}
               note={note}
-              isActive={false}
               onSelect={handleSelect}
             />
           ))}
@@ -142,7 +140,6 @@ export default function NotesExplorer() {
               <ExplorerNoteCard
                 key={note.id}
                 note={note}
-                isActive={false}
                 onSelect={handleSelect}
               />
             ))}
@@ -187,7 +184,6 @@ export default function NotesExplorer() {
               <ExplorerNoteCard
                 key={note.id}
                 note={note}
-                isActive={false}
                 searchQuery={notesSearchQuery}
                 onSelect={handleSelect}
               />
@@ -211,7 +207,7 @@ export default function NotesExplorer() {
     return (
       <VStack spacing={4} py={16} align="center" data-testid="zero-notes-state">
         <Text color="text.muted" fontSize="sm">
-          No notes yet
+          No notes yet — use the + button above to create one
         </Text>
       </VStack>
     );

@@ -11,13 +11,12 @@ import { highlightKeyword } from '../../ui/components/commandPaletteUtils';
 
 interface ExplorerNoteCardProps {
   note: Note;
-  isActive: boolean;
   searchQuery?: string;
   onSelect: (id: string) => void;
 }
 
 const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
-  ({ note, isActive, searchQuery, onSelect }) => {
+  ({ note, searchQuery, onSelect }) => {
     const handleSelect = useCallback(() => {
       onSelect(note.id);
     }, [onSelect, note.id]);
@@ -50,10 +49,10 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
         p={{ base: 3, md: 4 }}
         borderRadius="md"
         border="1px solid"
-        borderColor={isActive ? 'primary.300' : 'border.default'}
-        borderLeftWidth={isActive ? '3px' : '1px'}
-        borderLeftColor={isActive ? 'primary.600' : 'border.default'}
-        bg={isActive ? 'primary.50' : 'bg.surface'}
+        borderColor="border.default"
+        borderLeftWidth="1px"
+        borderLeftColor="border.default"
+        bg="bg.surface"
         shadow="xs"
         cursor="pointer"
         transition="all 0.2s"
@@ -112,7 +111,6 @@ const ExplorerNoteCard = React.memo<ExplorerNoteCardProps>(
     prevProps.note.content === nextProps.note.content &&
     prevProps.note.updatedAt === nextProps.note.updatedAt &&
     prevProps.note.createdAt === nextProps.note.createdAt &&
-    prevProps.isActive === nextProps.isActive &&
     prevProps.searchQuery === nextProps.searchQuery
 );
 
