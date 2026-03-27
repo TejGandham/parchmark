@@ -1,5 +1,5 @@
 # === Build Stage ===
-FROM node:23-alpine AS builder
+FROM node:24-alpine AS builder
 
 ARG GIT_SHA=dev
 ARG BUILD_DATE=unknown
