@@ -11,55 +11,10 @@ env:
 
 jobs:
   # ============================================================================
-  # JOB 1: RUN TESTS (gate before deploy)
-  # ============================================================================
-  test:
-    runs-on: ubuntu-latest
-    name: Run Tests
-    env:
-      DOCKER_HOST: tcp://localhost:2375
-      TESTCONTAINERS_RYUK_DISABLED: "true"
-
-    steps:
-      - name: Checkout code
-        uses: https://code.forgejo.org/actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: https://code.forgejo.org/actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-          cache-dependency-path: ui/package-lock.json
-
-      - name: Install uv
-        uses: https://github.com/astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: "backend/pyproject.toml"
-
-      - name: Setup Python
-        run: |
-          cd backend
-          uv python install 3.13
-          uv python pin 3.13
-
-      - name: Install dependencies
-        run: make install-all
-
-      - name: Run all tests
-        run: |
-          make test-ui-lint
-          make test-ui-test
-          make test-backend-lint
-          make test-backend-format
-          make test-backend-types
-          make test-backend-pytest-limited
-
-  # ============================================================================
-  # JOB 2: BUILD AND PUSH BACKEND IMAGE
+  # JOB 1: BUILD AND PUSH BACKEND IMAGE
+  # Tests are handled by test.yml (runs on same push event)
   # ============================================================================
   build-backend:
-    needs: [test]
     runs-on: ubuntu-latest
     name: Build Backend Image
     env:
@@ -85,10 +40,9 @@ jobs:
           docker push --all-tags ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend
 
   # ============================================================================
-  # JOB 3: BUILD AND PUSH FRONTEND IMAGE
+  # JOB 2: BUILD AND PUSH FRONTEND IMAGE
   # ============================================================================
   build-frontend:
-    needs: [test]
     runs-on: ubuntu-latest
     name: Build Frontend Image
     env:
@@ -114,7 +68,7 @@ jobs:
           docker push --all-tags ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend
 
   # ============================================================================
-  # JOB 4: DEPLOY TO K3S
+  # JOB 3: DEPLOY TO K3S
   # ============================================================================
   deploy:
     needs: [build-backend, build-frontend]
