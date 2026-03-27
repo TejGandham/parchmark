@@ -1,22 +1,56 @@
+import { useRef, useCallback, useEffect } from 'react';
 import {
   Flex,
   HStack,
   Heading,
   IconButton,
   Image,
-  Button,
+  Tooltip,
 } from '@chakra-ui/react';
-import { SearchIcon } from '@chakra-ui/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTableList, faGear } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate } from 'react-router-dom';
+import {
+  faPlus,
+  faMagnifyingGlass,
+  faGear,
+} from '@fortawesome/free-solid-svg-icons';
+import { useNavigate, useFetcher } from 'react-router-dom';
 import { UserLoginStatus } from '../../auth/components';
 import { useUIStore } from '../store/ui';
 import Logo from '../../../../assets/images/parchmark.svg';
 
+const ICON_BUTTON_PROPS = {
+  variant: 'ghost' as const,
+  colorScheme: 'primary' as const,
+  size: 'md' as const,
+  fontSize: 'lg' as const,
+  _hover: { bg: 'primary.50' },
+};
+
 const Header = () => {
   const navigate = useNavigate();
   const openPalette = useUIStore((s) => s.actions.openPalette);
+  const fetcher = useFetcher<{ id: string; title: string }>();
+  const createInitiatedRef = useRef(false);
+
+  const handleCreate = useCallback(() => {
+    if (fetcher.state !== 'idle') return;
+    createInitiatedRef.current = true;
+    fetcher.submit(
+      { content: '# New Note\n\n', title: 'New Note' },
+      { method: 'post', action: '/notes' }
+    );
+  }, [fetcher]);
+
+  useEffect(() => {
+    if (
+      createInitiatedRef.current &&
+      fetcher.state === 'idle' &&
+      fetcher.data?.id
+    ) {
+      createInitiatedRef.current = false;
+      navigate(`/notes/${fetcher.data.id}?editing=true`);
+    }
+  }, [fetcher.state, fetcher.data, navigate]);
 
   return (
     <Flex
@@ -35,42 +69,35 @@ const Header = () => {
         </Heading>
       </HStack>
 
-      <Button
-        onClick={openPalette}
-        variant="ghost"
-        size="sm"
-        leftIcon={<SearchIcon />}
-        color="text.muted"
-        fontWeight="normal"
-        px={4}
-        borderRadius="md"
-        border="1px solid"
-        borderColor="border.default"
-        _hover={{ bg: 'bg.subtle', borderColor: 'primary.200' }}
-        data-testid="palette-trigger"
-      >
-        Search notes…
-      </Button>
-
-      <HStack spacing={3}>
-        <IconButton
-          aria-label="Browse all notes"
-          icon={<FontAwesomeIcon icon={faTableList} />}
-          onClick={() => navigate('/notes/explore')}
-          variant="ghost"
-          colorScheme="primary"
-          fontSize="lg"
-          data-testid="explorer-link"
-        />
-        <IconButton
-          aria-label="Settings"
-          icon={<FontAwesomeIcon icon={faGear} />}
-          onClick={() => navigate('/settings')}
-          variant="ghost"
-          colorScheme="primary"
-          fontSize="lg"
-          _hover={{ bg: 'bg.subtle' }}
-        />
+      <HStack spacing={2}>
+        <Tooltip label="New note" placement="bottom">
+          <IconButton
+            aria-label="New note"
+            icon={<FontAwesomeIcon icon={faPlus} />}
+            onClick={handleCreate}
+            isLoading={fetcher.state !== 'idle'}
+            data-testid="header-create-btn"
+            {...ICON_BUTTON_PROPS}
+          />
+        </Tooltip>
+        <Tooltip label="Search notes" placement="bottom">
+          <IconButton
+            aria-label="Search notes"
+            icon={<FontAwesomeIcon icon={faMagnifyingGlass} />}
+            onClick={openPalette}
+            data-testid="palette-trigger"
+            {...ICON_BUTTON_PROPS}
+          />
+        </Tooltip>
+        <Tooltip label="Settings" placement="bottom">
+          <IconButton
+            aria-label="Settings"
+            icon={<FontAwesomeIcon icon={faGear} />}
+            onClick={() => navigate('/settings')}
+            data-testid="header-settings-btn"
+            {...ICON_BUTTON_PROPS}
+          />
+        </Tooltip>
         <UserLoginStatus />
       </HStack>
     </Flex>
