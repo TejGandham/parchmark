@@ -226,9 +226,7 @@ export default function NotesExplorer() {
       data-testid="notes-explorer"
     >
       <Box px={{ base: 4, md: 6 }} pt={4} pb={2}>
-        <ExplorerToolbar
-          totalNotes={notes.length}
-        />
+        <ExplorerToolbar totalNotes={notes.length} />
       </Box>
 
       <Box flex="1" overflowY="auto" px={{ base: 4, md: 6 }} pb={4}>

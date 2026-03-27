@@ -29,9 +29,7 @@ const SORT_OPTIONS: SortOption[] = [
   'createdDate',
 ];
 
-export function ExplorerToolbar({
-  totalNotes,
-}: ExplorerToolbarProps) {
+export function ExplorerToolbar({ totalNotes }: ExplorerToolbarProps) {
   const notesSortBy = useUIStore((s) => s.notesSortBy);
   const notesSortDirection = useUIStore((s) => s.notesSortDirection);
   const notesSearchQuery = useUIStore((s) => s.notesSearchQuery);

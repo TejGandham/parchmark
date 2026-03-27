@@ -6,19 +6,9 @@ import {
   type MouseEvent,
   type MutableRefObject,
 } from 'react';
-import {
-  Portal,
-  Box,
-  Input,
-  Text,
-  VStack,
-  HStack,
-} from '@chakra-ui/react';
+import { Portal, Box, Input, Text, VStack, HStack } from '@chakra-ui/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  useNavigate,
-  useParams,
-} from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useUIStore } from '../store/ui';
 import { Note, SimilarNote } from '../../../types';
 import { filterNotes, sortNotes } from '../../../utils/dateGrouping';
@@ -54,12 +44,7 @@ function PaletteNoteItem({
       spacing={3}
       data-testid="palette-note-item"
     >
-      <Text
-        fontSize="sm"
-        noOfLines={1}
-        flex={1}
-        color="text.primary"
-      >
+      <Text fontSize="sm" noOfLines={1} flex={1} color="text.primary">
         {searchQuery ? highlightKeyword(note.title, searchQuery) : note.title}
       </Text>
       <Text fontSize="xs" color="text.muted" flexShrink={0}>

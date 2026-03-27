@@ -388,9 +388,7 @@ describe('NoteContent with Data Router', () => {
     it('shows empty state when note not found', () => {
       setupMocks({ noteId: 'non-existent' });
       renderComponent();
-      expect(
-        screen.getByText('Select a note to view it')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Select a note to view it')).toBeInTheDocument();
     });
   });
 
