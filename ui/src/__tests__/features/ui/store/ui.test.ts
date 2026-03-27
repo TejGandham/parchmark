@@ -30,7 +30,6 @@ describe('UI Store', () => {
     expect(typeof state.actions.setNotesGroupByDate).toBe('function');
     expect(typeof state.actions.openPalette).toBe('function');
     expect(typeof state.actions.closePalette).toBe('function');
-    expect(typeof state.actions.togglePalette).toBe('function');
     expect(typeof state.actions.setPaletteSearchQuery).toBe('function');
   });
 
@@ -286,34 +285,6 @@ describe('UI Store', () => {
         useUIStore.getState().actions.closePalette();
       });
 
-      expect(useUIStore.getState().paletteSearchQuery).toBe('');
-    });
-  });
-
-  describe('togglePalette', () => {
-    it('should toggle palette from closed to open', () => {
-      expect(useUIStore.getState().isPaletteOpen).toBe(false);
-
-      act(() => {
-        useUIStore.getState().actions.togglePalette();
-      });
-
-      expect(useUIStore.getState().isPaletteOpen).toBe(true);
-    });
-
-    it('should toggle palette from open to closed and clear query', () => {
-      act(() => {
-        useUIStore.setState({
-          isPaletteOpen: true,
-          paletteSearchQuery: 'test',
-        });
-      });
-
-      act(() => {
-        useUIStore.getState().actions.togglePalette();
-      });
-
-      expect(useUIStore.getState().isPaletteOpen).toBe(false);
       expect(useUIStore.getState().paletteSearchQuery).toBe('');
     });
   });

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-server-postgres",
+        "postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db"
+      ]
+    }
+  }
+}

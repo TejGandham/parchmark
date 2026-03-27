@@ -13,7 +13,6 @@ import {
   Button,
   Heading,
   Textarea,
-  Icon,
   Skeleton,
   SkeletonText,
   AlertDialog,
@@ -24,7 +23,6 @@ import {
   AlertDialogOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import { AddIcon } from '@chakra-ui/icons';
 import { Note } from '../../../types';
 import {
   extractTitleFromMarkdown,
@@ -124,10 +122,6 @@ const NoteContent = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isEditing, cancelEditing]);
 
-  const createNewNote = () => {
-    fetcher.submit(null, { method: 'post', action: '/notes' });
-  };
-
   const confirmDelete = () => {
     if (!noteId) return;
     fetcher.submit(null, {
@@ -202,16 +196,8 @@ const NoteContent = () => {
     return (
       <VStack spacing={4} align="center" justify="center" h="100%" px={8}>
         <Text fontSize="md" color="text.muted">
-          Select a note or create a new one
+          Select a note to view it
         </Text>
-        <Button
-          size="md"
-          colorScheme="primary"
-          leftIcon={<Icon as={AddIcon} />}
-          onClick={createNewNote}
-        >
-          New Note
-        </Button>
       </VStack>
     );
   }

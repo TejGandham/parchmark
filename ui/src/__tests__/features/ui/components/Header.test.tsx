@@ -13,6 +13,11 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+    useFetcher: () => ({
+      state: 'idle',
+      data: null,
+      submit: vi.fn(),
+    }),
   };
 });
 
@@ -63,18 +68,27 @@ describe('Header Component', () => {
     expect(screen.getByAltText(/ParchMark Logo/i)).toBeInTheDocument();
   });
 
-  it('should render palette trigger button', () => {
+  it('should render create button', () => {
+    renderWithProviders(<Header />);
+    const createBtn = screen.getByTestId('header-create-btn');
+    expect(createBtn).toBeInTheDocument();
+    expect(createBtn).toHaveAttribute('aria-label', 'New note');
+  });
+
+  it('should render search button that opens palette', () => {
     renderWithProviders(<Header />);
     const trigger = screen.getByTestId('palette-trigger');
     expect(trigger).toBeInTheDocument();
-    expect(trigger).toHaveTextContent(/Search notes…/);
-  });
-
-  it('should call openPalette when palette trigger is clicked', () => {
-    renderWithProviders(<Header />);
-    const trigger = screen.getByTestId('palette-trigger');
     fireEvent.click(trigger);
     expect(mockOpenPalette).toHaveBeenCalledTimes(1);
+  });
+
+  it('should render settings button that navigates to /settings', () => {
+    renderWithProviders(<Header />);
+    const settingsBtn = screen.getByTestId('header-settings-btn');
+    expect(settingsBtn).toBeInTheDocument();
+    fireEvent.click(settingsBtn);
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
   });
 
   it('should render as a header element with correct structure', () => {
@@ -86,11 +100,6 @@ describe('Header Component', () => {
     expect(
       screen.getByRole('region', { name: 'User authentication status' })
     ).toBeInTheDocument();
-  });
-
-  it('should not have a sidebar toggle button', () => {
-    renderWithProviders(<Header />);
-    expect(screen.queryByLabelText(/toggle sidebar/i)).not.toBeInTheDocument();
   });
 
   it('should render UserLoginStatus component', () => {
@@ -120,16 +129,13 @@ describe('Header Component', () => {
     expect(userButton).toBeInTheDocument();
   });
 
-  it('should render explorer link button', () => {
+  it('should not have explorer link button', () => {
     renderWithProviders(<Header />);
-    const explorerLink = screen.getByTestId('explorer-link');
-    expect(explorerLink).toBeInTheDocument();
+    expect(screen.queryByTestId('explorer-link')).not.toBeInTheDocument();
   });
 
-  it('should navigate to /notes/explore when explorer button is clicked', () => {
+  it('should not have a sidebar toggle button', () => {
     renderWithProviders(<Header />);
-    const explorerLink = screen.getByTestId('explorer-link');
-    fireEvent.click(explorerLink);
-    expect(mockNavigate).toHaveBeenCalledWith('/notes/explore');
+    expect(screen.queryByLabelText(/toggle sidebar/i)).not.toBeInTheDocument();
   });
 });

@@ -48,15 +48,7 @@ bd list --status=in_progress
 
 If beads is unavailable, skip this step.
 
-### 4. Sync beads
-
-```bash
-bd sync
-```
-
-This is mandatory before committing. If it fails, warn but proceed.
-
-### 5. Commit and push
+### 4. Commit and push
 
 ```bash
 # Stage relevant files
@@ -79,7 +71,7 @@ git push -u origin <branch-name>
 - Auth failure → ask user to resolve
 - Other → diagnose and report
 
-### 6. Verify remote state
+### 5. Verify remote state
 
 ```bash
 git status
@@ -87,7 +79,7 @@ git status
 
 Output **must** show "Your branch is up to date with" the remote. If not, diagnose and fix.
 
-### 7. Hand off
+### 6. Hand off
 
 Print summary:
 - **Branch:** current branch name
@@ -101,6 +93,5 @@ Print summary:
 |-|-|
 | `make test` fails | Fix before proceeding, never skip |
 | `git push` fails | Diagnose (diverged? auth?), resolve, retry |
-| `bd sync` fails | Warn, proceed with manual note |
 | No changes to commit | Skip commit, still verify and hand off |
-| Beads server not running | Skip beads steps (sync, close), note in handoff |
+| Beads server unreachable | Verify Tailscale is up, skip beads steps if still down, note in handoff |

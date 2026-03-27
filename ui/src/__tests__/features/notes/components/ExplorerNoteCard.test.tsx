@@ -37,7 +37,6 @@ describe('ExplorerNoteCard', () => {
       <ChakraProvider>
         <ExplorerNoteCard
           note={defaultNote}
-          isActive={false}
           onSelect={defaultOnSelect}
           {...props}
         />
@@ -89,13 +88,6 @@ describe('ExplorerNoteCard', () => {
     const card = screen.getByTestId('explorer-note-card');
     fireEvent.keyDown(card, { key: 'Enter' });
     expect(defaultOnSelect).toHaveBeenCalledWith('note-1');
-  });
-
-  it('applies active styling when isActive=true', () => {
-    renderCard({ isActive: true });
-    const card = screen.getByTestId('explorer-note-card');
-    expect(card.getAttribute('data-testid')).toBe('explorer-note-card');
-    expect(card).toBeInTheDocument();
   });
 
   it('highlights search keywords when searchQuery provided', () => {
