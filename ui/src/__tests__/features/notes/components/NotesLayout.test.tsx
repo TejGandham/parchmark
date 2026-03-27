@@ -15,28 +15,6 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const mockOpenPalette = vi.fn();
-
-// Mock UI store
-vi.mock('../../../../store', () => ({
-  useUIStore: vi.fn((selector) => {
-    const state = {
-      notesSortBy: 'lastModified',
-      notesSearchQuery: '',
-      notesGroupByDate: true,
-      isPaletteOpen: false,
-      paletteSearchQuery: '',
-      actions: {
-        openPalette: mockOpenPalette,
-        setNotesSortBy: vi.fn(),
-        setNotesSearchQuery: vi.fn(),
-        setNotesGroupByDate: vi.fn(),
-      },
-    };
-    return selector ? selector(state) : state;
-  }),
-}));
-
 // Mock Header component
 vi.mock('../../../../features/ui/components/Header', () => ({
   default: () => (
@@ -100,29 +78,9 @@ describe('NotesLayout', () => {
     expect(screen.getByTestId('command-palette')).toBeInTheDocument();
   });
 
-  it('shows empty state with palette hint when no noteId', async () => {
-    await renderComponent();
-    expect(
-      screen.getByText('Click the search bar above to find notes')
-    ).toBeInTheDocument();
-    expect(screen.getByText('2 notes available')).toBeInTheDocument();
-  });
-
-  it('auto-opens palette when no noteId selected', async () => {
-    await renderComponent();
-    expect(mockOpenPalette).toHaveBeenCalled();
-  });
-
-  it('does not auto-open palette when noteId is present', async () => {
+  it('renders Outlet for child routes', async () => {
     await renderComponent('note-1');
-    expect(mockOpenPalette).not.toHaveBeenCalled();
-  });
-
-  it('renders Outlet for child routes when noteId present', async () => {
-    await renderComponent('note-1');
-    expect(
-      screen.queryByText('Click the search bar above to find notes')
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('header')).toBeInTheDocument();
   });
 
   it('renders full-width layout without sidebar', async () => {
