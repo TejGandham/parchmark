@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "filepath=\"$CLAUDE_FILE_PATH\"; if [ -z \"$filepath\" ]; then exit 0; fi; case \"$filepath\" in *.py) cd /Users/tej/src/parchmark/backend && uv run ruff format \"$filepath\" 2>/dev/null && uv run ruff check --fix \"$filepath\" 2>/dev/null ;; *.ts|*.tsx) cd /Users/tej/src/parchmark/ui && npx prettier --write \"$filepath\" 2>/dev/null ;; esac; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "filepath=\"$CLAUDE_FILE_PATH\"; if [ -z \"$filepath\" ]; then exit 0; fi; case \"$filepath\" in */markdown.ts|*/markdown.py) echo '⚠️  Markdown util changed — run /parchmark-markdown-sync to verify frontend/backend parity' ;; esac; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

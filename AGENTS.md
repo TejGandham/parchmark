@@ -304,6 +304,10 @@ fireEvent.submit(form);                      // Use submit, not click
 - Fixtures: `client`, `sample_user`, `auth_headers`
 - 90% coverage enforced
 
+### Coverage Requirements
+- Backend: 90% minimum (enforced in pytest config)
+- Frontend: 90% minimum
+
 ## Code Style
 
 ### TypeScript
@@ -416,6 +420,10 @@ Custom skills in `.claude/skills/` automate common workflows:
 5. Use type-safe constants from `config/`
 6. Use `markdownService` for all markdown operations
 7. Never commit `.env` files with secrets
+
+## Assumptions
+
+Run `/common-ground --check` to validate project assumptions tracked in `~/.claude/common-ground/`.
 
 ## Session Completion
 
@@ -578,5 +586,5 @@ Productive knowledge workers and personal researchers who want a fast, private, 
 1. **Content is king** — The user's writing is the interface. UI elements recede; text takes center stage.
 2. **Speed over spectacle** — Perceived and actual performance matter more than visual polish. Never add decoration that slows things down.
 3. **Quiet confidence** — Design choices should feel deliberate but not showy. The burgundy accent, the serif headings — each detail earns its place.
-4. **Keyboard-first** — The command palette is the primary navigation. Design for keyboard users first, mouse second.
+4. **Click-first, scan-friendly** — Design for visual scanning and direct manipulation. The notes list is home base; search is a quick-jump tool, not the front door.
 5. **Reduce, don't add** — When in doubt, remove. Fewer elements, fewer colors, fewer borders. Let whitespace do the work.
