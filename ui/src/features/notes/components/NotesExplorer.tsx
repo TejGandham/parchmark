@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, VStack, Button } from '@chakra-ui/react';
-import { useNavigate, useRouteLoaderData, useFetcher } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { Box, Text, VStack } from '@chakra-ui/react';
+import { useNavigate, useRouteLoaderData } from 'react-router-dom';
 import { List, type RowComponentProps } from 'react-window';
 import { useUIStore } from '../../../store';
 import { Note } from '../../../types';
@@ -21,7 +21,6 @@ const EXPLORER_VIRTUAL_HEIGHT = 600;
 
 interface VirtualRowData {
   notes: Note[];
-  activeIndex: number;
   searchQuery: string;
   onSelect: (id: string) => void;
 }
@@ -30,7 +29,6 @@ function VirtualExplorerRow({
   index,
   style,
   notes,
-  activeIndex,
   searchQuery,
   onSelect,
 }: RowComponentProps<VirtualRowData>) {
@@ -39,7 +37,7 @@ function VirtualExplorerRow({
     <Box style={style} pb={2}>
       <ExplorerNoteCard
         note={note}
-        isActive={index === activeIndex}
+        isActive={false}
         searchQuery={searchQuery || undefined}
         onSelect={onSelect}
       />
@@ -50,15 +48,10 @@ function VirtualExplorerRow({
 export default function NotesExplorer() {
   const { notes } = useRouteLoaderData('notes-layout') as { notes: Note[] };
   const navigate = useNavigate();
-  const fetcher = useFetcher<{ id: string; title: string }>();
-  const createInitiatedRef = useRef(false);
 
   const notesSortBy = useUIStore((s) => s.notesSortBy);
   const notesSortDirection = useUIStore((s) => s.notesSortDirection);
   const notesSearchQuery = useUIStore((s) => s.notesSearchQuery);
-  const setNotesSearchQuery = useUIStore((s) => s.actions.setNotesSearchQuery);
-
-  const [activeIndex, setActiveIndex] = useState(-1);
 
   const filteredNotes = useMemo(
     () => filterNotes(notes, notesSearchQuery),
@@ -81,8 +74,6 @@ export default function NotesExplorer() {
   );
 
   const isSearching = notesSearchQuery.length > 0;
-  const isCreating = fetcher.state !== 'idle';
-  const canCreate = notesSearchQuery.length >= 4;
 
   const visibleNotes = useMemo(() => {
     if (isSearching) return filteredNotes;
@@ -93,10 +84,6 @@ export default function NotesExplorer() {
 
   const useVirtualScroll = visibleNotes.length > VIRTUALIZATION_THRESHOLD;
 
-  useEffect(() => {
-    setActiveIndex(-1);
-  }, [notesSearchQuery]);
-
   const handleSelect = useCallback(
     (noteId: string) => {
       trackNoteAccess(noteId).catch(() => {});
@@ -104,71 +91,6 @@ export default function NotesExplorer() {
     },
     [navigate]
   );
-
-  // CRITICAL: title field required — without it createNoteAction returns redirect instead of { id, title }
-  const handleCreate = useCallback(
-    (title?: string) => {
-      if (isCreating) return;
-      const noteTitle = title || 'New Note';
-      createInitiatedRef.current = true;
-      fetcher.submit(
-        { content: `# ${noteTitle}\n\n`, title: noteTitle },
-        { method: 'post', action: '/notes' }
-      );
-    },
-    [fetcher, isCreating]
-  );
-
-  useEffect(() => {
-    if (
-      createInitiatedRef.current &&
-      fetcher.state === 'idle' &&
-      fetcher.data?.id
-    ) {
-      createInitiatedRef.current = false;
-      navigate(`/notes/${fetcher.data.id}?editing=true`);
-    }
-  }, [fetcher.state, fetcher.data, navigate]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setActiveIndex((prev) => Math.min(prev + 1, visibleNotes.length - 1));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActiveIndex((prev) => Math.max(prev - 1, 0));
-      } else if (
-        e.key === 'Enter' &&
-        activeIndex >= 0 &&
-        visibleNotes[activeIndex]
-      ) {
-        e.preventDefault();
-        handleSelect(visibleNotes[activeIndex].id);
-      } else if (e.key === 'Escape') {
-        if (isSearching) {
-          setNotesSearchQuery('');
-        } else {
-          navigate('/notes');
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    activeIndex,
-    visibleNotes,
-    handleSelect,
-    isSearching,
-    setNotesSearchQuery,
-    navigate,
-  ]);
 
   const renderForYouSection = () => {
     if (isSearching || forYouNotes.length === 0) return null;
@@ -186,11 +108,11 @@ export default function NotesExplorer() {
           FOR YOU
         </Text>
         <VStack spacing={2} align="stretch">
-          {forYouNotes.map((note, idx) => (
+          {forYouNotes.map((note) => (
             <ExplorerNoteCard
               key={`fy-${note.id}`}
               note={note}
-              isActive={idx === activeIndex}
+              isActive={false}
               onSelect={handleSelect}
             />
           ))}
@@ -202,12 +124,7 @@ export default function NotesExplorer() {
   const renderDateGroups = () => {
     if (isSearching) return null;
 
-    const forYouOffset = forYouNotes.length > 0 ? forYouNotes.length : 0;
-    let runningIdx = forYouOffset;
-
     return allNotesGrouped.map((group) => {
-      const startIdx = runningIdx;
-      runningIdx += group.notes.length;
       return (
         <Box key={group.group}>
           <Text
@@ -221,11 +138,11 @@ export default function NotesExplorer() {
             {group.group} &middot; {group.notes.length}
           </Text>
           <VStack spacing={2} align="stretch">
-            {group.notes.map((note, noteIdx) => (
+            {group.notes.map((note) => (
               <ExplorerNoteCard
                 key={note.id}
                 note={note}
-                isActive={startIdx + noteIdx === activeIndex}
+                isActive={false}
                 onSelect={handleSelect}
               />
             ))}
@@ -259,7 +176,6 @@ export default function NotesExplorer() {
             rowComponent={VirtualExplorerRow}
             rowProps={{
               notes: filteredNotes,
-              activeIndex,
               searchQuery: notesSearchQuery,
               onSelect: handleSelect,
             }}
@@ -267,11 +183,11 @@ export default function NotesExplorer() {
           />
         ) : (
           <VStack spacing={2} align="stretch">
-            {filteredNotes.map((note, idx) => (
+            {filteredNotes.map((note) => (
               <ExplorerNoteCard
                 key={note.id}
                 note={note}
-                isActive={idx === activeIndex}
+                isActive={false}
                 searchQuery={notesSearchQuery}
                 onSelect={handleSelect}
               />
@@ -284,18 +200,6 @@ export default function NotesExplorer() {
             <Text color="text.muted" fontSize="sm" data-testid="no-notes-found">
               No notes found
             </Text>
-            {canCreate && (
-              <Button
-                size="sm"
-                colorScheme="primary"
-                variant="outline"
-                isLoading={isCreating}
-                onClick={() => handleCreate(notesSearchQuery)}
-                data-testid="create-from-search"
-              >
-                Create &ldquo;{notesSearchQuery}&rdquo;
-              </Button>
-            )}
           </VStack>
         )}
       </Box>
@@ -309,15 +213,6 @@ export default function NotesExplorer() {
         <Text color="text.muted" fontSize="sm">
           No notes yet
         </Text>
-        <Button
-          size="sm"
-          colorScheme="primary"
-          isLoading={isCreating}
-          onClick={() => handleCreate('New Note')}
-          data-testid="create-first-note-btn"
-        >
-          + Create your first note
-        </Button>
       </VStack>
     );
   };
@@ -333,8 +228,6 @@ export default function NotesExplorer() {
       <Box px={{ base: 4, md: 6 }} pt={4} pb={2}>
         <ExplorerToolbar
           totalNotes={notes.length}
-          onCreateNote={() => handleCreate()}
-          isCreating={isCreating}
         />
       </Box>
 
@@ -349,17 +242,6 @@ export default function NotesExplorer() {
             {renderDateGroups()}
           </VStack>
         )}
-      </Box>
-
-      <Box
-        px={{ base: 4, md: 6 }}
-        py={2}
-        borderTopWidth="1px"
-        borderColor="border.default"
-      >
-        <Text fontSize="xs" color="text.muted">
-          ↑↓ navigate · Enter open · / search · Esc back
-        </Text>
       </Box>
     </Box>
   );

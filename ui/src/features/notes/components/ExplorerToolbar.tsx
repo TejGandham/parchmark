@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -9,14 +9,12 @@ import {
   InputLeftElement,
   Text,
 } from '@chakra-ui/react';
-import { AddIcon, SearchIcon } from '@chakra-ui/icons';
+import { SearchIcon } from '@chakra-ui/icons';
 import { useUIStore } from '../../../store';
 import { type SortOption } from '../../../utils/dateGrouping';
 
 interface ExplorerToolbarProps {
   totalNotes: number;
-  onCreateNote: () => void;
-  isCreating: boolean;
 }
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -33,8 +31,6 @@ const SORT_OPTIONS: SortOption[] = [
 
 export function ExplorerToolbar({
   totalNotes,
-  onCreateNote,
-  isCreating,
 }: ExplorerToolbarProps) {
   const notesSortBy = useUIStore((s) => s.notesSortBy);
   const notesSortDirection = useUIStore((s) => s.notesSortDirection);
@@ -69,19 +65,6 @@ export function ExplorerToolbar({
     setNotesSortBy(SORT_OPTIONS[(currentIdx + 1) % SORT_OPTIONS.length]);
   }, [notesSortBy, setNotesSortBy]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      if (e.key === '/') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   return (
     <Box>
       <Flex
@@ -98,7 +81,7 @@ export function ExplorerToolbar({
             value={notesSearchQuery}
             onChange={handleSearchChange}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search notes…"
+            placeholder="Filter notes..."
             size="md"
             data-testid="explorer-search"
           />
@@ -124,16 +107,6 @@ export function ExplorerToolbar({
             data-testid="explorer-sort-dir"
           >
             {notesSortDirection === 'desc' ? '↓' : '↑'}
-          </Button>
-          <Button
-            size="sm"
-            colorScheme="primary"
-            leftIcon={<AddIcon />}
-            isLoading={isCreating}
-            onClick={onCreateNote}
-            data-testid="explorer-create-btn"
-          >
-            New Note
           </Button>
         </HStack>
       </Flex>

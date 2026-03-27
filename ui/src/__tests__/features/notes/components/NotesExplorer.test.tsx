@@ -8,9 +8,6 @@ import { Note } from '../../../../types';
 import { useUIStore } from '../../../../features/ui/store/ui';
 
 const mockNavigate = vi.fn();
-const mockFetcherSubmit = vi.fn();
-const mockFetcherState = vi.fn().mockReturnValue('idle');
-const mockFetcherData = vi.fn().mockReturnValue(undefined);
 const mockRouteLoaderData = vi.fn();
 
 vi.mock('react-router-dom', async () => {
@@ -19,15 +16,6 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => mockNavigate,
     useRouteLoaderData: (...args: unknown[]) => mockRouteLoaderData(...args),
-    useFetcher: () => ({
-      submit: mockFetcherSubmit,
-      get state() {
-        return mockFetcherState();
-      },
-      get data() {
-        return mockFetcherData();
-      },
-    }),
   };
 });
 
@@ -88,8 +76,6 @@ async function renderExplorer(notes: Note[] = sampleNotes) {
 describe('NotesExplorer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetcherState.mockReturnValue('idle');
-    mockFetcherData.mockReturnValue(undefined);
     act(() => {
       useUIStore.setState({
         notesSortBy: 'lastModified',
@@ -154,14 +140,6 @@ describe('NotesExplorer', () => {
     );
   });
 
-  it('shows Create button when search >= 4 chars and no results', async () => {
-    act(() => {
-      useUIStore.getState().actions.setNotesSearchQuery('zzzznonexistent');
-    });
-    await renderExplorer();
-    expect(screen.getByTestId('create-from-search')).toBeInTheDocument();
-  });
-
   it('shows "No notes yet" empty state when notes array is empty', async () => {
     await renderExplorer([]);
     expect(screen.getByTestId('zero-notes-state')).toBeInTheDocument();
@@ -175,43 +153,6 @@ describe('NotesExplorer', () => {
     expect(mockNavigate).toHaveBeenCalledWith(
       expect.stringMatching(/^\/notes\//)
     );
-  });
-
-  it('ArrowDown key increments active index', async () => {
-    await renderExplorer();
-    fireEvent.keyDown(window, { key: 'ArrowDown' });
-    fireEvent.keyDown(window, { key: 'ArrowDown' });
-    fireEvent.keyDown(window, { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalled();
-  });
-
-  it('Enter key on active card navigates to note', async () => {
-    await renderExplorer();
-    fireEvent.keyDown(window, { key: 'ArrowDown' });
-    fireEvent.keyDown(window, { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/notes\//)
-    );
-  });
-
-  it('Escape key clears search when searching', async () => {
-    act(() => {
-      useUIStore.getState().actions.setNotesSearchQuery('test');
-    });
-    await renderExplorer();
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(useUIStore.getState().notesSearchQuery).toBe('');
-  });
-
-  it('Escape key navigates to /notes when not searching', async () => {
-    await renderExplorer();
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(mockNavigate).toHaveBeenCalledWith('/notes');
-  });
-
-  it('keyboard hints footer is visible', async () => {
-    await renderExplorer();
-    expect(screen.getByText(/↑↓ navigate/)).toBeInTheDocument();
   });
 
   it('hides FOR YOU section when searching', async () => {
@@ -230,25 +171,6 @@ describe('NotesExplorer', () => {
   it('renders explorer toolbar', async () => {
     await renderExplorer();
     expect(screen.getByTestId('explorer-search')).toBeInTheDocument();
-    expect(screen.getByTestId('explorer-create-btn')).toBeInTheDocument();
-  });
-
-  it('create first note button works in empty state', async () => {
-    await renderExplorer([]);
-    const createBtn = screen.getByTestId('create-first-note-btn');
-    fireEvent.click(createBtn);
-    expect(mockFetcherSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'New Note' }),
-      expect.objectContaining({ method: 'post', action: '/notes' })
-    );
-  });
-
-  it('does not create from search when query < 4 chars', async () => {
-    act(() => {
-      useUIStore.getState().actions.setNotesSearchQuery('zz');
-    });
-    await renderExplorer();
-    expect(screen.queryByTestId('create-from-search')).not.toBeInTheDocument();
   });
 
   it('typing in search input updates store and shows in input', async () => {

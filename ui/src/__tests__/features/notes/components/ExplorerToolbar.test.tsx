@@ -8,8 +8,6 @@ import { useUIStore } from '../../../../features/ui/store/ui';
 describe('ExplorerToolbar', () => {
   const defaultProps = {
     totalNotes: 42,
-    onCreateNote: vi.fn(),
-    isCreating: false,
   };
 
   beforeEach(() => {
@@ -38,7 +36,7 @@ describe('ExplorerToolbar', () => {
 
   it('renders search input with placeholder', () => {
     renderToolbar();
-    expect(screen.getByPlaceholderText('Search notes…')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Filter notes...')).toBeInTheDocument();
   });
 
   it('renders sort button showing current sort label', () => {
@@ -51,12 +49,6 @@ describe('ExplorerToolbar', () => {
     renderToolbar();
     const dirBtn = screen.getByTestId('explorer-sort-dir');
     expect(dirBtn).toHaveTextContent('↓');
-  });
-
-  it('renders New Note button', () => {
-    renderToolbar();
-    const createBtn = screen.getByTestId('explorer-create-btn');
-    expect(createBtn).toHaveTextContent('New Note');
   });
 
   it('renders note count text', () => {
@@ -78,18 +70,6 @@ describe('ExplorerToolbar', () => {
     expect(dirBtn).toHaveTextContent('↓');
     fireEvent.click(dirBtn);
     expect(useUIStore.getState().notesSortDirection).toBe('asc');
-  });
-
-  it('clicking create button calls onCreateNote prop', () => {
-    renderToolbar();
-    fireEvent.click(screen.getByTestId('explorer-create-btn'));
-    expect(defaultProps.onCreateNote).toHaveBeenCalledTimes(1);
-  });
-
-  it('create button shows loading state when isCreating=true', () => {
-    renderToolbar({ isCreating: true });
-    const createBtn = screen.getByTestId('explorer-create-btn');
-    expect(createBtn).toBeDisabled();
   });
 
   it('search input initializes from store query', () => {
@@ -127,15 +107,6 @@ describe('ExplorerToolbar', () => {
       </ChakraProvider>
     );
     expect(screen.getByTestId('explorer-search')).toHaveValue('');
-  });
-
-  it('"/" keypress focuses search input', () => {
-    renderToolbar();
-    const searchInput = screen.getByTestId('explorer-search');
-    expect(document.activeElement).not.toBe(searchInput);
-
-    fireEvent.keyDown(window, { key: '/' });
-    expect(document.activeElement).toBe(searchInput);
   });
 
   it('Escape clears search when input is focused', () => {
