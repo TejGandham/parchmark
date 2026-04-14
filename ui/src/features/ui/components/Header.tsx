@@ -13,7 +13,7 @@ import {
   faMagnifyingGlass,
   faGear,
 } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate, useFetcher } from 'react-router-dom';
+import { useNavigate, useFetcher, Link } from 'react-router-dom';
 import { UserLoginStatus } from '../../auth/components';
 import { useUIStore } from '../store/ui';
 import Logo from '../../../../assets/images/parchmark.svg';
@@ -64,9 +64,15 @@ const Header = () => {
       borderColor="border.default"
     >
       <HStack spacing={3}>
-        <Heading size="md" ml={1} fontFamily="heading">
-          <Image src={Logo} alt="ParchMark Logo" h="46px" mr="10px" />
-        </Heading>
+        <Link
+          to="/notes"
+          aria-label="Go to notes list"
+          style={{ textDecoration: 'none' }}
+        >
+          <Heading size="md" ml={1} fontFamily="heading">
+            <Image src={Logo} alt="ParchMark Logo" h="46px" mr="10px" />
+          </Heading>
+        </Link>
       </HStack>
 
       <HStack spacing={2}>

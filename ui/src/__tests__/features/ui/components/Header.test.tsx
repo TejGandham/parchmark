@@ -129,6 +129,13 @@ describe('Header Component', () => {
     expect(userButton).toBeInTheDocument();
   });
 
+  it('should wrap logo in a link to /notes', () => {
+    renderWithProviders(<Header />);
+    const link = screen.getByRole('link', { name: /go to notes list/i });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/notes');
+  });
+
   it('should not have explorer link button', () => {
     renderWithProviders(<Header />);
     expect(screen.queryByTestId('explorer-link')).not.toBeInTheDocument();
