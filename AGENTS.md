@@ -34,7 +34,17 @@ All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
 - **Backlog** at `docs/exec-plans/active/feature-backlog.md`
 - **Tech debt** at `docs/exec-plans/tech-debt-tracker.md`
 - **Active plans** in `docs/exec-plans/active/`, completed in `completed/`
-- `/keel-adopt` has not been run yet — `docs/north-star.md` still contains `[YOUR APPROACH]` placeholders and the hooks in `.claude/hooks/` are not wired into `settings.json`
+- **Domain invariants** (the nine rules the safety-auditor enforces) live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md)
+
+### Pipeline Preferences
+
+| Setting | Value | Notes |
+|-|-|-|
+| Roundtable review | `true` | `challenge` + `hivemind` MCP tools; gracefully skipped when MCP is unavailable. Required for any change that amends the nine invariants or crosses an architectural layer boundary; optional for routine feature work. |
+| Safety-gate hook | PreToolUse on Edit/Write | Surfaces a reminder to run `/safety-check` when editing files under `backend/app/{auth,routers,models,services/embeddings,database}/` |
+| Formatter hook | PostToolUse on Edit/Write | Auto-runs `ruff format` + `ruff check --fix` on `.py` files and `prettier` on `.ts`/`.tsx` files |
+| Markdown parity hook | PostToolUse on Edit/Write | Reminds to run `/parchmark-markdown-sync` when editing either `markdown.ts` or `markdown.py` |
+| Doc-drift hook | PostToolUse on Bash | Reminds to invoke the `doc-gardener` agent after `git commit` |
 
 ## Feature & Bug Workflow
 
