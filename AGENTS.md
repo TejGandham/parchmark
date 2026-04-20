@@ -40,6 +40,8 @@ All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
 
 **Every feature or bug fix MUST use a new branch. No exceptions.**
 
+> **Docs-only exception:** If the change touches **only markdown / documentation files** and no code (`.ts`, `.tsx`, `.js`, `.py`, `.yml`, `.json`, etc.), you may commit directly to `main` and skip the PR. The moment any code file is touched, the full branch + PR + CI workflow applies.
+
 ### 1. Create a Branch (first step)
 
 ```bash
