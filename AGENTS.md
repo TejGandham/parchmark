@@ -203,7 +203,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 
 ### Auth
 - Access tokens 30 min; refresh tokens 7 days
-- `useTokenExpirationMonitor()` logs out 1 min before expiry
+- `useTokenExpirationMonitor()` auto-refreshes tokens ~1 min before expiry (logs the user out only if the refresh fails)
 - 10-second clock-skew buffer for client/server drift
 - Route protection is the `requireAuth()` loader in `router.tsx` — there is **no `ProtectedRoute` component**
 - Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
@@ -215,10 +215,9 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - Downgrade may fail if data constraints are violated
 
 ### Git Remotes
-- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`) — primary remote, CI + deploy
-- `github` = GitHub mirror (`github.com/TejGandham/parchmark`) — code backup only (no active CI/deploy)
-- Use `tea` for origin PRs; `gh` is for the GitHub mirror only
-- Push to both: `git push origin <branch> && git push github <branch>`
+- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`) — the only remote developers push to; hosts CI and deploy
+- GitHub (`github.com/TejGandham/parchmark`) is a read-only offsite backup mirror, populated by automated sync — no local remote is configured and developers never push to it manually
+- Use `tea` for all Forgejo PR management
 
 ### Embeddings
 - `OPENAI_API_KEY` is optional — embeddings and similarity search silently degrade if absent
@@ -227,8 +226,8 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 
 ### Command Palette
 - Primary navigation (replaced sidebar); triggered via the search button in the header
-- `react-window` virtualizes large note lists
 - "For You" section blends heuristic scoring (recency + frequency) with AI similarity when available
+- The virtualized note list (`react-window`) lives in `NotesExplorer`, not in the palette itself
 
 ### Deployment
 - Tests must pass before images build (CI gate)
