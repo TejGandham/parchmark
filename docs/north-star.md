@@ -32,26 +32,46 @@ not for a human audience. Clear, scannable, with explicit cross-references.
 
 ## What We Adapt (Scaled Down)
 
-<!-- CUSTOMIZE: What parts of harness engineering do you adapt for your scale?
-     Examples:
-     - Mechanical enforcement: start with formatter + tests, add structural tests later
-     - Garbage collection: manual review at session boundaries, automated sweeps later
-     - Agent review: self-review before presenting to human
-     - Observability: start with stdout/stderr, add structured logging later -->
+**Mechanical enforcement.** Three layers already wired:
+1. Formatters as PostToolUse hooks (`ruff format` / `ruff check --fix` for
+   Python; `prettier` for TS). Runs on every Edit/Write.
+2. Test suites gate every PR via Forgejo CI (`make test` = UI lint+test +
+   backend lint+format+types+pytest, 90% coverage floor both sides).
+3. Domain-invariant grep rules via the `safety-auditor` agent and the
+   PreToolUse `safety-gate` hook. Critical-file edits surface a reminder
+   to run `/safety-check`; the auditor is a hard gate in `/keel-pipeline`.
 
-**Mechanical enforcement.** [YOUR APPROACH]
+**Garbage collection.** Manual at session boundaries today — the
+`parchmark-land` skill includes a "docs still accurate?" prompt, and the
+`doc-gate` PostToolUse hook reminds after commits. The `doc-gardener`
+agent can be invoked explicitly for a repo-wide drift sweep; scheduling
+it automatically is a Post-MVP item (see tech-debt-tracker).
 
-**Garbage collection.** [YOUR APPROACH]
+**Agent review loops.** `/keel-pipeline` runs pre-check → test-writer
+→ implementer → code-reviewer → spec-reviewer → safety-auditor →
+landing-verifier. Roundtable (`challenge` / `hivemind`) is available as
+a secondary review pass for invariant changes or architecture-tier
+features — not every feature needs multi-model consensus, but anything
+that amends the nine invariants or changes a layer boundary should get
+one.
 
-**Agent review loops.** [YOUR APPROACH]
-
-**Observability stack.** [YOUR APPROACH]
+**Observability stack.** Backend logs to stdout/stderr via FastAPI's
+default logger; k3s aggregates via `kubectl logs`. No structured logging
+or metrics pipeline yet — added when we need per-user latency
+attribution or SLO tracking (likely once self-hosters start reporting
+OIDC edge cases).
 
 ## What We Skip (For Now)
 
-<!-- CUSTOMIZE: What do you skip until the project matures? -->
-
-- [THING TO SKIP AND WHY]
+- **Structured logging / metrics pipeline.** Stdout is enough until we
+  hit a debuggability wall. Adding OpenTelemetry would be premature
+  before we have real users asking us to reproduce incidents.
+- **Schema-change CI gates.** Alembic migrations are hand-reviewed today;
+  automating reversibility checks is deferred until we've broken at
+  least one downgrade and felt the pain.
+- **Per-user rate limiting.** The product is single-tenant-per-install
+  or small-team self-hosted; rate limits matter when we run a
+  multi-tenant SaaS, which is not the current deployment shape.
 
 ## Target Folder Structure (Fully Realized)
 
@@ -101,7 +121,12 @@ docs/
 Claude writes code → runs tests → checks output →
 fixes failures → re-runs → repeats until green
 ```
-<!-- CUSTOMIZE: Add your validation tools (e.g., LiveView test helpers, Playwright, Cypress) -->
+
+ParchMark-specific validation tools:
+- Backend: `pytest` (xdist + testcontainers, per-worker PostgreSQL), `ruff format`, `ruff check`, `mypy`.
+- Frontend: `vitest` + React Testing Library, `eslint`, `tsc --noEmit`.
+- Integration: Chrome DevTools MCP for manual visual QA before UI PRs
+  (navigate localhost:5173 → take_snapshot → fill form → list_console_messages).
 
 ### 2. Knowledge Boundary
 ```
@@ -119,15 +144,26 @@ fixes failures → re-runs → repeats until green
 ```
 
 ### 3. Layered Architecture
-<!-- CUSTOMIZE: Replace with your project's layer diagram -->
+
+Two domains, each with its own layer stack. See
+[ARCHITECTURE.md](../ARCHITECTURE.md) for full detail and dependency rules.
+
 ```
-[UI Layer]
-      ↓
-[Runtime / Service Layer]
-      ↓
-[Foundation / Core Layer]
+Frontend (ui/src)                  Backend (backend/app)
+───────────────────                ───────────────────────
+Router                             Main (lifespan, CORS)
+Features (auth/notes/ui/settings)  Routers
+Stores (Zustand)                   Services / Auth
+Services (HTTP client)             Schemas
+Utils                              Models (SQLAlchemy)
+Config                             Database
+Types                              ───────────────────────
+───────────────────                       PostgreSQL + pgvector
 ```
-Dependencies flow strictly downward.
+
+Dependencies flow strictly downward within each stack. The two stacks
+communicate only over the JSON REST boundary (`/api/*`). Known
+cross-layer edges are documented explicitly in `ARCHITECTURE.md`.
 
 ### 4. Garbage Collection
 After each implementation chunk:
