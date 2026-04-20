@@ -2,50 +2,6 @@
 
 Guidance for Claude Code working with the ParchMark codebase.
 
-## Task Tracking
-
-This repo uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking.
-
-Beads uses a remote Dolt server at `brahma.myth-gecko.ts.net:30307` (Tailscale).
-No local `dolt sql-server` needed. If `bd` can't connect, verify Tailscale is up.
-
-**Do NOT use:** TodoWrite, TaskCreate, or markdown files for task tracking.
-
-```bash
-# View tasks
-bd ready              # Show unblocked tasks ready for work
-bd list               # Show all open issues
-bd show <id>          # Show issue details
-
-# Create tasks
-bd q "Title"                                   # Quick create (outputs ID only)
-bd create --title="..." --type=task --priority=2  # Full create
-
-# Update tasks
-bd update <id> --status=in_progress  # Claim work before coding
-bd close <id>                        # Close completed issue
-bd dep add <id> <dep>                # Add dependency
-
-# Sync (bd uses remote Dolt — no manual sync needed)
-bd dolt test              # Verify remote connection
-```
-
-**Priority:** 0=critical, 1=high, 2=medium, 3=low, 4=backlog (NOT "high"/"medium"/"low")
-
-**Warning:** Never use `bd edit` - it opens $EDITOR which blocks agents.
-
-**When to create issues:**
-- Multi-step implementation work (before writing code)
-- Bugs/issues discovered during ANY work (including research)
-- Improvements identified while exploring code
-- Remaining/incomplete work at session end
-
-**When NOT to create issues:**
-- Single-line trivial fixes
-- One-off questions with no follow-up work
-
-Run `bd prime` for full workflow context after session restart.
-
 ## Feature & Bug Workflow
 
 **Every feature or bug fix MUST use a new worktree + branch. No exceptions.**
@@ -55,15 +11,12 @@ Run `bd prime` for full workflow context after session restart.
 ```bash
 # Feature
 git worktree add .worktrees/feat/<short-description> -b feat/<short-description>
-export BEADS_NO_DAEMON=1  # MANDATORY: prevents beads daemon from committing to wrong branch
 
 # Bug fix
 git worktree add .worktrees/fix/<short-description> -b fix/<short-description>
-export BEADS_NO_DAEMON=1  # MANDATORY: prevents beads daemon from committing to wrong branch
 ```
 
 - Worktrees live in `.worktrees/` (gitignored). Create the directory if it doesn't exist.
-- **ALWAYS set `export BEADS_NO_DAEMON=1`** after creating a worktree. Worktrees share the beads database and the daemon may commit to the wrong branch.
 - Branch off `main`. Never commit directly to `main`.
 - Work inside the worktree directory for that feature/fix.
 
@@ -408,7 +361,7 @@ Use Chrome DevTools MCP before committing UI changes:
 Custom skills in `.claude/skills/` automate common workflows:
 
 - **`parchmark-branch-setup`** — Use whenever you begin implementing a feature, bug fix, or any code change that requires a new branch — before writing any code.
-- **`parchmark-land`** — Use when ending any work session, before reporting completion to the user — ensures all work is committed, pushed, and beads are synced.
+- **`parchmark-land`** — Use when ending any work session, before reporting completion to the user — ensures all work is committed and pushed.
 - **`parchmark-markdown-sync`** — Use after modifying any markdown processing logic in either `ui/src/utils/markdown.ts` or `backend/app/utils/markdown.py` — verifies both implementations stay in sync.
 
 ## Guidelines
@@ -430,21 +383,18 @@ Run `/common-ground --check` to validate project assumptions tracked in `~/.clau
 **Work is NOT complete until CI passes on the PR.**
 
 ```bash
-# 1. File issues for remaining work
-bd create --title="..." --type=task
-
-# 2. Run quality gates
+# 1. Run quality gates
 make test
 
-# 3. Commit and push (on your feature/fix branch)
+# 2. Commit and push (on your feature/fix branch)
 git add <files>
 git commit -m "..."
 git push -u origin <branch-name>
 
-# 4. Open PR on origin using tea CLI — see "Feature & Bug Workflow" above
-# 5. Wait for CI to pass on the PR before reporting success
-# 6. If CI fails, fix and push again until green
-# 7. After merge, clean up: git worktree remove .worktrees/<branch>
+# 3. Open PR on origin using tea CLI — see "Feature & Bug Workflow" above
+# 4. Wait for CI to pass on the PR before reporting success
+# 5. If CI fails, fix and push again until green
+# 6. After merge, clean up: git worktree remove .worktrees/<branch>
 ```
 
 ## Landing the Plane (Session Completion)
@@ -453,111 +403,22 @@ git push -u origin <branch-name>
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
+1. **Run quality gates** (if code changed) - Tests, linters, builds
+2. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
    git push
    git status  # MUST show "up to date with origin"
    ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+3. **Clean up** - Clear stashes, prune remote branches
+4. **Verify** - All changes committed AND pushed
+5. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-
-<!-- BEGIN BEADS INTEGRATION -->
-## Issue Tracking with bd (beads)
-
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
-
-### Why bd?
-
-- Dependency-aware: Track blockers and relationships between issues
-- Remote Dolt backend: shared database at `brahma.myth-gecko.ts.net:30307` (Tailscale)
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
-
-### Quick Start
-
-**Check for ready work:**
-
-```bash
-bd ready --json
-```
-
-**Create new issues:**
-
-```bash
-bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
-```
-
-**Claim and update:**
-
-```bash
-bd update bd-42 --status in_progress --json
-bd update bd-42 --priority 1 --json
-```
-
-**Complete work:**
-
-```bash
-bd close bd-42 --reason "Completed" --json
-```
-
-### Issue Types
-
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
-
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Workflow for AI Agents
-
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task**: `bd update <id> --status in_progress`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-
-### Remote Dolt Server
-
-bd uses a shared Dolt SQL server on brahma (Tailscale). All Claude instances connect to the same database — no local `dolt sql-server` needed.
-
-- Server: `brahma.myth-gecko.ts.net:30307`
-- If `bd` can't connect, verify Tailscale is up
-- Test connection: `bd dolt test`
-
-### Important Rules
-
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
-- ❌ Do NOT duplicate tracking systems
-
-For more details, see README.md and docs/QUICKSTART.md.
-
-<!-- END BEADS INTEGRATION -->
 
 ## Design Context
 

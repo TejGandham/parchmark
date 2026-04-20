@@ -38,8 +38,5 @@ coverage.xml
 .mypy_cache/
 .playwright-mcp/
 
-# Beads issue tracker
-.beads/
-
 # Git worktrees
 .worktrees/

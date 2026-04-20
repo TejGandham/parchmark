@@ -1052,11 +1052,7 @@ Run: `make dev`
 6. Navigate between notes
 7. Refresh page on /notes/:id
 
-**Step 3: Create issues for bugs found**
-
-```
-bd create --title="Bug: [description]" --type=bug --priority=2
-```
+**Step 3: File issues for any bugs found**
 
 ---
 
