@@ -1,6 +1,6 @@
 ---
 name: parchmark-branch-setup
-description: Set up a git worktree + branch for a new feature or fix, with BEADS_NO_DAEMON safety
+description: Set up a git worktree + branch for a new feature or fix
 ---
 
 # ParchMark Branch Setup
@@ -43,15 +43,7 @@ git worktree add .worktrees/{type}/{description} -b {type}/{description}
 
 **If the branch already exists:** Ask the user — this usually means prior work exists.
 
-### 4. Set BEADS_NO_DAEMON
-
-```bash
-export BEADS_NO_DAEMON=1
-```
-
-This is **mandatory**. Worktrees share the beads database and the daemon may commit to the wrong branch without this.
-
-### 5. Verify setup
+### 4. Verify setup
 
 Run all checks — **do not proceed unless all pass**:
 
@@ -61,17 +53,13 @@ git worktree list | grep ".worktrees/{type}/{description}"
 
 # Branch exists
 git branch | grep "{type}/{description}"
-
-# Env var is set
-echo $BEADS_NO_DAEMON  # Must output "1"
 ```
 
-### 6. Report
+### 5. Report
 
 Print a summary:
 - Branch name: `{type}/{description}`
 - Worktree path: `.worktrees/{type}/{description}`
-- Confirmation that BEADS_NO_DAEMON is set
 
 Then change working directory to the worktree:
 ```bash
@@ -85,5 +73,4 @@ cd .worktrees/{type}/{description}
 | Uncommitted changes on main | Abort with warning, suggest stash or commit |
 | Worktree already exists | Ask: reuse or remove? |
 | Branch already exists | Ask: resume prior work or create new name? |
-| BEADS_NO_DAEMON not confirmed | Retry export, never proceed without it |
 | `git pull` fails | Warn about network/auth, ask user to resolve |
