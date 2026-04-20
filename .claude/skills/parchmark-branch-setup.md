@@ -1,6 +1,6 @@
 ---
 name: parchmark-branch-setup
-description: Set up a git worktree + branch for a new feature or fix
+description: Create a fresh branch off main for a new feature or fix
 ---
 
 # ParchMark Branch Setup
@@ -15,62 +15,54 @@ Determine from context:
 
 ## Steps
 
-### 1. Validate main is clean
+### 1. Validate starting point is clean
 
 ```bash
 git status --porcelain
 ```
 
-- If there are uncommitted changes on main, **STOP** and warn the user. Do not proceed with a dirty working tree.
-- If on a branch other than main, confirm with the user before branching from it.
+- If there are uncommitted changes, **STOP** and warn the user. Do not proceed with a dirty working tree.
+- If not on `main`, confirm with the user before branching from the current branch.
 
 ### 2. Pull latest main
 
 ```bash
+git checkout main
 git pull origin main
 ```
 
-### 3. Create the worktree
+### 3. Create the branch
+
+```bash
+git checkout -b {type}/{description}
+```
+
+**If the branch already exists:** Ask the user — this usually means prior work exists.
+
+Worktrees are optional. If the user prefers isolation, offer:
 
 ```bash
 mkdir -p .worktrees
 git worktree add .worktrees/{type}/{description} -b {type}/{description}
+cd .worktrees/{type}/{description}
 ```
-
-**If the worktree already exists:** Ask the user whether to reuse or remove it:
-- Reuse: `cd .worktrees/{type}/{description}` and continue
-- Remove: `git worktree remove .worktrees/{type}/{description}` then recreate
-
-**If the branch already exists:** Ask the user — this usually means prior work exists.
 
 ### 4. Verify setup
 
-Run all checks — **do not proceed unless all pass**:
-
 ```bash
-# Worktree exists
-git worktree list | grep ".worktrees/{type}/{description}"
-
-# Branch exists
-git branch | grep "{type}/{description}"
+git branch --show-current   # must print "{type}/{description}"
 ```
 
 ### 5. Report
 
 Print a summary:
 - Branch name: `{type}/{description}`
-- Worktree path: `.worktrees/{type}/{description}`
-
-Then change working directory to the worktree:
-```bash
-cd .worktrees/{type}/{description}
-```
+- Location: repo root (or worktree path if used)
 
 ## Failure Modes
 
 | Situation | Action |
 |-|-|
-| Uncommitted changes on main | Abort with warning, suggest stash or commit |
-| Worktree already exists | Ask: reuse or remove? |
+| Uncommitted changes | Abort with warning, suggest stash or commit |
 | Branch already exists | Ask: resume prior work or create new name? |
 | `git pull` fails | Warn about network/auth, ask user to resolve |
