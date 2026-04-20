@@ -1,175 +1,157 @@
-# CLAUDE.md
+# MUST USE KEEL framework. you are not allowed to sidestep it. If you strongly feel KEEL framework needs to be sidestepped get explicity consent from the user first. This is NOT a blanket consent and applies for the one particular case you obatained it for.
 
-Guidance for Claude Code working with the ParchMark codebase.
+Guidance for Claude Code working with the ParchMark codebase. This file is a table of contents — follow links for depth.
+
+## Project at a Glance
+
+**ParchMark** — full-stack markdown note-taking app.
+
+| Layer | Stack |
+|-|-|
+| Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 (Data Router) |
+| Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT + OIDC auth, PostgreSQL |
+| Deploy | Docker, Nginx, k3s, Forgejo CI |
+
+Deeper references:
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — domain / layer maps, dependency rules
+- [`docs/north-star.md`](docs/north-star.md) — vision, four loops, growth stages
+- [`docs/design-docs/index.md`](docs/design-docs/index.md) — core beliefs, UI design, code patterns, design context
+- [`docs/process/THE-KEEL-PROCESS.md`](docs/process/THE-KEEL-PROCESS.md) — KEEL pipeline + agent roster
+- [`PRODUCTION_DEPLOYMENT.md`](PRODUCTION_DEPLOYMENT.md) — deployment runbook
+
+## KEEL Framework
+
+All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
+
+```bash
+/keel-refine docs/prds/<name>.md                # draft backlog entries from a PRD
+/keel-pipeline F<id> docs/product-specs/<name>.md  # run pre-check → tests → impl → reviews → landing
+/safety-check                                   # quick invariant audit on current diff
+/keel-adopt                                     # (one-time) complete brownfield config — fills north-star, wires hooks
+```
+
+- **Specs** live in `docs/product-specs/` (template at `_TEMPLATE.md`)
+- **Backlog** at `docs/exec-plans/active/feature-backlog.md`
+- **Tech debt** at `docs/exec-plans/tech-debt-tracker.md`
+- **Active plans** in `docs/exec-plans/active/`, completed in `completed/`
+- `/keel-adopt` has not been run yet — `docs/north-star.md` still contains `[YOUR APPROACH]` placeholders and the hooks in `.claude/hooks/` are not wired into `settings.json`
 
 ## Feature & Bug Workflow
 
-**Every feature or bug fix MUST use a new worktree + branch. No exceptions.**
+**Every feature or bug fix MUST use a new branch. No exceptions.**
 
-### 1. Create a Worktree (FIRST step)
+### 1. Create a Branch (first step)
 
 ```bash
-# Feature
-git worktree add .worktrees/feat/<short-description> -b feat/<short-description>
-
-# Bug fix
-git worktree add .worktrees/fix/<short-description> -b fix/<short-description>
+git checkout main
+git pull origin main
+git checkout -b feat/<short-description>   # or fix/<short-description>
 ```
 
-- Worktrees live in `.worktrees/` (gitignored). Create the directory if it doesn't exist.
-- Branch off `main`. Never commit directly to `main`.
-- Work inside the worktree directory for that feature/fix.
+- Branch off `main` — never commit directly to `main`
+- Worktrees are optional; if you prefer isolation, use `git worktree add .worktrees/<branch> -b <branch>` (`.worktrees/` is gitignored)
+
+The `parchmark-branch-setup` skill automates this.
 
 ### 2. Implement & Test
 
-- Work inside `.worktrees/<branch>/` — run `make test` from there
+- Run `make test` from the repo root on the branch
 - Commit to the feature/fix branch
 
-### 3. Open a PR on Origin (Forgejo) using `tea`
+### 3. Open a PR on Forgejo using `tea`
 
 ```bash
-# Push branch to origin
 git push -u origin <branch-name>
-
-# Create PR using tea CLI
-tea pr create --title "PR title" --description "## Summary" --base main --head <branch-name>
-
-# List PRs
-tea pr list
-
-# Check PR status
-tea pr view <number>
-
-# Merge PR (after CI passes)
-tea pr merge -s merge <number>
+tea pr create --title "PR title" --description "## Summary ..." --base main --head <branch-name>
+tea pr view <number>           # check CI status
+tea pr merge -s merge <number> # merge after CI passes
 ```
 
-> **Use `tea` for all Forgejo PR management.** Do NOT use `gh` (GitHub only) or raw `curl`.
+Use `tea` for all Forgejo PR management. Do **not** use `gh` (GitHub only) or raw `curl`.
 
 ### 4. Wait for CI
 
-**Work is NOT complete until CI passes on the PR.**
+**Work is NOT complete until CI is green on the PR.** If CI fails, fix on the branch, push again, wait for green.
 
-- Check CI status: `tea pr view <number>`
-- If CI fails, fix the issues on the branch, push again, and wait for green
-- Only report success to the user after CI is green
+### 5. Clean up
 
-### 5. Clean up worktree
+After merge, delete the local branch. If you used a worktree, `git worktree remove .worktrees/<branch>`.
+
+## Commands
+
+All run from project root. `make help` for the full list.
 
 ```bash
-git worktree remove .worktrees/feat/<short-description>
+# Development
+make dev              # all: PostgreSQL + Backend + Frontend
+make dev-ui           # frontend only (localhost:5173)
+make dev-backend      # backend only (localhost:8000)
+make docker-dev       # PostgreSQL container only
+
+# Testing
+make test             # full CI pipeline (UI + Backend)
+make test-ui-all      # UI: lint + tests
+make test-backend-all # Backend: lint + format + types + pytest
+
+# User management
+make user-create USERNAME=x PASSWORD=y
+make user-list
+make user-delete USERNAME=x
+
+# Deployment
+make deploy-verify    # production health check
+make deploy-ssh       # SSH to production
+make deploy-logs      # container logs
 ```
-
-## Project Overview
-
-**ParchMark** - Full-stack markdown note-taking app.
-
-| Layer | Stack |
-|-------|-------|
-| Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 (Data Router) |
-| Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT Auth, PostgreSQL |
-| Deploy | Docker, Nginx, k3s, Forgejo CI |
-
-> **Architecture deep-dive:** See [`ARCHITECTURE.md`](ARCHITECTURE.md) for domain/layer maps, dependency rules, and cross-cutting concerns.
 
 ## Directory Structure
 
 ```
 parchmark/
-├── ui/                      # Frontend (React)
-│   ├── src/features/        # auth/, notes/, settings/, ui/ (feature-first)
-│   ├── src/router.tsx       # Data Router config (loaders, actions, routes)
-│   ├── src/services/        # API client
-│   ├── src/utils/           # errorHandler, markdown, dateGrouping, dateFormatting, noteScoring, compactTime, mermaidInit
-│   ├── src/config/          # Type-safe constants (api, storage)
-│   ├── src/types/           # Shared TypeScript types (Note, SimilarNote)
-│   └── src/__tests__/       # Vitest tests
-├── backend/                 # Backend (FastAPI)
-│   ├── app/                 # auth/, database/, models/, routers/, schemas/
-│   │   └── services/        # embeddings (OpenAI), health_service, backfill
-│   ├── tests/               # unit/, integration/
-│   └── migrations/          # Alembic migrations
-├── makefiles/               # Modular make targets
-├── deploy/                  # Production deployment scripts
-└── docs/                    # Extended documentation
+├── ui/                  # Frontend (React)
+│   └── src/
+│       ├── features/    # auth/, notes/, settings/, ui/ (feature-first)
+│       ├── router.tsx   # Data Router (loaders, actions, routes)
+│       ├── services/    # API client
+│       ├── utils/       # errorHandler, markdown, dateGrouping, noteScoring, mermaidInit
+│       ├── config/      # type-safe constants (api, storage)
+│       ├── types/       # shared types (Note, SimilarNote)
+│       └── __tests__/   # Vitest
+├── backend/             # Backend (FastAPI)
+│   └── app/             # auth/, database/, models/, routers/, schemas/, services/
+├── makefiles/           # modular make targets
+├── deploy/              # production scripts
+├── docs/
+│   ├── north-star.md
+│   ├── process/         # KEEL reference guides
+│   ├── design-docs/     # core beliefs, UI design, code patterns, design context
+│   ├── exec-plans/      # active + completed plans, feature-backlog, tech-debt
+│   ├── product-specs/   # feature specs
+│   └── references/      # external docs, llms.txt
+└── .claude/             # agents, skills, hooks
 ```
 
-## Commands
+## API Surface
 
-All commands run from project root. Use `make help` for full list.
+The full, current API is discoverable at:
+- Dev: <http://localhost:8000/docs>
+- Prod: <https://assets-api.engen.tech/docs>
 
-### Development
-
-```bash
-make dev                     # Start all (PostgreSQL + Backend + Frontend)
-make dev-ui                  # Frontend only (localhost:5173)
-make dev-backend             # Backend only (localhost:8000)
-make docker-dev              # PostgreSQL container only
-```
-
-### Testing
-
-```bash
-make test                    # Full CI pipeline (UI + Backend)
-make test-ui-all             # UI: lint + tests
-make test-backend-all        # Backend: lint + format + types + pytest
-```
-
-### User Management
-
-```bash
-make user-create USERNAME=x PASSWORD=y
-make user-list
-make user-delete USERNAME=x
-```
-
-### Deployment
-
-```bash
-make deploy-verify           # Health check production
-make deploy-ssh              # SSH to production server
-make deploy-logs             # View container logs
-```
-
-See `PRODUCTION_DEPLOYMENT.md` for full deployment guide.
-
-## API Endpoints
-
-```
-POST /api/auth/login          # Returns access + refresh tokens
-POST /api/auth/refresh        # Refresh access token
-POST /api/auth/logout         # Signal logout (stateless, client-side token removal)
-GET  /api/auth/me             # Current user
-
-GET    /api/notes/            # List user's notes
-POST   /api/notes/            # Create note
-GET    /api/notes/{id}        # Get note
-PUT    /api/notes/{id}        # Update note
-DELETE /api/notes/{id}        # Delete note
-POST   /api/notes/{id}/access # Track note access (fire-and-forget, for "For You" scoring)
-GET    /api/notes/{id}/similar # Similar notes via cosine similarity on embeddings
-
-GET    /api/settings/user-info        # Account info + note count + auth_provider
-POST   /api/settings/change-password  # Local users only
-GET    /api/settings/export-notes     # Streaming ZIP of all notes
-DELETE /api/settings/delete-account   # Delete account and all notes
-
-GET /api/health               # Full health check with DB status + version info
-```
+Notable non-obvious endpoints: `POST /api/notes/{id}/access` (fire-and-forget tracking for the "For You" scoring), `GET /api/notes/{id}/similar` (cosine similarity over embeddings), `GET /api/health` (DB + version info).
 
 ## Environment Variables
 
-### Frontend (ui/.env)
+### Frontend (`ui/.env`)
 ```bash
 VITE_API_URL=/api
-VITE_TOKEN_WARNING_SECONDS=60       # Optional
+VITE_TOKEN_WARNING_SECONDS=60       # optional
 VITE_OIDC_ISSUER_URL=https://auth.engen.tech
 VITE_OIDC_CLIENT_ID=parchmark
 VITE_OIDC_REDIRECT_URI=<origin>/oidc/callback
 VITE_OIDC_LOGOUT_REDIRECT_URI=<origin>/login
 ```
 
-### Backend (backend/.env)
+### Backend (`backend/.env`)
 ```bash
 DATABASE_URL=postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db
 SECRET_KEY=your-secret-key
@@ -179,273 +161,141 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
 OIDC_ISSUER_URL=https://auth.engen.tech
 OIDC_AUDIENCE=parchmark
-OIDC_OPAQUE_TOKEN_PREFIX=           # Optional: restrict opaque token format (e.g. "authelia_at_")
-OIDC_DISCOVERY_URL=                 # Optional: separate URL for OIDC discovery (e.g. internal cluster DNS)
+OIDC_OPAQUE_TOKEN_PREFIX=           # optional: restrict opaque token format (e.g. "authelia_at_")
+OIDC_DISCOVERY_URL=                 # optional: separate URL for discovery (e.g. internal cluster DNS)
 OIDC_USERNAME_CLAIM=preferred_username
-OPENAI_API_KEY=                     # Required for embeddings; feature silently disabled if absent
-EMBEDDING_MODEL=text-embedding-3-small  # Optional override
+OPENAI_API_KEY=                     # optional: embeddings silently disable if absent
+EMBEDDING_MODEL=text-embedding-3-small  # optional override
 ```
 
-### Build-time (injected in Docker)
+### Build-time (Docker)
 ```bash
-GIT_SHA=                            # Set at docker build for version info
-BUILD_DATE=                         # Set at docker build for version info
+GIT_SHA=                            # set at docker build for version info
+BUILD_DATE=                         # set at docker build for version info
 ```
 
-## Code Patterns
+## Testing
 
-### Error Handling (Frontend)
-```typescript
-import { handleError } from '../utils/errorHandler';
-const appError = handleError(error);  // Normalizes all error types
-```
+| Side | Tooling | Notes |
+|-|-|-|
+| Frontend | Vitest + RTL | Use `render` from `test-utils/render` (wraps providers); mock stores; form tests use `fireEvent.submit()` not button click |
+| Backend | Pytest + pytest-xdist | Each worker gets its own PostgreSQL (testcontainers); fixtures: `client`, `sample_user`, `auth_headers` |
 
-### Type-Safe Constants
-```typescript
-import { API_ENDPOINTS } from '../config/api';
-import { STORAGE_KEYS } from '../config/storage';
-```
+Coverage floor: **90% frontend, 90% backend** (enforced by config).
 
-### Markdown Processing
-```typescript
-// Frontend: ui/src/utils/markdown.ts
-// Backend: backend/app/utils/markdown.py (mirrors frontend)
-markdownService.extractTitle(content)   // Get H1 title
-markdownService.removeH1(content)       // Remove first H1 only
-```
+Some unit tests (e.g. `TestGetCurrentUser`, `TestDependencyIntegration`) depend on conftest fixtures that need Docker and error locally without it, but pass in CI. Run focused tests without Docker: `cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v`.
 
-### Zustand Stores
-```typescript
-useAuthStore   // Auth state, login/logout
-useNotesUIStore  // Editor draft content (ephemeral)
-useUIStore     // Command palette state, preferences
-```
-
-### React Router Data Router
-```typescript
-// Route loaders fetch data before render (ui/src/router.tsx)
-loader: async () => { const notes = await api.getNotes(); return { notes }; }
-
-// Route actions handle mutations (ui/src/features/notes/actions.ts)
-action: createNoteAction  // Form submissions via useFetcher().submit()
-
-// Access loader data in components
-const { notes } = useRouteLoaderData('notes-layout');
-```
-
-### Async SQLAlchemy (Backend)
-```python
-# Use async session dependency
-from app.database.database import get_async_db
-
-async def my_endpoint(db: AsyncSession = Depends(get_async_db)):
-    result = await db.execute(select(Model))
-    return result.scalars().all()
-```
-
-## Testing Patterns
-
-### Frontend (Vitest + RTL)
-```typescript
-import { render } from 'test-utils/render';  // Custom render with providers
-vi.mock('../features/auth/store');           // Mock stores
-fireEvent.submit(form);                      // Use submit, not click
-```
-
-### Backend (Pytest)
-- Parallel execution with pytest-xdist (each worker gets own PostgreSQL)
-- Fixtures: `client`, `sample_user`, `auth_headers`
-- 90% coverage enforced
-
-### Coverage Requirements
-- Backend: 90% minimum (enforced in pytest config)
-- Frontend: 90% minimum
-
-## Code Style
-
-### TypeScript
-- Strong typing (avoid `any`)
-- Functional components with hooks
-- Chakra UI components, avoid inline styles
-
-### Python
-- Type hints where beneficial
-- Ruff for linting/formatting
-- 120 char line length
+For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.md`](docs/design-docs/code-patterns.md).
 
 ## Gotchas
 
-### Docker
-- `docker-compose.dev.yml` = PostgreSQL only (for local dev)
-- `docker-compose.yml` = Full stack (for testing containers)
-- `docker-compose.prod.yml` = Production (GHCR images)
-- `docker-compose.oidc-test.yml` = PostgreSQL + Authelia (OIDC integration testing)
-
-### Testing
-- Backend tests require Docker (testcontainers)
-- Some unit tests (`TestGetCurrentUser`, `TestDependencyIntegration`, etc.) depend on conftest fixtures that need Docker — these error locally without Docker running but pass in CI
-- Run focused unit tests without Docker: `cd backend && uv run pytest tests/unit/auth/test_oidc_validator.py -v`
-- Frontend form tests: use `fireEvent.submit()`, not button click
-- Mock stores for isolated component tests
-- **Important:** Always ensure new code has adequate test coverage before pushing.
+### Docker Compose files
+- `docker-compose.dev.yml` — PostgreSQL only (local dev)
+- `docker-compose.yml` — full stack (container testing)
+- `docker-compose.prod.yml` — production (GHCR images)
+- `docker-compose.oidc-test.yml` — PostgreSQL + Authelia (OIDC integration testing)
 
 ### Markdown
-- `removeH1()` removes only the FIRST H1, not all
-- Frontend and backend markdown utils must stay in sync
+- `removeH1()` removes **only the first H1**, not all
+- Frontend (`ui/src/utils/markdown.ts`) and backend (`backend/app/utils/markdown.py`) must stay in sync — use the `parchmark-markdown-sync` skill after editing either
 
 ### Auth
-- Access tokens: 30min, Refresh tokens: 7 days
+- Access tokens 30 min; refresh tokens 7 days
 - `useTokenExpirationMonitor()` logs out 1 min before expiry
-- 10-second clock skew buffer for client/server time differences
-- Route protection via `requireAuth()` loader in router.tsx (no ProtectedRoute component)
-- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens)
-- OIDC validator (`app/auth/oidc_validator.py`): shared httpx client, discovery/JWKS caching with double-checked locking
-- Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
-- OIDC env vars: `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_USERNAME_CLAIM`, `OIDC_OPAQUE_TOKEN_PREFIX`
+- 10-second clock-skew buffer for client/server drift
+- Route protection is the `requireAuth()` loader in `router.tsx` — there is **no `ProtectedRoute` component**
+- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
+- OIDC validator (`app/auth/oidc_validator.py`) uses a shared httpx client with discovery/JWKS caching (double-checked locking)
 
 ### Migrations
 - Run automatically on container startup (`APPLY_MIGRATIONS=true`)
 - Test locally before deploying: `cd backend && uv run alembic upgrade head`
-- Downgrade may fail if data constraints violated
+- Downgrade may fail if data constraints are violated
 
 ### Git Remotes
-- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`), primary remote (CI + deploy)
-- `github` = GitHub mirror (`github.com/TejGandham/parchmark`), code backup only (no active CI/deploy)
-- Use `tea` CLI for origin PRs; `gh` CLI is GitHub mirror only
+- `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`) — primary remote, CI + deploy
+- `github` = GitHub mirror (`github.com/TejGandham/parchmark`) — code backup only (no active CI/deploy)
+- Use `tea` for origin PRs; `gh` is for the GitHub mirror only
 - Push to both: `git push origin <branch> && git push github <branch>`
 
 ### Embeddings
 - `OPENAI_API_KEY` is optional — embeddings and similarity search silently degrade if absent
 - Backfill existing notes: `cd backend && uv run python -m app.services.backfill`
-- Note model has `embedding` (pgvector `Vector(1536)`), `access_count`, `last_accessed_at` fields
+- Note model has `embedding` (pgvector `Vector(1536)`), `access_count`, `last_accessed_at`
 
 ### Command Palette
-- Primary navigation UI (replaced sidebar); triggered via the search button in the header
-- Uses `react-window` for virtualized rendering of large note lists
-- "For You" section blends heuristic scoring (recency+frequency) with AI similarity when available
+- Primary navigation (replaced sidebar); triggered via the search button in the header
+- `react-window` virtualizes large note lists
+- "For You" section blends heuristic scoring (recency + frequency) with AI similarity when available
 
 ### Deployment
 - Tests must pass before images build (CI gate)
-- Deploy: k3s via `kubectl rollout restart` (automated by Forgejo CI)
+- Deploy via k3s `kubectl rollout restart` (automated by Forgejo CI)
 - SHA-tagged images enable rollback
 
 ## CI/CD (Forgejo)
 
 | Workflow | Trigger | Purpose |
-|----------|---------|---------|
+|-|-|-|
 | `test.yml` | Push/PR to main | UI lint+test, backend lint+format+types+pytest |
-| `deploy.yml` | Push to main | Build images → push to Forgejo registry → deploy to k3s via kubectl |
+| `deploy.yml` | Push to main | Build images → push to Forgejo registry → deploy to k3s |
 
-> **Note:** GitHub (`github` remote) is a code backup mirror only. Its workflows are inactive.
+GitHub mirror workflows are inactive.
 
 ## Visual QA
 
-Use Chrome DevTools MCP before committing UI changes:
+Before committing UI changes, use Chrome DevTools MCP:
 
-```
-1. mcp__chrome-devtools__navigate_page → localhost:5173
-2. mcp__chrome-devtools__take_snapshot → Get element UIDs
-3. mcp__chrome-devtools__fill → Login as qauser/QaPass123!
-4. mcp__chrome-devtools__list_console_messages → Check for errors
-```
+1. `mcp__chrome-devtools__navigate_page` → `localhost:5173`
+2. `mcp__chrome-devtools__take_snapshot` → element UIDs
+3. `mcp__chrome-devtools__fill` → log in as `qauser` / `QaPass123!`
+4. `mcp__chrome-devtools__list_console_messages` → verify no errors
 
 ## URLs
 
-| Environment | Frontend | Backend |
-|-------------|----------|---------|
+| Env | Frontend | Backend |
+|-|-|-|
 | Dev | localhost:5173 | localhost:8000/docs |
 | Production | notes.engen.tech | assets-api.engen.tech/docs |
 
 ## Skills
 
-Custom skills in `.claude/skills/` automate common workflows:
+### Project-specific (`.claude/skills/`)
+- **`parchmark-branch-setup`** — fresh branch (or optional worktree) before any code change
+- **`parchmark-land`** — session-end: commit, push, verify
+- **`parchmark-markdown-sync`** — run after editing markdown utils to verify FE/BE parity
 
-- **`parchmark-branch-setup`** — Use whenever you begin implementing a feature, bug fix, or any code change that requires a new branch — before writing any code.
-- **`parchmark-land`** — Use when ending any work session, before reporting completion to the user — ensures all work is committed and pushed.
-- **`parchmark-markdown-sync`** — Use after modifying any markdown processing logic in either `ui/src/utils/markdown.ts` or `backend/app/utils/markdown.py` — verifies both implementations stay in sync.
+### KEEL (`.claude/skills/`)
+- **`keel-refine`** — draft backlog entries from a PRD (never auto-runs the pipeline)
+- **`keel-pipeline`** — orchestrate pre-check → test-writer → implementer → reviews → landing
+- **`keel-adopt`** — one-time brownfield setup (CLAUDE.md refinement, domain invariants, hook wiring)
+- **`keel-setup`** — greenfield interview-driven setup
+- **`safety-check`** — scan current diff against domain invariants
 
-## Guidelines
+## Landing a PR (Session Completion)
 
-1. Use Makefile commands from project root
-2. Always run `make test` before committing
-3. Visual QA before UI changes
-4. Use centralized error handling (`handleError()`)
-5. Use type-safe constants from `config/`
-6. Use `markdownService` for all markdown operations
-7. Never commit `.env` files with secrets
-
-## Assumptions
-
-Run `/common-ground --check` to validate project assumptions tracked in `~/.claude/common-ground/`.
-
-## Session Completion
-
-**Work is NOT complete until CI passes on the PR.**
+**Work is NOT complete until `git push` succeeds AND CI is green.**
 
 ```bash
-# 1. Run quality gates
+# 1. Run quality gates (if code changed)
 make test
 
-# 2. Commit and push (on your feature/fix branch)
+# 2. Commit + push on the feature/fix branch
 git add <files>
 git commit -m "..."
-git push -u origin <branch-name>
+git pull --rebase origin main
+git push -u origin <branch>
 
-# 3. Open PR on origin using tea CLI — see "Feature & Bug Workflow" above
-# 4. Wait for CI to pass on the PR before reporting success
-# 5. If CI fails, fix and push again until green
-# 6. After merge, clean up: git worktree remove .worktrees/<branch>
+# 3. Open PR via tea (see Feature & Bug Workflow above)
+
+# 4. Wait for CI — fix + push until green
+
+# 5. After merge, delete the local branch
 ```
 
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **Run quality gates** (if code changed) - Tests, linters, builds
-2. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-3. **Clean up** - Clear stashes, prune remote branches
-4. **Verify** - All changes committed AND pushed
-5. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
+**Critical:**
+- NEVER stop before pushing — that leaves work stranded
+- NEVER say "ready to push when you are" — YOU push
 - If push fails, resolve and retry until it succeeds
 
-## Design Context
-
-### Users
-Productive knowledge workers and personal researchers who want a fast, private, distraction-free place to capture and organize thoughts in markdown. They value speed and simplicity over feature density.
-
-### Brand Personality
-**Minimal, fast, functional.** ParchMark is a tool that stays out of the way. It earns trust through speed and reliability, not visual flair. The burgundy accent and serif headings (Playfair Display) add just enough character to feel intentional without feeling decorative.
-
-### Emotional Goal
-**Calm focus.** The interface should feel like a quiet room — distraction-free, unhurried, letting the user think clearly. Every element should justify its presence.
-
-### Aesthetic Direction
-- **Visual tone**: Clean, typographic, writing-focused with subtle warmth from the burgundy palette
-- **Theme**: Light and dark mode supported via Chakra semantic tokens
-- **Typography**: Playfair Display (serif) for headings conveys permanence; Inter (sans-serif) for body conveys clarity
-- **Color**: Deep burgundy (#580c24) primary, neutral grays, minimal use of color — let content breathe
-- **Spacing**: Generous whitespace, never cramped
-- **Motion**: Subtle, purposeful transitions (0.3s ease) — never gratuitous animation
-
-### Anti-References
-- **Not cluttered/busy**: No toolbar overload, competing panels, or information density for its own sake
-- **Not corporate/generic**: No bland SaaS templates, stock illustrations, or cookie-cutter Bootstrap aesthetics
-
-### Design Principles
-1. **Content is king** — The user's writing is the interface. UI elements recede; text takes center stage.
-2. **Speed over spectacle** — Perceived and actual performance matter more than visual polish. Never add decoration that slows things down.
-3. **Quiet confidence** — Design choices should feel deliberate but not showy. The burgundy accent, the serif headings — each detail earns its place.
-4. **Click-first, scan-friendly** — Design for visual scanning and direct manipulation. The notes list is home base; search is a quick-jump tool, not the front door.
-5. **Reduce, don't add** — When in doubt, remove. Fewer elements, fewer colors, fewer borders. Let whitespace do the work.
+The `parchmark-land` skill automates steps 1–5.
