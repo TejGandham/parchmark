@@ -45,13 +45,14 @@ Each feature: read spec → write test → write code → verify.
 
 ## UI
 
-- [ ] **F04 Frontend EventSource client service with reconnect and ticket-based auth**
+- [ ] **F04 Frontend SSE client service (Bearer auth via fetch-event-source) with reconnect**
   Spec: docs/product-specs/notes-live-updates.md:event-source-client | Needs: F02
-  Test: Unit test with a mocked EventSource: client connects using the auth strategy chosen in F02, dispatches incoming note-change events to registered listeners, auto-reconnects with backoff on transient disconnect, and tears down cleanly on close() with no dangling listeners.
-  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 2 markers remain -->
+  Test: Unit test with a mocked fetch-event-source: client connects with Authorization: Bearer <jwt>, dispatches incoming note-change events to registered listeners, auto-reconnects with backoff on transient disconnect, refreshes token on 401 and reconnects, and tears down cleanly on close() with no dangling listeners.
+  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:0f4b2c1d7a9e3b6f -->
-  <!-- HUMAN: Client auth approach depends on F02 resolution (ticket vs polyfilled fetch-event-source vs query-param). Spec must pick the matching client implementation. -->
-  <!-- HUMAN: Reconnect/backoff policy (initial delay, max delay, jitter) is unspecified. -->
+  <!-- RESOLVED 2026-04-23 (auth): Determined by F02. Client uses @microsoft/fetch-event-source with Authorization: Bearer <jwt> header sourced from useAuthStore. No ticket endpoint. Token refresh on 401 via useAuthStore.refreshTokens() then reconnect. -->
+  <!-- RESOLVED 2026-04-23 (backoff policy): Initial delay 1000 ms, exponential factor 2, max cap 30 s, jitter Uniform(0.8, 1.2), no attempt cap. Sequence: 1s, 2s, 4s, 8s, 16s, 30s, 30s... each × jitter. UI affordance: show "Live updates reconnecting..." toast after 3 consecutive failures (~7s), auto-dismiss on next successful connect. Reset backoff counter on successful connect. 401 is NOT a transient disconnect — call refreshTokens() first, then reconnect. Close on logout (useAuthStore.logout must call stream.close()). Do NOT close on tab hide; heartbeat keeps connection alive across visibility transitions. -->
+  <!-- SPEC-NOTES: (a) test cases include: happy-path connect + event dispatch, transient 502 → backoff + retry, 401 → refresh + reconnect, refresh failure → bubble to auth store logout path, close() leaves no listeners; (b) service must expose an onEvent(callback) subscription API so F05's hook can register without importing fetch-event-source directly; (c) integrates with existing errorHandler.ts AppError for surfaced failures. -->
 
 - [ ] **F05 NotesLayout mount hook that revalidates router loaders on note-change events**
   Spec: docs/product-specs/notes-live-updates.md:revalidate-on-event | Needs: F04
