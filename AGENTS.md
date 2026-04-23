@@ -1,4 +1,4 @@
-# MUST USE KEEL framework. you are not allowed to sidestep it. If you strongly feel KEEL framework needs to be sidestepped get explicity consent from the user first. This is NOT a blanket consent and applies for the one particular case you obatained it for.
+# MUST USE KEEL framework. you are not allowed to sidestep it. If you strongly feel KEEL framework needs to be sidestepped get explicit consent from the user first. This obtained consent is NOT a blanket consent and applies for the one particular case you obatained it for.
 
 Guidance for Claude Code working with the ParchMark codebase. This file is a table of contents — follow links for depth.
 
