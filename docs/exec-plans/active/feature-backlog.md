@@ -38,9 +38,10 @@ Each feature: read spec → write test → write code → verify.
 - [ ] **F03 Publish note-change events from POST/PUT/DELETE note handlers after commit**
   Spec: docs/product-specs/notes-live-updates.md:publish-on-mutation | Needs: F01, F02
   Test: Integration test: POST /api/notes (and PUT, DELETE) as user A triggers exactly one publish to user A's channel after the DB commit succeeds, publish is skipped if the commit raises, and the published event never leaks across users (filtered by current_user.id per invariant 1).
-  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 1 markers remain -->
+  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:0f4b2c1d7a9e3b6f -->
-  <!-- HUMAN: Embedding generation currently runs via background_tasks.add_task after commit (invariant 6). Confirm publish() runs on the request path immediately after commit, NOT inside the embedding task, so subscribers are notified promptly and an embedding failure never suppresses the notification. -->
+  <!-- RESOLVED 2026-04-23: Confirmed. Handler ordering: (1) await db.commit() — persist first; events never fire on failed writes. (2) await pubsub.publish(channel=f"user_{current_user.id}_notes", event=NoteChangedEvent(...)) — on the request path, NOT background. Subscribers notified within one DB commit (~tens of ms), not after OpenAI embedding round-trip. (3) background_tasks.add_task(_generate_embedding_background, ...) — embedding stays background per invariant 6. Failure policy: publish() wrapped in try/except; NOTIFY failures logged but never propagated to user response. Matches parchmark's silent-degrade pattern for optional features (embeddings). Missed push = subscribers revalidate on next reconnect; no data loss. -->
+  <!-- SPEC-NOTES: (a) test must assert all three ordering invariants: commit-first, publish-before-response, embedding-in-background; (b) publish failure must log per invariant 5 discipline — log the kind + note_id, NEVER the full event or any auth/user field; (c) each of POST, PUT, DELETE needs its own integration-test case for the user-isolation assertion. -->
 
 ## UI
 
