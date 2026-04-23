@@ -393,28 +393,54 @@ structured proposal: new entries with `F##` ids, layer sections,
 on UI entries, and `<!-- HUMAN: ... -->` markers everywhere it couldn't
 derive a field unambiguously.
 
-**Conversational review.** The skill then presents the drafts as
-editable cards in chat, not as a git diff:
+**Per-card walkthrough.** The skill first prints an orientation summary
+of the full slate, then walks each drafted entry individually before
+accepting `commit`. The walk is mandatory — even zero-marker cards are
+acknowledged — because NORTH-STAR §Autonomy Ceiling requires per-card
+conversational review.
 
 ```
+Card 1 of 3:
+
 F12 Login screen with validation      → Service
   Spec:    docs/prds/auth/README.md:login
   Needs:   F08
   Design:  login-flow.png
   Test:    ❓ acceptance test?
-  Open:    1 HUMAN marker
 
-Type edits in plain English. Type `commit` when ready. `abort` discards.
+  Open markers:
+    [1] What's the acceptance test? Visual regression or functional?
+
+Verbs:
+  accept                       — keep as drafted, advance
+  edit <field>: <value>        — replace title/section/test/spec/needs/design
+  answer marker <n>: <text>    — drop marker n, record answer
+  skip marker <n>              — ship marker as-is (pre-check blocks until resolved)
+  drop F##                     — remove card, advance
+  back                         — revisit prior card
 ```
 
-You edit by talking: `F12 test is "user logs in, sees dashboard"`. The
-skill updates the in-memory draft and re-shows the changed card. When
-you type `commit`, the skill materializes everything — backlog entries,
-any pasted images moved to `docs/prds/drafts/<timestamp>/`, and runs
-`git add` + `git commit` with a deterministic message. No confirmation
-prompt; feature-branch commits are trivially reversible
-(`git commit --amend`). `abort` deletes the session workspace and
-exits — zero pollution of tracked territory.
+You walk one card at a time. Advancing verbs (`accept`, `drop`, `back`)
+move between cards; field edits and marker answers stay on the active
+card. After every card has been advanced at least once, the skill
+enters post-walk state:
+
+```
+Walk complete. 3 cards ready to commit.
+
+Verbs:
+  commit        — materialize + git commit
+  revisit F##   — re-open a card for editing
+  abort         — discard session
+```
+
+`commit` is only valid after the walk completes. Attempting it earlier
+re-points to the current unwalked card. `commit` then materializes the
+backlog entries, moves pasted images to `docs/prds/drafts/<timestamp>/`,
+and runs `git add` + `git commit` with a deterministic message.
+No confirmation prompt; feature-branch commits are trivially reversible
+(`git commit --amend`). `abort` deletes the session workspace — zero
+pollution of tracked territory.
 
 After the commit lands, write the spec files referenced by the drafted
 entries, then run `/keel-pipeline F## spec-path` when ready. Nothing
