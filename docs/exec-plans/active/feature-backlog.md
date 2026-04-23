@@ -5,7 +5,7 @@
 Smallest independently testable features. Execute top-to-bottom.
 Each feature: read spec → write test → write code → verify.
 
-**Specs:** `docs/product-specs/[YOUR-SPEC].md`
+**Specs:** `docs/product-specs/<spec>.md` (one per feature; authored before `/keel-pipeline`)
 **Principles:** `docs/design-docs/core-beliefs.md`
 **Architecture:** `ARCHITECTURE.md`
 
