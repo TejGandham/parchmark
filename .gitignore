@@ -40,3 +40,6 @@ coverage.xml
 
 # Git worktrees
 .worktrees/
+
+# KEEL refine session workspace (ephemeral)
+.keel-refine-session/
