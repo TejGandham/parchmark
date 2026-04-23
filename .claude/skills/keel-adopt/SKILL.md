@@ -156,6 +156,26 @@ safety-auditor into every future feature.
 - Data integrity patterns (transactions, constraints, idempotency)
 - Forbidden patterns (raw SQL, force flags, unsafe operations)
 
+**Multi-model pressure test (optional — only if roundtable MCP is available).**
+
+Before presenting candidates to the human, stress-test the draft slate with
+the `roundtable` MCP server. Invariants encoded here propagate into every
+future feature via the safety-auditor — a second opinion before the human
+review is cheap insurance. If roundtable is unavailable, skip this step
+silently and proceed.
+
+1. **Critique pass** — call `mcp__roundtable__roundtable-critique` with the draft
+   invariants plus codebase evidence. Ask it to attack the slate: missing
+   patterns visible in the scan, grep patterns that will produce false
+   positives or miss real violations, rules that conflict with the codebase's
+   existing conventions.
+2. **Canvass consensus** — take the critique output plus the original
+   draft and call `mcp__roundtable__roundtable-canvass` to synthesize a consensus
+   slate: which invariants survive, which get reworded, which get dropped,
+   which get added.
+3. Use the consensus slate as the candidate list below. Mark each candidate's
+   source so the human knows what to scrutinize.
+
 **Present each candidate individually. Do NOT present a bulk document.**
 
 Format for each:
@@ -165,9 +185,12 @@ CANDIDATE INVARIANT #N:
   Evidence: [where in code you see this pattern]
   Grep pattern: [how safety-auditor would detect violations]
   Confidence: [high/medium/low — based on how consistently the pattern appears]
+  Source: [draft | roundtable-added | roundtable-reworded]
 
   Accept this invariant? [y/n/edit]
 ```
+
+The human is still the final authority — roundtable informs, it does not decide.
 
 Wait for the human to respond to EACH candidate before presenting the next.
 
@@ -199,14 +222,128 @@ In the agent definition, replace the `<!-- CUSTOMIZE -->` sections with:
 - The grep patterns from Phase 4
 - The critical file paths for this project
 
-**5c. Configure `.claude/hooks/safety-gate.py`**
+**5c. Configure `.claude/hooks/keel-safety-gate.py`**
 
 Set the `CRITICAL_PATTERNS` variable to match the project's critical files:
 ```bash
 CRITICAL_PATTERNS="*/auth/*|*/middleware/*|*/transactions/*"
 ```
 
-**5d. Configure pipeline preferences**
+**5d. Stamp brownfield bootstrap marker**
+
+Brownfield projects already have runtime, scaffold, and test infrastructure
+— that's the definition. KEEL's bootstrap features (F01–F03) are greenfield-
+only. Mark this in the backlog so `/keel-refine` knows bootstrap is satisfied.
+
+Three independent, idempotent sub-steps. Each sub-step has its own
+fingerprint gate — any deviation from the shipped template means "user
+customized this" and we skip that sub-step.
+
+Target file: `docs/exec-plans/active/feature-backlog.md`.
+
+**5d.1 Stamp marker (always, idempotent).**
+
+- If the backlog file does not exist: create it using the canonical
+  brownfield template below, with the marker pre-stamped.
+- If the file exists and already contains the exact string
+  `<!-- KEEL-BOOTSTRAP: not-applicable -->`: no-op.
+- Otherwise: insert `<!-- KEEL-BOOTSTRAP: not-applicable -->` on its own
+  line after the `**Architecture:** ...` preamble line and immediately
+  before the first `---` divider. Exact string, no variants.
+
+**5d.2 Strip Bootstrap section (gated).**
+
+Only if the Bootstrap section contains these three exact unticked entries
+(bit-exact, including the `[ ]`, the `**F0N Title**` formatting, the Spec
+and Test lines):
+
+```markdown
+- [ ] **F01 Docker dev environment**
+  Spec: core-beliefs:Container | Agent: docker-builder
+  Test: `docker compose build` succeeds, container has required tools
+
+- [ ] **F02 Project scaffold**
+  Spec: [YOUR-SPEC]:technical | Needs: F01 | Agent: scaffolder
+  Test: App boots at expected port inside container
+
+- [ ] **F03 Test infrastructure**
+  Spec: core-beliefs:Testing | Needs: F02 | Agent: config-writer
+  Test: Mock framework configured, test helper compiles
+```
+
+Replace the entire `## Bootstrap (...)` block (heading + body up to the next
+`##` heading) with a one-line comment:
+
+```markdown
+<!-- Bootstrap not applicable — brownfield adoption on {ISO-date}. -->
+```
+
+Any deviation (F01 renamed, F02 ticked, extra entries added, etc.) → skip
+this sub-step. Log: `"5d.2 skipped: Bootstrap section customized."`
+
+**5d.3 Clear placeholder entries (gated, per section).**
+
+For each of Foundation / Service / UI / Cross-cutting: only if that section
+contains exactly one entry whose title matches the bit-exact shipped
+placeholder pattern AND whose Spec line contains the literal `[spec:section]`:
+
+| Section | Placeholder title |
+|-|-|
+| Foundation | `**F04 [YOUR FOUNDATION FEATURE]**` |
+| Service | `**F05 [YOUR SERVICE FEATURE]**` |
+| UI | `**F06 [YOUR UI FEATURE]**` |
+| Cross-cutting | `**F07 [YOUR CROSS-CUTTING FEATURE]**` |
+
+Remove that single entry (and its body: Spec, Needs, Design, Test lines,
+plus the blank line separator). Preserve the section heading and its
+`<!-- CUSTOMIZE: ... -->` comment.
+
+Any deviation in a section (title customized, body changed, extra entries,
+missing Spec line) → skip that section only. Log: `"5d.3 skipped {section}:
+customized."`
+
+**Canonical brownfield backlog** (used by 5d.1 when the file is missing):
+
+````markdown
+# Feature Backlog
+
+Smallest independently testable features. Execute top-to-bottom.
+Each feature: read spec → write test → write code → verify.
+
+**Specs:** `docs/product-specs/`
+**Principles:** `docs/design-docs/core-beliefs.md`
+**Architecture:** `ARCHITECTURE.md`
+
+<!-- KEEL-BOOTSTRAP: not-applicable -->
+
+---
+
+## Foundation
+
+<!-- BROWNFIELD: Start real features at F01. Foundation-layer modules. -->
+
+## Service
+
+<!-- BROWNFIELD: Features that build on foundation. -->
+
+## UI
+
+<!-- BROWNFIELD: UI entries may include a Design: line with repo-local asset paths. -->
+
+## Cross-cutting
+
+<!-- BROWNFIELD: Tests, fixtures, safety checks, shared infrastructure. -->
+````
+
+**STOP.** Tell the human:
+> "I've stamped `feature-backlog.md` with the brownfield bootstrap marker.
+> Actions taken: {list of completed sub-steps}. Skipped (content was
+> customized): {list of skipped sub-steps, or 'none'}. Review the backlog
+> and confirm it's clean. When satisfied, tell me to continue."
+
+Wait for confirmation before proceeding to 5e.
+
+**5e. Configure pipeline preferences**
 
 Fill the `## Pipeline Preferences` section in CLAUDE.md:
 - Roundtable review: `true` (default — gracefully skipped if MCP unavailable)
@@ -215,7 +352,7 @@ Fill the `## Pipeline Preferences` section in CLAUDE.md:
 
 **STOP.** Tell the human:
 > "Safety enforcement and pipeline preferences are configured. Review
-> core-beliefs.md, the safety-auditor agent definition, safety-gate.py,
+> core-beliefs.md, the safety-auditor agent definition, keel-safety-gate.py,
 > and the pipeline preferences in CLAUDE.md. These control what the
 > auditor enforces and whether roundtable review runs. When satisfied,
 > we're done with adoption."
@@ -233,15 +370,17 @@ Print the brownfield checklist from `docs/process/BROWNFIELD.md`:
 [x] Domain invariants defined in core-beliefs.md
 [x] Safety-auditor configured
 [x] Safety-gate hook configured
-[ ] Feature backlog created — YOUR TURN
+[x] Brownfield bootstrap marker stamped in feature-backlog.md
+[ ] First real feature drafted — use /keel-refine, or edit feature-backlog.md by hand
 [ ] First feature spec written — YOUR TURN
 [ ] First feature run through pipeline — use /keel-pipeline
 ```
 
 Tell the human:
-> "KEEL adoption is complete. Next: create your feature backlog
-> (docs/exec-plans/active/feature-backlog.md) and write a spec for
-> your first new feature. Then run `/keel-pipeline` to execute it."
+> "KEEL adoption is complete. `feature-backlog.md` is marker-stamped and
+> ready for real features starting at F01. Next: draft entries with
+> `/keel-refine` (PRD or prose input) or edit the backlog by hand, then
+> write the spec for your first feature and run `/keel-pipeline` to execute it."
 
 ## Rules
 
@@ -250,4 +389,4 @@ Tell the human:
 - **Draft, don't prescribe.** CLAUDE.md and ARCHITECTURE.md are drafts for human refinement.
 - **Mark what you don't know.** Use `<!-- HUMAN: ... -->` markers (with colon, specific question), never guess at intent.
 - **Don't touch existing code.** This skill writes KEEL docs, not project code.
-- **Don't automate backlog/specs.** Steps 6-8 from BROWNFIELD.md are human judgment.
+- **Don't automate backlog/specs.** Steps 6-8 from BROWNFIELD.md are human judgment. **Exception:** Phase 5d stamps the bootstrap marker and removes bit-exact template scaffolding (per-sub-step fingerprint-gated). It never authors user-facing content — every sub-step is either a deterministic marker insertion or a bit-exact placeholder removal.

@@ -1,5 +1,5 @@
 ---
-name: safety-check
+name: keel-safety-check
 description: "Quick safety audit — scans current changes against domain invariant rules. Use after editing critical modules."
 ---
 

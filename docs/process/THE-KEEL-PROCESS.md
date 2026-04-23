@@ -587,7 +587,7 @@ config-writer  --> landing-verifier --> roundtable-review? --> post-landing
 **Backend** (foundation and service features)
 
 ```
-pre-check --> researcher? --> arch-advisor? --> backend-designer? --> roundtable-review? --> test-writer --> implementer --> code-reviewer --> spec-reviewer --> safety-auditor? --> arch-advisor-verify? --> landing-verifier --> roundtable-review? --> post-landing
+pre-check --> roundtable-precheck? --> researcher? --> arch-advisor? --> backend-designer? --> roundtable-review? --> test-writer --> implementer --> code-reviewer --> spec-reviewer --> safety-auditor? --> arch-advisor-verify? --> landing-verifier --> roundtable-review? --> post-landing
 ```
 
 `?` = conditionally included. Pre-check classifies intent and complexity,
@@ -599,7 +599,7 @@ landing).
 **Frontend** (UI features)
 
 ```
-pre-check --> researcher? --> arch-advisor? --> frontend-designer --> roundtable-review? --> test-writer --> implementer --> code-reviewer --> spec-reviewer --> arch-advisor-verify? --> landing-verifier --> roundtable-review? --> post-landing
+pre-check --> roundtable-precheck? --> researcher? --> arch-advisor? --> frontend-designer --> roundtable-review? --> test-writer --> implementer --> code-reviewer --> spec-reviewer --> arch-advisor-verify? --> landing-verifier --> roundtable-review? --> post-landing
 ```
 
 Frontend-designer always included. No safety-auditor (UI does not execute
@@ -608,7 +608,7 @@ domain-critical operations directly). Arch-advisor for architecture-tier only.
 **Cross-cutting** (test infrastructure, fixtures)
 
 ```
-pre-check --> test-writer --> implementer --> code-reviewer --> landing-verifier --> roundtable-review? --> post-landing
+pre-check --> roundtable-precheck? --> test-writer --> implementer --> code-reviewer --> landing-verifier --> roundtable-review? --> post-landing
 ```
 
 ### The Handoff Mechanism

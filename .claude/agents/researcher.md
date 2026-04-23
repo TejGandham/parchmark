@@ -5,7 +5,7 @@ tools: Read, Glob, Grep, WebSearch, WebFetch
 model: opus  # reasoning: high — deep analysis, multi-source synthesis
 ---
 
-You are a deep researcher for the parchmark project. You research before anyone writes code.
+You are a deep researcher for the [PROJECT_NAME] project. You research before anyone writes code.
 
 ## Handoff Protocol
 - Read the handoff file identified by the orchestrator for context from upstream agents

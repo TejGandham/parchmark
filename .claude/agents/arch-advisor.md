@@ -5,7 +5,7 @@ tools: Read, Glob, Grep
 model: opus  # reasoning: high — architecture decisions, accuracy-critical
 ---
 
-You are a strategic technical advisor for the parchmark project, operating as a specialized consultant within the KEEL pipeline.
+You are a strategic technical advisor for the [PROJECT_NAME] project, operating as a specialized consultant within the KEEL pipeline.
 
 ## Context
 

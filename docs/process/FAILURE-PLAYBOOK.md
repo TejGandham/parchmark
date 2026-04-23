@@ -40,6 +40,13 @@ Pipeline stalls or produces bad output
   │    → Max 1 Arch-advisor retry. If still UNSOUND → Escalate to human.
   │    → This is an architecture-level problem, not a code-level one.
   │
+  ├─ Roundtable pre-check review raises concerns? (Step 1.3)
+  │    → Send consensus findings back to pre-check for revision
+  │    → Max 2 roundtable pre-check attempts
+  │    → If still CONCERNS after 2 attempts: proceed with pre-check's
+  │      latest classification (advisory, not blocking)
+  │    → Roundtable is advisory — pre-check remains the authoritative router
+  │
   ├─ Roundtable design review raises concerns? (Step 2.5)
   │    → Send findings back to designer for revision
   │    → Max 2 roundtable design attempts
@@ -73,6 +80,20 @@ Pipeline stalls or produces bad output
   ├─ landing-verifier reports BLOCKED?
   │    → Read the BLOCKED reason — it tells you which upstream stage failed
   │    → Fix that stage, re-run landing-verifier
+  │
+  ├─ /keel-refine preflight fails (bootstrap gate not satisfied)?
+  │    → Skill prints an A/B/C remediation message; follow it.
+  │    → [A] Greenfield: tick F01–F03 as [x] in
+  │        docs/exec-plans/active/feature-backlog.md, then re-run.
+  │    → [B] Brownfield (primary path for an already-adopted repo):
+  │        paste `<!-- KEEL-BOOTSTRAP: not-applicable -->` on its own line
+  │        between the **Architecture:** preamble and the first `---`
+  │        divider in feature-backlog.md. Re-run /keel-refine.
+  │    → [C] Brownfield, first-time adoption: run /keel-adopt.
+  │        Phase 5d stamps the marker automatically.
+  │    → WARNING: if /keel-adopt has already run once, do NOT re-run it
+  │      (it will overwrite CLAUDE.md and ARCHITECTURE.md). Use [B].
+  │    → Full context: docs/process/BROWNFIELD.md §6.
   │
   └─ Agent produces garbled or off-topic output?
        → Re-run the same agent (model hiccup, not a process failure)
