@@ -55,3 +55,13 @@ Known shortcuts, deferred improvements, and open questions.
 - [ ] **Alembic reversibility CI check.** Until we actually feel the pain
       of a broken downgrade, don't invest in this — but the invariant
       was proposed by Claude in roundtable and deferred for this reason.
+
+- [ ] **Automated browser E2E for live-updates (F07 graduation).** F07
+      ships with a hybrid acceptance gate: F07a backend integration
+      (pytest + httpx SSE client), F07b frontend unit (Vitest + mocked
+      fetch-event-source), F07c manual Chrome DevTools MCP verification
+      before merge. Parchmark has no browser E2E suite today. When F07c
+      manual-run cost exceeds the tooling investment (likely signalled
+      by recurring merge-gate pain or regressions that slipped past
+      F07a+F07b), add Playwright and graduate F07c to an automated F07d.
+      See `feature-backlog.md` F07 SPEC-NOTES.
