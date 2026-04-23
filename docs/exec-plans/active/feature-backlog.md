@@ -72,11 +72,12 @@ Each feature: read spec → write test → write code → verify.
 
 ## Cross-cutting
 
-- [ ] **F07 End-to-end two-tab live-update test for note list refresh**
+- [ ] **F07 Two-tab live-update acceptance gate (hybrid: backend integration + frontend unit + manual DevTools MCP)**
   Spec: docs/product-specs/notes-live-updates.md:e2e-two-tab | Needs: F03, F05
-  Test: E2E test: tab A and tab B both logged in as the same user view the notes list; tab A creates a note, and within a bounded time budget tab B's notes list shows the new note without a manual refresh. Repeat for update and delete.
-  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 2 markers remain -->
+  Test: Three-part acceptance gate. (a) Backend integration (pytest + httpx SSE client): NOTIFY from publish → SSE delivery → correct payload → no cross-user leakage, for each of POST/PUT/DELETE. (b) Frontend unit (Vitest + mocked fetch-event-source): synthetic event → F05 coalescing → useRevalidator().revalidate() fires within the 500ms window. (c) Manual acceptance (Chrome DevTools MCP): two tabs same user; mutation in tab A shows in tab B within 2 seconds without manual refresh, for create/update/delete; browser console clean.
+  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:0f4b2c1d7a9e3b6f -->
-  <!-- HUMAN: Time budget for 'within bounded time' is unspecified. Suggest e.g. 3 seconds, to be confirmed in spec. -->
-  <!-- HUMAN: Which test harness — Playwright, Vitest + mocked EventSource, or a backend integration test with an HTTP SSE client? Repo does not currently have a browser E2E suite wired in. -->
+  <!-- RESOLVED 2026-04-23 (time budget): 2 seconds. Latency budget: pg NOTIFY <1ms + SSE delivery ~50-200ms + F05 leading-edge revalidate 0ms + loader fetch ~100-500ms = ~200ms-1s total on healthy network. 2s gives 2-5x margin. <2s flakes on slow CI; >3s enters "why hasn't it updated yet" territory. -->
+  <!-- RESOLVED 2026-04-23 (test harness): Split the e2e goal into three verifiable pieces; skip Playwright for MVP. Rationale: parchmark's current testing posture is pytest (backend, testcontainers Postgres) + Vitest (frontend) + Chrome DevTools MCP (manual visual QA per AGENTS.md). Standing up Playwright for one test is MVP-scope violation. F07a + F07b are automated in CI; F07c is manual acceptance before merge, documented in PR description. -->
+  <!-- SPEC-NOTES: (a) F07a must assert publish-after-commit-only (publish skipped on rollback) — ties into F03's failure-policy; (b) F07c is the merge gate — PR description documents the manual run, operator attests; (c) tech debt: when parchmark grows an automated browser E2E suite (likely triggered by F07c becoming recurring pain), add a Playwright-based F07d as a follow-up and keep F07c as a fallback; (d) log an entry in docs/exec-plans/tech-debt-tracker.md: "No automated browser E2E; manual Chrome DevTools MCP gates live-update acceptance. Graduate to Playwright when F07c pain exceeds manual-run cost." -->
 
