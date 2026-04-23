@@ -320,65 +320,127 @@ The agent returned questions it couldn't resolve from the PRD alone.
 
 ---
 
-## Phase 5: Conversational Review (replaces prior materialize-immediately)
+## Phase 5: Conversational Review (per-card walkthrough)
 
-Present the drafted entries as editable cards in chat. Loop until the user types `commit` or `abort`.
+Match NORTH-STAR §Autonomy Ceiling line 103: `/keel-refine` "reviews
+each card conversationally with the human." Every drafted entry is
+walked individually before `commit` is valid — no block-review escape
+hatch, no "accept all" shortcut. Accuracy over speed.
 
-**Initial presentation:**
+### Step 1 — Orientation summary (not a review surface)
+
+Print the slate first so the human has the shape before walking:
 
 ```
-Drafted {N} entries from {intent.source basename}. Review each:
+Drafted {N} entries from {intent.source basename}:
 
-F{id} {title}                     → {section}
-  Spec:     {spec_ref}
-  Needs:    {comma-joined or "—"}
-  Design:   {comma-joined or "—"}
-  Test:     {test_criterion OR "❓ " + marker question}
-  Open:     {count of HUMAN markers}
-
-{repeat for each drafted entry}
+  F{id} {title}  → {section}  ({marker_count} markers)
+  F{id} {title}  → {section}  ({marker_count} markers)
+  ...
 
 Summary:
   Sections to create: {list or "none"}
   Collisions:         {list or "none"}
   Unused assets:      {list or "none"}
 
-Type edits in plain English (e.g. 'F12 test is "user logs in, sees dashboard"; drop F14').
-Type `commit` when ready. Type `abort` to discard.
+Walking card 1 of {N}...
 ```
 
-**Accepting edits.** Parse free-form edit commands against the in-memory draft. Examples of supported edit patterns:
+Orientation only. `commit` here is invalid — the walk hasn't started.
+Proceed to Step 2 immediately.
 
-| User intent | Example utterance | Effect on in-memory draft |
-|-|-|-|
-| Edit a field | `F12 test is "..."` | Replace `test_criterion` for F12, remove matching HUMAN marker if it was the source |
-| Resolve a marker | `F12 marker 1: <answer>` | Remove that marker from `human_markers`, apply the answer to the referenced field |
-| Drop an entry | `drop F14` | Remove F14 from the drafted set. Renumbering of subsequent ids stays frozen. |
-| Retitle | `F12 title: "..."` | Replace the title |
-| Move sections | `F12 section: Service` | Requires section to exist in `architecture_layers` or `sections_to_create`; else reject |
-| Add a need | `F12 needs F08, F11` | Replace `needs` list |
-| Attach a design asset | `F12 design +login-flow.png` | Append path to `design_assets` if path exists in `intent.design_assets[]`; else reject |
-| Remove a design asset | `F12 design -login-flow.png` | Remove path from `design_assets` |
+### Step 2 — Walk each card in F## order
 
-After each edit, re-print only the changed cards (not the whole list).
+For each drafted entry, print the full card. The current card stays
+active until an advancing verb (`accept`, `drop F##`, `back`) is
+issued.
 
-**Edit-time validation** — apply every self-validation check that applies to the edited state:
-- `needs` must still resolve to real ids.
-- `section` must still exist in `architecture_layers` or `sections_to_create`.
+**Card display:**
+
+```
+Card {n} of {N}:
+
+F{id} {title}                        → {section}
+  Spec:     {spec_ref}
+  Needs:    {comma-joined or "—"}
+  Design:   {comma-joined or "—"}
+  Test:     {test_criterion}
+
+  Open markers:
+    [1] {marker 1 text}
+    [2] {marker 2 text}
+    ...
+
+Verbs:
+  accept                         — keep as drafted, advance
+  edit <field>: <value>          — replace title/section/test/spec/needs/design
+  answer marker <n>: <text>      — drop marker n, record answer; apply via
+                                   a follow-up `edit` if it belongs in a field
+  skip marker <n>                — ship marker as-is (pre-check will block
+                                   /keel-pipeline on this entry until a
+                                   human resolves it)
+  drop F##                       — remove this card from the draft, advance
+  back                           — revisit the prior card (no-op on card 1)
+```
+
+If the card has zero markers the `Open markers:` block is omitted
+entirely; `accept` is a single-keystroke advance. Zero-marker cards
+are still walked — the NORTH-STAR requirement is per-card
+conversation, not per-marker.
+
+**Edit-time validation** applies to every `edit`, `answer marker`, and
+`drop` action:
+- `needs` must still resolve to real ids (existing features plus
+  cards still present in the draft after any `drop`s in this walk).
+- `section` must still exist in `architecture_layers` or
+  `sections_to_create`.
 - `design_assets` entries must still be in `intent.design_assets[]`.
-- Dep-cycle check, title-dup check, cap check.
+- Dep-cycle, title-dup, entry-cap checks.
 
-If an edit would violate validation: reject the edit with a specific reason, leave draft unchanged.
+Reject a card-level action with a specific reason. Card stays active;
+user retries or advances.
 
-**Turn cap:**
-- Max 30 edit turns per review session.
-- If exceeded: print `"Review turn cap reached. Type 'commit' to ship current state, 'abort' to discard."`. Accept only those two verbs thereafter.
+### Step 3 — Post-walk state
 
-**On `abort`:** `rm -rf .keel-refine-session/<id>/`, print `"Refinement aborted. No changes to the repo."`, exit.
+After every drafted card has been advanced at least once (`accept`
+or `drop`), print:
 
-**On `commit`:** proceed to Phase 6.
+```
+Walk complete. {kept_count} cards ready to commit.
 
-**Special case — `status: partial` entry into Phase 5.** Cards for `ready_to_write` entries are shown normally; cards for entries that need interview are shown with `❓` placeholders. User can still edit, still type `commit` — any unresolved marker ships as `<!-- HUMAN: -->` in the materialized entry.
+Verbs:
+  commit        — materialize + git commit with deterministic message
+  revisit F##   — re-enter the walk at F## (re-opens that card;
+                  later cards stay as-walked)
+  abort         — discard session, no commit
+```
+
+- `commit` is **only valid in post-walk state**. Attempting it during
+  Step 2 re-points to the current unwalked card and prints:
+  `"Card F## has not been walked yet. Resume? (accept / drop F## / edit / answer marker N / skip marker N / back)"`.
+  Does not materialize anything.
+- `revisit F##` re-activates F## for editing; cards walked after F##
+  stay walked unless re-visited individually.
+- `abort` runs `rm -rf .keel-refine-session/<id>/` and exits.
+- `commit` proceeds to Phase 6.
+
+### Turn caps
+
+- **Global:** 30 user inputs per session, across Step 2 + Step 3. On
+  exhaustion, accept only `commit` / `abort`.
+- **Per-card soft cap:** 5 inputs on a single card. On reaching:
+  `"Card F{id} has consumed 5 turns. If you're making progress, keep
+  going — this is a nudge, not a stop. Otherwise 'accept', 'drop F##',
+  or 'back' to move on."` Soft warning only.
+
+### Handling `status: partial` entries from Phase 4
+
+Cards whose fields came out of the drafter as `❓` placeholders
+(Phase 4 interview budget exhausted, or human typed `skip` on a
+drafter-initiated question) are walked identically to any other card.
+The human answers via `answer marker <n>` + a follow-up `edit`, or
+`skip marker <n>` to ship the `<!-- HUMAN: -->` marker for pre-check
+to catch at pipeline time. No separate presentation mode.
 
 ---
 
@@ -530,8 +592,10 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 | Pasted file exceeds format/size cap | Wrong format or too large | Print specific error, do not write anything, exit |
 | Agent returns malformed YAML | Agent failure | Print parsing error, clean up session dir, exit |
 | Agent returns `ready_to_write` with a false `self_validation` field | Agent misbehavior | Treat as parsing error — do NOT enter review |
-| User edit in Phase 5 violates validation | Bad edit | Reject the edit with reason, draft unchanged, keep accepting edits |
-| Turn cap reached in Phase 5 | Over-iteration | Announce cap, accept only `commit` / `abort` thereafter |
+| User action in Phase 5 walk violates validation | Bad edit / answer / drop | Reject with reason; active card stays active; no advance |
+| `commit` attempted in Phase 5 before walk is complete | User tried to short-circuit | Re-point to current unwalked card, prompt for advancing verb, do not materialize |
+| Global turn cap reached in Phase 5 | Over-iteration | Announce cap, accept only `commit` / `abort` thereafter |
+| Per-card soft cap reached in Phase 5 | Possibly-stuck card | Print warning, continue accepting card-level verbs |
 | Staleness at commit (hash mismatch) | Concurrent backlog edit | Preserve drafts in session dir, announce collision, exit without commit |
 | `Edit` to `feature-backlog.md` fails mid-commit | Permissions / conflict | Restore from snapshot, announce failure, exit |
 | User types `abort` | User choice | `rm -rf` session dir, announce, exit |

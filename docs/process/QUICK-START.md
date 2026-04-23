@@ -108,24 +108,34 @@ drafter and attaches them to the relevant drafted UI entries as a
 The `backlog-drafter` agent reads your PRD + `ARCHITECTURE.md` + the
 current backlog + any design assets, and drafts candidate `F##`
 entries with dependency edges and `<!-- HUMAN: -->` markers wherever
-it couldn't resolve a field. The skill then presents the drafts as
-editable cards in chat, NOT as a git diff:
+it couldn't resolve a field. The skill then walks each card one at
+a time — this is NOT a git diff and NOT a single block review:
 
 ```
+Card 1 of 3:
+
 F12 Login screen with validation      → Service
   Spec:    docs/prds/auth/README.md:login
   Design:  login-flow.png
   Test:    ❓ acceptance test?
 
-Type edits in plain English. Type `commit` when ready. `abort` discards.
+  Open markers:
+    [1] What's the acceptance test? Visual regression or functional?
+
+Verbs:
+  accept / edit <field>: <value> / answer marker <n>: <text> /
+  skip marker <n> / drop F## / back
 ```
 
-You edit by talking (`F12 test is "..."`, `drop F14`). When you type
-`commit`, the skill writes the entries to `feature-backlog.md`, moves
-pasted images into `docs/prds/drafts/<timestamp>/`, and runs
-`git add` + `git commit` with a deterministic message. No confirmation
-prompt — the commit is announced, not asked. If you dislike the
-message, `git commit --amend -m "..."` is your override.
+You advance cards one-by-one (`accept`, `drop F##`, or `back` to
+revisit the prior card) and edit fields or answer markers on the
+active card. Once every card is walked, the skill enters post-walk
+state and accepts `commit` / `revisit F##` / `abort`. On `commit` it
+writes entries to `feature-backlog.md`, moves pasted images into
+`docs/prds/drafts/<timestamp>/`, and runs `git add` + `git commit`
+with a deterministic message. No confirmation prompt — the commit is
+announced, not asked. If you dislike the message,
+`git commit --amend -m "..."` is your override.
 
 Then write the spec file(s) that the drafted entries point at, and run
 `/keel-pipeline F##` when ready. Nothing auto-chains — you stay the

@@ -99,7 +99,7 @@
       "kind": "skill"
     },
     ".claude/skills/keel-refine": {
-      "installed_hash": "sha256:fa6decba4d18f156ad14aa82c8412ae711bc61adfdd39980693a4b0b81fc90d9",
+      "installed_hash": "sha256:716c291d9ce5e1d2c6381ed29205b369bd031f824b92a1f5c4f9f71484884cc3",
       "kind": "skill"
     },
     ".claude/skills/keel-safety-check": {
@@ -119,7 +119,7 @@
       "kind": "process_doc"
     },
     "docs/process/BROWNFIELD.md": {
-      "installed_hash": "sha256:f32e5309319d3dfc50f0a77a925671f2860e9a2ec49fc45e1bcf050a889da1ba",
+      "installed_hash": "sha256:87617c8db08a8e6e9037985632239685e63207b3842da4b3ae9e32f7ba38bebe",
       "kind": "process_doc"
     },
     "docs/process/FAILURE-PLAYBOOK.md": {
@@ -131,11 +131,11 @@
       "kind": "process_doc"
     },
     "docs/process/QUICK-START.md": {
-      "installed_hash": "sha256:ff1827baa18cd6ee99f0a98cbc6cc5ffdb90687eacaac67eac443448fc1ebcae",
+      "installed_hash": "sha256:0f1980817218905e8361540dbcc3d7fbe2efc7628c4de339e363cdffa16cafa2",
       "kind": "process_doc"
     },
     "docs/process/THE-KEEL-PROCESS.md": {
-      "installed_hash": "sha256:874150f07fd6391c91305ae983d8e859de3aef0fbcd9bf057a07354941a28c3f",
+      "installed_hash": "sha256:aa4c736e702104cd857bcac0fa576658d2891e5e9fac08952e29f397283d68ec",
       "kind": "process_doc"
     }
   },

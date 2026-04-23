@@ -172,10 +172,12 @@ bundle directory (README + sibling images/PDFs), a prose description,
 or nothing — then paste screenshots directly in chat. `backlog-drafter`
 will draft candidate `F##` backlog entries with dependency edges,
 optional `Design:` refs on UI entries, and `<!-- HUMAN: ... -->`
-markers where it couldn't resolve a field. The skill presents the
-drafts as editable cards in chat; edit in plain English, type
-`commit` to write and auto-commit, `abort` to discard. Then write
-the spec file(s) the drafted entries point at. See
+markers where it couldn't resolve a field. The skill then walks you
+through each drafted card one at a time — you `accept`, `edit`,
+`answer marker <n>`, `skip marker <n>`, or `drop F##` per card.
+Once every card is walked, type `commit` to write and auto-commit
+or `abort` to discard. Then write the spec file(s) the drafted
+entries point at. See
 [QUICK-START.md](QUICK-START.md#optional-draft-the-backlog-from-a-prd--keel-refine)
 or [THE-KEEL-PROCESS §6](THE-KEEL-PROCESS.md#6-the-feature-backlog)
 for the full flow.
