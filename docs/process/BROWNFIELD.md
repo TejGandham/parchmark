@@ -113,7 +113,7 @@ Edit `.claude/agents/safety-auditor.md`:
 - Add grep patterns that detect violations
 - Add your critical file paths
 
-Edit `.claude/hooks/safety-gate.py`:
+Edit `.claude/hooks/keel-safety-gate.py`:
 - Set the file patterns that trigger safety reminders before edits
 
 This is your mechanical enforcement layer. It catches violations that
@@ -136,9 +136,20 @@ you want to build — not past features. Format:
   Test: [acceptance criteria]
 ```
 
-For brownfield, you skip the bootstrap features (F01-F03 in greenfield).
-Your project already has Docker, a framework, and test infrastructure.
-Start directly with real features.
+For brownfield, bootstrap features (F01-F03) don't apply — your project
+already has Docker, a framework, and test infrastructure. Either
+`/keel-adopt` Phase 5d stamped `<!-- KEEL-BOOTSTRAP: not-applicable -->`
+in `feature-backlog.md` automatically, or you paste that marker manually
+on its own line between the `**Architecture:**` preamble and the first
+`---` divider. Start directly with **F01** (numbering resets for
+brownfield — `/keel-refine` filters out the shipped F04-F07 placeholders
+when the marker is present, so the first real feature gets F01).
+
+**Caught in the brownfield dead-end** (preflight complaining that
+bootstrap isn't ticked after `/keel-adopt` ran)? Paste the marker line
+into `feature-backlog.md` manually and re-run `/keel-refine`. Do **not**
+re-run `/keel-adopt` — it will overwrite your customized `CLAUDE.md`
+and `ARCHITECTURE.md`.
 
 ### 7. Write a spec for your first feature
 

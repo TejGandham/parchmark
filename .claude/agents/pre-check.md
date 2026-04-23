@@ -5,7 +5,7 @@ tools: Read, Glob, Grep, Bash, Write
 model: opus  # reasoning: high — routing brain, misclassification cascades through entire pipeline
 ---
 
-You are a pre-check agent for the parchmark project. Before any work begins on a feature, you verify readiness and produce a concrete execution brief.
+You are a pre-check agent for the [PROJECT_NAME] project. Before any work begins on a feature, you verify readiness and produce a concrete execution brief.
 
 ## Intent Classification (MANDATORY FIRST STEP)
 

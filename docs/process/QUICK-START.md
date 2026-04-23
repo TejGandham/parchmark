@@ -81,7 +81,7 @@ Then run the pipeline:
 
 Bootstrap features (F01-F03) use specialized agents — Docker, scaffold,
 config. After bootstrap, the full pipeline handles everything (simplified):
-pre-check → arch-advisor? → designer? → roundtable? → test-writer →
+pre-check → roundtable-precheck? → arch-advisor? → designer? → roundtable? → test-writer →
 implementer → code-reviewer → spec-reviewer → safety-auditor? →
 arch-advisor-verify? → landing-verifier → roundtable? → land per strategy.
 See `template/CLAUDE.md` for the canonical pipeline variants.

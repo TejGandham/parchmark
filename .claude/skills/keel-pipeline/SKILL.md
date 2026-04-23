@@ -96,17 +96,17 @@ Bootstrap features are orchestrator-direct: dispatch the specific bootstrap agen
 
 **Backend** — changes to core business logic, services, data layer:
 ```
-pre-check → researcher? → backend-designer? → roundtable-review? → test-writer → implementer → code-reviewer → spec-reviewer → safety-auditor? → landing-verifier → roundtable-review? → post-landing
+pre-check → roundtable-precheck? → researcher? → backend-designer? → roundtable-review? → test-writer → implementer → code-reviewer → spec-reviewer → safety-auditor? → landing-verifier → roundtable-review? → post-landing
 ```
 
 **Frontend** — changes to UI components, templates, styles, client-side logic:
 ```
-pre-check → researcher? → frontend-designer → roundtable-review? → test-writer → implementer → code-reviewer → spec-reviewer → landing-verifier → roundtable-review? → post-landing
+pre-check → roundtable-precheck? → researcher? → frontend-designer → roundtable-review? → test-writer → implementer → code-reviewer → spec-reviewer → landing-verifier → roundtable-review? → post-landing
 ```
 
 **Cross-cutting** — test infrastructure, config, Docker, docs:
 ```
-pre-check → test-writer → implementer → code-reviewer → landing-verifier → roundtable-review? → post-landing
+pre-check → roundtable-precheck? → test-writer → implementer → code-reviewer → landing-verifier → roundtable-review? → post-landing
 ```
 
 **Full-stack** — touches both backend and frontend: run backend pipeline, then frontend pipeline, sharing the same handoff file.
@@ -127,6 +127,47 @@ handoff YAML frontmatter with routing fields from the brief:
 - `arch_advisor_needed` — YES if complexity is architecture-tier
 
 Read routing decisions from the YAML frontmatter for all subsequent steps.
+
+### Step 1.3: Roundtable pre-check review (if enabled)
+
+Runs when `roundtable_enabled: true`. Stress-tests pre-check's routing
+classification BEFORE downstream agents run — because the routing flags
+(`designer_needed`, `researcher_needed`, `safety_auditor_needed`,
+`arch_advisor_needed`, `complexity`) cascade through the whole pipeline.
+A misclassification either wastes 5+ agent cycles or under-scrutinizes
+safety-critical changes. One-way door.
+
+1. Re-check roundtable MCP availability (120s timeout per tool call).
+   If unavailable: set `roundtable_precheck_skipped: true` in handoff YAML
+   with a one-line reason, print a visible warning to stderr:
+
+     !! Roundtable MCP unavailable ({reason}) — skipping pre-check review.
+     !! Configured roundtable_enabled=true in CLAUDE.md; proceeding without it.
+
+   Continue to Step 1.5. Skip is surfaced in the commit verdict block
+   (Step 9 sub-step 3).
+2. Call `mcp__roundtable__roundtable-critique` with pre-check's execution brief
+   + routing flags + spec excerpt. Ask it to attack the classification:
+   wrong intent, wrong complexity tier, missing research signal,
+   missing safety-auditor flag, missing arch-advisor flag, designer
+   needed but flagged NO (or vice versa).
+3. Call `mcp__roundtable__roundtable-canvass` with the critique output + original
+   pre-check brief to synthesize a consensus routing. Pass both so the
+   consensus can choose to keep, flip, or refine individual flags.
+4. Append combined output to `## roundtable-precheck-review` in handoff.
+5. Set `roundtable_precheck_attempt: 1` in YAML.
+6. If the consensus disagrees with pre-check's flags: send the consensus
+   findings back to `pre-check`. Pre-check revises the brief, updates the
+   YAML routing fields. Increment `roundtable_precheck_attempt` to 2,
+   re-run critique + canvass.
+7. If still divergent after attempt 2: proceed with pre-check's latest
+   classification anyway (advisory, not blocking). Set
+   `roundtable_precheck_verdict: CONCERNS` and log the unresolved
+   disagreement in the handoff.
+8. If consensus agrees: set `roundtable_precheck_verdict: APPROVED`.
+
+Roundtable is advisory. Pre-check remains the authoritative router — this
+step only flags blind spots for pre-check to reconsider.
 
 ### Step 1.5: Researcher (if needed)
 If pre-check set `Research needed: YES`, dispatch `researcher` with the specific questions from the execution brief. Append research brief to handoff file.
@@ -155,13 +196,13 @@ Runs only when `designer_needed: YES` AND `roundtable_enabled: true`.
    Continue to test-writer. Roundtable is advisory, so a flap doesn't halt
    the pipeline — but the skip is surfaced in the commit verdict block
    (Step 9 sub-step 3) so it's visible after the fact.
-2. Call `mcp__roundtable__architect` with designer output from handoff.
-3. Call `mcp__roundtable__challenge` with designer output from handoff.
+2. Call `mcp__roundtable__roundtable-blueprint` with designer output from handoff.
+3. Call `mcp__roundtable__roundtable-critique` with designer output from handoff.
 4. Append combined output to `## roundtable-design-review` in handoff.
 5. Set `roundtable_design_attempt: 1` in YAML.
 6. If critical concerns raised: send findings back to designer, designer
-   revises, increment `roundtable_design_attempt` to 2, re-run architect +
-   challenge.
+   revises, increment `roundtable_design_attempt` to 2, re-run blueprint +
+   critique.
 7. If still concerns after attempt 2: proceed anyway (advisory, not blocking).
    Set `roundtable_design_verdict: CONCERNS`. Log unresolved items in handoff.
 8. If no concerns: set `roundtable_design_verdict: APPROVED`.
@@ -249,8 +290,8 @@ Runs for ALL pipeline variants when `roundtable_enabled: true`.
 
    Proceed to Step 9. The skip is surfaced in the commit verdict block
    (Step 9 sub-step 3) so it's visible after the fact.
-2. Call `mcp__roundtable__xray` with implementation summary from handoff.
-3. Call `mcp__roundtable__challenge` with implementation summary from handoff.
+2. Call `mcp__roundtable__roundtable-crosscheck` with implementation summary from handoff.
+3. Call `mcp__roundtable__roundtable-critique` with implementation summary from handoff.
 4. Append combined output to `## roundtable-landing-review` in handoff.
 5. Set `roundtable_landing_attempt: 1` in YAML.
 6. If critical concerns raised: send findings back to implementer, implementer
@@ -336,6 +377,7 @@ failure before any further action.
      safety:      PASS (attempt 1)
      arch-advisor: SOUND
      code-review: APPROVED (attempt 1)
+     roundtable-precheck: APPROVED (attempt 1)
      roundtable-design: APPROVED (attempt 1)
      roundtable-landing: APPROVED (attempt 1)
 

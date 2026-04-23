@@ -19,9 +19,9 @@
   - F01: docker-builder → landing-verifier → roundtable-review? → post-landing
   - F02: scaffolder → landing-verifier → roundtable-review? → post-landing
   - F03: config-writer → landing-verifier → roundtable-review? → post-landing
-- **Backend:** pre-check → researcher? → arch-advisor? → roundtable-review? → backend-designer? → test-writer → implementer → code-reviewer → spec-reviewer → safety-auditor? → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
-- **Frontend:** pre-check → researcher? → arch-advisor? → roundtable-review? → frontend-designer → test-writer → implementer → code-reviewer → spec-reviewer → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
-- **Cross-cutting:** pre-check → test-writer → implementer → code-reviewer → landing-verifier → roundtable-review? → post-landing
+- **Backend:** pre-check → roundtable-precheck? → researcher? → arch-advisor? → roundtable-review? → backend-designer? → test-writer → implementer → code-reviewer → spec-reviewer → safety-auditor? → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
+- **Frontend:** pre-check → roundtable-precheck? → researcher? → arch-advisor? → roundtable-review? → frontend-designer → test-writer → implementer → code-reviewer → spec-reviewer → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
+- **Cross-cutting:** pre-check → roundtable-precheck? → test-writer → implementer → code-reviewer → landing-verifier → roundtable-review? → post-landing
 
 **Execution Brief** — The structured output of the pre-check agent. Contains: intent classification, complexity tier, spec reference, dependencies, what to build, new/modified files, acceptance tests, edge cases, risks, constraints for downstream (MUST/MUST NOT), and routing decisions (designer needed? researcher needed? arch-advisor needed?).
 
@@ -55,4 +55,4 @@
 
 **READY-TO-LAND** — Handoff status set by the orchestrator after roundtable landing review (Step 8.5) completes or is skipped. Indicates the feature has passed all gates, been reviewed (if roundtable enabled), and is ready for the post-landing procedure (Step 9). When roundtable is disabled, this state is skipped — VERIFIED triggers Step 9 directly.
 
-**Roundtable Review** — Advisory multi-model review using the roundtable MCP server. Runs at two pipeline points: post-designer (Step 2.5, tools: `architect` + `challenge`) and pre-landing (Step 8.5, tools: `xray` + `challenge`). Automatic when MCP server is available and enabled in CLAUDE.md. Advisory, not authoritative — findings feed back through existing gates, never directly block landing. Gracefully skipped if MCP server is unavailable.
+**Roundtable Review** — Advisory multi-model review using the roundtable MCP server. Runs at three pipeline points: post-pre-check (Step 1.3, tools: `roundtable-critique` + `roundtable-canvass`), post-designer (Step 2.5, tools: `roundtable-blueprint` + `roundtable-critique`), and pre-landing (Step 8.5, tools: `roundtable-crosscheck` + `roundtable-critique`). Automatic when MCP server is available and enabled in CLAUDE.md. Advisory, not authoritative — findings feed back through pre-check, designer, or the existing gate chain respectively, never directly block landing. Gracefully skipped if MCP server is unavailable.

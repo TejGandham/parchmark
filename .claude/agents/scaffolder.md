@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Bash
 model: sonnet  # reasoning: standard — template execution, not design
 ---
 
-You scaffold the parchmark project inside the container. That's your only job.
+You scaffold the [PROJECT_NAME] project inside the container. That's your only job.
 
 ## Scope Boundary
 You create the project skeleton — directory structure, entry point files,

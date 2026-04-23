@@ -9,6 +9,8 @@ Each feature: read spec → write test → write code → verify.
 **Principles:** `docs/design-docs/core-beliefs.md`
 **Architecture:** `ARCHITECTURE.md`
 
+<!-- KEEL-BOOTSTRAP: not-applicable -->
+
 ---
 
 ## Bootstrap (orchestrator-direct, no test-writer/implementer pipeline)

@@ -50,8 +50,8 @@ digraph setup {
 Before asking anything, scan for existing material that informs the setup.
 
 **Do:**
-1. Read CLAUDE.md — the installer already filled parchmark, React/TypeScript + FastAPI/Python,
-   Full-stack markdown note-taking app. Extract these values.
+1. Read CLAUDE.md — the installer already filled [PROJECT_NAME], [STACK],
+   [DESCRIPTION]. Extract these values.
 2. Read README.md or README if present
 3. Read any non-KEEL docs in docs/ (user may have brought their own)
 4. Read package/dependency files (package.json, Cargo.toml, mix.exs,
@@ -120,6 +120,22 @@ Present the draft:
 This is aspirational — the project is empty. The architecture describes
 what the project WILL look like, not what exists.
 
+**Multi-model pressure test (optional — only if roundtable MCP is available).**
+
+Architecture decisions encoded here propagate into every future feature via
+the arch-advisor. A second opinion on greenfield layer choices is cheap
+insurance. If roundtable is unavailable, skip this step silently.
+
+1. **Critique pass** — call `mcp__roundtable__roundtable-critique` with the draft
+   architecture, stack, and north-star summary. Attack the draft: wrong
+   layer conventions for this stack, missing seams that will hurt later,
+   structure that fights framework defaults, YAGNI over-structuring.
+2. **Canvass consensus** — call `mcp__roundtable__roundtable-canvass` with the
+   critique output and draft to synthesize a consensus architecture.
+3. Use the consensus draft as the version presented below. Note
+   meaningful changes in a `<!-- roundtable: ... -->` comment so the
+   human knows what was adjusted and why.
+
 Present the draft:
 > "Here's an architecture outline based on [stack] conventions.
 > Adjust the structure to match how you want to organize this project."
@@ -133,6 +149,26 @@ Present the draft:
 Propose invariants based on the stack and project type. Show relevant
 examples from `examples/domain-invariants/`.
 
+**Multi-model pressure test (optional — only if roundtable MCP is available).**
+
+Before presenting candidates to the human, stress-test the draft slate with
+the `roundtable` MCP server. Invariants propagate into every future feature
+via the safety-auditor, so a second opinion is cheap insurance. If roundtable
+is unavailable, skip this step silently and proceed.
+
+1. **Critique pass** — call `mcp__roundtable__roundtable-critique` with the draft
+   invariants, stack context, and project description. Ask it to attack the
+   slate: missing invariants, ones that will produce false positives, grep
+   patterns that won't match real violations, rules that conflict with stack
+   conventions.
+2. **Canvass consensus** — take the critique output plus the original
+   draft and call `mcp__roundtable__roundtable-canvass` to synthesize a consensus
+   slate: which invariants survive, which get reworded, which get dropped,
+   which get added.
+3. Use the consensus slate as the candidate list for human confirmation
+   below. Note in the preamble which invariants came from the models vs.
+   the original draft so the human knows what to scrutinize.
+
 **For each candidate:**
 
 ```
@@ -140,11 +176,13 @@ CANDIDATE INVARIANT #N:
   Rule: [plain language]
   Why: [what could go wrong without this]
   Grep pattern: [how safety-auditor detects violations]
+  Source: [draft | roundtable-added | roundtable-reworded]
 
   Accept? [y/n/edit]
 ```
 
 Wait for human response on EACH candidate before presenting the next.
+The human is still the final authority — roundtable informs, it does not decide.
 
 If the user adds invariants not in the examples, include those too.
 
@@ -172,7 +210,7 @@ Replace `<!-- CUSTOMIZE -->` sections with:
 - The grep patterns from Phase 4
 - The critical file paths for this project
 
-**5c. Configure `.claude/hooks/safety-gate.py`**
+**5c. Configure `.claude/hooks/keel-safety-gate.py`**
 
 Set the `CRITICAL_PATTERNS` variable to match the project's critical files
 based on the stack and invariants.
