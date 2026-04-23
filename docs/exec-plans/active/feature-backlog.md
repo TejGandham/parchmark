@@ -20,10 +20,11 @@ Each feature: read spec → write test → write code → verify.
 - [ ] **F01 Per-user in-process pub/sub event bus for note change events**
   Spec: docs/product-specs/notes-live-updates.md:event-bus
   Test: Unit test: subscribing to user A's channel and publishing a NoteChangedEvent with user_id=A delivers the event to A's subscriber and not to user B's subscriber, and unsubscribe removes the listener with no residual references.
-  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 2 markers remain -->
+  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:0f4b2c1d7a9e3b6f -->
-  <!-- HUMAN: Event payload schema not specified. Should NoteChangedEvent carry {kind: created|updated|deleted, note_id, updated_at} only, or the full Note record? Pydantic BaseModel required per invariant 4 if it ever becomes an HTTP body. -->
-  <!-- HUMAN: Multi-worker deployment posture: is the backend guaranteed single-process for this feature, or does the spec need to acknowledge that in-process pub/sub only notifies subscribers on the same worker (and plan a cross-worker story later)? -->
+  <!-- RESOLVED 2026-04-23 (roundtable 5/5 A, conf 0.85-0.95): NoteChangedEvent is a pydantic BaseModel in app.schemas with fields {kind: Literal["created","updated","deleted"], note_id: str, user_id: str, updated_at: datetime}. Subscribers trigger useRevalidator().revalidate() — the /notes loader is the canonical fresh-state source. Rationale: invariant 6 makes full-record payloads carry stale/null embeddings (background task runs AFTER commit); minimal payload avoids ~6KB-per-event Vector(1536) bandwidth cost on SSE; loader already owns state freshness contract. -->
+  <!-- RESOLVED 2026-04-23 (roundtable 5/5 Postgres LISTEN/NOTIFY, conf 0.85-0.92): Event bus is cross-replica from day one, not in-process per pod. Publish via func.pg_notify('user_{user_id}_notes', <json>) from the SQLAlchemy expression layer; subscribe via asyncpg.add_listener() in a new helper module backend/app/database/pubsub.py. Per-user channel naming enforces invariant 1 at the pg layer. Invariant 3 AMENDMENT REQUIRED: add backend/app/database/pubsub.py as the 4th whitelisted raw-SQL site (LISTEN cannot be wrapped in ORM idioms — asyncpg driver-level callback). Rationale: k3s rolling restart creates transient 2-pod windows even at replica=1, so in-process bus ships silently broken at every deploy; Redis is net-new infra unjustified at parchmark scale; Postgres NOTIFY 8KB cap accommodates minimal payload (~150 bytes) with headroom. -->
+  <!-- SPEC-NOTES: (a) incompatible with PgBouncer transaction-pooling mode — breaks LISTEN silently; (b) one LISTEN connection per worker, watch max_connections; (c) consider coalescing on bulk-import storms (ties into F05's debounce marker). -->
 
 - [ ] **F02 SSE endpoint GET /api/notes/stream with per-request subscription and heartbeat**
   Spec: docs/product-specs/notes-live-updates.md:sse-endpoint | Needs: F01
