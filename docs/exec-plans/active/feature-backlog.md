@@ -56,10 +56,11 @@ Each feature: read spec → write test → write code → verify.
 
 - [ ] **F05 NotesLayout mount hook that revalidates router loaders on note-change events**
   Spec: docs/product-specs/notes-live-updates.md:revalidate-on-event | Needs: F04
-  Test: Component test: mounting NotesLayout subscribes via the F04 client; firing a synthetic note-change event calls useRevalidator().revalidate() exactly once per event, and unmounting closes the subscription so no revalidate fires afterwards.
-  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 1 markers remain -->
+  Test: Component test: mounting NotesLayout subscribes via the F04 client; firing a synthetic note-change event calls useRevalidator().revalidate() within the coalescing window; bursts of N events within 500 ms fire at most 2 revalidates (leading + trailing); unmounting closes the subscription so no revalidate fires afterwards.
+  <!-- DRAFTED: 2026-04-23 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:0f4b2c1d7a9e3b6f -->
-  <!-- HUMAN: Should revalidation be debounced/coalesced when many events arrive in a burst (e.g. bulk import)? Default of one revalidate per event may be wasteful. -->
+  <!-- RESOLVED 2026-04-23 (coalescing): Throttle with trailing flush, 500 ms window. On first event after idle: revalidate immediately + start 500ms timer (leading-edge, snappy for single events). Subsequent events during the window set a pending flag. On timer expiry: if pending, revalidate + restart timer + reset pending; else timer = null. Rationale: React Router's useRevalidator().revalidate() does not dedup — N calls = N fetches. Single event costs 1 revalidate with ~0ms latency; bulk import of 50 events over 5s costs ~10 revalidates (vs 50 without coalescing); worst-case 2nd-wave event latency is 500ms (acceptable for this feature). -->
+  <!-- SPEC-NOTES: (a) implement as a custom hook useNoteChangeRevalidation mounted once in NotesLayout, not per-route; (b) Broadcast Channel events (from F06) feed into the SAME coalescing layer — same throttle, no double revalidation when one tab's mutation fires both SSE + BroadcastChannel to another tab; (c) cleanup on unmount must clear any pending timer to prevent leaks. -->
 
 - [ ] **F06 BroadcastChannel complement for same-browser multi-tab note sync**
   Spec: docs/product-specs/notes-live-updates.md:broadcast-channel | Needs: F05
