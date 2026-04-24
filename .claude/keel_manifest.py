@@ -32,7 +32,43 @@ HOOKS: list[str] = ["keel-safety-gate.py", "keel-doc-gate.py"]
 PROCESS_DOCS: list[str] = [
     "THE-KEEL-PROCESS.md", "QUICK-START.md", "BROWNFIELD.md", "GLOSSARY.md",
     "ANTI-PATTERNS.md", "FAILURE-PLAYBOOK.md", "AUTONOMY-PROGRESSION.md",
+    "KEEL-PRINCIPLES.md",
 ]
+
+# User-facing framework scripts shipped into installs under scripts/.
+# Iterated by install.py's _copy_scripts. Invoked from the user's repo
+# root (e.g. `python3 scripts/validate-prds.py --repo .`). Install-time
+# entrypoints (install.py, uninstall.py) and stdlib helper modules
+# (keel_manifest.py, keel_receipt.py, keel_settings.py) are tracked
+# separately via their own call sites and are NOT in this list.
+#
+# Framework-only scripts (validate-handoff.py, validate-bootstrap-gate.py,
+# validate-manifest.py) run against this repo and are intentionally NOT
+# shipped — they would be noise in a user install.
+SCRIPTS: list[str] = [
+    "validate-prds.py",
+    "keel-prd-view.py",
+    "upgrade-invariant-7.py",
+]
+
+# KEEL-internal scripts under scripts/ that are NOT shipped to installs.
+# Install-time entrypoints (install.py, uninstall.py), framework-only
+# validators (validate-handoff.py, validate-bootstrap-gate.py,
+# validate-manifest.py), and stdlib helper modules (keel_manifest.py,
+# keel_receipt.py, keel_settings.py). Consumed by
+# scripts/validate-manifest.py's disk↔SCRIPTS cross-check so adding a new
+# internal utility requires editing this list — the validator will flag
+# any un-declared .py under scripts/ that isn't in SCRIPTS either.
+INTERNAL_SCRIPTS: set[str] = {
+    "install.py",
+    "uninstall.py",
+    "validate-handoff.py",
+    "validate-bootstrap-gate.py",
+    "validate-manifest.py",
+    "keel_manifest.py",
+    "keel_receipt.py",
+    "keel_settings.py",
+}
 
 TEMPLATE_ROOT_FILES: list[str] = [
     "CLAUDE.md", "ARCHITECTURE.md", "Dockerfile", "docker-compose.yml",
@@ -46,6 +82,7 @@ TEMPLATE_DOCS: list[str] = [
     "docs/product-specs/_TEMPLATE.md",
     "docs/exec-plans/active/feature-backlog.md",
     "docs/exec-plans/active/handoffs/_TEMPLATE.md",
+    "docs/exec-plans/prds/.gitkeep",
     "docs/exec-plans/tech-debt-tracker.md",
     "docs/references/README.md",
 ]

@@ -44,3 +44,5 @@ coverage.xml
 # KEEL refine session workspace (ephemeral)
 .keel-refine-session/
 .codex
+
+.claude/settings.local.json

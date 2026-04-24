@@ -248,7 +248,7 @@ def _run_receipt_mode(project_dir: Path, receipt: dict, args) -> int:
 
     # Remove now-empty dirs (best-effort)
     for rel in (".claude/agents", ".claude/skills", ".claude/hooks",
-                "docs/process", ".claude"):
+                "docs/process", "scripts", ".claude"):
         d = project_dir / rel
         try:
             if d.is_dir() and not any(d.iterdir()):
