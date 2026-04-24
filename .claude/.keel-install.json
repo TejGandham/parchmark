@@ -1,5 +1,5 @@
 {
-  "installed_at": "2026-04-20T22:52:06Z",
+  "installed_at": "2026-04-24T03:57:54Z",
   "keel_version": "0.10.0",
   "managed_paths": {
     ".claude/agents/arch-advisor.md": {
@@ -75,11 +75,11 @@
       "kind": "hook"
     },
     ".claude/keel-uninstall.py": {
-      "installed_hash": "sha256:9dcc4c7f6ac0694f34fcd58a34a3326f57c9cf702f72333f68730a26ba6dcf56",
+      "installed_hash": "sha256:e99903a1e9db1104f3b2c092dc7398a2be04c518eefd8987c07e91bb319b106a",
       "kind": "bundled_script"
     },
     ".claude/keel_manifest.py": {
-      "installed_hash": "sha256:38f52bd0d95556c9d4cd2d927c2fc4ccda021bb3e1dabe86c04e8d5ebe9982ba",
+      "installed_hash": "sha256:db75eb0e3b8bcc703d51834d63a0303532e88db5c39bd5cb9b1a92f589a3bde0",
       "kind": "bundled_script"
     },
     ".claude/keel_receipt.py": {
@@ -110,6 +110,10 @@
       "installed_hash": "sha256:cabf78604527964ebc3c840936a69c02eab3d7658d391102ed163cac836f5976",
       "kind": "skill"
     },
+    "docs/exec-plans/prds/.gitkeep": {
+      "installed_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "kind": "template_doc"
+    },
     "docs/process/ANTI-PATTERNS.md": {
       "installed_hash": "sha256:84ff5106638b06a924644ebeae8e2580c1c999a5d9c8212242326fef62728aa8",
       "kind": "process_doc"
@@ -130,6 +134,10 @@
       "installed_hash": "sha256:08eae1421bb808be1bfdf3fe9c882c6d39861c9779dd66134a10dbd4cf1d7d58",
       "kind": "process_doc"
     },
+    "docs/process/KEEL-PRINCIPLES.md": {
+      "installed_hash": "sha256:f03c283bdd9c3c6b47d4d95e2d9b739dc89357fbadf0f8c9181dda9f009c942d",
+      "kind": "process_doc"
+    },
     "docs/process/QUICK-START.md": {
       "installed_hash": "sha256:0f1980817218905e8361540dbcc3d7fbe2efc7628c4de339e363cdffa16cafa2",
       "kind": "process_doc"
@@ -137,15 +145,80 @@
     "docs/process/THE-KEEL-PROCESS.md": {
       "installed_hash": "sha256:aa4c736e702104cd857bcac0fa576658d2891e5e9fac08952e29f397283d68ec",
       "kind": "process_doc"
+    },
+    "scripts/keel-prd-view.py": {
+      "installed_hash": "sha256:978262daf3cc0edfdef366c227780157e1cc14f0d72bce28e95c999a13591f27",
+      "kind": "script"
+    },
+    "scripts/upgrade-invariant-7.py": {
+      "installed_hash": "sha256:5d4f66eeba76bde9c64ce226432a77cb81a3eda0204956c2d7e71d66c7f54190",
+      "kind": "script"
+    },
+    "scripts/validate-prds.py": {
+      "installed_hash": "sha256:0d410fe68fc7147e6a5ea62ea9e515daa44ec0f26feff49b71d1980ad84d6837",
+      "kind": "script"
     }
   },
   "receipt_schema_version": 1,
   "settings_json": {
     "inserted_hook_commands": [
-      "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-safety-gate.py\"",
-      "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-doc-gate.py\""
+      "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-doc-gate.py\"",
+      "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-safety-gate.py\""
     ],
     "mode": "merged"
   },
-  "skipped_paths": []
+  "skipped_paths": [
+    {
+      "path": "CLAUDE.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "Dockerfile",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docker-compose.yml",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/north-star.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/design-docs/core-beliefs.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/design-docs/ui-design.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/design-docs/index.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/product-specs/_TEMPLATE.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/exec-plans/active/feature-backlog.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/exec-plans/active/handoffs/_TEMPLATE.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/exec-plans/tech-debt-tracker.md",
+      "reason": "already_existed"
+    },
+    {
+      "path": "docs/references/README.md",
+      "reason": "already_existed"
+    }
+  ]
 }

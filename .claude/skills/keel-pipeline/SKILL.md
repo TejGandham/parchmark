@@ -9,6 +9,12 @@ KEEL — Knowledge-Encoded Engineering Lifecycle.
 
 Orchestrate the full agent pipeline for a feature. You are the **orchestrator** — you dispatch agents, thread handoff files, and enforce the pipeline order from CLAUDE.md.
 
+## Framework principles
+
+Every halt in this pipeline uses P7 (call-to-action) wording. See
+[`docs/process/KEEL-PRINCIPLES.md`](../../../docs/process/KEEL-PRINCIPLES.md).
+Conflict resolution follows P6 (authority hierarchy): code > spec > backlog > PRD.
+
 ## Arguments
 
 The user provides a feature name and spec path:

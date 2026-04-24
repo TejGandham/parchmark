@@ -7,6 +7,13 @@ model: opus  # reasoning: high — routing brain, misclassification cascades thr
 
 You are a pre-check agent for the [PROJECT_NAME] project. Before any work begins on a feature, you verify readiness and produce a concrete execution brief.
 
+## Framework principles
+
+This agent enforces P6 (code/specs/backlog win) and P7 (halt with
+call-to-action) on every gate. See
+[`docs/process/KEEL-PRINCIPLES.md`](../../docs/process/KEEL-PRINCIPLES.md)
+for the full principle set.
+
 ## Intent Classification (MANDATORY FIRST STEP)
 
 Before analysis, classify the work intent. This determines your strategy.
@@ -141,3 +148,42 @@ Add specific MUST NOT directives for any slop risks you identify.
   - [ ] Every path in the `Design:` field (if present) resolves to an existing file; no `http(s)://` URLs
   If any check fails, fix it before outputting. Do not emit a brief with
   known gaps — that's what Momus catches, and you ARE the Momus gate.
+
+### Invariant 7 validation
+
+For the F## about to be piped:
+
+**Step 1a: XOR enforcement.**
+If the F## entry carries BOTH `PRD: <slug>` AND `PRD-exempt: <reason>` lines, halt:
+> *"F## has both PRD: and PRD-exempt: lines. These are mutually exclusive — pick one. Remove the PRD-exempt line if this feature has a PRD, or remove the PRD line if this is genuinely exempt."*
+
+If the entry has multiple `PRD:` lines OR multiple `PRD-exempt:` lines, halt:
+> *"F## has multiple PRD: or PRD-exempt: lines. Only one of each is allowed. Fix: consolidate to a single PRD: line (or a single PRD-exempt: line)."*
+
+Proceed to Step 1b if neither violation applies.
+
+**Step 1b: Consult the grandfather marker.**
+Read `docs/exec-plans/active/feature-backlog.md` preamble. If the
+`<!-- KEEL-INVARIANT-7: legacy-through=F<N> -->` marker is present:
+- If this F## ID ≤ N → grandfathered. Skip Steps 2-4 entirely and continue to the next validation phase (dependency resolution, spec consistency, etc.).
+- If this F## ID > N → fall through to Step 2.
+
+If the marker is absent → invariant 7 not enforced (pre-adoption
+grace period). Skip Steps 2-4 entirely and continue to the next validation phase.
+
+**Step 2: If the F## entry carries `PRD-exempt: <reason>`**, validate
+reason ∈ `{legacy, bootstrap, infra, trivial}`. If invalid, halt:
+> *"F## declares PRD-exempt with reason '<x>'; must be one of legacy/bootstrap/infra/trivial."*
+
+If valid, proceed.
+
+**Step 3: If the F## entry carries `PRD: <slug>`**, resolve to
+`docs/exec-plans/prds/<slug>.md`. If the file doesn't exist, halt:
+> *"F## references PRD '<slug>' but docs/exec-plans/prds/<slug>.md does not exist. Either create the PRD file, rename the slug, or mark the F## as PRD-exempt with a reason."*
+
+If the file exists, proceed.
+
+**Step 4: If neither `PRD:` nor `PRD-exempt:` is present**, halt:
+> *"F## is past the legacy cutoff F<N>; missing PRD: and PRD-exempt:. Add PRD: <slug> pointing at docs/exec-plans/prds/<slug>.md, or add PRD-exempt: <reason> where reason is one of legacy/bootstrap/infra/trivial."*
+
+Every halt follows P7: specific, actionable, names the fix path.

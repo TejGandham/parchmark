@@ -10,6 +10,13 @@ Automates discovery and drafting. Human confirms at every gate.
 
 Full guide: `docs/process/BROWNFIELD.md`
 
+## Framework principles
+
+Adoption places the framework's seven principles into the user's
+project via `KEEL-PRINCIPLES.md` (copied by install.py). This skill
+also stamps the `KEEL-INVARIANT-7` marker in Phase 5d. See
+[`docs/process/KEEL-PRINCIPLES.md`](../../../docs/process/KEEL-PRINCIPLES.md).
+
 ## When to Use
 
 - Existing project, no KEEL structure yet
@@ -301,6 +308,23 @@ plus the blank line separator). Preserve the section heading and its
 Any deviation in a section (title customized, body changed, extra entries,
 missing Spec line) → skip that section only. Log: `"5d.3 skipped {section}:
 customized."`
+
+**5d.ii — Stamp the KEEL-INVARIANT-7 marker**
+
+After bootstrap marker placement, scan the backlog for the highest
+existing F## ID. Stamp the grandfather marker in the backlog preamble:
+
+```
+<!-- KEEL-INVARIANT-7: legacy-through=F<max> -->
+```
+
+Announce (CTA-style):
+
+> *"Placed KEEL-INVARIANT-7 marker with `legacy-through=F<max>`
+> based on current max feature ID. Entries F01-F<max> are
+> grandfathered; new entries from F<max+1> forward must carry
+> `PRD:` or `PRD-exempt:`. Edit the marker value in the backlog
+> if this is wrong."*
 
 **Canonical brownfield backlog** (used by 5d.1 when the file is missing):
 

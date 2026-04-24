@@ -2,6 +2,8 @@
 
 
 
+<!-- KEEL-INVARIANT-7: legacy-through=F07 -->
+
 Smallest independently testable features. Execute top-to-bottom.
 Each feature: read spec → write test → write code → verify.
 

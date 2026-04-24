@@ -1,43 +1,43 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-safety-gate.py\""
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
         "hooks": [
           {
-            "type": "command",
-            "command": "filepath=\"$CLAUDE_FILE_PATH\"; [ -z \"$filepath\" ] && exit 0; case \"$filepath\" in *.py) cd \"$CLAUDE_PROJECT_DIR/backend\" && uv run ruff format \"$filepath\" 2>/dev/null && uv run ruff check --fix \"$filepath\" 2>/dev/null ;; *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR/ui\" && npx prettier --write \"$filepath\" 2>/dev/null ;; esac; exit 0"
+            "command": "filepath=\"$CLAUDE_FILE_PATH\"; [ -z \"$filepath\" ] && exit 0; case \"$filepath\" in *.py) cd \"$CLAUDE_PROJECT_DIR/backend\" && uv run ruff format \"$filepath\" 2>/dev/null && uv run ruff check --fix \"$filepath\" 2>/dev/null ;; *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR/ui\" && npx prettier --write \"$filepath\" 2>/dev/null ;; esac; exit 0",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Edit|Write"
       },
       {
-        "matcher": "Edit|Write",
         "hooks": [
           {
-            "type": "command",
-            "command": "filepath=\"$CLAUDE_FILE_PATH\"; [ -z \"$filepath\" ] && exit 0; case \"$filepath\" in */markdown.ts|*/markdown.py) echo '⚠️  Markdown util changed — run /parchmark-markdown-sync to verify frontend/backend parity' ;; esac; exit 0"
+            "command": "filepath=\"$CLAUDE_FILE_PATH\"; [ -z \"$filepath\" ] && exit 0; case \"$filepath\" in */markdown.ts|*/markdown.py) echo '\u26a0\ufe0f  Markdown util changed \u2014 run /parchmark-markdown-sync to verify frontend/backend parity' ;; esac; exit 0",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Edit|Write"
       },
       {
-        "matcher": "Bash",
         "hooks": [
           {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-doc-gate.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-doc-gate.py\"",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-safety-gate.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "Edit|Write"
       }
     ]
   }

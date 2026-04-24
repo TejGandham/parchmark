@@ -3,6 +3,14 @@ name: keel-refine
 description: "Drafts feature-backlog.md entries from a PRD, prose, a bundle directory with wireframes, or images pasted directly in chat. Presents drafts as editable cards in chat; commits on an explicit 'commit' verb. Never auto-runs /keel-pipeline. Never writes specs. Never emits bootstrap tasks."
 ---
 
+## Framework principles
+
+This skill's invariants: P4 (no redundant storage — drafted entries
+uniquely author the F##'s contract, PRD files author the cohesion
+narrative), P7 (halt-with-CTA — every exit path produces an
+actionable message). See
+[`docs/process/KEEL-PRINCIPLES.md`](../../../docs/process/KEEL-PRINCIPLES.md).
+
 # KEEL Refine
 
 Backlog refinement for an existing KEEL project. Given a PRD, a prose description, a bundle directory with design assets, or images pasted in chat, drafts candidate backlog entries and reviews them with you in conversation before committing.
@@ -23,7 +31,7 @@ Backlog refinement for an existing KEEL project. Given a PRD, a prose descriptio
 
 **Draft first, review conversationally, commit on verb.** Same draft-first ethos as `keel-setup` and `keel-adopt`, with one upgrade: the review surface for the drafting phase is the chat conversation, not the user's editor. The human edits entries in plain English, types `commit` when ready, and the skill commits with a deterministic message — no confirmation prompt. Feature-branch commits are trivially reversible (`git commit --amend`, `git reset`); announcing is safer than prompting.
 
-**Repo is truth, enforced strictly.** Pasted images are staged to `.keel-refine-session/<id>/` (gitignored, outside `docs/`). They move into `docs/prds/drafts/<timestamp>/` only at commit time. Abort → session dir deleted → zero pollution of tracked territory.
+**Repo is truth, enforced strictly.** Pasted images are staged to `.keel-refine-session/<id>/` (gitignored, outside `docs/`). They move into `docs/exec-plans/prds/<slug>/assets/` only at commit time. Abort → session dir deleted → zero pollution of tracked territory.
 
 ## Phases
 
@@ -182,7 +190,8 @@ Build the `repo_context` that `backlog-drafter` needs.
 4. Compute `next_free_id`: lowest F## integer not present in the filtered `existing_features`. **Freeze this value for the entire refinement session** — even across interview loops and review turns.
 5. Parse `CLAUDE.md` → extract `invariants` (the list items under `## Safety Rules`).
 6. Derive `spec_dir`: default `docs/product-specs/` unless CLAUDE.md explicitly points elsewhere.
-7. Snapshot `feature-backlog.md` contents (full text + SHA-256 of contents) to `.keel-refine-session/<id>/backlog-snapshot.md` and `.keel-refine-session/<id>/backlog-snapshot.sha`. Used for staleness detection at commit time.
+7. Enumerate existing PRD slugs by listing `docs/exec-plans/prds/*.md` (filenames minus `.md` extension). Pass to `backlog-drafter` as `prd.existing_slugs` for collision avoidance when synthesizing a new slug.
+8. Snapshot `feature-backlog.md` contents (full text + SHA-256 of contents) to `.keel-refine-session/<id>/backlog-snapshot.md` and `.keel-refine-session/<id>/backlog-snapshot.sha`. Used for staleness detection at commit time.
 
 **Do NOT:**
 - Invent layers not declared in `ARCHITECTURE.md` or present in the backlog.
@@ -225,6 +234,11 @@ repo_context:
   invariants: [<list>]
   spec_dir: <path>
 
+prd:
+  slug: null  # synthesize from intent, avoid collisions with existing_slugs (prose mode)
+             # OR: <slug>  # when operating on existing PRD file (file/bundle mode)
+  existing_slugs: [<list from Phase 2>]
+
 constraints:
   append_only: true
   never_edit_existing: true
@@ -234,6 +248,12 @@ constraints:
 
 Return your structured YAML output. No prose.
 ```
+
+In prose mode, the skill synthesizes both a PRD file and the F##
+entries. The PRD narrative is derived from the intent by
+`backlog-drafter` and is written to disk atomically with the backlog
+append in Phase 6 (see Phase 6 Step 2a). The narrative MUST NOT
+contain F## IDs — scope-lint in the validator rejects those.
 
 **Parse the agent's return.** Expect the YAML schema in `.claude/agents/backlog-drafter.md` §Output Format. Validate:
 - `status` is one of the six allowed values.
@@ -327,6 +347,10 @@ each card conversationally with the human." Every drafted entry is
 walked individually before `commit` is valid — no block-review escape
 hatch, no "accept all" shortcut. Accuracy over speed.
 
+**Phase 5 rules:**
+
+- **No git operations during the walk.** Phase 6 Step 4 is the only `git add` / `git commit` in this skill. Per-card commits during Step 2 are a process violation that structurally recreates the Step-3 elision bug from the ParchMark testbed (`testbed-feedback/post-walk-state-skipped.md`).
+
 ### Step 1 — Orientation summary (not a review surface)
 
 Print the slate first so the human has the shape before walking:
@@ -343,11 +367,53 @@ Summary:
   Collisions:         {list or "none"}
   Unused assets:      {list or "none"}
 
-Walking card 1 of {N}...
+Walking card {first_card} of {total_cards}...
 ```
+
+Where:
+- **Prose / synthesized mode** (new PRD, Card 0 is the PRD narrative):
+  `first_card = 0`, `total_cards = N + 1`.
+- **File / bundle mode** (PRD already exists, no Card 0):
+  `first_card = 1`, `total_cards = N`.
 
 Orientation only. `commit` here is invalid — the walk hasn't started.
 Proceed to Step 2 immediately.
+
+### Step 2a — Card 0: the PRD narrative (prose/synthesized mode only)
+
+Before walking F## cards, present the synthesized PRD narrative for
+human edit. Applies only when a new PRD is being created this
+session (prose mode, no existing PRD file).
+
+Display:
+
+```
+Card 0 of {N+1}: the PRD narrative (new file)
+
+Slug: {proposed-slug}
+Path: docs/exec-plans/prds/{slug}.md
+
+Narrative:
+---
+{synthesized narrative content}
+---
+
+Verbs:
+  accept                  — keep as synthesized, proceed to F## cards
+  edit slug: <new-slug>   — change the slug (will collision-check)
+  edit prd: <text>        — replace the full narrative
+  abort                   — discard session, no commit
+```
+
+Edits made here (`edit slug`, `edit prd`) are stored in session state
+and become the canonical input to Phase 6 Step 2a. The synthesized
+narrative produced by `backlog-drafter` is the starting draft only —
+once Card 0 is walked, the session holds the final slug and final
+narrative, and Phase 6 Step 2a writes that final text, not the
+original synthesis.
+
+If the invocation is file mode (PRD file already exists) or bundle
+mode, skip card 0 entirely and start at card 1.
 
 ### Step 2 — Walk each card in F## order
 
@@ -400,20 +466,34 @@ conversation, not per-marker.
 Reject a card-level action with a specific reason. Card stays active;
 user retries or advances.
 
-### Step 3 — Post-walk state
+### Step 3 — Post-walk confirmation (required gate)
 
-After every drafted card has been advanced at least once (`accept`
-or `drop`), print:
+After every drafted card has been walked, the walk is not complete
+until the user has typed `commit`, `revisit F##`, or `abort`. Do
+NOT transition to Phase 6 without this confirmation. An orchestrator
+that transitions from Step 2 to Phase 6 without printing Step 3's
+message and accepting one of the three verbs has executed an
+incomplete walk — abort and restart.
+
+Print:
 
 ```
-Walk complete. {kept_count} cards ready to commit.
+Walk complete. {N} cards drafted for PRD: {slug}.
+
+  [F##] {title}  → {section}  ({marker_count} markers)
+  ...
+
+Are all {N} F## entries from this PRD ready?
 
 Verbs:
-  commit        — materialize + git commit with deterministic message
-  revisit F##   — re-enter the walk at F## (re-opens that card;
-                  later cards stay as-walked)
-  abort         — discard session, no commit
+  commit         — materialize PRD file, append backlog, git commit
+  revisit F##    — re-enter walk at F##
+  abort          — discard session, no commit
 ```
+
+The `commit` verb is only valid after Step 3's prompt has been shown
+and the user has typed it. If an orchestrator skips Step 3 and
+attempts materialization, that is a process violation.
 
 - `commit` is **only valid in post-walk state**. Attempting it during
   Step 2 re-points to the current unwalked card and prints:
@@ -448,6 +528,12 @@ to catch at pipeline time. No separate presentation mode.
 
 The user typed `commit`. Validate staleness, write the files, git-commit with a deterministic message. Announce — do not prompt.
 
+**Step 0 — Verify Step 3 confirmation was received.**
+
+Before any Phase 6 work, verify the user typed `commit`, `revisit F##`, or `abort` in response to Phase 5 Step 3's prompt. If the skill transitioned from Phase 5 Step 2 directly to Phase 6 without emitting Step 3's prompt and receiving an advancing verb, print Step 3's prompt now and wait for input. Do NOT proceed with materialization until the explicit `commit` verb is typed.
+
+This is a re-entrant backstop for the Phase 5 Step 3 hard-stop: an orchestrator that skipped Step 3 catches itself here on Phase 6 entry.
+
 **Step 1 — Staleness check.**
 
 Re-read `feature-backlog.md` and SHA-256 it. Compare to the snapshot captured in Phase 2.
@@ -461,12 +547,55 @@ Re-read `feature-backlog.md` and SHA-256 it. Compare to the snapshot captured in
 
 **Step 2 — Move assets into tracked territory.**
 
+Before touching the filesystem, take the pre-run snapshot described in
+the Atomicity block below. The snapshot MUST cover `feature-backlog.md`,
+the PRD file at `docs/exec-plans/prds/<slug>.md`, and the contents of
+`docs/exec-plans/prds/<slug>/assets/`. Step 2 moves assets into that
+directory, so the filename set of that directory MUST be captured
+BEFORE the first `mv` / `Write` / `rm` call runs. Without this, Step 4
+validator failure leaves orphan assets in tracked territory.
+
+**Basename collision check.** Before moving any asset, enumerate the
+filenames that already exist in `docs/exec-plans/prds/<slug>/assets/`
+(the pre-session snapshot). For each `intent.design_assets[]` entry to
+be moved, check whether its basename already exists in that directory.
+If any collision is detected, halt with CTA:
+
+> *"Asset move would overwrite existing file at
+> `docs/exec-plans/prds/<slug>/assets/<basename>`. Rename the session
+> asset, or remove/rename the existing one. The skill cannot safely
+> move assets that collide on basename with pre-existing files."*
+
+Only proceed with the move if every session asset has a unique basename
+relative to the pre-existing assets directory.
+
 For each `intent.design_assets[]` entry that was referenced by at least one drafted entry:
-- If the source path is under `.keel-refine-session/<id>/`: move it to `docs/prds/drafts/<session-timestamp>/<basename>` (create the target dir via `Write` first if missing — a `.gitkeep` file in the empty dir is sufficient). Use `Bash` with a narrowly-scoped `mv` only as fallback; prefer `Write` of the new file + Bash `rm` of the old.
+- If the source path is under `.keel-refine-session/<id>/`: move it to `docs/exec-plans/prds/<slug>/assets/<basename>`. Create the target dir first if missing — `Write` a `.gitkeep` file into the empty dir to materialize it. Choose the copy method by file type:
+  - **Text-format assets (SVG, markdown):** prefer `Write` of the new file + Bash `rm` of the old (idempotent and auditable).
+  - **Binary assets (PNG, JPG/JPEG, GIF, PDF):** MUST use Bash `mv` (or `cp` + `rm`). The `Write` tool is text-only and will corrupt binary content. Never use `Write` for binary files.
 - If the source path was already under `docs/` (bundle mode with pre-committed assets): leave in place.
 - Update the `design_assets` paths on drafted entries to reflect the final locations.
 
 Unused assets (in `intent.design_assets[]` but not referenced by any drafted entry): **leave in the session dir.** They get deleted on session end.
+
+Under the PRD-scope model, assets live under their PRD's folder (`docs/exec-plans/prds/<slug>/assets/`). The legacy `docs/prds/drafts/<timestamp>/` path is obsolete — do not create it.
+
+### Step 2a — Write or update the PRD file
+
+- **Prose mode (new PRD):** Write the **final PRD narrative** to
+  `docs/exec-plans/prds/<slug>.md`. Atomic `Write` call. The "final
+  narrative" is the text as finalized through Card 0 edits in Phase 5
+  Step 2a — NOT the original text synthesized by `backlog-drafter`.
+  If the human typed `edit prd: <text>` during the walk, use THAT
+  text. Likewise for `edit slug: <new-slug>` — the final slug becomes
+  the basename of the file path.
+- **File/bundle mode (existing PRD):** Copy the source PRD into
+  `docs/exec-plans/prds/<slug>.md` if it isn't already there.
+  Preserve the narrative verbatim.
+- Create the parent directory `docs/exec-plans/prds/` if it does not
+  exist. Use `mkdir -p` (or equivalent) via `Bash` before the `Write`
+  call. This is the first-PRD case on a project that has never run
+  `/keel-refine` before — without this step, the `Write` fails.
 
 **Step 3 — Write backlog entries.**
 
@@ -477,6 +606,7 @@ Compute the full set of per-section appended blocks. Per-entry format (exact):
 - [ ] **F## Title**
   Spec: <spec_ref><if needs non-empty: " | Needs: <comma-joined needs>">
   <if design_assets non-empty:>Design: <comma-joined design_asset paths>
+  PRD: <slug>  <!-- OR: PRD-exempt: <legacy|bootstrap|infra|trivial> -->
   Test: <test_criterion>
   <!-- DRAFTED: {ISO-date} by backlog-drafter; {len(human_markers)} markers remain -->
   {source_tag}
@@ -484,25 +614,47 @@ Compute the full set of per-section appended blocks. Per-entry format (exact):
   ...
 ```
 
-Formatting rules (same as before, with `Design:` added):
+Every drafted F## entry MUST carry exactly one of:
+- `PRD: <slug>` — pointing at the PRD file written or updated in Step 2a (the `<slug>` matches the basename of `docs/exec-plans/prds/<slug>.md`), OR
+- `PRD-exempt: <reason>` — where `<reason>` is one of `legacy`, `bootstrap`, `infra`, `trivial`. Only applies to narrow carve-outs; a standard refine run writing a PRD in Step 2a emits `PRD: <slug>` on every entry.
+
+Entries missing both forms violate invariant 7 and will fail `validate-prds.py` in Step 4.
+
+Formatting rules (same as before, with `Design:` and `PRD:` added):
 - Blank line before the entry.
 - `source_tag` is emitted as-is (full `<!-- SOURCE: ... -->` comment). Do NOT re-wrap.
 - `| Needs: ...` segment omitted when empty. No trailing pipe.
 - `Design:` line omitted entirely when `design_assets` is empty.
+- `PRD:` (or `PRD-exempt:`) line is mandatory on every entry. Never omit.
 - HUMAN markers indented two spaces. One per line.
 - `DRAFTED:` prefix with colon — load-bearing for `doc-gardener`.
 
-**Atomicity:**
+**Atomicity (covers backlog, PRD file, and PRD assets):**
 - Compute all appends in memory.
+- Snapshot pre-run state BEFORE the first mutating operation in Phase 6 Step 2. The snapshot MUST cover:
+  - `feature-backlog.md` — full text.
+  - `docs/exec-plans/prds/<slug>.md` — full text if the file existed pre-session; otherwise record "absent" so rollback knows to delete rather than restore.
+  - `docs/exec-plans/prds/<slug>/assets/` — record the set of filenames that existed in this directory pre-session (may be empty, or the directory may not exist yet). Rollback restores this exact pre-session state: remove any file added during this session, keep any file that was already present.
 - One `Edit` per section in fixed order (Bootstrap → Foundation → Service → UI → Cross-cutting). Multiple sections → multiple `Edit` calls.
-- Snapshot pre-run state before first `Edit`. On any failure, restore from snapshot via a full-file `Write` and abort.
+- On any failure (including validator failure in Step 4):
+  1. Restore `feature-backlog.md` from snapshot via a full-file `Write`.
+  2. Either delete `docs/exec-plans/prds/<slug>.md` (if newly-created this session) or restore it from snapshot (if it pre-existed).
+  3. Remove any file under `docs/exec-plans/prds/<slug>/assets/` that was added during this session — i.e., any file whose name is NOT in the pre-session filename set. Use Bash `rm` per path. If the `assets/` directory did not exist pre-session and is empty after the cleanup, `rmdir` it. Files that existed pre-session MUST be left untouched.
+  4. If `docs/exec-plans/prds/<slug>/` was created by this session (i.e., did not exist pre-session) AND is empty after step 3, `rmdir` it. If it contained pre-existing content, leave it.
+  5. If `docs/exec-plans/prds/` was created by this session (first-PRD case) AND is empty after step 4, `rmdir` it. If it already existed pre-session or contains other PRDs, leave it.
+  6. Abort.
+
+The snapshot-and-rollback MUST include assets because Phase 6 Step 2 moves session-staged design files into `docs/exec-plans/prds/<slug>/assets/` before the backlog/PRD writes happen. Without asset rollback, a late failure (e.g., validator failure in Step 4) leaves orphan asset files in tracked territory while the backlog and PRD get restored — the session would leak pollution.
 
 **Step 4 — Stage and commit.**
 
 Collect the set of paths to stage:
 - `docs/exec-plans/active/feature-backlog.md` (always, if changed)
-- Any files under `docs/prds/drafts/<session-timestamp>/` (new asset files, if any)
+- `docs/exec-plans/prds/<slug>.md` (the PRD file written or updated in Step 2a)
+- Any files under `docs/exec-plans/prds/<slug>/assets/` (new asset files, if any)
 - Any new section heading creations in the backlog (already part of the backlog file)
+
+- Before `git add`, run `python3 scripts/validate-prds.py --repo .`. If validator exits non-zero, abort Phase 6 with the validator's halt message. Do not proceed with materialization.
 
 Execute via `Bash`:
 ```
@@ -524,7 +676,8 @@ Print:
 ```
 Committing: <message>
   docs/exec-plans/active/feature-backlog.md  (+<lines> lines)
-  {each new asset path} (new)
+  docs/exec-plans/prds/<slug>.md  (new | updated)
+  {each new asset path under docs/exec-plans/prds/<slug>/assets/} (new)
 
 [<short-sha>] <message>
 
@@ -558,7 +711,8 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 
 **Writes:**
 - `.keel-refine-session/**` — session workspace, ephemeral.
-- `docs/prds/drafts/<session-timestamp>/**` — moved from session dir at commit time.
+- `docs/exec-plans/prds/<slug>.md` — PRD narrative file, written or updated at commit time.
+- `docs/exec-plans/prds/<slug>/assets/**` — referenced design assets, moved from session dir at commit time.
 - `docs/exec-plans/active/feature-backlog.md` — appended to at commit time.
 - `.gitignore` — append `.keel-refine-session/` one time, in preflight, only if missing.
 - No other write path. Not code files. Not spec files. Not `ARCHITECTURE.md` or `CLAUDE.md`.
@@ -606,5 +760,5 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 - `backlog-drafter` returns structured YAML to this skill (not a handoff file). Only consumer of the pattern today. If more agents adopt it, factor a shared parser.
 - The `<!-- DRAFTED: ... -->` comment is removed by `doc-gardener` during the post-landing sweep once the entry is `[x]`. Don't worry about long-term hygiene here.
 - The `<!-- SOURCE: ... -->` tag is permanent — it's the idempotency anchor. Future `/keel-refine` runs use it to detect "already drafted from this source."
-- `docs/prds/drafts/<session-timestamp>/` is a canonical home for assets drafted-but-not-yet-spec'd. Over time a human may choose to move them into `docs/design-assets/shared/` or a per-feature directory. `doc-gardener` does not touch these — they're historical record.
+- `docs/exec-plans/prds/<slug>/assets/` is the canonical home for assets belonging to a drafted PRD. Over time a human may choose to move them into `docs/design-assets/shared/` or a per-feature directory. `doc-gardener` does not touch these — they're historical record.
 - Claude Code's `Read` tool handles PNG, JPG, SVG, and PDF (up to 20 pages with `pages` param) natively via vision. That's why the `backlog-drafter` and `frontend-designer` agents can see design assets without any intermediary parsing agent.
