@@ -17,22 +17,28 @@ Conflict resolution follows P6 (authority hierarchy): code > spec > backlog > PR
 
 ## Arguments
 
-The user provides a feature name and spec path:
+The user provides a feature ID and PRD path:
 ```
-/keel-pipeline my-feature docs/product-specs/my-spec.md
+/keel-pipeline F04 docs/exec-plans/prds/my-feature.json
 ```
 
-If no spec path given, ask for one. If no spec exists yet, tell the user to write the spec first — docs drive code.
+The PRD path MUST be a structured JSON PRD. If the path ends in `.md`
+or any non-JSON extension, HALT with:
+> *"PRD path must be a structured JSON file at `docs/exec-plans/prds/<slug>.json`. If you have a markdown spec or prose input, run `/keel-refine` first — it converts non-JSON inputs into structured JSON PRDs. See `NORTH-STAR.md` §'Feature input canon — single path, JSON PRDs only'."*
+
+If no PRD exists yet, tell the user to run `/keel-refine` first — it
+is the conversion hub that produces the structured JSON PRD this
+pipeline expects.
 
 ## Before Starting
 
 1. Read `CLAUDE.md` to determine the correct pipeline variant
-2. Read the feature spec
+2. Read the feature's section of the structured JSON PRD via `jq` (see `.claude/agents/pre-check.md` for the read conventions; the pipeline does not re-implement them)
 3. Create the handoff file at `docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`
    by copying from `_TEMPLATE.md`. Then immediately seed the YAML frontmatter:
    - `status: IN-PROGRESS`
    - `pipeline:` — set to `bootstrap`, `backend`, `frontend`, or `cross-cutting`
-   - `spec_ref:` — set to the spec file path and section (e.g., `mvp-spec:4.2`)
+   - `prd_ref:` — set to the structured JSON PRD path and F## (e.g., `docs/exec-plans/prds/my-feature.json#F04`)
    
    These fields MUST be set before dispatching any agent. Downstream agents
    read them for context and routing.
@@ -334,10 +340,55 @@ failure before any further action.
    Dispatch `doc-gardener` agent unconditionally. NORTH-STAR §Stage 4
    lists automatic GC as a core requirement. Always run; let the agent
    decide whether a sweep finds drift. `doc-gardener` is read-only — it
-   returns a findings report. If the report lists STALE or MISSING
-   items, the orchestrator applies the fixes to the working tree NOW
-   (before commit, so they land in the same commit — no amend, no
-   post-push mutation, stable PR diff from open).
+   returns a findings report.
+
+   **Mode selection by pipeline variant:**
+   - **Bootstrap variant** (F01–F03, which skip pre-check + implementer):
+     dispatch in ad-hoc mode. The handoff lacks the execution brief and
+     implementer report that pipeline mode requires.
+   - **Standard variants** (backend / frontend / cross-cutting): dispatch
+     in pipeline mode, which scopes findings to the blast radius plus
+     the repo-wide §P5 timeline-artifact sweep.
+
+   Prompt shape (pipeline mode — standard variants):
+   ```
+   **Mode:** pipeline
+   **Handoff:** docs/exec-plans/active/handoffs/F##-<slug>.md
+
+   Run per your §Operating modes. Scope: blast-radius (implementer's
+   `**Changed paths:**`), feature-ID coverage, contract-surface
+   coverage, plus the mandatory repo-wide §P5 sweep. Emit the Doc
+   Garden Report with stable subsection headers and a
+   `doc_garden_verdict` line.
+   ```
+
+   Prompt shape (ad-hoc mode — bootstrap variant):
+   ```
+   **Mode:** ad-hoc
+
+   Run the full baseline sweep (CLAUDE.md / ARCHITECTURE.md / backlog
+   / tech debt / design specs) plus the mandatory repo-wide §P5 sweep.
+   Emit the Doc Garden Report with stable subsection headers and a
+   `doc_garden_verdict` line.
+   ```
+
+   **Verdict capture.** Parse `doc_garden_verdict:` from the report
+   (expect `CLEAN` or `DRIFT_FOUND`) and `drift_count:` (integer) and
+   record both in the handoff YAML frontmatter as `doc_garden_verdict`
+   and `doc_garden_drift_count`. The commit-message verdict block in
+   sub-step 3 emits `doc-garden: CLEAN` or `doc-garden: DRIFT_FOUND (N
+   fixes applied)` so the outcome survives in git history.
+
+   If the report lists STALE or MISSING items, the orchestrator applies
+   the fixes to the working tree NOW (before commit, so they land in
+   the same commit — no amend, no post-push mutation, stable PR diff
+   from open).
+
+   **Halt handling.** If the agent halts with a pipeline-mode precondition
+   failure (missing handoff, missing execution brief, missing implementer
+   report), re-dispatch the agent in ad-hoc mode (second prompt shape above)
+   — the full sweep produces a superset of what pipeline mode would have
+   found. Only STOP Step 9 entirely if the ad-hoc re-dispatch also halts.
 
 2. **Tech-debt log.**
    If `docs/exec-plans/tech-debt-tracker.md` exists, append any new
@@ -350,24 +401,20 @@ failure before any further action.
 
      git add -A
 
-   Compose the commit subject from the spec file:
-   - The orchestrator was invoked with a full spec path (e.g.,
-     `docs/product-specs/mvp-spec.md`) — that's in conversation context
-     from Step 1. Read that file directly. Do NOT attempt to reconstruct
-     the path from the handoff's `spec_ref` YAML field (which is in
-     `filename:section` shorthand like `mvp-spec:4.2` and does not
-     include the full path).
-   - Extract the first `# ` H1 line from the spec file. Use it as the
-     feature title.
-   - If the spec file is missing or has no H1, fall back to the handoff
+   Compose the commit subject from the PRD:
+   - The orchestrator was invoked with a full PRD path (e.g.,
+     `docs/exec-plans/prds/my-feature.json`) — that's in conversation
+     context from Step 1. Read the target feature's `title` via
+     `jq '.features[] | select(.id=="F##") | .title' <prd-path>`.
+   - If the PRD or target feature is missing, fall back to the handoff
      slug with hyphens replaced by spaces (e.g., `F42-oauth-pkce-flow`
      → `oauth pkce flow`). The fallback is lossy but deterministic.
 
    Message format (HEREDOC):
 
-     feat(F{id}): {feature title from spec H1}
+     feat(F{id}): {feature title from PRD .features[].title}
 
-     Spec: {spec_ref from handoff YAML frontmatter}
+     PRD: {prd_ref from handoff YAML frontmatter}
      Pipeline: {pipeline variant: bootstrap|backend|frontend|cross-cutting}
      Verdicts:
      {verdict_lines}
@@ -383,6 +430,7 @@ failure before any further action.
      safety:      PASS (attempt 1)
      arch-advisor: SOUND
      code-review: APPROVED (attempt 1)
+     doc-garden:  CLEAN | DRIFT_FOUND (N fixes applied)
      roundtable-precheck: APPROVED (attempt 1)
      roundtable-design: APPROVED (attempt 1)
      roundtable-landing: APPROVED (attempt 1)

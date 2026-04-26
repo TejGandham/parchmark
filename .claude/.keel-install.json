@@ -1,9 +1,9 @@
 {
-  "installed_at": "2026-04-24T03:57:54Z",
+  "installed_at": "2026-04-26T01:12:59Z",
   "keel_version": "0.10.0",
   "managed_paths": {
     ".claude/agents/arch-advisor.md": {
-      "installed_hash": "sha256:74bf8edb01fef9b36e660519e53ae56708b93feb1d646c3ece4d4b4c3a7a6612",
+      "installed_hash": "sha256:0eaf7b2ab438ff7c05880c85ae41b9621be131fca33fa2f6d9f962263e8747b8",
       "kind": "agent"
     },
     ".claude/agents/backend-designer.md": {
@@ -11,11 +11,11 @@
       "kind": "agent"
     },
     ".claude/agents/backlog-drafter.md": {
-      "installed_hash": "sha256:fc6b4ad5f186dc3026b6b958d0707924ec10c75a7b358553b2649d0668feb340",
+      "installed_hash": "sha256:6e5b395acf59d2be1f67308848cdcddc155d6d994dcc390c4182b65deb6d6571",
       "kind": "agent"
     },
     ".claude/agents/code-reviewer.md": {
-      "installed_hash": "sha256:306bd66ede8a195e9ef50e1551a9441415f5b75a4ba7657ec3fb199b3361ac6e",
+      "installed_hash": "sha256:3ddb591fec81a91697b0ed86c5341aaf1ceda5f953ad13e7ce903d00985fa63e",
       "kind": "agent"
     },
     ".claude/agents/config-writer.md": {
@@ -23,7 +23,7 @@
       "kind": "agent"
     },
     ".claude/agents/doc-gardener.md": {
-      "installed_hash": "sha256:28bc4118d3ae815c4a206f18a006931fef84a47311923af3d12496c2a316512a",
+      "installed_hash": "sha256:aea318a5184e804fb2066c9a16c5fc20d4085c9a6f6ef8b530ebc8f40e492ac4",
       "kind": "agent"
     },
     ".claude/agents/docker-builder.md": {
@@ -43,7 +43,7 @@
       "kind": "agent"
     },
     ".claude/agents/pre-check.md": {
-      "installed_hash": "sha256:84cc1e254042eee91f4c73769bfd1d102b530df538ee394bb4089358856c1a75",
+      "installed_hash": "sha256:8e066371213471e4f5735e7ba4b17b72d3f0f29dc2464b432280538f6717b61b",
       "kind": "agent"
     },
     ".claude/agents/researcher.md": {
@@ -51,7 +51,7 @@
       "kind": "agent"
     },
     ".claude/agents/safety-auditor.md": {
-      "installed_hash": "sha256:59ae9a1204acac2357bdcf4b5b3b5bde3778cf06e8d054f576cc196c1b1d865d",
+      "installed_hash": "sha256:d16d13218babe608996d9a7132c5748f07a362648ce529582200df91821c67b3",
       "kind": "agent"
     },
     ".claude/agents/scaffolder.md": {
@@ -59,11 +59,11 @@
       "kind": "agent"
     },
     ".claude/agents/spec-reviewer.md": {
-      "installed_hash": "sha256:8a39a87ba642c6fcafaae064766be7ed876615f7464766951444390e92705a31",
+      "installed_hash": "sha256:42b4576d33e6d108ca84f02dee0dae823e3ad332eee2f8a72159b532204c6a2e",
       "kind": "agent"
     },
     ".claude/agents/test-writer.md": {
-      "installed_hash": "sha256:cb2b1eaab641b14397cd21f74996e413ee2ca35735d73a47849b2c96305435de",
+      "installed_hash": "sha256:62c301ac4dcabc843463bda5810cd386fbec165d3ddaa357cff77447704d12e0",
       "kind": "agent"
     },
     ".claude/hooks/keel-doc-gate.py": {
@@ -75,11 +75,11 @@
       "kind": "hook"
     },
     ".claude/keel-uninstall.py": {
-      "installed_hash": "sha256:e99903a1e9db1104f3b2c092dc7398a2be04c518eefd8987c07e91bb319b106a",
+      "installed_hash": "sha256:99d662fd19a326e3e77ca77b4525e7a23e9d304698a2cf44e0993d593513dfa7",
       "kind": "bundled_script"
     },
     ".claude/keel_manifest.py": {
-      "installed_hash": "sha256:db75eb0e3b8bcc703d51834d63a0303532e88db5c39bd5cb9b1a92f589a3bde0",
+      "installed_hash": "sha256:639d86c51ac6d306b44286b81d809fb37635fe45e8cc83769ab7125484990410",
       "kind": "bundled_script"
     },
     ".claude/keel_receipt.py": {
@@ -91,15 +91,15 @@
       "kind": "bundled_script"
     },
     ".claude/skills/keel-adopt": {
-      "installed_hash": "sha256:35e24c8b758eab208778b5f95903fb1927826b42dd7a0320d199c7d1d00ce15b",
+      "installed_hash": "sha256:869a21f6ce790ee2bd7eefc0ba5ab872aebbc6159b6a597aaa22d361207831bb",
       "kind": "skill"
     },
     ".claude/skills/keel-pipeline": {
-      "installed_hash": "sha256:06971e5e432844f67674f43312bbe6d95b0369b7bf587fe83b7dd046fb7ad6d6",
+      "installed_hash": "sha256:462be81e86b8124f9e9f1e2bd098617f4b9e01373be2f32caf0d3e70fec23383",
       "kind": "skill"
     },
     ".claude/skills/keel-refine": {
-      "installed_hash": "sha256:716c291d9ce5e1d2c6381ed29205b369bd031f824b92a1f5c4f9f71484884cc3",
+      "installed_hash": "sha256:5a880ed1f85da9c1079ad75fa09583b45eb79640ec7a84e082651237067428a9",
       "kind": "skill"
     },
     ".claude/skills/keel-safety-check": {
@@ -107,7 +107,7 @@
       "kind": "skill"
     },
     ".claude/skills/keel-setup": {
-      "installed_hash": "sha256:cabf78604527964ebc3c840936a69c02eab3d7658d391102ed163cac836f5976",
+      "installed_hash": "sha256:8eb0dc2b48fd5f442816c92973f1e71b438095c428c4bd23780abfd12a195064",
       "kind": "skill"
     },
     "docs/exec-plans/prds/.gitkeep": {
@@ -123,39 +123,55 @@
       "kind": "process_doc"
     },
     "docs/process/BROWNFIELD.md": {
-      "installed_hash": "sha256:87617c8db08a8e6e9037985632239685e63207b3842da4b3ae9e32f7ba38bebe",
+      "installed_hash": "sha256:33af7c19fb18446b7822c4175edf42c0d6d65674437f0f00db0ad828e4218f78",
       "kind": "process_doc"
     },
     "docs/process/FAILURE-PLAYBOOK.md": {
-      "installed_hash": "sha256:46e328e0a9db9e95762199ad073918a7771205d07e19526f7d513b6c852c7671",
+      "installed_hash": "sha256:4e034db7126c0ddb72e751c73a5b2c5b48fb901b4724c6e1ba52ce02b9f96163",
       "kind": "process_doc"
     },
     "docs/process/GLOSSARY.md": {
-      "installed_hash": "sha256:08eae1421bb808be1bfdf3fe9c882c6d39861c9779dd66134a10dbd4cf1d7d58",
+      "installed_hash": "sha256:2f41792d3b03cf0cf685f78718f68d70fd725964d704768bb3c0404dc192528b",
       "kind": "process_doc"
     },
     "docs/process/KEEL-PRINCIPLES.md": {
-      "installed_hash": "sha256:f03c283bdd9c3c6b47d4d95e2d9b739dc89357fbadf0f8c9181dda9f009c942d",
+      "installed_hash": "sha256:db9196e3c35b32ac2a621918499e94a753c214137c648a1b4d044fcea51acd9e",
       "kind": "process_doc"
     },
     "docs/process/QUICK-START.md": {
-      "installed_hash": "sha256:0f1980817218905e8361540dbcc3d7fbe2efc7628c4de339e363cdffa16cafa2",
+      "installed_hash": "sha256:a4237bcef7f87c251259d2a27e86ad2ca2920337d6ded6696e06f86bf4382195",
       "kind": "process_doc"
     },
     "docs/process/THE-KEEL-PROCESS.md": {
-      "installed_hash": "sha256:aa4c736e702104cd857bcac0fa576658d2891e5e9fac08952e29f397283d68ec",
+      "installed_hash": "sha256:93123489d537ffad9a191292e71b88165f5e3514a041a4a61210cb9faeda541c",
       "kind": "process_doc"
     },
+    "schemas/prd.schema.json": {
+      "installed_hash": "sha256:6614a7cd136bbbd0b58bfb305650e5ebb2e24aa909a29214e4c900e1a0237d6a",
+      "kind": "schema"
+    },
+    "scripts/keel-feature-resolve.py": {
+      "installed_hash": "sha256:820a57af9d3a9e5a3b537a6f6dbeeae12a856f1a2e1b80ec2646123ddd8204bf",
+      "kind": "script"
+    },
     "scripts/keel-prd-view.py": {
-      "installed_hash": "sha256:978262daf3cc0edfdef366c227780157e1cc14f0d72bce28e95c999a13591f27",
+      "installed_hash": "sha256:673610a14012226fea3fa8c8ad18b4ccaeeae3cd01e58797166d5884381799a6",
+      "kind": "script"
+    },
+    "scripts/keel_features.py": {
+      "installed_hash": "sha256:91d2d495cd4f49e3320523a81c95d1c64d25f893f845a2bbe6bae48e2e24c2a1",
       "kind": "script"
     },
     "scripts/upgrade-invariant-7.py": {
       "installed_hash": "sha256:5d4f66eeba76bde9c64ce226432a77cb81a3eda0204956c2d7e71d66c7f54190",
       "kind": "script"
     },
+    "scripts/validate-prd-json.py": {
+      "installed_hash": "sha256:cb6d06cd9c2247cfbf7ccf203ce71350b2d227eeda0d19db46de17f6b207b11e",
+      "kind": "script"
+    },
     "scripts/validate-prds.py": {
-      "installed_hash": "sha256:0d410fe68fc7147e6a5ea62ea9e515daa44ec0f26feff49b71d1980ad84d6837",
+      "installed_hash": "sha256:d0f6c2442b073c3353c7d752d5fde29f63aaf95bc5a9f91dcd3f7a71a0b4bfab",
       "kind": "script"
     }
   },

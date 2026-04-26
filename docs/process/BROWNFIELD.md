@@ -151,19 +151,15 @@ into `feature-backlog.md` manually and re-run `/keel-refine`. Do **not**
 re-run `/keel-adopt` — it will overwrite your customized `CLAUDE.md`
 and `ARCHITECTURE.md`.
 
-### 7. Write a spec for your first feature
+### 7. Draft a JSON PRD for your first feature
 
-Pick the next feature you want to build. Write a spec for it — even a
-rough one. The spec doesn't need to be as detailed as a greenfield MVP spec.
-It needs to answer:
-
-- What does this feature do?
-- What inputs does it take?
-- What outputs does it produce?
-- What are the edge cases?
-- What invariants must it respect?
-
-Put it in `docs/product-specs/` or wherever makes sense for your project.
+Pick the next feature you want to build. Run `/keel-refine` to draft
+a JSON PRD plus matching backlog entries. The skill walks you through
+the answers conversationally — what does it do, inputs, outputs, edge
+cases, which invariants apply — and writes the result to
+`docs/exec-plans/prds/<slug>.json` (validated against
+`schemas/prd.schema.json`). The JSON PRD's per-feature `contract` +
+`oracle` ARE the spec; no separate markdown spec file is needed.
 
 **Have a PRD already?** Brownfield projects often do — an existing
 product document, an internal wiki page, wireframes, hi-fi comps, or a
@@ -171,13 +167,15 @@ paragraph from a teammate. Run `/keel-refine` with the PRD path, a
 bundle directory (README + sibling images/PDFs), a prose description,
 or nothing — then paste screenshots directly in chat. `backlog-drafter`
 will draft candidate `F##` backlog entries with dependency edges,
-optional `Design:` refs on UI entries, and `<!-- HUMAN: ... -->`
-markers where it couldn't resolve a field. The skill then walks you
-through each drafted card one at a time — you `accept`, `edit`,
+per-feature `contract` + `oracle` (the spec content), optional
+`Design:` refs on UI entries, and `<!-- HUMAN: ... -->` markers where
+it couldn't resolve a field. The skill then walks you through each
+drafted card one at a time — you `accept`, `edit`,
 `answer marker <n>`, `skip marker <n>`, or `drop F##` per card.
-Once every card is walked, type `commit` to write and auto-commit
-or `abort` to discard. Then write the spec file(s) the drafted
-entries point at. See
+Once every card is walked, type `commit` to write the JSON PRD at
+`docs/exec-plans/prds/<slug>.json` plus the matching backlog entries
+and auto-commit, or `abort` to discard. The JSON PRD IS the spec —
+no separate markdown spec file is created. See
 [QUICK-START.md](QUICK-START.md#optional-draft-the-backlog-from-a-prd--keel-refine)
 or [THE-KEEL-PROCESS §6](THE-KEEL-PROCESS.md#6-the-feature-backlog)
 for the full flow.
@@ -185,7 +183,7 @@ for the full flow.
 ### 8. Run your first feature through the pipeline
 
 ```
-/keel-pipeline F01 docs/product-specs/your-feature-spec.md
+/keel-pipeline F01 docs/exec-plans/prds/<slug>.json
 ```
 
 The pipeline will:
@@ -229,6 +227,47 @@ affect other tools.
 
 Team members who don't use KEEL can ignore the docs directory. Team
 members who do use KEEL benefit from the accumulated context.
+
+---
+
+## Upgrading to invariant 7
+
+If your project adopted KEEL before invariant 7 landed (pre-April
+2026), your existing F## entries predate the PRD-link requirement.
+Two paths:
+
+### Automatic (for `/keel-adopt` users — first-time adoption)
+
+`/keel-adopt` Phase 5d now stamps the grandfather marker
+automatically: `<!-- KEEL-INVARIANT-7: legacy-through=F<max> -->`.
+Nothing further to do.
+
+### Manual (for existing KEEL projects)
+
+Run the upgrade script once (stdlib-only, no deps — `python3` is fine;
+a future dep-carrying version would move to `uv run` per AGENTS.md
+§Python conventions):
+
+```
+python3 scripts/upgrade-invariant-7.py
+```
+
+It scans `docs/exec-plans/active/feature-backlog.md`, finds the
+highest existing F## ID, and places the marker in the preamble:
+
+```
+<!-- KEEL-INVARIANT-7: legacy-through=F<N> -->
+```
+
+After this, F## entries at or below F<N> are grandfathered (no PRD
+or PRD-exempt required). From F<N+1> forward, every new backlog
+entry must carry `PRD: <slug>` or `PRD-exempt: <reason>`.
+
+### Opting out (not recommended)
+
+Don't place the marker. Invariant 7 won't be enforced. This is the
+pre-adoption grace period; the validator passes everything. Adopt
+when ready.
 
 ---
 

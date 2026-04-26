@@ -2,12 +2,11 @@
 
 KEEL — Knowledge-Encoded Engineering Lifecycle. From install to first feature through the pipeline.
 
-> New here? Visual walkthrough at [tejgandham.github.io/keel](https://tejgandham.github.io/keel/).
-
 ## Prerequisites
 
 - [Claude Code](https://claude.com/claude-code) — the only supported agent runtime today
 - Docker installed (or your stack's runtime)
+- Python 3.14+ and [`uv`](https://docs.astral.sh/uv/) on PATH — KEEL's installer halts with a CTA if either is missing; `uv` can install 3.14 for you (`uv python install 3.14`)
 - A product idea (even rough is fine)
 
 ## How KEEL Grows With Your Project
@@ -66,89 +65,46 @@ Both skills walk you through everything interactively:
 Every phase drafts from context first, then asks you to review.
 You confirm at every gate.
 
-### 3. Run Your First Feature
+### 3. Your first feature via a PRD
 
-Create your feature backlog and write your first product spec:
-```
-docs/exec-plans/active/feature-backlog.md    # Ordered feature list
-docs/product-specs/my-spec.md                # Your first spec
-```
+1. **Draft the PRD.**
 
-Then run the pipeline:
-```
-/keel-pipeline F01 docs/product-specs/my-spec.md
-```
+   ```
+   /keel-refine "short description of what you're building"
+   ```
 
-Bootstrap features (F01-F03) use specialized agents — Docker, scaffold,
-config. After bootstrap, the full pipeline handles everything (simplified):
-pre-check → roundtable-precheck? → arch-advisor? → designer? → roundtable? → test-writer →
-implementer → code-reviewer → spec-reviewer → safety-auditor? →
-arch-advisor-verify? → landing-verifier → roundtable? → land per strategy.
-See `template/CLAUDE.md` for the canonical pipeline variants.
+   Or point at any non-JSON input material (legacy markdown spec,
+   bundle directory with wireframes, image, etc.) — `/keel-refine`
+   is the conversion hub that turns these into a structured JSON PRD:
 
-### Optional: Draft the Backlog from a PRD — `/keel-refine`
+   ```
+   /keel-refine docs/prds/my-feature.md
+   ```
 
-If you have a PRD, a rough prose description, or a set of wireframes
-and comps and don't want to write `F##` backlog entries by hand, run
-`/keel-refine`:
+   The skill will draft F## entries, walk them with you card-by-card,
+   and commit both the structured JSON PRD file (at
+   `docs/exec-plans/prds/<slug>.json`) and the backlog entries when you
+   type `commit`.
 
-```
-/keel-refine docs/prds/my-prd.md              # from a PRD file
-/keel-refine docs/prds/auth-redesign/          # from a bundle dir
-                                               # (README.md + sibling images/PDFs)
-/keel-refine "let users edit profile inline"  # from prose
-/keel-refine                                   # interactive interview
-```
+2. **Pipe each F## independently.**
 
-You can also paste screenshots or hi-fi comps directly in chat
-alongside any of these invocations — the skill stages them for the
-drafter and attaches them to the relevant drafted UI entries as a
-`Design:` field.
+   ```
+   /keel-pipeline F## docs/exec-plans/prds/<slug>.json
+   ```
 
-The `backlog-drafter` agent reads your PRD + `ARCHITECTURE.md` + the
-current backlog + any design assets, and drafts candidate `F##`
-entries with dependency edges and `<!-- HUMAN: -->` markers wherever
-it couldn't resolve a field. The skill then walks each card one at
-a time — this is NOT a git diff and NOT a single block review:
+   The pipeline reads the structured JSON PRD only; a `.md` path is a
+   routing error (halt with CTA back to `/keel-refine`).
 
-```
-Card 1 of 3:
+   Repeat for each F## in dependency order.
 
-F12 Login screen with validation      → Service
-  Spec:    docs/prds/auth/README.md:login
-  Design:  login-flow.png
-  Test:    ❓ acceptance test?
-
-  Open markers:
-    [1] What's the acceptance test? Visual regression or functional?
-
-Verbs:
-  accept / edit <field>: <value> / answer marker <n>: <text> /
-  skip marker <n> / drop F## / back
-```
-
-You advance cards one-by-one (`accept`, `drop F##`, or `back` to
-revisit the prior card) and edit fields or answer markers on the
-active card. Once every card is walked, the skill enters post-walk
-state and accepts `commit` / `revisit F##` / `abort`. On `commit` it
-writes entries to `feature-backlog.md`, moves pasted images into
-`docs/prds/drafts/<timestamp>/`, and runs `git add` + `git commit`
-with a deterministic message. No confirmation prompt — the commit is
-announced, not asked. If you dislike the message,
-`git commit --amend -m "..."` is your override.
-
-Then write the spec file(s) that the drafted entries point at, and run
-`/keel-pipeline F##` when ready. Nothing auto-chains — you stay the
-decider on priority, spec content, and when to ship.
-
-See [THE-KEEL-PROCESS §6](THE-KEEL-PROCESS.md#6-the-feature-backlog)
-for the full refinement contract.
+3. **Review the PRs.**
+   One PR per F##. Merge in dependency order.
 
 ## What Happens Next
 
 After bootstrap lands, the pipeline becomes your daily workflow:
 1. Pick next feature from backlog
-2. Run `/keel-pipeline F{id} spec-path`
+2. Run `/keel-pipeline F{id} docs/exec-plans/prds/<slug>.json`
 3. Watch the pipeline — it runs end-to-end, self-corrects at gates, and stops in-session only on escalation
 4. Review the resulting PR — the pipeline archives the handoff, commits, pushes the feature branch, and opens a PR on your forge for you to review and merge
 

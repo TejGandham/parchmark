@@ -15,6 +15,19 @@ RECEIPT_PATH = ".claude/.keel-install.json"
 BUNDLED_UNINSTALLER = ".claude/keel-uninstall.py"
 SETTINGS_FILE = ".claude/settings.json"
 
+# Single source of truth for the Python floor. Bootstrap scripts duplicate
+# the literal `(3, 14)` (they can't safely import this module before their
+# own version check runs on ancient Python). PEP 723 headers duplicate
+# `">=3.14"`. Both duplicates are lint-checked against this constant by
+# scripts/validate-manifest.py — drift fails CI.
+PYTHON_FLOOR: tuple[int, int] = (3, 14)
+PYTHON_FLOOR_PEP723: str = f">={PYTHON_FLOOR[0]}.{PYTHON_FLOOR[1]}"
+
+# PRD schema version. Bumps when the PRD schema shape breaks. Every PRD
+# must declare `schema_version` matching a version the validator supports.
+# See docs/design-docs/2026-04-24-structured-prds.md.
+PRD_SCHEMA_VERSION: int = 1
+
 AGENTS: list[str] = [
     "arch-advisor.md", "backend-designer.md", "backlog-drafter.md",
     "code-reviewer.md", "config-writer.md", "doc-gardener.md",
@@ -47,8 +60,19 @@ PROCESS_DOCS: list[str] = [
 # shipped — they would be noise in a user install.
 SCRIPTS: list[str] = [
     "validate-prds.py",
+    "validate-prd-json.py",
     "keel-prd-view.py",
+    "keel-feature-resolve.py",
+    "keel_features.py",
     "upgrade-invariant-7.py",
+]
+
+# Schema files under schemas/ shipped into user installs. Loaded by
+# validate-prd-json.py at runtime. PRD schema validates framework frame
+# (PRD shape, feature shape, oracle shape, cross-refs); feature `contract`
+# is intentionally open-shape per docs/design-docs/2026-04-24-structured-prds.md.
+SCHEMAS: list[str] = [
+    "prd.schema.json",
 ]
 
 # KEEL-internal scripts under scripts/ that are NOT shipped to installs.
@@ -65,6 +89,7 @@ INTERNAL_SCRIPTS: set[str] = {
     "validate-handoff.py",
     "validate-bootstrap-gate.py",
     "validate-manifest.py",
+    "migrate-prd-to-json.py",
     "keel_manifest.py",
     "keel_receipt.py",
     "keel_settings.py",
@@ -79,7 +104,6 @@ TEMPLATE_DOCS: list[str] = [
     "docs/design-docs/core-beliefs.md",
     "docs/design-docs/ui-design.md",
     "docs/design-docs/index.md",
-    "docs/product-specs/_TEMPLATE.md",
     "docs/exec-plans/active/feature-backlog.md",
     "docs/exec-plans/active/handoffs/_TEMPLATE.md",
     "docs/exec-plans/prds/.gitkeep",

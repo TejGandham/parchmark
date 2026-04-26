@@ -334,7 +334,7 @@ Announce (CTA-style):
 Smallest independently testable features. Execute top-to-bottom.
 Each feature: read spec → write test → write code → verify.
 
-**Specs:** `docs/product-specs/`
+**PRDs:** `docs/exec-plans/prds/<slug>.json` (drafted by `/keel-refine`)
 **Principles:** `docs/design-docs/core-beliefs.md`
 **Architecture:** `ARCHITECTURE.md`
 

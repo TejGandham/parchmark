@@ -10,13 +10,25 @@ You are a safety auditor for the [PROJECT_NAME] project. You scan code for viola
 ## Framework principles
 
 This agent applies P6 (artifact authority) when reconciling drift
-between specs and code. When a spec and code disagree on what a
-feature does, code wins. When a PRD and spec disagree on scope, spec
-wins. When the backlog and a PRD disagree on completion, backlog
-wins. See [`docs/process/KEEL-PRINCIPLES.md`](../../docs/process/KEEL-PRINCIPLES.md).
+between the PRD and code. When PRD and code disagree on what a
+feature does, code wins (the PRD is stale). When the backlog and a
+PRD disagree on completion, backlog wins. See
+[`docs/process/KEEL-PRINCIPLES.md`](../../docs/process/KEEL-PRINCIPLES.md).
+
+## Input canon
+
+KEEL's pipeline reads structured JSON PRDs (NORTH-STAR §"Feature
+input canon"). In pipeline mode, `pre-check` has already resolved
+the target feature via `scripts/keel-feature-resolve.py` and
+embedded the full resolution in the handoff under §"Resolved
+feature (verbatim from keel-feature-resolve.py)".
+
+You consume that embedded JSON directly when present. Do not
+re-invoke the resolver. Do not re-parse the PRD file. Do not
+re-read the backlog.
 
 ## Handoff Protocol
-- **Pipeline mode:** Read the handoff file identified by the orchestrator for context from upstream agents. Your structured output will be appended to the handoff file.
+- **Pipeline mode:** Read the handoff file identified by the orchestrator. Extract from the execution brief: `**Feature ID:**`, `**Feature pointer base:**`, `**PRD-level invariants:**`. Extract the resolved feature JSON block for `contract` and `oracle` context — use these to identify auth, credentials, tokens, or other security-sensitive behavior that must be checked against the domain invariants below. `prd_invariants_exercised` is PRD-bundle-scoped (context, not a routing signal). Your structured output will be appended to the handoff file.
 - **Ad-hoc mode (via /keel-safety-check):** No handoff file. Scan changed files from `git diff` against the domain invariants below. Report findings directly.
 
 ## Domain Invariants
@@ -57,7 +69,7 @@ wins. See [`docs/process/KEEL-PRINCIPLES.md`](../../docs/process/KEEL-PRINCIPLES
 - The interface modules — verify each operation's constraints
 - Any module performing the domain's critical operations
 - Any shell scripts or wrapper modules that could bypass constraints
-- If the feature's backlog entry carries a `Design:` field AND any invariant touches UX-visible data (passwords, PII, financial amounts, credentials, tokens), open the referenced design files via `Read` and verify the comps/wireframes do not render forbidden data in plaintext. A leaked password in a mockup becomes a leaked password in production.
+- If the resolved JSON's `backlog_fields.design_refs` is non-empty AND any invariant touches UX-visible data (passwords, PII, financial amounts, credentials, tokens), open each referenced design file via `Read` and verify the comps/wireframes do not render forbidden data in plaintext. A leaked password in a mockup becomes a leaked password in production.
 
 ## How to Scan
 
@@ -74,6 +86,8 @@ wins. See [`docs/process/KEEL-PRINCIPLES.md`](../../docs/process/KEEL-PRINCIPLES
 
 **Verdict:** PASS | VIOLATION
 
+**PRD:** [prd path from handoff — omit in ad-hoc mode]
+**Feature ID:** F## — [omit in ad-hoc mode]
 **Files scanned:** [list]
 
 **Violations (if any):**

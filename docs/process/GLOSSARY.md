@@ -19,8 +19,8 @@
   - F01: docker-builder → landing-verifier → roundtable-review? → post-landing
   - F02: scaffolder → landing-verifier → roundtable-review? → post-landing
   - F03: config-writer → landing-verifier → roundtable-review? → post-landing
-- **Backend:** pre-check → roundtable-precheck? → researcher? → arch-advisor? → roundtable-review? → backend-designer? → test-writer → implementer → code-reviewer → spec-reviewer → safety-auditor? → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
-- **Frontend:** pre-check → roundtable-precheck? → researcher? → arch-advisor? → roundtable-review? → frontend-designer → test-writer → implementer → code-reviewer → spec-reviewer → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
+- **Backend:** pre-check → roundtable-precheck? → researcher? → arch-advisor? → backend-designer? → roundtable-review? → test-writer → implementer → code-reviewer → spec-reviewer → safety-auditor? → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
+- **Frontend:** pre-check → roundtable-precheck? → researcher? → arch-advisor? → frontend-designer → roundtable-review? → test-writer → implementer → code-reviewer → spec-reviewer → arch-advisor-verify? → landing-verifier → roundtable-review? → post-landing
 - **Cross-cutting:** pre-check → roundtable-precheck? → test-writer → implementer → code-reviewer → landing-verifier → roundtable-review? → post-landing
 
 **Execution Brief** — The structured output of the pre-check agent. Contains: intent classification, complexity tier, spec reference, dependencies, what to build, new/modified files, acceptance tests, edge cases, risks, constraints for downstream (MUST/MUST NOT), and routing decisions (designer needed? researcher needed? arch-advisor needed?).

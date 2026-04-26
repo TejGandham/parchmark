@@ -101,6 +101,43 @@ Pipeline stalls or produces bad output
        → Summarize the handoff, keeping only the current agent's inputs
 ```
 
+## PRD-scope halts
+
+### pre-check blocks on missing PRD link
+
+**Symptom:** `/keel-pipeline F##` halts with *"F## references PRD 'X' but `docs/exec-plans/prds/X.json` does not exist."*
+
+**Cause:** Typo in `PRD:` field, or PRD file was renamed/deleted.
+
+**Fix:**
+- If the PRD should exist: create the file at the referenced path (narrative only, no feature list).
+- If the slug was a typo: correct the F## entry's `PRD:` field in the backlog.
+- If the F## is legacy work: change `PRD: <slug>` to `PRD-exempt: legacy`.
+
+### pre-check blocks on invalid PRD-exempt reason
+
+**Symptom:** `/keel-pipeline F##` halts with *"F## declares PRD-exempt with reason '<x>'; must be one of legacy/bootstrap/infra/trivial."*
+
+**Cause:** Free-form reason used instead of one of the four allowed values.
+
+**Fix:** Edit the F## entry to use one of the four allowed reasons. If none fit, the feature likely should have a PRD — author one.
+
+### validate-prds.py reports orphaned PRD file
+
+**Symptom:** CI validator reports *"PRD file `docs/exec-plans/prds/<slug>.json` is not referenced by any F##."*
+
+**Cause:** A PRD was drafted but all its F## were dropped or never added.
+
+**Fix:** Either delete the orphaned PRD file (git log preserves history) or add F## entries that reference it.
+
+### validate-prds.py reports F## ID mentioned in PRD prose
+
+**Symptom:** Validator reports *"PRD prose `<slug>.md` contains F## reference — narrative must use theme-level language, not IDs."*
+
+**Cause:** Someone pasted an F## list into the PRD narrative (common drift toward Jira-docification).
+
+**Fix:** Rewrite the prose to describe themes/scope, not IDs. The feature list lives on `docs/exec-plans/active/feature-backlog.md` (F## entries tagged `PRD: <slug>`) — don't cache it in the PRD file. For a JSON PRD, `uv run scripts/keel-prd-view.py docs/exec-plans/prds/<slug>.json` renders the canonical view.
+
 ## Rules
 
 1. **Never "try harder."** If the implementer fails twice on the same tests,

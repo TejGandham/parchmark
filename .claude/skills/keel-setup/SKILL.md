@@ -243,9 +243,9 @@ Print:
 KEEL setup complete.
 
 Next:
-  1. Create your feature backlog — docs/exec-plans/active/feature-backlog.md
-  2. Write your first product spec — docs/product-specs/
-  3. Run: /keel-pipeline F01 docs/product-specs/your-spec.md
+  1. Draft your first feature with /keel-refine — emits a structured
+     JSON PRD at docs/exec-plans/prds/<slug>.json plus backlog entries.
+  2. Run: /keel-pipeline F01 docs/exec-plans/prds/<slug>.json
 ```
 
 ## Rules

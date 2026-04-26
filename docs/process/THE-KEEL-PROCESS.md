@@ -10,6 +10,9 @@ Lopopolo), where a team shipped a product with zero manually-written code
 using Codex agents. KEEL adapts those principles into concrete, repeatable
 mechanics on top of Claude Code — the only supported agent runtime today.
 
+> All decisions below are anchored to the seven KEEL framework
+> principles at [`KEEL-PRINCIPLES.md`](KEEL-PRINCIPLES.md).
+
 ---
 
 ## What is KEEL?
@@ -207,7 +210,8 @@ From empty directory to first passing test.
 1. Create directory structure
 2. Write north star               (docs/north-star.md)
 3. Write CLAUDE.md                (~80-100 lines, table of contents)
-4. Write product spec             (docs/product-specs/mvp-spec.md)
+4. Produce product PRDs via       (/keel-refine → docs/exec-plans/prds/<slug>.json)
+   /keel-refine                   (conversion hub — accepts prose, markdown, bundles, images; emits JSON)
 5. Write core beliefs             (docs/design-docs/core-beliefs.md)
 6. Write testing strategy         (in core-beliefs or standalone)
 7. Define architecture layers     (ARCHITECTURE.md)
@@ -233,7 +237,7 @@ rules, workflow overview, pointers to deeper docs. "Map not manual."
 ## Safety Rules      - Non-negotiable invariants (3-6 bullets)
 ## Workflow — Mandatory Pipelines  - Pipeline definitions (compact)
 ## Architecture      - Link to ARCHITECTURE.md
-## Specs             - Links to product-specs/, design-docs/
+## PRDs and specs    - Links to exec-plans/prds/, design-docs/
 ## Plans             - Links to exec-plans/active/, completed/
 ## Development       - How to build, run, test (4-6 lines)
 ```
@@ -241,8 +245,9 @@ rules, workflow overview, pointers to deeper docs. "Map not manual."
 **ARCHITECTURE.md** -- Process model, module map with dependencies, layer
 diagram, key design decisions. Updated as modules are added.
 
-**Product spec** (`docs/product-specs/`) -- What to build. Tables, state
-machines, data structures, safety rules. Written for agent comprehension.
+**Structured PRDs** (`docs/exec-plans/prds/<slug>.json`) -- What to build.
+Schema-validated JSON with `features[].contract` + `features[].oracle` that
+IS the spec. Authored by `/keel-refine`'s card walk.
 
 **Design docs** (`docs/design-docs/`) -- How it looks, core beliefs, testing
 strategy. Principles that apply across all features.
@@ -253,12 +258,12 @@ tech debt tracker. The operational layer.
 ```
 docs/
   north-star.md
-  product-specs/
-    mvp-spec.md
   design-docs/
     core-beliefs.md
     ui-design.md
   exec-plans/
+    prds/
+      <slug>.json
     active/
       feature-backlog.md
       handoffs/
@@ -333,19 +338,28 @@ testable features.
 
 ### Backlog Format
 
-Example (from the Repo Man project):
 ```markdown
 - [x] **F04 Git.repo?/1**
-  Spec: mvp-spec:4.1 | Needs: F02, F03
-  Test: true for .git dirs, false for plain dirs and nonexistent paths
+  Needs: F02, F03
+  PRD: repo-man-mvp
+  <!-- DRAFTED: <ISO-date> by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: docs/prds/repo-man-mvp.md -->
 
 - [ ] **F05 Git branch detection**
-  Spec: mvp-spec:4.2 | Needs: F04
-  Test: current_branch returns branch name, default_branch falls back
+  Needs: F04
+  PRD: repo-man-mvp
+  <!-- DRAFTED: <ISO-date> by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: docs/prds/repo-man-mvp.md -->
 ```
 
-Each entry: Feature ID, name, spec ref, dependencies, one-line acceptance
-criterion, optional pipeline assignment.
+Each entry carries: feature ID + name, optional `Needs:` line,
+optional `Design:` line for UI-bearing features, mandatory
+`PRD: <slug>` (or `PRD-exempt: <reason>`) anchoring it to the JSON
+PRD at `docs/exec-plans/prds/<slug>.json`, plus the drafter's
+`<!-- DRAFTED: ... -->` and `<!-- SOURCE: ... -->` provenance
+comments. The contract and acceptance oracle live in the JSON PRD's
+per-feature `contract` + `oracle.assertions[]`, not on the backlog
+entry.
 
 ### Feature Sizing
 
@@ -385,7 +399,7 @@ images in `.keel-refine-session/<id>/` (gitignored) and passes them to
 the drafter.
 
 The `backlog-drafter` agent reads the PRD, `ARCHITECTURE.md`,
-`CLAUDE.md`, the current `feature-backlog.md`, and any design assets
+`CLAUDE.md`, the current `feature-backlog.md`, and any UI design assets
 (via Claude vision, shallow-read only — for mapping which asset belongs
 to which F##, not for transcribing colors or copy). It returns a
 structured proposal: new entries with `F##` ids, layer sections,
@@ -402,23 +416,42 @@ conversational review.
 ```
 Card 1 of 3:
 
-F12 Login screen with validation      → Service
-  Spec:    docs/prds/auth/README.md:login
-  Needs:   F08
-  Design:  login-flow.png
-  Test:    ❓ acceptance test?
+F12 Login screen with validation      → service
+  Needs (intra-PRD):  F08
+  Needs (cross-PRD):  —
+  Design:             login-flow.png
+
+  Contract:
+    route: /login
+    request_fields: [email, password]
+
+  Oracle:
+    type:       integration
+    assertions:
+      [1] Valid credentials redirect to /home with a session cookie set.
+      [2] Invalid credentials return 401 and surface "Email or password incorrect".
 
   Open markers:
-    [1] What's the acceptance test? Visual regression or functional?
+    [1] Should rate-limit thresholds live in this contract or a shared `auth-policy`?
 
 Verbs:
-  accept                       — keep as drafted, advance
-  edit <field>: <value>        — replace title/section/test/spec/needs/design
-  answer marker <n>: <text>    — drop marker n, record answer
-  skip marker <n>              — ship marker as-is (pre-check blocks until resolved)
-  drop F##                     — remove card, advance
-  back                         — revisit prior card
+  accept                              — commit this card, advance
+  edit title: <text>                  — set/replace title
+  edit layer: <enum>                  — service|ui|cross-cutting|foundation
+  edit needs: <comma-joined F##>      — full list replace
+  set contract.<key>: <value>         — set/replace a contract key
+  drop contract.<key>                 — remove a contract key
+  edit oracle.type: <enum>            — unit|integration|e2e|smoke
+  add oracle.assertion: <text>        — append an assertion
+  edit oracle.assertion <n>: <text>   — replace assertion n
+  drop oracle.assertion <n>           — remove assertion n
+  answer marker <n>: <text>           — record answer (apply via follow-up edit)
+  skip marker <n>                     — ship marker as-is (pre-check blocks)
+  drop F##                            — remove card, advance
+  back                                — revisit prior card
 ```
+
+The full verb set lives in `.claude/skills/keel-refine/SKILL.md` §"Phase 5 Step 2".
 
 You walk one card at a time. Advancing verbs (`accept`, `drop`, `back`)
 move between cards; field edits and marker answers stay on the active
@@ -436,28 +469,30 @@ Verbs:
 
 `commit` is only valid after the walk completes. Attempting it earlier
 re-points to the current unwalked card. `commit` then materializes the
-backlog entries, moves pasted images to `docs/prds/drafts/<timestamp>/`,
+backlog entries, moves pasted images to `docs/exec-plans/prds/<slug>/assets/`,
 and runs `git add` + `git commit` with a deterministic message.
 No confirmation prompt; feature-branch commits are trivially reversible
 (`git commit --amend`). `abort` deletes the session workspace — zero
 pollution of tracked territory.
 
-After the commit lands, write the spec files referenced by the drafted
-entries, then run `/keel-pipeline F## spec-path` when ready. Nothing
+After the commit lands, run
+`/keel-pipeline F## docs/exec-plans/prds/<slug>.json` when ready —
+the JSON PRD written at commit time IS the spec (its `contract` +
+`oracle` are what `pre-check` and `test-writer` consume). Nothing
 auto-chains. You still choose the order.
 
 **What the drafter will not do:**
 - Emit bootstrap-pipeline tasks (F01-F03 are `/keel-setup`'s territory).
   Instead, it returns `status: bootstrap_gap` and routes the human to
   `/keel-adopt` to extend architecture first.
-- Write spec files. Not even empty stubs. The `Spec:` field on a drafted
-  entry is a forward reference the human materializes.
+- Write separate spec files. The JSON PRD's per-feature `contract` and
+  `oracle` are the spec; no markdown spec stub is created.
 - Pick priority. Drafted entries appear in PRD-encounter order; the human
   decides what ships first.
 - Modify existing entries. Strict append-only.
 - Run the pipeline.
 - Transcribe visual tokens (colors, exact spacing, typography) from
-  design assets. That's `frontend-designer`'s job later in the pipeline.
+  UI design assets. That's `frontend-designer`'s job later in the pipeline.
 
 **Why the marker convention matters.** Pre-check refuses to enter the
 pipeline on any entry that still contains `<!-- HUMAN: -->`. The marker
@@ -479,6 +514,30 @@ and benefits from a chat-based review surface, while the pipeline
 retains its PR-based review surface for landed work. See
 `.claude/agents/backlog-drafter.md` and
 `.claude/skills/keel-refine/SKILL.md` for the full I/O contracts.
+
+## The PRD lifecycle (informal, derived from artifacts)
+
+KEEL does not declare PRD states machine-readably — state is
+emergent from artifacts (principle P4: no redundant storage). In
+narrative terms:
+
+- **Draft.** A PRD file exists at `docs/exec-plans/prds/<slug>.json`;
+  the human is iterating on it. No F## in the backlog reference
+  this slug yet.
+- **Accepted.** `/keel-refine` committed an F## slate referencing
+  the PRD. Phase 5 Step 3 is the explicit human-confirmation
+  moment.
+- **In-flight.** At least one F## from the slate is in pipeline
+  (handoff exists in `docs/exec-plans/active/handoffs/`), HUMAN
+  markers are being resolved, specs are being authored.
+- **Complete.** Every F## with `PRD: <slug>` is `[x]` in the
+  backlog. The PRD file stays at its canonical path (no
+  active/completed split — completion is derivable from backlog
+  state, not directory location).
+
+No frontmatter field declares these states. Tooling infers them
+when needed (`uv run scripts/keel-prd-view.py docs/exec-plans/prds/<slug>.json`
+renders a JSON PRD as deterministic markdown for human read-access).
 
 ---
 
@@ -565,16 +624,16 @@ Sixteen specialized agents, each with bounded responsibility.
 | **scaffolder** | Project skeleton | Stack, structure spec | Scaffolded project | Write business logic |
 | **config-writer** | Test infra, configs, behaviours | Architecture, testing strategy | Config files, helpers | Write feature code |
 | **backlog-drafter** | Draft backlog entries from a PRD/prose/bundle (upstream of the pipeline, invoked via `/keel-refine`) | PRD, prose, or pasted images + repo context | Structured YAML proposal with candidate `F##` entries, `Design:` refs, and HUMAN markers | Write specs, emit bootstrap tasks, auto-run the pipeline |
-| **pre-check** | Classify intent, evaluate readiness, route pipeline | Backlog entry, specs | Execution brief with intent, complexity, constraints | Write code or tests |
+| **pre-check** | Classify intent, evaluate readiness, route pipeline | Backlog entry, PRD JSON | Execution brief with intent, complexity, constraints | Write code or tests |
 | **researcher** | Investigate unknowns | Pre-check questions | Research findings | Make design decisions |
-| **backend-designer** | Module interfaces, data flow | Spec, architecture | Signatures, integration points | Write implementation |
-| **frontend-designer** | Component hierarchy | Spec, UI design doc | Component tree, event flow | Write backend code |
-| **test-writer** | Failing tests from spec | Spec, designer output | Test files (all RED) | Write implementation |
-| **implementer** | Code to pass tests | Failing tests, spec | Implementation (all GREEN) | Modify tests |
+| **backend-designer** | Module interfaces, data flow | Resolved JSON, architecture | Signatures, integration points | Write implementation |
+| **frontend-designer** | Component hierarchy | Resolved JSON, UI design doc | Component tree, event flow | Write backend code |
+| **test-writer** | Failing tests from oracle | Resolved JSON, designer output | Test files (all RED) | Write implementation |
+| **implementer** | Code to pass tests | Failing tests, resolved JSON | Implementation (all GREEN) | Modify tests |
 | **code-reviewer** | Review code quality | Git diff, architecture | Verdict: APPROVED or CHANGES NEEDED | Modify code |
-| **spec-reviewer** | Verify spec match | Spec, implementation | Verdict: CONFORMANT or DEVIATION | Modify code |
+| **spec-reviewer** | Verify contract + oracle match | Resolved JSON, implementation | Verdict: CONFORMANT or DEVIATION | Modify code |
 | **safety-auditor** | Verify invariants | Core-beliefs, implementation | Verdict: PASS or VIOLATION | Modify code |
-| **arch-advisor** | Architecture consultation + verification | Spec, handoff, ARCHITECTURE.md | Guidance (CONSULT) or Verdict: SOUND/UNSOUND (VERIFY) | Modify code |
+| **arch-advisor** | Architecture consultation + verification | Resolved JSON, handoff, ARCHITECTURE.md | Guidance (CONSULT) or Verdict: SOUND/UNSOUND (VERIFY) | Modify code |
 | **landing-verifier** | Verify completeness | All handoff entries | VERIFIED or BLOCKED | Write code or tests |
 | **doc-gardener** | Fix doc drift | All docs, codebase | Updated docs, drift report | Write feature code |
 
@@ -587,7 +646,7 @@ its task. Tiers map to Claude Code model names in agent frontmatter
 | Tier | Intent | Claude Code |
 |-|-|-|
 | **high** | Design decisions, novel work, deep analysis | opus |
-| **high, lighter model** | Gate verdicts — pattern matching against existing code or spec | sonnet (`reasoning: high`) |
+| **high, lighter model** | Gate verdicts — pattern matching against existing code or contract/oracle | sonnet (`reasoning: high`) |
 | **standard** | Routing, pattern-following, verification | sonnet |
 
 **High reasoning (opus):** pre-check, arch-advisor, implementer, safety-auditor,
@@ -595,7 +654,8 @@ backend-designer, frontend-designer, researcher, backlog-drafter (8 agents)
 
 **High reasoning, sonnet:** code-reviewer, spec-reviewer (2 agents) — the
 reasoning depth matters, but generation cost does not, because these agents
-compare existing code against a spec rather than authoring new code.
+compare existing code against a contract and oracle rather than authoring
+new code.
 
 **Standard reasoning (sonnet):** test-writer, docker-builder, scaffolder,
 config-writer, landing-verifier, doc-gardener (6 agents)

@@ -22,6 +22,15 @@ import shutil
 import sys
 from pathlib import Path
 
+if sys.version_info < (3, 14):
+    sys.exit(
+        "KEEL requires Python 3.14+ "
+        f"(found {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}).\n"
+        "Install a supported Python and re-run, e.g.:\n"
+        "  uv python install 3.14 && uv run --python 3.14 .claude/keel-uninstall.py -y\n"
+        "  (or install 3.14 system-wide and invoke with python3.14)"
+    )
+
 _script_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(_script_dir))
 from keel_manifest import (
@@ -248,7 +257,7 @@ def _run_receipt_mode(project_dir: Path, receipt: dict, args) -> int:
 
     # Remove now-empty dirs (best-effort)
     for rel in (".claude/agents", ".claude/skills", ".claude/hooks",
-                "docs/process", "scripts", ".claude"):
+                "docs/process", "scripts", "schemas", ".claude"):
         d = project_dir / rel
         try:
             if d.is_dir() and not any(d.iterdir()):
