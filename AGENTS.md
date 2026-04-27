@@ -1,5 +1,4 @@
-# MUST USE KEEL framework. you are not allowed to sidestep it. If you strongly feel KEEL framework needs to be sidestepped get explicit consent from the user first. This obtained consent is NOT a blanket consent and applies for the one particular case you obatained it for.
-# This codebase feature implementations and bug fixes are being used as a test bed for KEEL; anytime there is feedback that is useful for KEEL based on either observed behaviour deviation from KEEL framework or actual bugs, create a new testbed feedback item in ../keel/testbed-feedback/ so it can be addressed immediately. The best feedback is actionable feedback so make it detailed and imperative.
+@.claude/KEEL-CONTRACT.md
 
 Guidance for Claude Code working with the ParchMark codebase. This file is a table of contents — follow links for depth.
 

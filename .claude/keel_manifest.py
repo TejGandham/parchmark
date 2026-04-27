@@ -9,7 +9,7 @@ requires editing this file — which is the whole point.
 """
 from __future__ import annotations
 
-KEEL_VERSION = "2026.04.3"
+KEEL_VERSION = "2026.04.6"
 RECEIPT_SCHEMA_VERSION = 2
 RECEIPT_PATH = ".claude/.keel-install.json"
 BUNDLED_UNINSTALLER = ".claude/keel-uninstall.py"
@@ -89,6 +89,7 @@ INTERNAL_SCRIPTS: set[str] = {
     "validate-handoff.py",
     "validate-bootstrap-gate.py",
     "validate-manifest.py",
+    "validate-onboarding-parity.py",
     "migrate-prd-to-json.py",
     "keel_manifest.py",
     "keel_receipt.py",

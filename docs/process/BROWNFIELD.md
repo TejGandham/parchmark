@@ -138,7 +138,7 @@ you want to build — not past features. Format:
 
 For brownfield, bootstrap features (F01-F03) don't apply — your project
 already has Docker, a framework, and test infrastructure. Either
-`/keel-adopt` Phase 5d stamped `<!-- KEEL-BOOTSTRAP: not-applicable -->`
+`/keel-adopt` Phase 6e stamped `<!-- KEEL-BOOTSTRAP: not-applicable -->`
 in `feature-backlog.md` automatically, or you paste that marker manually
 on its own line between the `**Architecture:**` preamble and the first
 `---` divider. Start directly with **F01** (numbering resets for
@@ -232,21 +232,18 @@ members who do use KEEL benefit from the accumulated context.
 
 ## Upgrading to invariant 7
 
-If your project adopted KEEL before invariant 7 landed (pre-April
-2026), your existing F## entries predate the PRD-link requirement.
-Two paths:
+If your project adopted KEEL before invariant 7 landed, your existing
+F## entries predate the PRD-link requirement. Two paths:
 
 ### Automatic (for `/keel-adopt` users — first-time adoption)
 
-`/keel-adopt` Phase 5d now stamps the grandfather marker
+`/keel-adopt` Phase 6e now stamps the grandfather marker
 automatically: `<!-- KEEL-INVARIANT-7: legacy-through=F<max> -->`.
 Nothing further to do.
 
 ### Manual (for existing KEEL projects)
 
-Run the upgrade script once (stdlib-only, no deps — `python3` is fine;
-a future dep-carrying version would move to `uv run` per AGENTS.md
-§Python conventions):
+Run the upgrade script once:
 
 ```
 python3 scripts/upgrade-invariant-7.py
@@ -276,6 +273,7 @@ when ready.
 ```
 [ ] Agent has read the full codebase
 [ ] CLAUDE.md written (under 100 lines)
+[ ] NORTH-STAR.md written (vision + growth-stage cues)
 [ ] ARCHITECTURE.md written (module map + layers at minimum)
 [ ] Domain invariants defined in core-beliefs.md
 [ ] Safety-auditor configured with grep patterns

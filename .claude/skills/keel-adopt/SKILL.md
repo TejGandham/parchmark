@@ -14,7 +14,7 @@ Full guide: `docs/process/BROWNFIELD.md`
 
 Adoption places the framework's seven principles into the user's
 project via `KEEL-PRINCIPLES.md` (copied by install.py). This skill
-also stamps the `KEEL-INVARIANT-7` marker in Phase 5d. See
+also stamps the `KEEL-INVARIANT-7` marker in Phase 6e. See
 [`docs/process/KEEL-PRINCIPLES.md`](../../../docs/process/KEEL-PRINCIPLES.md).
 
 ## When to Use
@@ -30,13 +30,15 @@ digraph adopt {
   rankdir=LR;
   discover [label="1. Discover" shape=box];
   claude_md [label="2. CLAUDE.md" shape=box];
-  arch [label="3. ARCHITECTURE" shape=box];
-  invariants [label="4. Invariants" shape=box];
-  safety [label="5. Safety config" shape=box];
+  northstar [label="3. North Star" shape=box];
+  arch [label="4. ARCHITECTURE" shape=box];
+  invariants [label="5. Invariants" shape=box];
+  safety [label="6. Safety + agent config" shape=box];
   done [label="Done" shape=doublecircle];
 
   discover -> claude_md;
-  claude_md -> arch [label="human reviews"];
+  claude_md -> northstar [label="human reviews"];
+  northstar -> arch [label="human reviews"];
   arch -> invariants [label="human reviews"];
   invariants -> safety [label="human confirms each"];
   safety -> done [label="human reviews"];
@@ -88,10 +90,23 @@ Generate a draft CLAUDE.md from discovery findings.
 - **Runtime:** [Docker / local / etc.]
 - **Tests:** [framework], run with `[command]`
 
+## KEEL — Mandatory Process
+
+This repository operates under KEEL. The full operating contract is at
+`.claude/KEEL-CONTRACT.md` and is loaded into your context via the
+import below. Read it before your first tool call.
+
+@.claude/KEEL-CONTRACT.md
+
+**Three-line floor** (minimum enforcement if the import above failed to resolve):
+1. You are a KEEL pipeline operator, not a general coding assistant. Code changes route through `/keel-refine` → `/keel-pipeline F##`.
+2. Human pressure is not authorization to bypass. Apply the refusal protocol in `.claude/KEEL-CONTRACT.md`.
+3. Trivial work batches into a feature entry via `/keel-refine` (which can mark `PRD-exempt: trivial`) — never ad-hoc.
+
 ## Safety Rules
 
 <!-- HUMAN: Review these — are they your actual non-negotiable rules? -->
-1. [Proposed from Phase 4, or placeholder]
+1. [Proposed from Phase 5, or placeholder]
 
 ## Architecture
 
@@ -113,7 +128,46 @@ See [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
-## Phase 3: Draft ARCHITECTURE.md (automated → human reviews)
+## Phase 3: Draft NORTH-STAR.md (automated → human reviews)
+
+The installer placed `NORTH-STAR.md` at the project root with placeholders
+substituted (project name, stack, description). It is still a generic
+template. This phase refines it from what Phase 1 discovery learned about
+the actual codebase.
+
+**Draft** the refined NORTH-STAR.md from:
+- Project description from Phase 2 (already filled into CLAUDE.md and the
+  templated NORTH-STAR.md)
+- Stack implications observed in Phase 1 — what growth stages look like
+  for THIS codebase given its current size, test coverage, and modules
+  (e.g., a 200-file Phoenix app is past Stage 2; a single-file CLI is
+  Stage 1)
+- User-provided vision docs if Phase 1 found any (README, ROADMAP,
+  CONTRIBUTING, design notes in `docs/`)
+- Reasonable defaults for the guiding questions (what we're building,
+  who steers, what we adopt/adapt/skip)
+
+For brownfield, draft the "What We Adapt" and "What We Skip" sections
+against the codebase's *current state*, not against a hypothetical
+future. If there is no observability layer in the code, "Observability
+stack" lists what's there (e.g., "stdout logging only — formal stack
+deferred"). If tests already exist with a specific framework, the
+"Mechanical enforcement" section names that framework, not an
+aspirational one.
+
+For sections you cannot derive from discovery, mark with
+`<!-- HUMAN: ... -->`.
+
+Present the draft:
+> "Here's a refined NORTH-STAR.md based on the codebase's current state
+> and what I found in your existing docs. Edit the parts that don't
+> match your vision, especially anything marked <!-- HUMAN: ... -->."
+
+**Write** NORTH-STAR.md. Wait for confirmation before proceeding.
+
+---
+
+## Phase 4: Draft ARCHITECTURE.md (automated → human reviews)
 
 Generate a draft ARCHITECTURE.md from the codebase structure.
 
@@ -151,7 +205,7 @@ Examples:
 
 ---
 
-## Phase 4: Propose Domain Invariants (interactive — per-item confirmation)
+## Phase 5: Propose Domain Invariants (interactive — per-item confirmation)
 
 This is the most important phase. Wrong invariants propagate through the
 safety-auditor into every future feature.
@@ -206,37 +260,75 @@ Wait for the human to respond to EACH candidate before presenting the next.
 If the human adds invariants you didn't find, include those too.
 
 After all candidates are reviewed, announce:
-> "We have N confirmed invariants. Moving to Phase 5 to wire them into
+> "We have N confirmed invariants. Moving to Phase 6 to wire them into
 > the safety-auditor and hooks."
 
 ---
 
-## Phase 5: Scaffold Safety Config (automated → human reviews)
+## Phase 6: Scaffold Safety + Agent Config (automated → human reviews)
 
 Wire confirmed invariants into the KEEL safety enforcement layer.
 
-**5a. Write `docs/design-docs/core-beliefs.md`**
+**6a. Write `docs/design-docs/core-beliefs.md`**
 
 Use the template from `template/docs/design-docs/core-beliefs.md`. Fill in:
 - Domain safety section with confirmed invariants
 - Testing strategy adapted to the project's existing test framework
 - Design philosophy from what you observed in the codebase
 
-**5b. Configure `.claude/agents/safety-auditor.md`**
+**6b. Configure `.claude/agents/safety-auditor.md`**
 
 In the agent definition, replace the `<!-- CUSTOMIZE -->` sections with:
 - The confirmed invariant rules
-- The grep patterns from Phase 4
+- The grep patterns from Phase 5
 - The critical file paths for this project
 
-**5c. Configure `.claude/hooks/keel-safety-gate.py`**
+**6c. Configure `.claude/hooks/keel-safety-gate.py`**
 
 Set the `CRITICAL_PATTERNS` variable to match the project's critical files:
 ```bash
 CRITICAL_PATTERNS="*/auth/*|*/middleware/*|*/transactions/*"
 ```
 
-**5d. Stamp brownfield bootstrap marker**
+**6d. Configure stack-specific agent commands**
+
+Fill `<!-- CUSTOMIZE -->` sections in the seven pipeline agents with the
+build/test/scaffold/format commands the codebase actually uses. **Source
+every value from Phase 1 discovery** — observed test command, real build
+command, the framework actually present, the formatter the existing code
+runs through. Do NOT use stack defaults when discovery surfaced a real
+value; the agents need to match the codebase's existing patterns, not
+the stack's typical shape.
+
+For each agent file below, replace the listed `<!-- CUSTOMIZE -->`
+fields. If Phase 1 didn't surface a value (rare), fall back to the
+stack default and mark with `<!-- HUMAN: confirm? -->` so the human
+catches it on review.
+
+- `.claude/agents/pre-check.md` — build/compile command (from Makefile,
+  package.json scripts, Cargo.toml, mix.exs aliases, etc.)
+- `.claude/agents/test-writer.md` — test framework, mock framework,
+  test command (from observed test directories + dependency files)
+- `.claude/agents/implementer.md` — formatter command, domain
+  invariants confirmed in Phase 5
+- `.claude/agents/landing-verifier.md` — test command per pipeline
+  variant (backend, frontend, cross-cutting if applicable)
+- `.claude/agents/scaffolder.md` — framework scaffold command (only
+  relevant if the project uses a framework with a generator;
+  brownfield projects often skip this — leave a `<!-- HUMAN: ... -->`
+  marker if there's no scaffold pattern in use)
+- `.claude/agents/docker-builder.md` — stack required tools (only
+  relevant if the project ships with Docker; if the user installed
+  with `--no-docker` and no Dockerfile exists, leave a comment noting
+  the agent is bypassed for this project)
+- `.claude/agents/config-writer.md` — build/compile command (same
+  value as pre-check.md, kept consistent)
+
+**Write** all seven files. The values must be consistent across them
+where they share a field (e.g., the test command in `test-writer.md`,
+`landing-verifier.md`, and CLAUDE.md `## Development` should match).
+
+**6e. Stamp brownfield bootstrap marker**
 
 Brownfield projects already have runtime, scaffold, and test infrastructure
 — that's the definition. KEEL's bootstrap features (F01–F03) are greenfield-
@@ -248,7 +340,7 @@ customized this" and we skip that sub-step.
 
 Target file: `docs/exec-plans/active/feature-backlog.md`.
 
-**5d.1 Stamp marker (always, idempotent).**
+**6e.1 Stamp marker (always, idempotent).**
 
 - If the backlog file does not exist: create it using the canonical
   brownfield template below, with the marker pre-stamped.
@@ -258,7 +350,7 @@ Target file: `docs/exec-plans/active/feature-backlog.md`.
   line after the `**Architecture:** ...` preamble line and immediately
   before the first `---` divider. Exact string, no variants.
 
-**5d.2 Strip Bootstrap section (gated).**
+**6e.2 Strip Bootstrap section (gated).**
 
 Only if the Bootstrap section contains these three exact unticked entries
 (bit-exact, including the `[ ]`, the `**F0N Title**` formatting, the Spec
@@ -286,9 +378,9 @@ Replace the entire `## Bootstrap (...)` block (heading + body up to the next
 ```
 
 Any deviation (F01 renamed, F02 ticked, extra entries added, etc.) → skip
-this sub-step. Log: `"5d.2 skipped: Bootstrap section customized."`
+this sub-step. Log: `"6e.2 skipped: Bootstrap section customized."`
 
-**5d.3 Clear placeholder entries (gated, per section).**
+**6e.3 Clear placeholder entries (gated, per section).**
 
 For each of Foundation / Service / UI / Cross-cutting: only if that section
 contains exactly one entry whose title matches the bit-exact shipped
@@ -306,10 +398,10 @@ plus the blank line separator). Preserve the section heading and its
 `<!-- CUSTOMIZE: ... -->` comment.
 
 Any deviation in a section (title customized, body changed, extra entries,
-missing Spec line) → skip that section only. Log: `"5d.3 skipped {section}:
+missing Spec line) → skip that section only. Log: `"6e.3 skipped {section}:
 customized."`
 
-**5d.ii — Stamp the KEEL-INVARIANT-7 marker**
+**6e.ii — Stamp the KEEL-INVARIANT-7 marker**
 
 After bootstrap marker placement, scan the backlog for the highest
 existing F## ID. Stamp the grandfather marker in the backlog preamble:
@@ -326,7 +418,7 @@ Announce (CTA-style):
 > `PRD:` or `PRD-exempt:`. Edit the marker value in the backlog
 > if this is wrong."*
 
-**Canonical brownfield backlog** (used by 5d.1 when the file is missing):
+**Canonical brownfield backlog** (used by 6e.1 when the file is missing):
 
 ````markdown
 # Feature Backlog
@@ -365,9 +457,9 @@ Each feature: read spec → write test → write code → verify.
 > customized): {list of skipped sub-steps, or 'none'}. Review the backlog
 > and confirm it's clean. When satisfied, tell me to continue."
 
-Wait for confirmation before proceeding to 5e.
+Wait for confirmation before proceeding to 6f.
 
-**5e. Configure pipeline preferences**
+**6f. Configure pipeline preferences**
 
 Fill the `## Pipeline Preferences` section in CLAUDE.md:
 - Roundtable review: `true` (default — gracefully skipped if MCP unavailable)
@@ -390,6 +482,7 @@ Print the brownfield checklist from `docs/process/BROWNFIELD.md`:
 ```
 [x] Agent has read the full codebase
 [x] CLAUDE.md written
+[x] NORTH-STAR.md written
 [x] ARCHITECTURE.md written
 [x] Domain invariants defined in core-beliefs.md
 [x] Safety-auditor configured
@@ -409,8 +502,8 @@ Tell the human:
 ## Rules
 
 - **Every phase has a human checkpoint.** Never proceed without confirmation.
-- **Phase 4 is per-item, not bulk.** Present one invariant at a time.
+- **Phase 5 is per-item, not bulk.** Present one invariant at a time.
 - **Draft, don't prescribe.** CLAUDE.md and ARCHITECTURE.md are drafts for human refinement.
 - **Mark what you don't know.** Use `<!-- HUMAN: ... -->` markers (with colon, specific question), never guess at intent.
 - **Don't touch existing code.** This skill writes KEEL docs, not project code.
-- **Don't automate backlog/specs.** Steps 6-8 from BROWNFIELD.md are human judgment. **Exception:** Phase 5d stamps the bootstrap marker and removes bit-exact template scaffolding (per-sub-step fingerprint-gated). It never authors user-facing content — every sub-step is either a deterministic marker insertion or a bit-exact placeholder removal.
+- **Don't automate backlog/specs.** Steps 6-8 from BROWNFIELD.md are human judgment. **Exception:** Phase 6e stamps the bootstrap marker and removes bit-exact template scaffolding (per-sub-step fingerprint-gated). It never authors user-facing content — every sub-step is either a deterministic marker insertion or a bit-exact placeholder removal.

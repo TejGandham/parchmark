@@ -1,8 +1,9 @@
 {
   "git_dirty": false,
-  "git_sha": "02b52d7",
-  "installed_at": "2026-04-27T14:54:26Z",
-  "keel_version": "2026.04.3",
+  "git_sha": "95677d2",
+  "gitignore_managed": false,
+  "installed_at": "2026-04-27T22:10:20Z",
+  "keel_version": "2026.04.6",
   "managed_paths": {
     ".claude/KEEL-CONTRACT.md": {
       "installed_hash": "sha256:b1ebfbc3e79fc2269efb7cc3ca6ad50d1ba1f7b21c6238af05b2512cdfb8b943",
@@ -81,11 +82,11 @@
       "kind": "hook"
     },
     ".claude/keel-uninstall.py": {
-      "installed_hash": "sha256:99d662fd19a326e3e77ca77b4525e7a23e9d304698a2cf44e0993d593513dfa7",
+      "installed_hash": "sha256:e85e24a4a7af5bbc94394b0ac7731aff8b58d388011dca745c1a0335d8ff1337",
       "kind": "bundled_script"
     },
     ".claude/keel_manifest.py": {
-      "installed_hash": "sha256:c4c24b875e71678c1ef95af0609efd4c936cf6a29f424d57184bbc43382678b4",
+      "installed_hash": "sha256:28315e5324e2703721448f9799b6d62a59f629ebcbebcaef007ac5282fd995c1",
       "kind": "bundled_script"
     },
     ".claude/keel_receipt.py": {
@@ -97,7 +98,7 @@
       "kind": "bundled_script"
     },
     ".claude/skills/keel-adopt": {
-      "installed_hash": "sha256:869a21f6ce790ee2bd7eefc0ba5ab872aebbc6159b6a597aaa22d361207831bb",
+      "installed_hash": "sha256:893e2a926791e03dd1e3a6573d7073f28722cc0af400856a6f6565193734be39",
       "kind": "skill"
     },
     ".claude/skills/keel-pipeline": {
@@ -133,7 +134,7 @@
       "kind": "process_doc"
     },
     "docs/process/BROWNFIELD.md": {
-      "installed_hash": "sha256:33af7c19fb18446b7822c4175edf42c0d6d65674437f0f00db0ad828e4218f78",
+      "installed_hash": "sha256:07296a7f80753ce34deed4a15c1d62f958bd67811974c8f0c9173c50f8cba2b2",
       "kind": "process_doc"
     },
     "docs/process/FAILURE-PLAYBOOK.md": {
