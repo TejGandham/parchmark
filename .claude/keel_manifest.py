@@ -9,8 +9,8 @@ requires editing this file — which is the whole point.
 """
 from __future__ import annotations
 
-KEEL_VERSION = "0.10.0"
-RECEIPT_SCHEMA_VERSION = 1
+KEEL_VERSION = "2026.04.0"
+RECEIPT_SCHEMA_VERSION = 2
 RECEIPT_PATH = ".claude/.keel-install.json"
 BUNDLED_UNINSTALLER = ".claude/keel-uninstall.py"
 SETTINGS_FILE = ".claude/settings.json"

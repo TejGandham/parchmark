@@ -46,11 +46,20 @@ def hash_dir(path: Path) -> str:
     return f"sha256:{h.hexdigest()}"
 
 
-def new_receipt(keel_version: str) -> dict[str, Any]:
+def new_receipt(
+    keel_version: str,
+    *,
+    git_sha: str | None = None,
+    git_dirty: bool = False,
+    source_url: str | None = None,
+) -> dict[str, Any]:
     return {
         "receipt_schema_version": RECEIPT_SCHEMA_VERSION,
         "keel_version": keel_version,
         "installed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "git_sha": git_sha,
+        "git_dirty": git_dirty,
+        "source_url": source_url,
         "managed_paths": {},
         "skipped_paths": [],
         "settings_json": None,

@@ -1,6 +1,8 @@
 {
-  "installed_at": "2026-04-26T01:12:59Z",
-  "keel_version": "0.10.0",
+  "git_dirty": false,
+  "git_sha": "28c22e4",
+  "installed_at": "2026-04-27T12:23:26Z",
+  "keel_version": "2026.04.0",
   "managed_paths": {
     ".claude/agents/arch-advisor.md": {
       "installed_hash": "sha256:0eaf7b2ab438ff7c05880c85ae41b9621be131fca33fa2f6d9f962263e8747b8",
@@ -79,11 +81,11 @@
       "kind": "bundled_script"
     },
     ".claude/keel_manifest.py": {
-      "installed_hash": "sha256:639d86c51ac6d306b44286b81d809fb37635fe45e8cc83769ab7125484990410",
+      "installed_hash": "sha256:2ebe5f289219fead65688bc525152e85225c9e5c19e8473ddd0f2c86fa93a986",
       "kind": "bundled_script"
     },
     ".claude/keel_receipt.py": {
-      "installed_hash": "sha256:b1cd9f147954bbd2fc92421881d4671a5201d95e213976425323907b5bf149da",
+      "installed_hash": "sha256:fa900389a9d446cb2dd3c57a41277f3e2c15eac918cea363256d1da4cd80f3c1",
       "kind": "bundled_script"
     },
     ".claude/keel_settings.py": {
@@ -175,7 +177,7 @@
       "kind": "script"
     }
   },
-  "receipt_schema_version": 1,
+  "receipt_schema_version": 2,
   "settings_json": {
     "inserted_hook_commands": [
       "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-doc-gate.py\"",
@@ -217,10 +219,6 @@
       "reason": "already_existed"
     },
     {
-      "path": "docs/product-specs/_TEMPLATE.md",
-      "reason": "already_existed"
-    },
-    {
       "path": "docs/exec-plans/active/feature-backlog.md",
       "reason": "already_existed"
     },
@@ -236,5 +234,6 @@
       "path": "docs/references/README.md",
       "reason": "already_existed"
     }
-  ]
+  ],
+  "source_url": "https://brahma.myth-gecko.ts.net:3000/stackhouse/keel"
 }
