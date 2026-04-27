@@ -1,9 +1,13 @@
 {
   "git_dirty": false,
-  "git_sha": "28c22e4",
-  "installed_at": "2026-04-27T12:23:26Z",
-  "keel_version": "2026.04.0",
+  "git_sha": "02b52d7",
+  "installed_at": "2026-04-27T14:54:26Z",
+  "keel_version": "2026.04.3",
   "managed_paths": {
+    ".claude/KEEL-CONTRACT.md": {
+      "installed_hash": "sha256:b1ebfbc3e79fc2269efb7cc3ca6ad50d1ba1f7b21c6238af05b2512cdfb8b943",
+      "kind": "template_doc"
+    },
     ".claude/agents/arch-advisor.md": {
       "installed_hash": "sha256:0eaf7b2ab438ff7c05880c85ae41b9621be131fca33fa2f6d9f962263e8747b8",
       "kind": "agent"
@@ -81,11 +85,11 @@
       "kind": "bundled_script"
     },
     ".claude/keel_manifest.py": {
-      "installed_hash": "sha256:2ebe5f289219fead65688bc525152e85225c9e5c19e8473ddd0f2c86fa93a986",
+      "installed_hash": "sha256:c4c24b875e71678c1ef95af0609efd4c936cf6a29f424d57184bbc43382678b4",
       "kind": "bundled_script"
     },
     ".claude/keel_receipt.py": {
-      "installed_hash": "sha256:fa900389a9d446cb2dd3c57a41277f3e2c15eac918cea363256d1da4cd80f3c1",
+      "installed_hash": "sha256:85d206eff9e1f1ec4ddac7b0a2c582503056ebce75b0cf3f3b7e758750a52a7b",
       "kind": "bundled_script"
     },
     ".claude/keel_settings.py": {
@@ -111,6 +115,10 @@
     ".claude/skills/keel-setup": {
       "installed_hash": "sha256:8eb0dc2b48fd5f442816c92973f1e71b438095c428c4bd23780abfd12a195064",
       "kind": "skill"
+    },
+    "NORTH-STAR.md": {
+      "installed_hash": "sha256:dd4260f9879c01d1012c95556f20fbbcb45ae062112940e72dcfdb02c073610b",
+      "kind": "template_root"
     },
     "docs/exec-plans/prds/.gitkeep": {
       "installed_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -177,6 +185,9 @@
       "kind": "script"
     }
   },
+  "optional_features": {
+    "docker": true
+  },
   "receipt_schema_version": 2,
   "settings_json": {
     "inserted_hook_commands": [
@@ -200,10 +211,6 @@
     },
     {
       "path": "docker-compose.yml",
-      "reason": "already_existed"
-    },
-    {
-      "path": "docs/north-star.md",
       "reason": "already_existed"
     },
     {
