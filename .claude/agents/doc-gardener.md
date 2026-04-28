@@ -60,7 +60,7 @@ Individual optional sections (designer brief, arch-advisor consultation) are not
 Pipeline mode runs ONLY these checks. It does NOT run the ad-hoc baseline sweep (that's the speed win; the baseline fires in ad-hoc mode on its own cadence).
 
 **1. Blast-radius coverage** (HIGH severity findings)
-For each file in the implementer's `**Changed paths:**`, grep the doc surface (`docs/`, `.claude/`, `template/`, repo-root `AGENTS.md` / `CLAUDE.md` / `ARCHITECTURE.md`) for the **full path only** — never the basename alone. Common basenames (`README.md`, `index.ts`, `config.py`) produce flood-of-false-positives; never fall back to basename matching.
+For each file in the implementer's `**Changed paths:**`, grep the doc surface (`docs/`, `.claude/`, `template/`, repo-root `NORTH-STAR.md` / `AGENTS.md` / `CLAUDE.md` / `ARCHITECTURE.md`) for the **full path only** — never the basename alone. Common basenames (`README.md`, `index.ts`, `config.py`) produce flood-of-false-positives; never fall back to basename matching.
 
 For each full-path hit:
 - Verify the surrounding prose still accurately describes the file's current purpose.
@@ -129,10 +129,9 @@ any of the following regex-detectable patterns. Skip only files under
 | `superseded`, `deprecated in`, `was previously` when paired with current-state assertion | Was-X-now-Y framing inside content | Rewrite to current state only |
 
 **Exception:** references to archival docs by their dated filename
-(e.g. "See `docs/design-docs/2026-04-24-structured-prds.md`") are
-fine — they point to identified artifacts. The check is against
-dates appearing as annotations inside CURRENT-STATE content, not
-against filenames.
+(e.g. "See `docs/design-docs/YYYY-MM-DD-<slug>.md`") are fine — they
+point to identified artifacts. The check is against dates appearing
+as annotations inside CURRENT-STATE content, not against filenames.
 
 Flag each violation as HIGH severity — these are doctrine breaches,
 not cosmetic drift. Report the exact file:line and a concrete fix

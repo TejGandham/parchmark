@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://keel.framework/schemas/prd.schema.json",
   "title": "KEEL PRD",
-  "description": "Framework-frame schema for a KEEL PRD. Validates PRD-level structure, the feature frame, oracle shape, and cross-reference integrity. The per-feature `contract` object is intentionally open-shape — contract content is case-by-case and not generalizable. Feature-specific contract gaps are detected by downstream agents (test-writer) via expected-vs-declared key introspection, not by schema enforcement. See docs/design-docs/2026-04-24-structured-prds.md.",
+  "description": "Framework-frame schema for a KEEL PRD. Validates PRD-level structure, the feature frame, oracle shape, and cross-reference integrity. The per-feature `contract` object is intentionally open-shape — contract content is case-by-case and not generalizable. Feature-specific contract gaps are detected by downstream agents (test-writer) via expected-vs-declared key introspection, not by schema enforcement.",
   "type": "object",
   "required": ["schema_version", "id", "title", "motivation", "scope", "design_facts", "invariants_exercised", "features"],
   "additionalProperties": false,

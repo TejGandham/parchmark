@@ -121,16 +121,13 @@ pipeline stages, reviews output, commits code, and updates the backlog.
 The agent reads specs, writes tests, writes code, reviews its own work, and
 reports results. The agent never decides what to build next.
 
-**Before Stage 4 Phase 1 (historical):** the agent executed repo mutations
-(commits, doc moves, backlog updates) only after presenting the action and
-receiving human approval at each step.
-
-**Stage 4 Phase 1 and later:** after `landing-verifier` reports VERIFIED, the
-orchestrator runs roundtable review (if enabled) and a deterministic post-landing
-procedure — doc-gardener, handoff archive, commit, push the feature branch, and
-open a PR — without per-step approval. Every feature becomes a PR on the forge;
-the human reviews and merges there. Escalations (gate ceilings tripped) still
-halt in-session and surface to the human immediately, as before.
+After `landing-verifier` reports VERIFIED, the orchestrator runs
+roundtable review (if enabled) and a deterministic post-landing
+procedure — doc-gardener, handoff archive, commit, push the feature
+branch, and open a PR — without per-step approval. Every feature
+becomes a PR on the forge; the human reviews and merges there.
+Escalations (gate ceilings tripped) halt in-session and surface to
+the human immediately.
 
 The human provides taste, judgment, and strategic direction. The agent provides
 speed, consistency, and tireless attention to spec conformance.
@@ -176,7 +173,7 @@ committed. Knowledge evaporates when verbal.
 
 ## 3. Creating Your North Star
 
-The north star document (`docs/north-star.md`) encodes the project's vision,
+The north star document (`NORTH-STAR.md`, at the project root) encodes the project's vision,
 growth stages, operating principles, and definition of success.
 
 ### What Goes in the North Star
@@ -208,19 +205,20 @@ From empty directory to first passing test.
 
 ```
 1. Create directory structure
-2. Write north star               (docs/north-star.md)
+2. Write north star               (NORTH-STAR.md)
 3. Write CLAUDE.md                (~80-100 lines, table of contents)
 4. Produce product PRDs via       (/keel-refine → docs/exec-plans/prds/<slug>.json)
    /keel-refine                   (conversion hub — accepts prose, markdown, bundles, images; emits JSON)
 5. Write core beliefs             (docs/design-docs/core-beliefs.md)
 6. Write testing strategy         (in core-beliefs or standalone)
 7. Define architecture layers     (ARCHITECTURE.md)
-8. Configure Docker/container     (Dockerfile + docker-compose.yml)
+8. Configure dev environment      (Dockerfile + docker-compose.yml if installed with --with-docker;
+                                   otherwise document your local toolchain — uv/mise/asdf/nix)
 9. Run bootstrap features:
-   F01: docker-builder -> landing-verifier
+   F01: docker-builder -> landing-verifier   (skip if --no-docker; no Dockerfile to build)
    F02: scaffolder -> landing-verifier
    F03: config-writer -> landing-verifier
-10. Verify: tests pass in container
+10. Verify: tests pass in your dev environment
 ```
 
 Steps 1-8 produce documentation. Step 9 produces code. This ratio is
@@ -256,8 +254,8 @@ strategy. Principles that apply across all features.
 tech debt tracker. The operational layer.
 
 ```
+NORTH-STAR.md                 # vision, principles, growth stages
 docs/
-  north-star.md
   design-docs/
     core-beliefs.md
     ui-design.md
@@ -362,6 +360,16 @@ per-feature `contract` + `oracle.assertions[]`, not on the backlog
 entry.
 
 ### Feature Sizing
+
+`F##` denotes a **feature slice** — the smallest independently testable,
+vertical-slice node in the dependency DAG declared by `Needs:` lines
+in `feature-backlog.md`. The prefix is "F" for historical/install
+compatibility; the unit is a slice, not a whole product feature.
+Cross-slice cohesion comes from the shared PRD (`PRD: <slug>`).
+
+Branching policy for slices with unmerged dependencies is set per-project
+in `CLAUDE.md` ("Pipeline Preferences" → `Branching policy: halt | stack`).
+See Step 0 of `.claude/skills/keel-pipeline/SKILL.md`.
 
 A well-sized feature adds 1-3 modules, has 3-8 tests, completes in one
 pipeline run, and has a clear "done" state.
@@ -620,7 +628,7 @@ Sixteen specialized agents, each with bounded responsibility.
 
 | Agent | Purpose | Input | Output | Never Does |
 |---|---|---|---|---|
-| **docker-builder** | Build + verify container | core-beliefs, north-star | Docker build report (pass/fail, tool versions) | Modify Dockerfile or compose files |
+| **docker-builder** | Build + verify container (only when project installed with `--with-docker`) | `docs/design-docs/core-beliefs.md`, `NORTH-STAR.md` | Docker build report (pass/fail, tool versions) | Modify Dockerfile or compose files |
 | **scaffolder** | Project skeleton | Stack, structure spec | Scaffolded project | Write business logic |
 | **config-writer** | Test infra, configs, behaviours | Architecture, testing strategy | Config files, helpers | Write feature code |
 | **backlog-drafter** | Draft backlog entries from a PRD/prose/bundle (upstream of the pipeline, invoked via `/keel-refine`) | PRD, prose, or pasted images + repo context | Structured YAML proposal with candidate `F##` entries, `Design:` refs, and HUMAN markers | Write specs, emit bootstrap tasks, auto-run the pipeline |
@@ -933,7 +941,7 @@ Three sections in `docs/exec-plans/tech-debt-tracker.md`:
 - **During Implementation** -- shortcuts, workarounds, deferred bugs
 - **Post-MVP** -- improvement opportunities
 
-Each entry: checkbox, date, source, enough context for a future agent.
+Each entry: checkbox, source, enough context for a future agent. (Don't bake the date into the entry — `git blame` has it.)
 
 ---
 
@@ -1012,7 +1020,7 @@ The minimum viable KEEL setup:
 
 ```
 1. Write CLAUDE.md (~80 lines, table of contents)
-2. Write docs/north-star.md (vision, principles, growth stages)
+2. Write NORTH-STAR.md (vision, principles, growth stages)
 3. Write one product spec (what to build)
 4. Write core-beliefs.md (invariants and testing strategy)
 5. Write ARCHITECTURE.md (layers and module map)

@@ -138,6 +138,39 @@ Pipeline stalls or produces bad output
 
 **Fix:** Rewrite the prose to describe themes/scope, not IDs. The feature list lives on `docs/exec-plans/active/feature-backlog.md` (F## entries tagged `PRD: <slug>`) — don't cache it in the PRD file. For a JSON PRD, `uv run scripts/keel-prd-view.py docs/exec-plans/prds/<slug>.json` renders the canonical view.
 
+## Halt: F## has unmerged Needs (halt-mode default)
+
+**Symptom:** `/keel-pipeline F02` halts at Step 0 with "F02 requires
+F01 (intra-PRD). F01 status: ... not an ancestor of <base>."
+
+**Cause:** F02 declares F01 in its `Needs:` and F01 has not yet been
+merged to base. The default `Branching policy: halt` refuses to start
+on unmerged Needs.
+
+**Resolution:** One of:
+1. Merge F01's PR, then re-run `/keel-pipeline F02`.
+2. Set `Branching policy: stack` in CLAUDE.md (intra-PRD only —
+   cross-PRD always halts) and re-run. F02 will branch from F01's
+   tip; on F01's eventual merge, the next /keel-pipeline F02
+   invocation restacks onto base.
+
+## Halt: stacked-branch restack hit conflicts
+
+**Symptom:** `/keel-pipeline F02` halts at re-invocation with
+"Restack of keel/F02-<slug> onto <base> halted with conflicts."
+
+**Cause:** F02's commits touch files that F01 modified after F02
+branched. `git rebase --update-refs --onto` cannot resolve the
+overlap automatically.
+
+**Resolution:** Human resolves the conflicts:
+1. `git status` to see conflicted paths.
+2. Edit each conflicted file, `git add <path>`.
+3. `git rebase --continue` to complete the restack, then re-run
+   `/keel-pipeline F02`.
+4. Or `git rebase --abort` to undo; the pipeline halts and the
+   handoff stays in `active/`.
+
 ## Rules
 
 1. **Never "try harder."** If the implementer fails twice on the same tests,

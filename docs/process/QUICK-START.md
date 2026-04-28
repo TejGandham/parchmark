@@ -5,7 +5,7 @@ KEEL — Knowledge-Encoded Engineering Lifecycle. From install to first feature 
 ## Prerequisites
 
 - [Claude Code](https://claude.com/claude-code) — the only supported agent runtime today
-- Docker installed (or your stack's runtime)
+- A reproducible dev environment for your stack — Docker is optional (KEEL ships `Dockerfile` + `docker-compose.yml` only when you install with `--with-docker`); a local toolchain like `uv`, `mise`, `asdf`, or `nix` works equally well
 - Python 3.14+ and [`uv`](https://docs.astral.sh/uv/) on PATH — KEEL's installer halts with a CTA if either is missing; `uv` can install 3.14 for you (`uv python install 3.14`)
 - A product idea (even rough is fine)
 

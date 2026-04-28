@@ -9,7 +9,7 @@ requires editing this file — which is the whole point.
 """
 from __future__ import annotations
 
-KEEL_VERSION = "2026.04.6"
+KEEL_VERSION = "2026.04.7"
 RECEIPT_SCHEMA_VERSION = 2
 RECEIPT_PATH = ".claude/.keel-install.json"
 BUNDLED_UNINSTALLER = ".claude/keel-uninstall.py"

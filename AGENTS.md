@@ -41,6 +41,7 @@ All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
 | Setting | Value | Notes |
 |-|-|-|
 | Roundtable review | `true` | `challenge` + `hivemind` MCP tools; gracefully skipped when MCP is unavailable. Required for any change that amends the nine invariants or crosses an architectural layer boundary; optional for routine feature work. |
+| Branching policy | `halt` | Controls how `/keel-pipeline F##` handles unmerged `Needs:`. `halt` (default — least-assuming) refuses to start F## with unmerged Needs and emits a CTA. `stack` (opt-in) branches F## from the unmerged intra-PRD ancestor's tip and sets the PR base via `gh pr create --base`. Cross-PRD Needs always halt regardless of policy. Stack-mode restack on re-invocation requires Git ≥ 2.38. See Step 0 of `.claude/skills/keel-pipeline/SKILL.md`. |
 | Safety-gate hook | PreToolUse on Edit/Write | Surfaces a reminder to run `/safety-check` when editing files under `backend/app/{auth,routers,models,services/embeddings,database}/` |
 | Formatter hook | PostToolUse on Edit/Write | Auto-runs `ruff format` + `ruff check --fix` on `.py` files and `prettier` on `.ts`/`.tsx` files |
 | Markdown parity hook | PostToolUse on Edit/Write | Reminds to run `/parchmark-markdown-sync` when editing either `markdown.ts` or `markdown.py` |

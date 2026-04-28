@@ -10,7 +10,7 @@
 
 **Progressive Disclosure** — Information architecture where agents start with a small, stable entry point (CLAUDE.md ~80 lines) and are taught where to look next, rather than being overwhelmed with everything up front.
 
-**North Star** — The vision document (`docs/north-star.md`) that defines where the project is heading, what principles govern decisions, and how the process evolves through growth stages. Where taste is encoded before it becomes linters.
+**North Star** — The vision document (`NORTH-STAR.md`, at the project root) that defines where the project is heading, what principles govern decisions, and how the process evolves through growth stages. Where taste is encoded before it becomes linters.
 
 **Handoff** — An append-only markdown file (`docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`) that persists context between pipeline agents. Each agent reads upstream context and appends its output. Never rewritten — only appended to.
 
@@ -49,10 +49,20 @@
 
 **Structured Rejection** — Pattern where gate agents (spec-reviewer, safety-auditor) output a machine-readable `**Verdict:**` field as their first line. The pipeline branches on this verdict. Max 2 spec-review loops, max 3 safety-auditor loops before escalating to human.
 
-**VERIFIED** — Handoff status emitted by landing-verifier (was `LANDED` in Stage 4 Phase 1). Indicates all pipeline gates passed and tests pass, but the feature has not yet been committed or pushed. The orchestrator runs roundtable review (if enabled) and then the post-landing procedure to transition through READY-TO-LAND to LANDED.
+**VERIFIED** — Handoff status emitted by landing-verifier. Indicates all pipeline gates passed and tests pass, but the feature has not yet been committed or pushed. The orchestrator runs roundtable review (if enabled) and then the post-landing procedure to transition through READY-TO-LAND to LANDED.
 
 **Pragmatic Minimalism** — Arch-advisor's core decision framework: bias toward simplicity, leverage what exists, prioritize developer experience, one clear path, match depth to complexity. Ported from OMA (Oh My OpenAgent).
+
+**Two-Org Test** — Proposal-evaluation gate from `AGENTS.md` §"Framework proposal design: defaults + knobs". A KEEL framework knob is licensed only when the proposer can name two real organizations that would make different durable choices for non-pathological reasons. Bikeshedding ("someone could prefer X") doesn't earn a knob. Distinguishes documented disagreement-in-practice from hypothetical preference.
+
+**Least-Assuming Default** — From `AGENTS.md` §"Framework proposal design: defaults + knobs". The behavior requiring the fewest org-specific assumptions, not the cleanest UX or the proposer's preferred behavior. When a knob's default would force an org-specific assumption (rebase vs merge vs squash, monorepo vs polyrepo, gh vs forge-CLI), the default must be the path that assumes least; the assumption-laden behavior is opt-in.
 
 **READY-TO-LAND** — Handoff status set by the orchestrator after roundtable landing review (Step 8.5) completes or is skipped. Indicates the feature has passed all gates, been reviewed (if roundtable enabled), and is ready for the post-landing procedure (Step 9). When roundtable is disabled, this state is skipped — VERIFIED triggers Step 9 directly.
 
 **Roundtable Review** — Advisory multi-model review using the roundtable MCP server. Runs at three pipeline points: post-pre-check (Step 1.3, tools: `roundtable-critique` + `roundtable-canvass`), post-designer (Step 2.5, tools: `roundtable-blueprint` + `roundtable-critique`), and pre-landing (Step 8.5, tools: `roundtable-crosscheck` + `roundtable-critique`). Automatic when MCP server is available and enabled in CLAUDE.md. Advisory, not authoritative — findings feed back through pre-check, designer, or the existing gate chain respectively, never directly block landing. Gracefully skipped if MCP server is unavailable.
+
+**Feature Slice (F##)** — The smallest independently testable, vertical-slice node in the backlog dependency DAG. The "F" prefix is historical (originally "feature"); the unit is a slice, not a whole product feature. Cross-slice cohesion comes from the shared `PRD: <slug>`. See `feature-backlog.md` and Step 0 of `.claude/skills/keel-pipeline/SKILL.md`.
+
+**Branching Policy** — CLAUDE.md "Pipeline Preferences" key controlling how /keel-pipeline F## handles unmerged `Needs:`. `halt` (default — least-assuming) refuses to start F## with unmerged Needs and emits a CTA. `stack` (opt-in) branches F## from the unmerged intra-PRD ancestor's tip and sets the PR base accordingly. Cross-PRD Needs always halt regardless of policy. See Step 0 of `.claude/skills/keel-pipeline/SKILL.md`.
+
+**Restack** — The `git rebase --update-refs --onto <base> <parent_sha>` operation that lifts a stacked feature branch onto base after its parent merged. Universal across squash/merge/rebase merge strategies; requires Git ≥ 2.38. /keel-pipeline runs the restack at re-invocation when it detects `parent_sha` has become an ancestor of base.

@@ -13,9 +13,8 @@ for their own KEEL-driven development.
 
 ## The two foundational principles
 
-From OpenAI's harness-engineering article, ported directly. See
-`docs/process/OPENAI-FOUNDATIONS.md` for the source experiment and
-how KEEL adapts these.
+From OpenAI's [harness-engineering article](https://openai.com/index/harness-engineering/),
+ported directly.
 
 ### P1. Agent Legibility is the Goal
 
@@ -220,6 +219,12 @@ one:
 Maintainers running roundtable deliberations should paste the
 principles into the prompt so the panel attacks proposals under the
 same framing.
+
+A complementary proposal-evaluation gate lives in `AGENTS.md`
+§"Framework proposal design: defaults + knobs" (two-org test,
+least-assuming default, knobs-cannot-override-P1–P7, knob altitude
+table). P1–P7 audit the resulting artifact; that section audits the
+proposal that produces it. Both apply to any framework-level edit.
 
 ### In agent and skill prompts
 
