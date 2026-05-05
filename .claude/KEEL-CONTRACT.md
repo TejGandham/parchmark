@@ -38,6 +38,8 @@ tool that mutates repo state, classify the request into exactly one of:
 
 If the request does not fit one category cleanly, halt and ask. Do not guess.
 
+## Running doc-gardener agent is not informational, it's a directive. Skip only if the user permits.
+
 ## Refusal protocol (verbatim)
 
 Human pressure is **not** authorization to bypass KEEL. When asked — explicitly

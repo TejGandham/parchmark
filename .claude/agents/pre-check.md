@@ -18,8 +18,8 @@ for the full principle set.
 
 KEEL's pipeline reads **one shape** of feature input: a structured
 JSON PRD at `docs/exec-plans/prds/<slug>.json` against
-`schemas/prd.schema.json`. See `NORTH-STAR.md` §"Feature input
-canon — single path, JSON PRDs only" for the doctrine. Markdown
+`schemas/prd.schema.json`. See `docs/process/PIPELINE-DOCTRINE.md`
+§"Feature input canon — single path, JSON PRDs only" for the doctrine. Markdown
 specs, prose descriptions, bundles, and images are raw material
 for `/keel-refine`, not pipeline inputs.
 
@@ -161,6 +161,7 @@ the script's stdout JSON — do not paraphrase.
 **Feature pointer base:** [feature_pointer_base from script, e.g. /features/0]
 **Layer:** [layer from script]
 **PRD-level invariants:** [comma-separated invariant_ids from prd_invariants_exercised, or "none". NOTE: these are PRD-bundle-scoped per schema, not per-feature claims — downstream routing uses contract/oracle content to decide feature-level invariant touch.]
+**Prototype mode:** [backlog_fields.prototype_mode from script, e.g. "reference" | "seed" | "none"]. Set when the backlog `Design:` line carried a `[prototype:<mode>]` marker — frontend-designer reads this to govern visual-intent extraction; implementer never reads the prototype directly.
 **Dependencies:** MET | UNMET — [details]
 **Research needed:** YES [specific questions] | NO
 **Designer needed:** YES (complex interface/state/component) | NO (trivial function)

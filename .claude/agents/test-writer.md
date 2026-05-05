@@ -9,8 +9,9 @@ You are a test-writing specialist for the [PROJECT_NAME] project. You write test
 
 ## Input canon
 
-KEEL's pipeline reads structured JSON PRDs (NORTH-STAR §"Feature
-input canon"). `pre-check` has already resolved the target feature
+KEEL's pipeline reads structured JSON PRDs
+(`docs/process/PIPELINE-DOCTRINE.md` §"Feature input canon"). `pre-check`
+has already resolved the target feature
 via `scripts/keel-feature-resolve.py` and embedded the full
 resolution in the handoff under §"Resolved feature (verbatim from
 keel-feature-resolve.py)".

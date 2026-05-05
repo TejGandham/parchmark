@@ -24,7 +24,7 @@ The user provides a feature ID and PRD path:
 
 The PRD path MUST be a structured JSON PRD. If the path ends in `.md`
 or any non-JSON extension, HALT with:
-> *"PRD path must be a structured JSON file at `docs/exec-plans/prds/<slug>.json`. If you have a markdown spec or prose input, run `/keel-refine` first — it converts non-JSON inputs into structured JSON PRDs. See `NORTH-STAR.md` §'Feature input canon — single path, JSON PRDs only'."*
+> *"PRD path must be a structured JSON file at `docs/exec-plans/prds/<slug>.json`. If you have a markdown spec or prose input, run `/keel-refine` first — it converts non-JSON inputs into structured JSON PRDs. See `docs/process/PIPELINE-DOCTRINE.md` §'Feature input canon — single path, JSON PRDs only'."*
 
 If no PRD exists yet, tell the user to run `/keel-refine` first — it
 is the conversion hub that produces the structured JSON PRD this
@@ -463,10 +463,9 @@ stays in `active/`, the orchestrator halts, and the human resolves the
 failure before any further action.
 
 1. **Doc garbage collection.**
-   Dispatch `doc-gardener` agent unconditionally. NORTH-STAR §Stage 4
-   lists automatic GC as a core requirement. Always run; let the agent
-   decide whether a sweep finds drift. `doc-gardener` is read-only — it
-   returns a findings report.
+   Dispatch `doc-gardener` agent unconditionally. Always run; let the
+   agent decide whether a sweep finds drift. `doc-gardener` is read-only
+   — it returns a findings report.
 
    **Mode selection by pipeline variant:**
    - **Bootstrap variant** (F01–F03, which skip pre-check + implementer):
@@ -518,7 +517,11 @@ failure before any further action.
 
 2. **Tech-debt log.**
    If `docs/exec-plans/tech-debt-tracker.md` exists, append any new
-   shortcuts discovered during the run and check off any resolved items.
+   shortcuts discovered during the run and DELETE any resolved items.
+   Do not check resolved items off with `[x]` and do not move them
+   to a "Resolved" / "Done" section — `git log` is the landing
+   record. Accumulating a resolved-section is P5 drift the
+   doc-gardener will flag.
 
 3. **Stage and commit.**
    Because "Before Starting" enforced a clean tree, every modified or

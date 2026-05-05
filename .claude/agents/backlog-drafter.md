@@ -43,7 +43,7 @@ intent:
   path: <absolute path if source=prd_path, else null>
   ui_design_assets:                 # optional; populated by the skill when the
     - path: string               # user provided a bundle dir with images,
-      kind: png | jpg | svg | pdf  # pasted images in chat, or the PRD
+      kind: png | jpg | gif | svg | pdf | html | css | js | font | json  # pasted images in chat, the PRD
       bytes: int                 # markdown contained ![...](./path) refs
       label: string | null       # alt text from markdown ref if any
     # ... zero or more
@@ -298,15 +298,30 @@ Per-feature acceptance lives in `oracle.assertions`. There is no separate `test_
 
 ### UI design assets (shallow read only)
 
-**Definition.** "UI design assets" in this contract are visual UI artifacts — comps, mockups, wireframes, screenshots, design-system snippets, slide-style PDFs. They are NOT software design documents (architecture diagrams, RFCs, design specs in prose). The naming makes the distinction explicit because the same word "design" reads two ways in software contexts.
+**Definition.** "UI design assets" in this contract are visual UI artifacts — comps, mockups, wireframes, screenshots, design-system snippets, slide-style PDFs, and HTML prototypes (clickable comps, AI-generated mockups, hand-coded mockups). They are NOT software design documents (architecture diagrams, RFCs, design specs in prose). The naming makes the distinction explicit because the same word "design" reads two ways in software contexts.
 
-If `intent.ui_design_assets` is non-empty, you may `Read` each file to inform your decomposition. Hard constraint: **shallow read only.**
+If `intent.ui_design_assets` is non-empty, you may `Read` each file to inform your decomposition. Hard constraint: **shallow read only.** PNG/JPG/GIF/SVG/PDF render visually via Claude vision; HTML/CSS/JS are read as text source — extract structure, layout, and state cues from the source.
 
 - **Purpose:** judge F## granularity (how many screens? how many states?), layer assignment (is this UI or Service?), and map which asset belongs to which drafted entry.
 - **NOT for:** transcribing visual tokens (colors, exact spacing, typography, copy). That is `frontend-designer`'s job later in the pipeline.
 - **Mapping rule:** for every drafted UI entry, list the relevant asset paths in `ui_design_assets: []`. An asset may be referenced by multiple entries (e.g. a shared nav bar comp). An asset may be unused — flag those in `summary.unused_ui_design_assets` so the human can prune.
 - **Non-UI entries must not carry `ui_design_assets`.** If a Service or Foundation entry is obviously derived from a visual (e.g. "store profile photo" from a profile comp), the asset goes on the paired UI entry, not the Service one.
 - **Missing-asset rule:** never fabricate a design path. Only reference paths that appear in `intent.ui_design_assets`.
+
+### Working prototypes (`intent.prototype` non-null)
+
+When the skill detected a working UI/UX prototype (single HTML artifact or a multi-file directory with `index.html`), the input blob carries an `intent.prototype` field describing the bundle's shape: `{kind, entry, manifest_path?, mode?, stack_match?, screens?, notes?}`. Every prototype file (HTML/CSS/JS/images/fonts) also appears in `intent.ui_design_assets[]`, so the mapping rules above still apply — prototype files are listed under each F## that derives from them, exactly like flat assets.
+
+**Prototype-specific decomposition cues:**
+
+- **Read the entry HTML first.** It is the canonical visual intent for the bundle. Component boundaries, top-level sections, route hooks, and visible state transitions are the strongest signal for F## granularity.
+- **Use `intent.prototype.screens[]` as the decomposition seed.** Each named screen typically becomes one F##. When a screen lists multiple states (`empty`, `loaded`, `error`), the F## contract should cover all of them as part of a single deliverable — do NOT split per state into separate entries. State-per-entry is over-decomposition; screen-per-entry is the right granularity.
+- **Extract cross-cutting components.** Nav, footer, theme toggle, breadcrumbs, modal shells — anything reused across screens — gets its own F## (typically `layer: ui` or `cross-cutting` per the project's architecture). Reference its prototype file(s) on that F##; reference the screen prototype files on each screen-level F##.
+- **Screen-count vs draft-count check (self-validation).** If `intent.prototype.screens[]` declares ≥2 screens but your drafted entries produce only 1 UI-layer F##, emit a HUMAN marker on that F##: `<!-- HUMAN: prototype declares N screens but only 1 UI entry was drafted; confirm additional screens are out of scope or split this F## -->`. Use the existing HUMAN-marker mechanism — do NOT invent a new status enum value.
+- **Disposition-aware drafting.** When `intent.prototype.mode == "reference"` (default), draft entries that describe behavior and visual intent in stack-agnostic terms — never propose F## entries that say "port the prototype's React component verbatim to the target stack." When `mode == "seed"`, you may reference prototype patterns more directly (e.g. *"reuse the prototype's drawer-pattern shell"*), but the implementation work still happens against the target stack.
+- **`stack_match: false` (default)** means the prototype's framework differs from the target repo. Treat the prototype's code organization as illustrative only; it does not constrain the F## breakdown. **`stack_match: true`** unlocks tighter pattern reuse only under `seed` mode.
+
+The `intent.prototype` field is purely informational from your perspective — you do NOT emit a prototype field in your output. The skill propagates `mode` to the backlog `Design:` line as a `[prototype:<mode>]` marker after Phase 5 disposition; downstream agents read disposition there.
 
 ### Source tag
 - Every entry: `source_tag: "<!-- SOURCE: {identifier} -->"`, where `{identifier}` is:

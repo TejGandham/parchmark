@@ -396,7 +396,9 @@ set of wireframes/comps into candidate `F##` entries.
 ```
 /keel-refine docs/prds/auth-redesign.md       # from a PRD file
 /keel-refine docs/prds/auth-redesign/          # from a bundle directory
-                                               # (README.md + sibling images/PDFs)
+                                               # (README.md + images/PDFs, or a
+                                               #  working UI prototype with
+                                               #  index.html + linked CSS/JS)
 /keel-refine "let users edit profile inline"  # from prose
 /keel-refine                                   # interactive interview
 ```
@@ -405,6 +407,24 @@ You can also paste screenshots, comps, or flow diagrams directly in
 chat alongside any of the above invocations. The skill stages pasted
 images in `.keel-refine-session/<id>/` (gitignored) and passes them to
 the drafter.
+
+**Working UI/UX prototypes.** The bundle-directory shape recognizes
+fully working prototypes as a first-class input — single-file HTML
+artifacts (e.g. claude.ai web exports) or multi-file directories with
+`index.html` + linked CSS/JS. The drafter reads the entry HTML and
+optional `prototype.json` manifest to inform decomposition (one F## per
+named screen). Multi-file prototypes are committed under
+`docs/exec-plans/prds/<slug>/prototype/` with their internal directory
+structure preserved so they remain locally runnable; flat single-file
+artifacts go to `<slug>/assets/` like other static comps.
+
+The disposition (`reference` vs `seed`) is captured per-prototype in
+`prototype.json` or, on its absence, prompted via the existing card
+walk. Default is `reference`: `frontend-designer` extracts visual and
+behavioral intent and rebuilds in the target stack, never copying
+markup verbatim. `implementer` never reads prototype source under
+either disposition. The project-wide default lives in `CLAUDE.md` under
+`Prototype mode:`.
 
 The `backlog-drafter` agent reads the PRD, `ARCHITECTURE.md`,
 `CLAUDE.md`, the current `feature-backlog.md`, and any UI design assets
@@ -418,8 +438,8 @@ derive a field unambiguously.
 **Per-card walkthrough.** The skill first prints an orientation summary
 of the full slate, then walks each drafted entry individually before
 accepting `commit`. The walk is mandatory — even zero-marker cards are
-acknowledged — because NORTH-STAR §Autonomy Ceiling requires per-card
-conversational review.
+acknowledged — because `docs/process/PIPELINE-DOCTRINE.md` §"Autonomy
+Ceiling" requires per-card conversational review.
 
 ```
 Card 1 of 3:
@@ -511,8 +531,20 @@ Figma/Miro URLs — committed assets only). Doc-gardener sweeps stale
 post-landing pass.
 
 **Format and size caps for pasted/bundled assets:** PNG, JPG, GIF, SVG,
-PDF (max 20 pages). Per-file cap 20 MB. Other formats rejected at paste
-time with "export as PNG/SVG/PDF and re-paste."
+PDF, HTML. Per-file cap 20 MB. PDF cap 20 pages **at paste time** —
+this matches Claude Code `Read`'s per-request page limit so shallow
+consumers can fetch the whole doc in one call; PDFs longer than 20
+pages can still be consumed by agents that paginate (`pages: "1-20"`,
+`"21-40"`, …), but the paste gate is conservative on purpose.
+Bundle-directory mode additionally accepts CSS, JS/MJS, fonts
+(WOFF/WOFF2/TTF/OTF), and JSON (`prototype.json` only) — these support
+working-prototype bundles and are never standalone pasted attachments.
+Bundle-total caps: 50 files and 100 MB; ignore-list filters
+`node_modules`, `dist`, `build`, `.next`, `.vite`, `.git`, `coverage`,
+`out`. The 20 MB / 20-page / 50-file / 100 MB numbers are heuristics
+(not measurements) — see `.claude/skills/keel-refine/SKILL.md` Phase 1
+for provenance and tuning guidance. Other formats rejected at paste
+time.
 
 `backlog-drafter` is the first KEEL agent that returns structured YAML
 to a skill instead of appending to a handoff file, and `/keel-refine`
@@ -906,7 +938,7 @@ After landing-verifier reports VERIFIED (and roundtable review completes if enab
 
 ```
 1. doc-gardener sweep: apply drift fixes in the working tree
-2. Log new shortcuts / check off resolved items in tech-debt-tracker.md
+2. Log new shortcuts / delete resolved items from tech-debt-tracker.md (git log is the landing record; do not check off with [x] or accumulate a "Resolved" section)
 3. Stage files: git add -A (clean tree enforced at pipeline start)
 4. Commit: feat(F{id}): {feature name} with verdict table
 5. Push the feature branch: git push -u <remote_name> HEAD

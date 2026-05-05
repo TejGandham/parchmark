@@ -35,6 +35,8 @@
 
 **Ralph Wiggum Loop** — Agent-to-agent review pattern where an agent reviews its own changes, requests additional agent reviews, and iterates until all reviewers are satisfied. Named by OpenAI. Enables increasing autonomy without human bottleneck.
 
+**Oracle** — The per-feature block in the JSON PRD (`features[].oracle`) that names what makes the feature pass or fail. Required keys: `type` (`unit | integration | e2e | smoke`) and `assertions[]`; optional `tooling`, `setup`, `actions[]`, `gating`. Consumed by test-writer (translates `assertions[]` into failing tests), pre-check (emits each assertion as a JSON-pointer `/features/<idx>/oracle/assertions/<aidx>` in the execution brief), spec-reviewer (verifies implementation conforms), safety-auditor (scans the oracle for auth/credential/token surface that must be checked against domain invariants), and backlog-drafter (synthesizes one for each new feature). Paired with `contract` on the same feature: `contract` declares the surface (what exists), `oracle` declares what must hold true about it. The name is the formal-methods term-of-art (Howden, Weyuker) for the authoritative source of correctness, distinct from the tests that exercise it.
+
 **RED → GREEN Flow** — The handoff between test-writer and implementer. Test-writer produces failing tests (RED state). Implementer writes code to pass them (GREEN state). Neither crosses the boundary: test-writer never writes implementation, implementer never modifies tests.
 
 **Lifecycle** — The "L" in KEEL. The full arc: north star → spec → backlog → pipeline → landed feature → garbage collection. Every feature goes through this complete cycle.

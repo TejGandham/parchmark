@@ -162,10 +162,13 @@ cases, which invariants apply — and writes the result to
 `oracle` ARE the spec; no separate markdown spec file is needed.
 
 **Have a PRD already?** Brownfield projects often do — an existing
-product document, an internal wiki page, wireframes, hi-fi comps, or a
+product document, an internal wiki page, wireframes, hi-fi comps, a
+working UI/UX prototype from Claude or another design tool, or a
 paragraph from a teammate. Run `/keel-refine` with the PRD path, a
-bundle directory (README + sibling images/PDFs), a prose description,
-or nothing — then paste screenshots directly in chat. `backlog-drafter`
+bundle directory (README + sibling images/PDFs, or a working prototype
+with `index.html` + linked CSS/JS, or a single-file HTML artifact), a
+prose description, or nothing — then paste screenshots directly in
+chat. `backlog-drafter`
 will draft candidate `F##` backlog entries with dependency edges,
 per-feature `contract` + `oracle` (the spec content), optional
 `Design:` refs on UI entries, and `<!-- HUMAN: ... -->` markers where

@@ -62,6 +62,16 @@ _DESIGN_RE = re.compile(
     r"(?:^|\|)\s*Design:\s*([^|\n]+?)\s*(?=\||$)",
     re.MULTILINE,
 )
+# Optional disposition marker prefixed to the Design: content when one or
+# more listed paths point at a working-prototype directory under
+# `<slug>/prototype/`. Examples:
+#     Design: [prototype:reference] docs/exec-plans/prds/auth/prototype/index.html
+#     Design: [prototype:seed] foo.html, bar.html
+# The marker is parsed-and-stripped here so design-ref validation
+# (Stage 6) sees only paths. Disposition is propagated to the brief
+# as `backlog_fields.prototype_mode` so frontend-designer reads
+# disposition without re-parsing the manifest at prototype/prototype.json.
+_PROTOTYPE_MARKER_RE = re.compile(r"^\[prototype:(reference|seed)\]\s*")
 _NEEDS_RE = re.compile(
     r"(?:^|\|)\s*Needs:\s*([^|\n]+?)\s*(?=\||$)",
     re.MULTILINE,
@@ -139,6 +149,7 @@ class BacklogEntry:
     design_refs: tuple[str, ...]
     needs_ids: tuple[str, ...]
     human_markers: tuple[str, ...]
+    prototype_mode: str | None  # "reference" | "seed" | None (no marker)
     raw_block: str          # the raw text block this entry came from
 
 
@@ -303,9 +314,15 @@ class BacklogParser:
         spec_ref = spec_match.group(1) if spec_match else None
         design_match = _DESIGN_RE.search(target_block)
         design_refs: tuple[str, ...] = ()
+        prototype_mode: str | None = None
         if design_match:
+            content = design_match.group(1).strip()
+            marker_match = _PROTOTYPE_MARKER_RE.match(content)
+            if marker_match:
+                prototype_mode = marker_match.group(1)
+                content = content[marker_match.end():]
             design_refs = tuple(
-                r.strip() for r in design_match.group(1).split(",") if r.strip()
+                r.strip() for r in content.split(",") if r.strip()
             )
         needs_match = _NEEDS_RE.search(target_block)
         needs_ids: tuple[str, ...] = ()
@@ -326,6 +343,7 @@ class BacklogParser:
             design_refs=design_refs,
             needs_ids=needs_ids,
             human_markers=human_markers,
+            prototype_mode=prototype_mode,
             raw_block=target_block,
         )
 
@@ -913,6 +931,7 @@ class FeatureResolver:
                 "design_refs": list(entry.design_refs),
                 "needs_ids": list(entry.needs_ids),
                 "human_markers": list(entry.human_markers),
+                "prototype_mode": entry.prototype_mode,
             },
             classification=classification.classification.value,
         )

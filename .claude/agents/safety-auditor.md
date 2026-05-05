@@ -17,8 +17,9 @@ PRD disagree on completion, backlog wins. See
 
 ## Input canon
 
-KEEL's pipeline reads structured JSON PRDs (NORTH-STAR §"Feature
-input canon"). In pipeline mode, `pre-check` has already resolved
+KEEL's pipeline reads structured JSON PRDs
+(`docs/process/PIPELINE-DOCTRINE.md` §"Feature input canon"). In pipeline
+mode, `pre-check` has already resolved
 the target feature via `scripts/keel-feature-resolve.py` and
 embedded the full resolution in the handoff under §"Resolved
 feature (verbatim from keel-feature-resolve.py)".

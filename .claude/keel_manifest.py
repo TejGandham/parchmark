@@ -9,7 +9,7 @@ requires editing this file — which is the whole point.
 """
 from __future__ import annotations
 
-KEEL_VERSION = "2026.04.7"
+KEEL_VERSION = "2026.05.9"
 RECEIPT_SCHEMA_VERSION = 2
 RECEIPT_PATH = ".claude/.keel-install.json"
 BUNDLED_UNINSTALLER = ".claude/keel-uninstall.py"
@@ -28,6 +28,12 @@ PYTHON_FLOOR_PEP723: str = f">={PYTHON_FLOOR[0]}.{PYTHON_FLOOR[1]}"
 # See docs/design-docs/2026-04-24-structured-prds.md.
 PRD_SCHEMA_VERSION: int = 1
 
+# Prototype manifest schema version. Bumps when the prototype.json shape
+# breaks. Carried separately from PRD_SCHEMA_VERSION because the two
+# contracts evolve independently — a prototype-shape change shouldn't
+# force PRD revalidation, and vice versa.
+PROTOTYPE_SCHEMA_VERSION: int = 1
+
 AGENTS: list[str] = [
     "arch-advisor.md", "backend-designer.md", "backlog-drafter.md",
     "code-reviewer.md", "config-writer.md", "doc-gardener.md",
@@ -45,7 +51,7 @@ HOOKS: list[str] = ["keel-safety-gate.py", "keel-doc-gate.py"]
 PROCESS_DOCS: list[str] = [
     "THE-KEEL-PROCESS.md", "QUICK-START.md", "BROWNFIELD.md", "GLOSSARY.md",
     "ANTI-PATTERNS.md", "FAILURE-PLAYBOOK.md", "AUTONOMY-PROGRESSION.md",
-    "KEEL-PRINCIPLES.md",
+    "KEEL-PRINCIPLES.md", "PIPELINE-DOCTRINE.md",
 ]
 
 # User-facing framework scripts shipped into installs under scripts/.
@@ -61,6 +67,7 @@ PROCESS_DOCS: list[str] = [
 SCRIPTS: list[str] = [
     "validate-prds.py",
     "validate-prd-json.py",
+    "validate-prototype-json.py",
     "keel-prd-view.py",
     "keel-feature-resolve.py",
     "keel_features.py",
@@ -73,6 +80,7 @@ SCRIPTS: list[str] = [
 # is intentionally open-shape per docs/design-docs/2026-04-24-structured-prds.md.
 SCHEMAS: list[str] = [
     "prd.schema.json",
+    "prototype.schema.json",
 ]
 
 # KEEL-internal scripts under scripts/ that are NOT shipped to installs.

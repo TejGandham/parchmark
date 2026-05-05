@@ -15,7 +15,7 @@ actionable message). See
 
 PRD + backlog refinement for an existing KEEL project. Given a prose description, a markdown PRD, a bundle directory with design assets, or images pasted in chat, drafts a **structured JSON PRD** at `docs/exec-plans/prds/<slug>.json` (schema v1, validated against `schemas/prd.schema.json`) plus the matching F## entries in `docs/exec-plans/active/feature-backlog.md`. Reviews both in conversation before committing.
 
-This skill is the single conversion hub between non-JSON feature input (prose, markdown, bundles, images) and the one shape the pipeline reads (JSON PRD). Markdown PRDs are raw material here, never pipeline input. See NORTH-STAR §"Feature input canon — single path, JSON PRDs only".
+This skill is the single conversion hub between non-JSON feature input (prose, markdown, bundles, images) and the one shape the pipeline reads (JSON PRD). Markdown PRDs are raw material here, never pipeline input. See `docs/process/PIPELINE-DOCTRINE.md` §"Feature input canon — single path, JSON PRDs only".
 
 ## When to Use
 
@@ -132,18 +132,31 @@ Parse the user's invocation into a normalized `intent_blob`.
 | Invocation | `intent.source` | `intent.content` | `intent.path` | Design assets source |
 |-|-|-|-|-|
 | `/keel-refine docs/prds/auth.md` | `prd_path` | full text of the file | absolute path | markdown `![](./...)` refs in the file's dir |
-| `/keel-refine docs/prds/auth-redesign/` | `prd_path` | full text of `<dir>/README.md` | absolute dir path | markdown refs + sibling image/pdf files in the directory |
+| `/keel-refine docs/prds/auth-redesign/` | `prd_path` | full text of `<dir>/README.md` if present, else `""` | absolute dir path | sibling image/pdf files + markdown refs + working prototype HTML/CSS/JS if detected |
 | `/keel-refine "let users edit profile inline"` | `prose` | quoted string | `null` | pasted images in this chat turn, if any |
 | `/keel-refine` | `interview` | `""` (filled via interview) | `null` | pasted images in any turn, if any |
 
 **Do:**
 1. Parse the positional argument:
    - File path ending `.md` → `prd_path`, file mode.
-   - Directory path → `prd_path`, bundle mode. Expect a `README.md` inside; error if absent.
+   - Directory path → `prd_path`, bundle mode (see step 3).
    - Non-path string → `prose`.
    - Absent → `interview`.
 2. For `prd_path` file mode: verify file exists and is markdown. If not, print fix suggestion and exit.
-3. For `prd_path` bundle mode: verify directory exists and contains a readable `README.md`. Enumerate siblings.
+3. For `prd_path` bundle mode: verify the directory exists, then classify its shape.
+
+   **Enumeration.** Walk the directory with depth cap **2** and the ignore-list `{node_modules, dist, build, .next, .vite, .git, coverage, out}`. Hard caps: **50 files total**, **100 MB total**. Over either cap → halt with CTA naming what to prune (e.g. *"Bundle exceeds 50-file cap. Prune build artifacts (`dist/`, `out/`) or split the bundle. Found: <count> files, <size> MB."*). The 50/100 numbers are heuristics (no measurement), chosen to comfortably fit a hand-authored prototype while flagging unpruned build artifacts. Tune in your install if real prototypes trip them — the ignore-list is the better lever for `node_modules`-style bloat than the file-count cap.
+
+   **Shape classification** (set `intent.prototype` accordingly):
+   - **Single-file prototype** — directory contains exactly one HTML file at root and no `README.md`. `intent.prototype = {kind: "single-file", entry: "<basename>"}`.
+   - **Multi-file prototype** — directory contains an `index.html` (or `index.htm`) at root. `intent.prototype = {kind: "directory", entry: "index.html"}` (or `"index.htm"`). Subdirectory HTML files are enumerated as additional design assets.
+   - **Ambiguous multi-file** — directory contains ≥2 HTML files at root, none named `index.html`/`index.htm`, and no `prototype.json` declaring an entry. Halt with CTA: *"Bundle contains <N> HTML files but no clear entry. Add a `prototype.json` with `{\"entry\": \"<file>\"}` or rename the entry to `index.html`. Candidates: <comma-joined names>."*
+   - **Image/PDF bundle (today's behavior)** — no HTML files at all. `README.md` is required as before; halt with CTA *"Bundle directory has no HTML prototype and no README.md prose. Add a README.md describing the intent, or include a prototype HTML."* if absent.
+   - **Mixed** — `README.md` AND HTML present. Both are consumed: the README is the prose intent; the HTML is the prototype. `intent.prototype` populated per the rules above.
+
+   **Manifest read.** If a `prototype.json` exists at the bundle root, parse it (validated against `schemas/prototype.schema.json`). Its fields override autodetection — for example, a manifest declaring `{"entry": "dashboard.html"}` resolves an otherwise-ambiguous multi-file shape. Do NOT halt the ambiguity case if the manifest is present.
+
+   **Asset enumeration.** All enumerated files (HTML, CSS, JS, images, fonts, manifest) populate `intent.ui_design_assets[]` with the existing `{path, kind, bytes, label}` shape. The prototype manifest itself is included (`kind: "json"`).
 4. For `prose`: accept any non-empty string.
 5. For `interview`: ask the minimum viable set:
    - "What feature are you refining? Give me a one-line summary."
@@ -160,12 +173,23 @@ Parse the user's invocation into a normalized `intent_blob`.
 | JPG / JPEG | yes | standard raster |
 | GIF | yes | treat as static frame 0 |
 | SVG | yes | vector |
-| PDF | yes | max 20 pages; enforce via `Read` tool's `pages` constraint downstream |
-| anything else | no | reject with: `"File <name> format <.ext> is not supported. Export as PNG/SVG/PDF and re-paste."` |
+| PDF | yes | max 20 pages at paste time. Heuristic anchored to Claude Code's `Read` tool: the tool requires the `pages` parameter for any PDF >10 pages and accepts at most 20 pages per request. The 20-page paste cap matches a single non-paginated downstream `Read` so shallow consumers can fetch the whole doc in one call without reasoning about pagination. Larger PDFs are not a tool-level limit — agents that paginate (`pages: "1-20"`, `"21-40"`, …) can consume them — the paste gate is conservative on purpose. Raise this cap in your install if your downstream agents reliably paginate. |
+| HTML / HTM | yes | clickable comp, prototype, or hand-coded mockup. `Read` returns text (markup), not a vision render — downstream agents extract structure/layout/state cues from the source |
+| CSS | yes | accompanies HTML prototypes; shallow-read for layout/token cues |
+| JS / MJS | yes | accompanies HTML prototypes; shallow-read for state and interaction cues |
+| WOFF / WOFF2 / TTF / OTF | yes | accompanies HTML prototypes; preserved at storage time, not parsed |
+| JSON | yes | reserved for `prototype.json` manifests at the bundle root |
+| anything else | no | reject with: `"File <name> format <.ext> is not supported. Accepted: PNG, JPG, GIF, SVG, PDF, HTML, CSS, JS, fonts, JSON (manifest). Export to one of these and re-paste."` |
 
-Per-file size cap: **20 MB.** Over cap → reject: `"File <name> is <X>MB (cap 20). Compress, split into frames, or reduce resolution."` No partial-session state; the file is never written to disk.
+Per-file size cap: **20 MB.** Over cap → reject: `"File <name> is <X>MB (cap 20). Compress, split into frames, or reduce resolution."` No partial-session state; the file is never written to disk. The JS/CSS/font/JSON expansions exist solely to support working-prototype bundles — they are never accepted as standalone pasted attachments outside the bundle-directory mode.
 
-**Output:** Normalized `intent_blob` in memory with `intent.ui_design_assets: [{path, kind, bytes, label}]` populated from the three possible sources (bundle siblings, markdown refs, pasted attachments). Not yet surfaced to the user.
+**Provenance of the per-file caps:** the 20 MB number is a heuristic, not a measured floor. Anthropic API limits are denominated in tokens, not raw MB; the `Read` tool documents no explicit byte cap. Tune in your install if your real comps trip it.
+
+**Output:** Normalized `intent_blob` in memory with:
+- `intent.ui_design_assets: [{path, kind, bytes, label}]` populated from the three possible sources (bundle siblings, markdown refs, pasted attachments).
+- `intent.prototype: {kind, entry, manifest_path?, mode?, stack_match?, screens?, notes?}` populated when bundle mode detected a prototype shape (single-file or directory). Absent for prose, interview, file-mode markdown PRDs, and image/PDF-only bundles. The `mode | stack_match | screens | notes` fields are populated only when an on-disk `prototype.json` is present; otherwise they are filled by the Phase 5 prototype-disposition card.
+
+Not yet surfaced to the user.
 
 ---
 
@@ -232,10 +256,19 @@ intent:
   path: <path or null>
   ui_design_assets:
     - path: <absolute or repo-relative path>
-      kind: <png | jpg | svg | pdf>
+      kind: <png | jpg | gif | svg | pdf | html | css | js | font | json>
       bytes: <int>
       label: <alt text from markdown ref, or null>
     # ... zero or more
+  prototype:                                              # null when no prototype detected
+    kind: <single-file | directory>
+    entry: <relative path within bundle, e.g. index.html>
+    manifest_path: <relative path or null>                # set iff on-disk prototype.json was present
+    mode: <reference | seed | null>                       # null until Phase 5 Step 2a-bis fills it
+    stack_match: <bool | null>
+    screens:                                              # autodetected + manifest-declared (deduped)
+      - {label: <str>, path: <str or null>, states: [<str>]}
+    notes: <str or null>
 
 repo_context:
   architecture_layers: [<schema-enum form, post Phase 2 Step 8 case-fold>]
@@ -261,6 +294,7 @@ constraints:
   layer_must_exist_in_architecture: true
   max_entries_per_run: 15
   ui_design_assets_shallow_read_only: true
+  prototype_read_role: drafter_only                       # frontend-designer reads later via the Design: marker; implementer never reads
 
 Return your structured YAML output per .claude/agents/backlog-drafter.md §Output Format. Drafter emits schema-shaped fields (lowercase `layer`, `contract` open-object, `oracle.{type, assertions, ...}`, plus PRD-frame fields when existing_reference is false). No prose.
 ```
@@ -369,10 +403,10 @@ The agent returned questions it couldn't resolve from the PRD alone.
 
 ## Phase 5: Conversational Review (per-card walkthrough)
 
-Match NORTH-STAR §Autonomy Ceiling line 103: `/keel-refine` "reviews
-each card conversationally with the human." Every drafted entry is
-walked individually before `commit` is valid — no block-review escape
-hatch, no "accept all" shortcut. Accuracy over speed.
+Match `docs/process/PIPELINE-DOCTRINE.md` §"Autonomy Ceiling":
+`/keel-refine` reviews each card conversationally with the human. Every
+drafted entry is walked individually before `commit` is valid — no
+block-review escape hatch, no "accept all" shortcut. Accuracy over speed.
 
 **Phase 5 rules:**
 
@@ -554,6 +588,49 @@ in re-run mode, compute the diff between the on-disk
 This drift surface is the only mechanism that catches CLAUDE.md
 changes against an older PRD. Skipping Card 0 in re-run mode would
 let the drift survive the refinement session.
+
+### Step 2a-bis — Prototype disposition card (only when applicable)
+
+**Walked only when** `intent.prototype` is non-null AND the bundle did not include an on-disk `prototype.json` declaring the disposition fields. If a manifest was present, its `mode | stack_match | screens | notes` are taken verbatim and this card is skipped silently.
+
+The card collects ONLY the non-derivable intent that source enumeration cannot recover. Entry, file inventory, and route paths are autodetected — they are not asked again here (P4).
+
+```
+Prototype disposition (1 card)
+
+Detected:  <kind: single-file | directory> @ <relative entry path>
+Files:     <count> (HTML <h>, CSS <c>, JS <j>, images <i>, fonts <f>)
+Screens autodetected: [<label-or-path 1>, <label-or-path 2>, ...]
+
+Disposition:
+  mode:        reference (default) | seed
+  stack_match: false (default) | true
+  screens:     accept autodetected | edit
+  notes:       <empty>
+
+Verbs:
+  accept                      — keep all defaults; advance
+  set mode <reference|seed>
+  set stack_match <true|false>
+  edit screens                — open inline screen list editor
+                                (label, optional path, optional states[])
+  set notes <text>
+  next                        — same as accept; advance to F## walk
+```
+
+**Field semantics** (mirror `schemas/prototype.schema.json`):
+- `mode: reference` (default) — `frontend-designer` extracts visual/behavioral intent from the prototype but rebuilds in the target stack; never copies markup or styles verbatim. Safest default — handles stack mismatch and mature design systems.
+- `mode: seed` — `frontend-designer` may import patterns/styles from the prototype as a starting point. Still emits target-stack output (Tailwind classes, framework-idiomatic shapes). Choose only when the prototype's stack matches the target repo and the project has no existing design system to reconcile against.
+- `stack_match: false` (default) — assume the prototype's framework differs from the target repo. Forces re-derivation.
+- `stack_match: true` — prototype stack = target stack. Unlocks tighter pattern reuse in `seed` mode (no effect under `reference`).
+- `screens: [{label, path?, states?}]` — names that source cannot reliably recover (single-file artifacts with multiple modal states; hash-routed SPAs; sections without semantic IDs). Used as decomposition cues by Card walk and downstream agents. Defaults to autodetected list — accept as-is unless source missed something.
+- `notes` — free-form caveats for downstream agents (e.g. *"dropdown menus are placeholders, ignore for component design"*).
+
+**CLAUDE.md fallback for `mode`.** If the project's `CLAUDE.md` declares `Prototype mode: reference | seed` at the top level, that value seeds the card's default in place of `reference`. The manifest (when present) wins over CLAUDE.md; the card walk wins over the manifest's defaults if the user edits.
+
+**Materialization.** On `accept` / `next`, the disposition is held in session memory; Phase 6 Step 2 writes it to `<slug>/prototype/prototype.json` at commit time alongside the prototype files.
+
+**Card-walk grammar reuse.** This card uses the same `accept | next | back` advancing verbs as Card 0 and the F## walk. Per-field edits use the same `set <field> <value>` and `edit <field>` shapes — no new grammar.
 
 ### Step 2 — Walk each card in F## order
 
@@ -842,16 +919,28 @@ If any collision is detected, halt with CTA:
 Only proceed with the move if every session asset has a unique basename
 relative to the pre-existing assets directory.
 
-For each `intent.ui_design_assets[]` entry that was referenced by at least one drafted entry:
+**Two storage branches based on `intent.prototype`:**
+
+- **Flat-asset branch** (no prototype, OR `intent.prototype.kind == "single-file"`): assets land flat under `docs/exec-plans/prds/<slug>/assets/<basename>`. Single-file HTML artifacts are treated as flat assets — they have no internal structure to preserve.
+- **Prototype directory branch** (`intent.prototype.kind == "directory"`): the prototype's directory structure is preserved under `docs/exec-plans/prds/<slug>/prototype/<original-relative-path>`. The manifest (auto-drafted in Phase 5 Step 2a-bis or read from disk) is written to `docs/exec-plans/prds/<slug>/prototype/prototype.json`. The ignore-list filter (`{node_modules, dist, build, .next, .vite, .git, coverage, out}`) is applied at move time as a second-pass guard, even though Phase 1 enumeration already filtered — late additions during the session would otherwise leak.
+
+For each `intent.ui_design_assets[]` entry that was referenced by at least one drafted entry, route by branch:
+
+**Flat-asset branch:**
 - If the source path is under `.keel-refine-session/<id>/`: move it to `docs/exec-plans/prds/<slug>/assets/<basename>`. Create the target dir first if missing — `Write` a `.gitkeep` file into the empty dir to materialize it. Choose the copy method by file type:
-  - **Text-format assets (SVG, markdown):** prefer `Write` of the new file + Bash `rm` of the old (idempotent and auditable).
+  - **Text-format assets (SVG, markdown, single-file HTML):** prefer `Write` of the new file + Bash `rm` of the old (idempotent and auditable).
   - **Binary assets (PNG, JPG/JPEG, GIF, PDF):** MUST use Bash `mv` (or `cp` + `rm`). The `Write` tool is text-only and will corrupt binary content. Never use `Write` for binary files.
 - If the source path was already under `docs/` (bundle mode with pre-committed assets): leave in place.
 - Update the `ui_design_assets` paths on drafted entries to reflect the final locations.
 
-Unused assets (in `intent.ui_design_assets[]` but not referenced by any drafted entry): **leave in the session dir.** They get deleted on session end.
+**Prototype directory branch:**
+- Move every enumerated file (HTML, CSS, JS, images, fonts) under `docs/exec-plans/prds/<slug>/prototype/<original-relative-path>`. Subdirectories are recreated; `mkdir -p` the target parent before each `mv`. Binary files use `mv`/`cp` per the rules above.
+- Write the prototype manifest to `docs/exec-plans/prds/<slug>/prototype/prototype.json` from session state (auto-drafted Phase 5 disposition, or seeded from on-disk source manifest). Schema-validate it before write — if validation fails, halt with the validator's output and roll back per the Atomicity block.
+- Update `ui_design_assets` paths on drafted entries to point inside `prototype/`.
 
-Under the PRD-scope model, assets live under their PRD's folder (`docs/exec-plans/prds/<slug>/assets/`). The legacy `docs/prds/drafts/<timestamp>/` path is obsolete — do not create it.
+Unused assets (in `intent.ui_design_assets[]` but not referenced by any drafted entry): **leave in the session dir.** They get deleted on session end. The prototype manifest is always referenced (it co-locates with the prototype it describes) and is always written.
+
+Under the PRD-scope model, all per-PRD content lives under `docs/exec-plans/prds/<slug>/`: flat assets in `assets/`, prototype contents in `prototype/`. The legacy `docs/prds/drafts/<timestamp>/` path is obsolete — do not create it.
 
 ### Step 2a — Assemble and write the JSON PRD
 
@@ -951,13 +1040,25 @@ Compute the full set of per-section appended blocks. Per-entry format (exact):
 
 - [ ] **F## Title**
   <if intra_needs ∪ cross_needs non-empty:>Needs: <comma-joined intra_needs ∪ cross_needs>
-  <if ui_design_assets non-empty:>Design: <comma-joined design_asset paths>
+  <if ui_design_assets non-empty:>Design: <prototype-marker?> <comma-joined design_asset paths>
   PRD: <slug>  <!-- OR: PRD-exempt: <legacy|bootstrap|infra|trivial> -->
   <!-- DRAFTED: {ISO-date} by backlog-drafter; {len(human_markers)} markers remain -->
   {source_tag}
   <!-- HUMAN: {marker 1} -->
   ...
 ```
+
+**Prototype marker on the Design: line.** When at least one path in the entry's `ui_design_assets` lives under `docs/exec-plans/prds/<slug>/prototype/`, prepend a single bracketed token disclosing the disposition: `[prototype:reference]` or `[prototype:seed]` (matching `intent.prototype.mode`). Examples:
+
+```
+Design: [prototype:reference] docs/exec-plans/prds/auth/prototype/index.html, docs/exec-plans/prds/auth/prototype/dashboard.html
+Design: [prototype:seed] docs/exec-plans/prds/lp/prototype/index.html
+Design: docs/exec-plans/prds/auth/assets/wireframe.png  <!-- no prototype, no marker -->
+```
+
+The marker is a wire signal for downstream agents: `pre-check` strips it when parsing `Needs:` neighbors and forwards the disposition into the resolved brief; `frontend-designer` reads the disposition without re-parsing the manifest; `implementer` learns the path family is off-limits without needing to read prototype contents to find out.
+
+If an entry mixes prototype paths and flat-asset paths in `ui_design_assets`, the marker still applies — the disposition tags the entry, not the individual paths. The flat-asset paths stay readable as before; only the prototype paths are subject to the disposition's role-gated read rules.
 
 `Needs:` union order: first the `intra_needs[]` in walk order, then
 the `cross_needs[]` in walk order, comma-joined. `pre-check`'s
@@ -981,7 +1082,7 @@ Formatting rules:
 - Blank line before the entry.
 - `source_tag` is emitted as-is (full `<!-- SOURCE: ... -->` comment). Do NOT re-wrap.
 - `Needs:` line omitted entirely when both `intra_needs[]` AND `cross_needs[]` are empty. Otherwise emit on its own line (no `|` separator into `Spec:` since `Spec:` is no longer emitted).
-- `Design:` line omitted entirely when `ui_design_assets` is empty.
+- `Design:` line omitted entirely when `ui_design_assets` is empty. When present, it carries an optional `[prototype:<mode>]` marker (see "Prototype marker on the Design: line" above) iff any listed path lives under `<slug>/prototype/`.
 - `PRD:` (or `PRD-exempt:`) line is mandatory on every entry. Never omit.
 - HUMAN markers indented two spaces. One per line.
 - `DRAFTED:` prefix with colon — load-bearing for `doc-gardener`.
@@ -993,16 +1094,18 @@ Formatting rules:
   - `feature-backlog.md` — full text.
   - `docs/exec-plans/prds/<slug>.json` — full text if the file existed pre-session; otherwise record "absent" so rollback knows to delete rather than restore.
   - `docs/exec-plans/prds/<slug>/assets/` — record the set of filenames that existed in this directory pre-session (may be empty, or the directory may not exist yet). Rollback restores this exact pre-session state: remove any file added during this session, keep any file that was already present.
+  - `docs/exec-plans/prds/<slug>/prototype/` — record the set of relative paths (file tree) that existed pre-session, including `prototype.json`. Same restore semantics as `assets/`. The prototype-directory branch in Step 2 may add nested subdirectories; rollback must `rm` every file added this session and `rmdir` every empty subdirectory it created.
 - One `Edit` per section in fixed order (Bootstrap → Foundation → Service → UI → Cross-cutting). Multiple sections → multiple `Edit` calls.
 - On any failure (including validator failure in Step 4):
   1. Restore `feature-backlog.md` from snapshot via a full-file `Write`.
   2. Either delete `docs/exec-plans/prds/<slug>.json` (if newly-created this session) or restore it from snapshot (if it pre-existed).
   3. Remove any file under `docs/exec-plans/prds/<slug>/assets/` that was added during this session — i.e., any file whose name is NOT in the pre-session filename set. Use Bash `rm` per path. If the `assets/` directory did not exist pre-session and is empty after the cleanup, `rmdir` it. Files that existed pre-session MUST be left untouched.
-  4. If `docs/exec-plans/prds/<slug>/` was created by this session (i.e., did not exist pre-session) AND is empty after step 3, `rmdir` it. If it contained pre-existing content, leave it.
-  5. If `docs/exec-plans/prds/` was created by this session (first-PRD case) AND is empty after step 4, `rmdir` it. If it already existed pre-session or contains other PRDs, leave it.
-  6. Abort.
+  4. Remove any file under `docs/exec-plans/prds/<slug>/prototype/` that was added during this session (path NOT in the pre-session set), then `rmdir` every empty subdirectory bottom-up. If the `prototype/` directory did not exist pre-session and is empty after the cleanup, `rmdir` it. Files that existed pre-session MUST be left untouched.
+  5. If `docs/exec-plans/prds/<slug>/` was created by this session (i.e., did not exist pre-session) AND is empty after steps 3–4, `rmdir` it. If it contained pre-existing content, leave it.
+  6. If `docs/exec-plans/prds/` was created by this session (first-PRD case) AND is empty after step 5, `rmdir` it. If it already existed pre-session or contains other PRDs, leave it.
+  7. Abort.
 
-The snapshot-and-rollback MUST include assets because Phase 6 Step 2 moves session-staged design files into `docs/exec-plans/prds/<slug>/assets/` before the backlog/PRD writes happen. Without asset rollback, a late failure (e.g., validator failure in Step 4) leaves orphan asset files in tracked territory while the backlog and PRD get restored — the session would leak pollution.
+The snapshot-and-rollback MUST include both `assets/` AND `prototype/` because Phase 6 Step 2 moves session-staged design files into one or both directories before the backlog/PRD writes happen. Without rollback covering both, a late failure (e.g., validator failure in Step 4) leaves orphan files in tracked territory while the backlog and PRD get restored — the session would leak pollution.
 
 **Step 4 — Stage and commit.**
 
@@ -1010,6 +1113,7 @@ Collect the set of paths to stage:
 - `docs/exec-plans/active/feature-backlog.md` (always, if changed)
 - `docs/exec-plans/prds/<slug>.json` (the JSON PRD written in Step 2a)
 - Any files under `docs/exec-plans/prds/<slug>/assets/` (new asset files, if any)
+- Any files under `docs/exec-plans/prds/<slug>/prototype/` (new prototype files, including `prototype.json`, if any — the prototype-directory branch only)
 - Any new section heading creations in the backlog (already part of the backlog file)
 
 **Step order (important — read carefully).** The JSON write in
@@ -1021,11 +1125,12 @@ control flows to the atomicity rollback from Step 3 — restoring
 pre-session state — and the skill aborts without staging or
 committing.
 
-- Run both validators. On non-zero exit from either, emit the
+- Run validators. On non-zero exit from any, emit the
   validator's halt message verbatim and trigger the Step 3
   atomicity rollback. Do not `git add`, do not commit:
   1. `uv run scripts/validate-prd-json.py docs/exec-plans/prds/<slug>.json` — JSON Schema validation + cross-reference integrity on the PRD written in Step 2a.
   2. `python3 scripts/validate-prds.py --repo .` — invariant 7 coverage across the backlog (every post-cutoff F## carries `PRD:` or `PRD-exempt:`) plus backlog-side artifact integrity.
+  3. (Conditional) `uv run scripts/validate-prototype-json.py docs/exec-plans/prds/<slug>/prototype/prototype.json` — only when the prototype-directory branch wrote a manifest in Step 2. Validates shape against `schemas/prototype.schema.json`.
 
 
 Execute via `Bash`:
@@ -1050,11 +1155,15 @@ Committing: <message>
   docs/exec-plans/active/feature-backlog.md  (+<lines> lines)
   docs/exec-plans/prds/<slug>.json  (new | updated, schema v1)
   {each new asset path under docs/exec-plans/prds/<slug>/assets/} (new)
+  {each new prototype path under docs/exec-plans/prds/<slug>/prototype/} (new)
+  docs/exec-plans/prds/<slug>/prototype/prototype.json  (new | updated, mode <reference|seed>)
 
 [<short-sha>] <message>
 
 Next: /keel-pipeline F<first-id> docs/exec-plans/prds/<slug>.json when ready.
 ```
+
+Lines for branches that did not run (no flat assets, no prototype) are omitted.
 
 No confirmation prompt. User who wants a different message uses `git commit --amend -m "..."` after the fact.
 
@@ -1098,9 +1207,9 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 - The PRD is KEEL-authored, human-steered. The skill writes `<slug>.json` from the Card 0 + Card 1..N walk state. Humans edit fields conversationally via verbs, not in an external editor. Re-invoke `/keel-refine` on an existing PRD to revise it through the same gates.
 
 **Format/size (paste-time validation):**
-- Formats: PNG, JPG/JPEG, GIF, SVG, PDF.
-- Per-file cap: 20 MB.
-- PDF page cap: 20 pages.
+- Formats: PNG, JPG/JPEG, GIF, SVG, PDF, HTML. Bundle-directory mode additionally accepts CSS, JS/MJS, fonts (WOFF/WOFF2/TTF/OTF), and JSON (`prototype.json` only) — these support working-prototype bundles and are never standalone pasted attachments.
+- Per-file cap: 20 MB (heuristic; see Phase 1 provenance note).
+- PDF page cap: 20 pages at paste time (heuristic anchored to the `Read` tool's per-request limit; see Phase 1 PDF row).
 - Reject at paste with a clear error message. Never silently drop or truncate.
 
 ## Failure Modes (skill-level)
@@ -1111,8 +1220,11 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 | Preflight fails (bootstrap gate) | Neither F01–F03 ticked nor marker present | Print three-option A/B/C message, exit |
 | `.gitignore` missing `.keel-refine-session/` | New install or user removed it | Append the line (one `Edit`), announce, proceed |
 | PRD path doesn't resolve | User typo | Print fix suggestion, exit |
-| PRD dir has no `README.md` | User misused bundle mode | Print fix suggestion, exit |
+| Bundle dir has no HTML and no `README.md` | User misused bundle mode | Print fix suggestion: "Add a README.md with intent prose, or include an HTML prototype." |
+| Bundle dir has ≥2 HTML files, none `index.html`, no manifest | Ambiguous prototype entry | Halt with CTA naming candidates (Phase 1 step 3) |
+| Bundle dir exceeds 50 files or 100 MB | Build artifacts not pruned | Halt with CTA naming counts; prune `dist/`, `out/`, `node_modules/`, etc. |
 | Pasted file exceeds format/size cap | Wrong format or too large | Print specific error, do not write anything, exit |
+| Prototype manifest fails schema validation | Bad `prototype.json` | Emit validator output verbatim, halt before drafter dispatch |
 | Agent returns malformed YAML | Agent failure | Print parsing error, clean up session dir, exit |
 | Agent returns `ready_to_write` with a false `self_validation` field | Agent misbehavior | Treat as parsing error — do NOT enter review |
 | User action in Phase 5 walk violates validation | Bad edit / answer / drop | Reject with reason; active card stays active; no advance |
@@ -1129,5 +1241,7 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 - `backlog-drafter` returns structured YAML to this skill (not a handoff file). Only consumer of the pattern today. If more agents adopt it, factor a shared parser.
 - The `<!-- DRAFTED: ... -->` comment is removed by `doc-gardener` during the post-landing sweep once the entry is `[x]`. Don't worry about long-term hygiene here.
 - The `<!-- SOURCE: ... -->` tag is permanent — it's the idempotency anchor. Future `/keel-refine` runs use it to detect "already drafted from this source."
-- `docs/exec-plans/prds/<slug>/assets/` is the canonical home for assets belonging to a drafted PRD. Over time a human may choose to move them into `docs/design-assets/shared/` or a per-feature directory. `doc-gardener` does not touch these — they're historical record.
-- Claude Code's `Read` tool handles PNG, JPG, SVG, and PDF (up to 20 pages with `pages` param) natively via vision. That's why the `backlog-drafter` and `frontend-designer` agents can see design assets without any intermediary parsing agent.
+- `docs/exec-plans/prds/<slug>/assets/` is the canonical home for flat assets (images, single-file HTML artifacts, PDFs) belonging to a drafted PRD. Over time a human may choose to move them into `docs/design-assets/shared/` or a per-feature directory. `doc-gardener` does not touch these — they're historical record.
+- `docs/exec-plans/prds/<slug>/prototype/` is the canonical home for working UI/UX prototypes (multi-file HTML+CSS+JS bundles) plus their `prototype.json` manifest. Internal directory structure is preserved so the prototype remains locally runnable from the PRD slug dir. `doc-gardener` does not touch these.
+- Claude Code's `Read` tool handles PNG, JPG, GIF, SVG, and PDF natively via vision. PDFs need the `pages` parameter when >10 pages, with a hard 20-page-per-request limit; agents that paginate can read arbitrarily long PDFs in multiple calls. HTML/CSS/JS are read as text (markup or source) — downstream agents extract structure, layout, and state cues from the source rather than a rendered view. Both modes give the `backlog-drafter` and `frontend-designer` agents enough signal to work without an intermediary parsing agent.
+- The prototype-disposition card (Phase 5 Step 2a-bis) is walked only when bundle ingestion detected a prototype shape AND no on-disk `prototype.json` was present. It collects only non-derivable intent — `mode`, `stack_match`, named screens/states, notes — and never re-asks for derivable info like the entry path or file inventory (P4).

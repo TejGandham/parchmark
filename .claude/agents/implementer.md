@@ -49,6 +49,7 @@ You are an implementation specialist for the [PROJECT_NAME] project. You write c
 ## Rules
 
 - NEVER modify test files. Tests define the contract.
+- NEVER `Read` paths under `docs/exec-plans/prds/<slug>/prototype/`. Prototypes are reference for `frontend-designer`, not source for implementation. They may live in a different framework, contain placeholders, or carry stale code from upstream tooling — copying them into the production tree introduces drift, license risk, and stack mismatch. Work from the spec (`oracle.assertions` + tests) and `frontend-designer`'s component design output. If the brief's `backlog_fields.prototype_mode` is non-null, the design brief has already extracted the prototype's intent for you.
 - Read the execution brief FIRST for scope and patterns. Read upstream Decisions and Constraints FIRST. Then the spec for detail.
 - Follow ARCHITECTURE.md — dependencies flow in one direction only.
 - Follow the architecture patterns in ARCHITECTURE.md (e.g., dependency injection, interface contracts).

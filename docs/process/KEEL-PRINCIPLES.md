@@ -279,7 +279,7 @@ skills, validators, scripts, or this file), that change goes through
 the same principles-governed design process. The framework
 dogfoods its own rules.
 
-This doc is stable. Major edits to the principles require roundtable
-review (per `NORTH-STAR.md` §"Principles for Framework Development"
-item 2) and a note in `git log` explaining the shift. Minor edits
-(clarifying examples, fixing typos) can land directly.
+This doc is stable. Major edits to the principles warrant
+multi-perspective review (e.g. roundtable) and a note in `git log`
+explaining the shift. Minor edits (clarifying examples, fixing typos)
+can land directly.
