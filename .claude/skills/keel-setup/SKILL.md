@@ -93,7 +93,7 @@ Present the draft:
 
 ## Phase 2: North Star (draft → human reviews)
 
-**Draft** docs/north-star.md from context:
+**Draft** NORTH-STAR.md (project root) from context:
 - Project description from Phase 1
 - Stack implications (what growth stages look like for this stack)
 - User-provided vision docs if any
@@ -104,7 +104,7 @@ Present the draft:
 > "Here's a north star based on what we've established. Edit the parts
 > that don't match your vision."
 
-**Write** docs/north-star.md. Wait for confirmation.
+**Write** NORTH-STAR.md. Wait for confirmation.
 
 ---
 
@@ -243,9 +243,9 @@ Print:
 KEEL setup complete.
 
 Next:
-  1. Create your feature backlog — docs/exec-plans/active/feature-backlog.md
-  2. Write your first product spec — docs/product-specs/
-  3. Run: /keel-pipeline F01 docs/product-specs/your-spec.md
+  1. Draft your first feature with /keel-refine — emits a structured
+     JSON PRD at docs/exec-plans/prds/<slug>.json plus backlog entries.
+  2. Run: /keel-pipeline F01 docs/exec-plans/prds/<slug>.json
 ```
 
 ## Rules

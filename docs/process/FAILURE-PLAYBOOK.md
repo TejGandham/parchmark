@@ -101,6 +101,76 @@ Pipeline stalls or produces bad output
        → Summarize the handoff, keeping only the current agent's inputs
 ```
 
+## PRD-scope halts
+
+### pre-check blocks on missing PRD link
+
+**Symptom:** `/keel-pipeline F##` halts with *"F## references PRD 'X' but `docs/exec-plans/prds/X.json` does not exist."*
+
+**Cause:** Typo in `PRD:` field, or PRD file was renamed/deleted.
+
+**Fix:**
+- If the PRD should exist: create the file at the referenced path (narrative only, no feature list).
+- If the slug was a typo: correct the F## entry's `PRD:` field in the backlog.
+- If the F## is legacy work: change `PRD: <slug>` to `PRD-exempt: legacy`.
+
+### pre-check blocks on invalid PRD-exempt reason
+
+**Symptom:** `/keel-pipeline F##` halts with *"F## declares PRD-exempt with reason '<x>'; must be one of legacy/bootstrap/infra/trivial."*
+
+**Cause:** Free-form reason used instead of one of the four allowed values.
+
+**Fix:** Edit the F## entry to use one of the four allowed reasons. If none fit, the feature likely should have a PRD — author one.
+
+### validate-prds.py reports orphaned PRD file
+
+**Symptom:** CI validator reports *"PRD file `docs/exec-plans/prds/<slug>.json` is not referenced by any F##."*
+
+**Cause:** A PRD was drafted but all its F## were dropped or never added.
+
+**Fix:** Either delete the orphaned PRD file (git log preserves history) or add F## entries that reference it.
+
+### validate-prds.py reports F## ID mentioned in PRD prose
+
+**Symptom:** Validator reports *"PRD prose `<slug>.md` contains F## reference — narrative must use theme-level language, not IDs."*
+
+**Cause:** Someone pasted an F## list into the PRD narrative (common drift toward Jira-docification).
+
+**Fix:** Rewrite the prose to describe themes/scope, not IDs. The feature list lives on `docs/exec-plans/active/feature-backlog.md` (F## entries tagged `PRD: <slug>`) — don't cache it in the PRD file. For a JSON PRD, `uv run scripts/keel-prd-view.py docs/exec-plans/prds/<slug>.json` renders the canonical view.
+
+## Halt: F## has unmerged Needs (halt-mode default)
+
+**Symptom:** `/keel-pipeline F02` halts at Step 0 with "F02 requires
+F01 (intra-PRD). F01 status: ... not an ancestor of <base>."
+
+**Cause:** F02 declares F01 in its `Needs:` and F01 has not yet been
+merged to base. The default `Branching policy: halt` refuses to start
+on unmerged Needs.
+
+**Resolution:** One of:
+1. Merge F01's PR, then re-run `/keel-pipeline F02`.
+2. Set `Branching policy: stack` in CLAUDE.md (intra-PRD only —
+   cross-PRD always halts) and re-run. F02 will branch from F01's
+   tip; on F01's eventual merge, the next /keel-pipeline F02
+   invocation restacks onto base.
+
+## Halt: stacked-branch restack hit conflicts
+
+**Symptom:** `/keel-pipeline F02` halts at re-invocation with
+"Restack of keel/F02-<slug> onto <base> halted with conflicts."
+
+**Cause:** F02's commits touch files that F01 modified after F02
+branched. `git rebase --update-refs --onto` cannot resolve the
+overlap automatically.
+
+**Resolution:** Human resolves the conflicts:
+1. `git status` to see conflicted paths.
+2. Edit each conflicted file, `git add <path>`.
+3. `git rebase --continue` to complete the restack, then re-run
+   `/keel-pipeline F02`.
+4. Or `git rebase --abort` to undo; the pipeline halts and the
+   handoff stays in `active/`.
+
 ## Rules
 
 1. **Never "try harder."** If the implementer fails twice on the same tests,

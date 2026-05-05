@@ -18,9 +18,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
+
+if sys.version_info < (3, 14):
+    sys.exit(
+        "KEEL requires Python 3.14+ "
+        f"(found {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}).\n"
+        "Install a supported Python and re-run, e.g.:\n"
+        "  uv python install 3.14 && uv run --python 3.14 .claude/keel-uninstall.py -y\n"
+        "  (or install 3.14 system-wide and invoke with python3.14)"
+    )
 
 _script_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(_script_dir))
@@ -40,6 +50,33 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="Print plan; do not modify.")
     p.add_argument("-y", "--yes", action="store_true", help="Skip confirmation.")
     return p.parse_args(argv)
+
+
+_GITIGNORE_BEGIN = "# >>> KEEL-managed gitignore exceptions — DO NOT EDIT this block >>>"
+_GITIGNORE_END = "# <<< KEEL-managed gitignore exceptions <<<"
+
+
+def _strip_keel_gitignore_block(project_dir: Path) -> bool:
+    """Remove the marker-bracketed exception block install.py inserted.
+    Returns True if .gitignore was modified. No-op if the block is
+    absent or .gitignore doesn't exist (the install never had to add
+    it — nothing was gitignoring KEEL paths).
+    """
+    gitignore = project_dir / ".gitignore"
+    if not gitignore.exists():
+        return False
+    content = gitignore.read_text("utf-8")
+    block_re = re.compile(
+        re.escape(_GITIGNORE_BEGIN) + r"\n.*?\n" + re.escape(_GITIGNORE_END) + r"\n?",
+        re.DOTALL,
+    )
+    new = block_re.sub("", content)
+    # Collapse the doubled blank line we'd leave behind.
+    new = re.sub(r"\n\n\n+", "\n\n", new)
+    if new == content:
+        return False
+    gitignore.write_text(new, encoding="utf-8")
+    return True
 
 
 def _path_hash(p: Path) -> str:
@@ -221,6 +258,9 @@ def _run_receipt_mode(project_dir: Path, receipt: dict, args) -> int:
     if settings_error is not None:
         errors.append(settings_error)
 
+    if _strip_keel_gitignore_block(project_dir):
+        print("  .gitignore — removed KEEL-managed exception block")
+
     if errors:
         # Rewrite the receipt to contain ONLY the paths that failed
         # deletion plus the preserved entries, so re-running uninstall
@@ -248,7 +288,7 @@ def _run_receipt_mode(project_dir: Path, receipt: dict, args) -> int:
 
     # Remove now-empty dirs (best-effort)
     for rel in (".claude/agents", ".claude/skills", ".claude/hooks",
-                "docs/process", "scripts", ".claude"):
+                "docs/process", "scripts", "schemas", ".claude"):
         d = project_dir / rel
         try:
             if d.is_dir() and not any(d.iterdir()):

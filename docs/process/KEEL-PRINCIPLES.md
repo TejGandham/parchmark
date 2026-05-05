@@ -9,25 +9,12 @@ not the principle.
 User projects will inherit these principles as operating constraints
 for their own KEEL-driven development.
 
-> **Implementation status (as of 2026-04-23):** This file is the
-> canonical source. Per the design spec at
-> [`docs/design-docs/2026-04-23-keel-prd-scope-design.md`](../design-docs/2026-04-23-keel-prd-scope-design.md),
-> the implementation plan adds this doc to `scripts/keel_manifest.py`
-> `PROCESS_DOCS` (so `scripts/install.py` ships it to user installs)
-> and adds prompt-header references to it from selected agents
-> (`pre-check`, `backlog-drafter`, `safety-auditor`, `doc-gardener`)
-> and skills (`/keel-refine`, `/keel-pipeline`, `/keel-adopt`). Until
-> that plan executes, this doc lives in the framework repo only and
-> the prompt-header references described in §"In agent and skill
-> prompts" below are **prescriptive, not yet realized**.
-
 ---
 
 ## The two foundational principles
 
-From OpenAI's harness-engineering article, ported directly. See
-`docs/process/OPENAI-FOUNDATIONS.md` for the source experiment and
-how KEEL adapts these.
+From OpenAI's [harness-engineering article](https://openai.com/index/harness-engineering/),
+ported directly.
 
 ### P1. Agent Legibility is the Goal
 
@@ -102,6 +89,41 @@ This principle unlocks principle P4 — much of what contributors
 might otherwise want to store redundantly is actually history
 masquerading as state.
 
+**Concretely forbidden patterns.** Any of these in a tracked
+markdown file is a P5 violation and must not land:
+
+- Strikethrough-landed lists: `~~**item**~~ (landed abc1234)`, or
+  a "Remaining work" list where completed items are struck through
+  with commit SHAs appended. When an item lands, it leaves the
+  list — git log holds the landing record.
+- Retroactive notes: "Note (YYYY-MM-DD): this has since been
+  closed", "as of <date>", "since the initial write-up". If the
+  doc's content is stale, fix the content; don't bolt a patch on
+  top narrating the drift.
+- Commit SHAs in prose: "fixed in commit abc1234", "see f00b4r7
+  for the rationale". The doc should describe what IS; readers
+  who need rationale use `git log` / `git blame` against the
+  lines in question.
+- Timestamped status lines: "**Status:** direction accepted
+  2026-MM-DD", "Done 2026-MM-DD", "Landed 2026-MM-DD". If the
+  direction is current, just state the direction; if the direction
+  was superseded, update the doc to the current direction.
+- Progress-log sections: "## Resolved", "## Done", "## Changelog",
+  "## History". Resolved items disappear; they don't accumulate
+  in a section.
+- "Forthcoming" / "will land" / "pending" references to work
+  already in the repo. When the work lands, remove the promise.
+
+**Archival docs use dated filenames.** Historical design reviews,
+snapshots, and retrospectives that are intrinsically dated go
+under `docs/design-docs/YYYY-MM-DD-<slug>.md` (or the equivalent).
+The dated filename IS the snapshot timestamp — readers know the
+doc is an archival record from its filename alone, and no
+in-content dating or retroactive annotation is needed. Internal
+references to other archival docs by their dated filenames are
+fine; they are pointers to identified artifacts, not timeline
+annotations.
+
 ### P6. Code, specs, and backlog win
 
 **What delivered code, committed specs, and the backlog say is true
@@ -148,7 +170,7 @@ Examples of correct halts:
 
 > *"Feature F11 has no `PRD:` or `PRD-exempt:` field, and the
 > KEEL-INVARIANT-7 cutoff is F10. Add `PRD: <slug>` pointing to an
-> existing PRD at `docs/exec-plans/prds/<slug>.md`, or add
+> existing PRD at `docs/exec-plans/prds/<slug>.json`, or add
 > `PRD-exempt: <reason>` where reason is one of legacy, bootstrap,
 > infra, or trivial."*
 
@@ -198,14 +220,13 @@ Maintainers running roundtable deliberations should paste the
 principles into the prompt so the panel attacks proposals under the
 same framing.
 
-### In agent and skill prompts
+A complementary proposal-evaluation gate lives in `AGENTS.md`
+§"Framework proposal design: defaults + knobs" (two-org test,
+least-assuming default, knobs-cannot-override-P1–P7, knob altitude
+table). P1–P7 audit the resulting artifact; that section audits the
+proposal that produces it. Both apply to any framework-level edit.
 
-> **Implementation status:** the references described below are
-> prescriptive — they reflect where this doc is to be cited once the
-> implementation plan in
-> [`docs/design-docs/2026-04-23-keel-prd-scope-design.md`](../design-docs/2026-04-23-keel-prd-scope-design.md)
-> executes. Current agent and skill prompt files do not yet contain
-> these references.
+### In agent and skill prompts
 
 Agents that make decisions about storage, derivation, or halt
 behavior should reference this doc in their prompt headers:
@@ -222,9 +243,9 @@ Skills that halt conditionally — `/keel-refine`, `/keel-pipeline`,
 `/keel-adopt` — should reference P7 in their halt semantics: every
 exit path must produce an actionable message.
 
-The canonical reference path will be
-`docs/process/KEEL-PRINCIPLES.md` in every user install once
-`scripts/keel_manifest.py` registers it for `scripts/install.py`.
+The canonical reference path in every user install is
+`docs/process/KEEL-PRINCIPLES.md`. It ships via `PROCESS_DOCS` in
+`scripts/keel_manifest.py` and is copied by `scripts/install.py`.
 
 ### When principles conflict
 
@@ -258,7 +279,7 @@ skills, validators, scripts, or this file), that change goes through
 the same principles-governed design process. The framework
 dogfoods its own rules.
 
-This doc is stable. Major edits to the principles require roundtable
-review (per `NORTH-STAR.md` §"Principles for Framework Development"
-item 2) and a note in `git log` explaining the shift. Minor edits
-(clarifying examples, fixing typos) can land directly.
+This doc is stable. Major edits to the principles warrant
+multi-perspective review (e.g. roundtable) and a note in `git log`
+explaining the shift. Minor edits (clarifying examples, fixing typos)
+can land directly.

@@ -1,6 +1,6 @@
 ---
 name: keel-refine
-description: "Drafts feature-backlog.md entries from a PRD, prose, a bundle directory with wireframes, or images pasted directly in chat. Presents drafts as editable cards in chat; commits on an explicit 'commit' verb. Never auto-runs /keel-pipeline. Never writes specs. Never emits bootstrap tasks."
+description: "Drafts a structured JSON PRD plus feature-backlog entries from prose, a markdown PRD, a bundle directory with wireframes, or images pasted in chat. Emits `docs/exec-plans/prds/<slug>.json` against `schemas/prd.schema.json`. Presents drafts as editable cards in chat; commits on an explicit 'commit' verb. Never auto-runs /keel-pipeline. Never emits bootstrap tasks."
 ---
 
 ## Framework principles
@@ -13,7 +13,9 @@ actionable message). See
 
 # KEEL Refine
 
-Backlog refinement for an existing KEEL project. Given a PRD, a prose description, a bundle directory with design assets, or images pasted in chat, drafts candidate backlog entries and reviews them with you in conversation before committing.
+PRD + backlog refinement for an existing KEEL project. Given a prose description, a markdown PRD, a bundle directory with design assets, or images pasted in chat, drafts a **structured JSON PRD** at `docs/exec-plans/prds/<slug>.json` (schema v1, validated against `schemas/prd.schema.json`) plus the matching F## entries in `docs/exec-plans/active/feature-backlog.md`. Reviews both in conversation before committing.
+
+This skill is the single conversion hub between non-JSON feature input (prose, markdown, bundles, images) and the one shape the pipeline reads (JSON PRD). Markdown PRDs are raw material here, never pipeline input. See `docs/process/PIPELINE-DOCTRINE.md` §"Feature input canon — single path, JSON PRDs only".
 
 ## When to Use
 
@@ -24,8 +26,8 @@ Backlog refinement for an existing KEEL project. Given a PRD, a prose descriptio
 
 **Not for:**
 - Initial project setup → use `/keel-setup` (greenfield) or `/keel-adopt` (brownfield).
-- Running a feature → use `/keel-pipeline F## spec-path` after the human has reviewed and committed the drafted entry and authored the spec file.
-- Writing specs → specs are human-authored. This skill only drafts backlog entries with forward-reference spec paths.
+- Running a feature → use `/keel-pipeline F## docs/exec-plans/prds/<slug>.json` after the human has reviewed and committed the drafted JSON PRD plus backlog entries.
+- Hand-editing JSON → the PRD is KEEL-authored. Humans steer via the card walk in Phase 5; they do not edit `<slug>.json` in an external editor. Re-run `/keel-refine` on an existing PRD to revise it through the same gates.
 
 ## Design Principle
 
@@ -130,18 +132,31 @@ Parse the user's invocation into a normalized `intent_blob`.
 | Invocation | `intent.source` | `intent.content` | `intent.path` | Design assets source |
 |-|-|-|-|-|
 | `/keel-refine docs/prds/auth.md` | `prd_path` | full text of the file | absolute path | markdown `![](./...)` refs in the file's dir |
-| `/keel-refine docs/prds/auth-redesign/` | `prd_path` | full text of `<dir>/README.md` | absolute dir path | markdown refs + sibling image/pdf files in the directory |
+| `/keel-refine docs/prds/auth-redesign/` | `prd_path` | full text of `<dir>/README.md` if present, else `""` | absolute dir path | sibling image/pdf files + markdown refs + working prototype HTML/CSS/JS if detected |
 | `/keel-refine "let users edit profile inline"` | `prose` | quoted string | `null` | pasted images in this chat turn, if any |
 | `/keel-refine` | `interview` | `""` (filled via interview) | `null` | pasted images in any turn, if any |
 
 **Do:**
 1. Parse the positional argument:
    - File path ending `.md` → `prd_path`, file mode.
-   - Directory path → `prd_path`, bundle mode. Expect a `README.md` inside; error if absent.
+   - Directory path → `prd_path`, bundle mode (see step 3).
    - Non-path string → `prose`.
    - Absent → `interview`.
 2. For `prd_path` file mode: verify file exists and is markdown. If not, print fix suggestion and exit.
-3. For `prd_path` bundle mode: verify directory exists and contains a readable `README.md`. Enumerate siblings.
+3. For `prd_path` bundle mode: verify the directory exists, then classify its shape.
+
+   **Enumeration.** Walk the directory with depth cap **2** and the ignore-list `{node_modules, dist, build, .next, .vite, .git, coverage, out}`. Hard caps: **50 files total**, **100 MB total**. Over either cap → halt with CTA naming what to prune (e.g. *"Bundle exceeds 50-file cap. Prune build artifacts (`dist/`, `out/`) or split the bundle. Found: <count> files, <size> MB."*). The 50/100 numbers are heuristics (no measurement), chosen to comfortably fit a hand-authored prototype while flagging unpruned build artifacts. Tune in your install if real prototypes trip them — the ignore-list is the better lever for `node_modules`-style bloat than the file-count cap.
+
+   **Shape classification** (set `intent.prototype` accordingly):
+   - **Single-file prototype** — directory contains exactly one HTML file at root and no `README.md`. `intent.prototype = {kind: "single-file", entry: "<basename>"}`.
+   - **Multi-file prototype** — directory contains an `index.html` (or `index.htm`) at root. `intent.prototype = {kind: "directory", entry: "index.html"}` (or `"index.htm"`). Subdirectory HTML files are enumerated as additional design assets.
+   - **Ambiguous multi-file** — directory contains ≥2 HTML files at root, none named `index.html`/`index.htm`, and no `prototype.json` declaring an entry. Halt with CTA: *"Bundle contains <N> HTML files but no clear entry. Add a `prototype.json` with `{\"entry\": \"<file>\"}` or rename the entry to `index.html`. Candidates: <comma-joined names>."*
+   - **Image/PDF bundle (today's behavior)** — no HTML files at all. `README.md` is required as before; halt with CTA *"Bundle directory has no HTML prototype and no README.md prose. Add a README.md describing the intent, or include a prototype HTML."* if absent.
+   - **Mixed** — `README.md` AND HTML present. Both are consumed: the README is the prose intent; the HTML is the prototype. `intent.prototype` populated per the rules above.
+
+   **Manifest read.** If a `prototype.json` exists at the bundle root, parse it (validated against `schemas/prototype.schema.json`). Its fields override autodetection — for example, a manifest declaring `{"entry": "dashboard.html"}` resolves an otherwise-ambiguous multi-file shape. Do NOT halt the ambiguity case if the manifest is present.
+
+   **Asset enumeration.** All enumerated files (HTML, CSS, JS, images, fonts, manifest) populate `intent.ui_design_assets[]` with the existing `{path, kind, bytes, label}` shape. The prototype manifest itself is included (`kind: "json"`).
 4. For `prose`: accept any non-empty string.
 5. For `interview`: ask the minimum viable set:
    - "What feature are you refining? Give me a one-line summary."
@@ -158,12 +173,23 @@ Parse the user's invocation into a normalized `intent_blob`.
 | JPG / JPEG | yes | standard raster |
 | GIF | yes | treat as static frame 0 |
 | SVG | yes | vector |
-| PDF | yes | max 20 pages; enforce via `Read` tool's `pages` constraint downstream |
-| anything else | no | reject with: `"File <name> format <.ext> is not supported. Export as PNG/SVG/PDF and re-paste."` |
+| PDF | yes | max 20 pages at paste time. Heuristic anchored to Claude Code's `Read` tool: the tool requires the `pages` parameter for any PDF >10 pages and accepts at most 20 pages per request. The 20-page paste cap matches a single non-paginated downstream `Read` so shallow consumers can fetch the whole doc in one call without reasoning about pagination. Larger PDFs are not a tool-level limit — agents that paginate (`pages: "1-20"`, `"21-40"`, …) can consume them — the paste gate is conservative on purpose. Raise this cap in your install if your downstream agents reliably paginate. |
+| HTML / HTM | yes | clickable comp, prototype, or hand-coded mockup. `Read` returns text (markup), not a vision render — downstream agents extract structure/layout/state cues from the source |
+| CSS | yes | accompanies HTML prototypes; shallow-read for layout/token cues |
+| JS / MJS | yes | accompanies HTML prototypes; shallow-read for state and interaction cues |
+| WOFF / WOFF2 / TTF / OTF | yes | accompanies HTML prototypes; preserved at storage time, not parsed |
+| JSON | yes | reserved for `prototype.json` manifests at the bundle root |
+| anything else | no | reject with: `"File <name> format <.ext> is not supported. Accepted: PNG, JPG, GIF, SVG, PDF, HTML, CSS, JS, fonts, JSON (manifest). Export to one of these and re-paste."` |
 
-Per-file size cap: **20 MB.** Over cap → reject: `"File <name> is <X>MB (cap 20). Compress, split into frames, or reduce resolution."` No partial-session state; the file is never written to disk.
+Per-file size cap: **20 MB.** Over cap → reject: `"File <name> is <X>MB (cap 20). Compress, split into frames, or reduce resolution."` No partial-session state; the file is never written to disk. The JS/CSS/font/JSON expansions exist solely to support working-prototype bundles — they are never accepted as standalone pasted attachments outside the bundle-directory mode.
 
-**Output:** Normalized `intent_blob` in memory with `intent.design_assets: [{path, kind, bytes, label}]` populated from the three possible sources (bundle siblings, markdown refs, pasted attachments). Not yet surfaced to the user.
+**Provenance of the per-file caps:** the 20 MB number is a heuristic, not a measured floor. Anthropic API limits are denominated in tokens, not raw MB; the `Read` tool documents no explicit byte cap. Tune in your install if your real comps trip it.
+
+**Output:** Normalized `intent_blob` in memory with:
+- `intent.ui_design_assets: [{path, kind, bytes, label}]` populated from the three possible sources (bundle siblings, markdown refs, pasted attachments).
+- `intent.prototype: {kind, entry, manifest_path?, mode?, stack_match?, screens?, notes?}` populated when bundle mode detected a prototype shape (single-file or directory). Absent for prose, interview, file-mode markdown PRDs, and image/PDF-only bundles. The `mode | stack_match | screens | notes` fields are populated only when an on-disk `prototype.json` is present; otherwise they are filled by the Phase 5 prototype-disposition card.
+
+Not yet surfaced to the user.
 
 ---
 
@@ -175,9 +201,10 @@ Build the `repo_context` that `backlog-drafter` needs.
 1. Parse `ARCHITECTURE.md` → extract `architecture_layers`. Canonical sources:
    - Section headings under `## Layers` or `## Module Map`
    - If none, fall back to the section headings in `feature-backlog.md` (excluding `Bootstrap`)
-2. Parse `feature-backlog.md` → extract `existing_features` as a list of `{id, title, section, status, needs, source_tag}`.
+2. Parse `feature-backlog.md` → extract `existing_features` as a list of `{id, title, layer, status, needs, source_tag}`.
    - `status: shipped` if entry has `[x]`, else `planned`.
    - `source_tag`: read any `<!-- SOURCE: ... -->` comment on the entry.
+   - `layer`: case-fold the section heading the entry sits under (Unicode NFKC + lowercase) into the schema enum `{service, ui, cross-cutting, foundation}`. Step 8 below pre-flights that every architecture layer folds; in extraction here, apply the same fold so `existing_features[].layer` is uniform with the JSON PRD shape.
 3. **Brownfield-marker filter.** If the backlog contains the exact string `<!-- KEEL-BOOTSTRAP: not-applicable -->`, exclude from `existing_features` (and therefore from `next_free_id` allocation):
    - the entire `## Bootstrap` section (all entries within it, regardless of content)
    - any exact-match shipped placeholder entries whose title matches one of:
@@ -187,11 +214,20 @@ Build the `repo_context` that `backlog-drafter` needs.
      - `**F07 [YOUR CROSS-CUTTING FEATURE]**`
 
    Match must be exact on title (case and whitespace sensitive). A customized F04 (real title) is kept in `existing_features`; only bit-exact shipped placeholders are filtered. Result: an untouched brownfield template plus the marker yields `next_free_id = F01`.
-4. Compute `next_free_id`: lowest F## integer not present in the filtered `existing_features`. **Freeze this value for the entire refinement session** — even across interview loops and review turns.
-5. Parse `CLAUDE.md` → extract `invariants` (the list items under `## Safety Rules`).
-6. Derive `spec_dir`: default `docs/product-specs/` unless CLAUDE.md explicitly points elsewhere.
-7. Enumerate existing PRD slugs by listing `docs/exec-plans/prds/*.md` (filenames minus `.md` extension). Pass to `backlog-drafter` as `prd.existing_slugs` for collision avoidance when synthesizing a new slug.
-8. Snapshot `feature-backlog.md` contents (full text + SHA-256 of contents) to `.keel-refine-session/<id>/backlog-snapshot.md` and `.keel-refine-session/<id>/backlog-snapshot.sha`. Used for staleness detection at commit time.
+4. Compute `next_free_id`: lowest F## integer not present in EITHER the filtered `existing_features` OR the `features[].id` set of the target JSON PRD (in re-run mode, when the PRD file already exists at `docs/exec-plans/prds/<slug>.json`). Both sources are reserved so the drafter can never synthesize an ID that collides with an F## already authored in this PRD. **Freeze this value for the entire refinement session** — even across interview loops and review turns.
+5. Parse `CLAUDE.md` → extract `invariants` as a list of objects `{id, name, text}`. For each list item under `## Safety Rules`:
+   - `id` — first match of `INV-[0-9]{3,}` in the rule line, or `null` if the rule is not registered with an ID.
+   - `name` — short label preceding the `:` or `—` separator on registered rules; `null` otherwise.
+   - `text` — the full rule text verbatim.
+
+   The drafter cites IDs from this list when populating `invariants_exercised`; rules with `id: null` are visible to the drafter for invariant-violation detection but cannot be cited as exercised (the schema requires `^INV-[0-9]{3,}$`).
+6. Derive `spec_dir`: default `docs/product-specs/` unless CLAUDE.md explicitly points elsewhere. Passed to the drafter for legacy compatibility only — under the JSON-only doctrine the JSON PRD's `contract` + `oracle` IS the spec, and the drafter no longer emits `spec_ref`.
+7. Enumerate existing PRD slugs by listing `docs/exec-plans/prds/*.json` (filenames minus `.json` extension). Pass to `backlog-drafter` as `prd.existing_slugs` for collision avoidance when synthesizing a new slug.
+8. **Schema enum preflight.** Case-fold each entry in `architecture_layers` (Unicode NFKC + lowercase) and verify it matches the PRD schema's `layer` enum: `{service, ui, cross-cutting, foundation}`. If any layer doesn't fold to an enum value (e.g. the repo declares `Backend`, `Database`, `Frontend/UX`), halt with CTA before the drafter dispatches:
+   > *"ARCHITECTURE.md layer `<value>` does not case-fold to the schema's `layer` enum `{service, ui, cross-cutting, foundation}`. JSON PRDs cannot encode this layer. Rename the layer in ARCHITECTURE.md to one of the four schema values (the four are the framework's universal partitioning), or extend `schemas/prd.schema.json` in a framework-level change before drafting."*
+
+   The preflight prevents the card walk from hard-halting mid-session on a fundamentally unrecoverable state. After preflight succeeds, replace `architecture_layers` with the case-folded enum form before passing to the drafter — the drafter receives schema-enum values directly and emits them verbatim into `drafted_entries[].layer`.
+9. Snapshot `feature-backlog.md` contents (full text + SHA-256 of contents) to `.keel-refine-session/<id>/backlog-snapshot.md` and `.keel-refine-session/<id>/backlog-snapshot.sha`. Used for staleness detection at commit time. In re-run mode over an existing JSON PRD, additionally snapshot `docs/exec-plans/prds/<slug>.json` (full text + SHA-256) for the same staleness window.
 
 **Do NOT:**
 - Invent layers not declared in `ARCHITECTURE.md` or present in the backlog.
@@ -218,50 +254,73 @@ intent:
   content: |
     <intent.content verbatim>
   path: <path or null>
-  design_assets:
+  ui_design_assets:
     - path: <absolute or repo-relative path>
-      kind: <png | jpg | svg | pdf>
+      kind: <png | jpg | gif | svg | pdf | html | css | js | font | json>
       bytes: <int>
       label: <alt text from markdown ref, or null>
     # ... zero or more
+  prototype:                                              # null when no prototype detected
+    kind: <single-file | directory>
+    entry: <relative path within bundle, e.g. index.html>
+    manifest_path: <relative path or null>                # set iff on-disk prototype.json was present
+    mode: <reference | seed | null>                       # null until Phase 5 Step 2a-bis fills it
+    stack_match: <bool | null>
+    screens:                                              # autodetected + manifest-declared (deduped)
+      - {label: <str>, path: <str or null>, states: [<str>]}
+    notes: <str or null>
 
 repo_context:
-  architecture_layers: [<list>]
+  architecture_layers: [<schema-enum form, post Phase 2 Step 8 case-fold>]
   existing_features:
-    - {id, title, section, status, needs, source_tag}
+    - {id, title, layer, status, needs, source_tag}   # layer is lowercase schema enum
     ...
   next_free_id: F##
-  invariants: [<list>]
-  spec_dir: <path>
+  invariants:                                          # objects, not strings
+    - {id: INV-### or null, name: <label or null>, text: <full rule>}
+    ...
+  spec_dir: <path>                                     # legacy; drafter no longer emits spec_ref
 
 prd:
-  slug: null  # synthesize from intent, avoid collisions with existing_slugs (prose mode)
-             # OR: <slug>  # when operating on existing PRD file (file/bundle mode)
+  slug: null  # synthesize from intent, avoid collisions with existing_slugs (new-PRD mode)
+             # OR: <slug>  # when operating on a known slug
   existing_slugs: [<list from Phase 2>]
+  existing_reference: <bool>  # true iff docs/exec-plans/prds/<slug>.json exists on disk
+                              # — drafter omits PRD-frame fields in re-run mode
 
 constraints:
   append_only: true
   never_edit_existing: true
   layer_must_exist_in_architecture: true
   max_entries_per_run: 15
-  design_assets_shallow_read_only: true
+  ui_design_assets_shallow_read_only: true
+  prototype_read_role: drafter_only                       # frontend-designer reads later via the Design: marker; implementer never reads
 
-Return your structured YAML output. No prose.
+Return your structured YAML output per .claude/agents/backlog-drafter.md §Output Format. Drafter emits schema-shaped fields (lowercase `layer`, `contract` open-object, `oracle.{type, assertions, ...}`, plus PRD-frame fields when existing_reference is false). No prose.
 ```
 
-In prose mode, the skill synthesizes both a PRD file and the F##
-entries. The PRD narrative is derived from the intent by
-`backlog-drafter` and is written to disk atomically with the backlog
-append in Phase 6 (see Phase 6 Step 2a). The narrative MUST NOT
-contain F## IDs — scope-lint in the validator rejects those.
+`existing_reference` is computed by the skill: it checks
+`docs/exec-plans/prds/<slug>.json` for a pre-existing file. In
+new-PRD mode (file does not exist), the drafter emits the full PRD
+frame (`title`, `motivation`, `scope`, `design_facts`,
+`invariants_exercised`) and the skill seeds Card 0 from those
+verbatim. In re-run mode (file exists), the drafter omits the
+frame; the skill loads it from the on-disk JSON for Card 0
+seeding (or skips Card 0 entirely if the file already has a
+schema-valid frame — see Phase 5 Step 2a).
 
 **Parse the agent's return.** Expect the YAML schema in `.claude/agents/backlog-drafter.md` §Output Format. Validate:
 - `status` is one of the six allowed values.
 - If `status: ready_to_write` or `partial`: every `self_validation` field must be true.
+- `prd.slug` is non-null when `status ∈ {ready_to_write, partial}`.
 - Every `drafted_entries[].needs` id exists in `existing_features` or in the drafted set.
-- Every `drafted_entries[].section` is in `architecture_layers` or `summary.sections_to_create`.
-- Every path in any `drafted_entries[].design_assets` appears in `intent.design_assets[].path`.
-- Only UI-layer entries carry `design_assets`; others have empty or absent lists.
+- Every `drafted_entries[].layer` is in `{service, ui, cross-cutting, foundation}`.
+- Every `drafted_entries[].contract` is a non-empty object (≥ 1 key — placeholder counts).
+- Every `drafted_entries[].oracle.type` is in `{unit, integration, e2e, smoke}` and `oracle.assertions` is a non-empty array of strings.
+- Every path in any `drafted_entries[].ui_design_assets` appears in `intent.ui_design_assets[].path`.
+- Only UI-layer entries carry `ui_design_assets`; others have empty or absent lists.
+- When `prd.existing_reference: false` AND `status ∈ {ready_to_write, partial}`: the PRD-frame fields (`prd.title`, `prd.motivation`, `prd.scope.included`, etc.) are present and shape-valid (frame fields free of `\bF\d{2,}\b`; `motivation` ≤ 800 chars; `invariants_exercised[].invariant_id` matches `^INV-[0-9]{3,}$` and resolves in `repo_context.invariants[].id`).
+- When `prd.existing_reference: true`: PRD-frame fields are absent (the skill reads them from disk).
 
 **If the agent's output fails validation:** treat as a hard failure. Print the parsing error, clean up the session dir, exit. Do not attempt to fix the agent's output yourself.
 
@@ -286,15 +345,17 @@ the review surface reflects the consensus.
    failure: skip silently, proceed to Phase 4. Do not retry.
 2. Call `mcp__roundtable__roundtable-critique` with the drafted entries, the intent
    blob, `architecture_layers`, and `invariants`. Ask it to attack each
-   entry: wrong or mixed `section`, too-broad scope (smallest testable
-   unit violation), missing or circular `needs`, fuzzy `test_criterion`,
-   missing invariant enforcement, under-specified design asset coverage.
+   entry: wrong or mixed `layer`, too-broad scope (smallest testable
+   unit violation), missing or circular `needs`, contract that invents
+   keys without typographic signal, oracle assertions that under-specify
+   the acceptance, missing invariant enforcement, under-specified UI
+   design asset coverage.
 3. Call `mcp__roundtable__roundtable-canvass` with the critique output + original
    drafted entries. Synthesize a consensus slate: which entries keep,
    which split, which merge, which retitle, which reword test criteria.
 4. Apply the consensus edits to the in-memory drafted set ONLY if they
    pass the same validation rules applied to agent output (needs resolve,
-   sections exist, design asset paths are in `intent.design_assets`).
+   sections exist, design asset paths are in `intent.ui_design_assets`).
    Reject individual edits that would violate validation; keep the
    original entry in that case and log the rejection.
 5. Annotate each modified entry with a `<!-- SOURCE-ROUNDTABLE: ... -->`
@@ -342,10 +403,10 @@ The agent returned questions it couldn't resolve from the PRD alone.
 
 ## Phase 5: Conversational Review (per-card walkthrough)
 
-Match NORTH-STAR §Autonomy Ceiling line 103: `/keel-refine` "reviews
-each card conversationally with the human." Every drafted entry is
-walked individually before `commit` is valid — no block-review escape
-hatch, no "accept all" shortcut. Accuracy over speed.
+Match `docs/process/PIPELINE-DOCTRINE.md` §"Autonomy Ceiling":
+`/keel-refine` reviews each card conversationally with the human. Every
+drafted entry is walked individually before `commit` is valid — no
+block-review escape hatch, no "accept all" shortcut. Accuracy over speed.
 
 **Phase 5 rules:**
 
@@ -358,14 +419,13 @@ Print the slate first so the human has the shape before walking:
 ```
 Drafted {N} entries from {intent.source basename}:
 
-  F{id} {title}  → {section}  ({marker_count} markers)
-  F{id} {title}  → {section}  ({marker_count} markers)
+  F{id} {title}  → {layer}  ({marker_count} markers)
+  F{id} {title}  → {layer}  ({marker_count} markers)
   ...
 
 Summary:
-  Sections to create: {list or "none"}
   Collisions:         {list or "none"}
-  Unused assets:      {list or "none"}
+  Unused UI design assets: {list or "none"}
 
 Walking card {first_card} of {total_cards}...
 ```
@@ -379,41 +439,198 @@ Where:
 Orientation only. `commit` here is invalid — the walk hasn't started.
 Proceed to Step 2 immediately.
 
-### Step 2a — Card 0: the PRD narrative (prose/synthesized mode only)
+### Step 2a — Card 0: the PRD frame
 
-Before walking F## cards, present the synthesized PRD narrative for
-human edit. Applies only when a new PRD is being created this
-session (prose mode, no existing PRD file).
+Present the PRD-level fields — the frame of the JSON PRD under
+`schemas/prd.schema.json`. **Card 0 is walked in every mode**
+(new-PRD, file/bundle, re-run over an existing JSON PRD). Humans do
+not hand-edit JSON, so every frame-field change happens through Card
+0's verbs. Walking Card 0 in re-run mode is what catches PRD-frame
+drift — e.g., a new invariant in `repo_context.invariants[]` that
+should be added to `invariants_exercised[]`, or a scope bullet that
+the new feature set invalidates.
+
+**Seeding modes:**
+
+- **New-PRD mode** (`prd.existing_reference: false` — prose/interview,
+  or markdown/bundle source with no existing JSON PRD): every Card 0
+  field is seeded from the drafter's `prd.{title, motivation, scope,
+  design_facts, invariants_exercised}` output verbatim. The on-disk
+  `<slug>.json` does not yet exist.
+- **Re-run mode** (`prd.existing_reference: true` — existing JSON PRD
+  at `docs/exec-plans/prds/<slug>.json`): the drafter omits frame
+  fields; the skill seeds Card 0 from the on-disk JSON verbatim. The
+  walk lets the human edit the frame through Card 0 verbs — this is
+  the only editing surface for JSON frame fields.
+
+Field seeds (new-PRD mode reads drafter; re-run mode reads on-disk):
+
+- `slug` — from drafter's `prd.slug`. Editable via `edit slug`.
+- `title` — from drafter's `prd.title`. Editable via `edit title`.
+- `motivation` — from drafter's `prd.motivation` (drafter enforces
+  ≤ 800 chars + no `\bF\d{2,}\b`; the skill re-validates at accept
+  time). Editable via `edit motivation`.
+- `scope.included` / `scope.excluded` — from drafter's
+  `prd.scope.included[]` / `prd.scope.excluded[]`. Editable via
+  `add scope.{included,excluded}: <text>` / `drop scope.{included,excluded} <n>`
+  / `edit scope.{included,excluded}: <full list>`.
+- `design_facts` — from drafter's `prd.design_facts[]`. Editable via
+  `add design_fact: topic=<t> | decision=<d> | rationale=<r>` and
+  `drop design_fact <n>`.
+- `invariants_exercised` — from drafter's `prd.invariants_exercised[]`.
+  Each entry: `invariant_id` (drafter has confirmed it resolves in
+  `repo_context.invariants[].id`), optional `name`, `how_exercised`.
+  Editable via `add invariant_exercised: id=INV-### | name=<n> | how=<text>`
+  and `drop invariant_exercised <n>`. The skill rejects edits that
+  cite an `invariant_id` not in `repo_context.invariants[].id`. Hard
+  enforcement of citation existence at validation time lives in
+  `scripts/validate-prd-json.py` (`InvariantXrefValidator`), which
+  re-parses CLAUDE.md §Safety Rules so post-draft drift in CLAUDE.md
+  also surfaces as a halt with CTA.
+
+If the drafter omits a frame field in new-PRD mode (e.g. emits a
+`<!-- HUMAN: -->` marker because intent was under-specified), the
+skill carries that marker into the card display verbatim — the
+accept gate will reject until the human resolves it.
 
 Display:
 
 ```
-Card 0 of {N+1}: the PRD narrative (new file)
+Card 0 of {N+1}: the PRD frame (new JSON PRD)
 
-Slug: {proposed-slug}
-Path: docs/exec-plans/prds/{slug}.md
+Schema:   schemas/prd.schema.json (v1)
+Slug:     {proposed-slug}
+Path:     docs/exec-plans/prds/{slug}.json
+Title:    {seeded title}
+Motivation ({chars}/800):
+---
+{seeded motivation}
+---
 
-Narrative:
----
-{synthesized narrative content}
----
+Scope:
+  Included:
+    [1] {bullet 1}
+    [2] {bullet 2}
+    ...
+  Excluded:
+    (none)
+
+Design facts:
+  (none)
+
+Invariants exercised:
+  [1] INV-### ({name}) — {how_exercised}
+  ...
 
 Verbs:
-  accept                  — keep as synthesized, proceed to F## cards
-  edit slug: <new-slug>   — change the slug (will collision-check)
-  edit prd: <text>        — replace the full narrative
-  abort                   — discard session, no commit
+  accept                              — commit Card 0, proceed to F## cards
+  edit slug: <new-slug>               — change slug (collision-check runs)
+  edit title: <text>                  — set/replace PRD title
+  edit motivation: <text>             — set/replace motivation (≤800 chars)
+  add scope.included: <text>          — append a bullet
+  drop scope.included <n>             — drop bullet n
+  edit scope.included: <full list>    — replace entirely (semicolon-separated)
+  add scope.excluded: <text>          — append a bullet
+  drop scope.excluded <n>             — drop bullet n
+  add design_fact: topic=<t> | decision=<d> | rationale=<r>
+                                       — rationale optional; omit with rationale=none
+  drop design_fact <n>                — drop item n
+  add invariant_exercised: id=INV-### | name=<n> | how=<text>
+                                       — name optional
+  drop invariant_exercised <n>        — drop item n
+  abort                               — discard session, no commit
 ```
 
-Edits made here (`edit slug`, `edit prd`) are stored in session state
-and become the canonical input to Phase 6 Step 2a. The synthesized
-narrative produced by `backlog-drafter` is the starting draft only —
-once Card 0 is walked, the session holds the final slug and final
-narrative, and Phase 6 Step 2a writes that final text, not the
-original synthesis.
+**Card 0 accept gate.** `accept` is rejected with a specific reason
+if any of the following hold, with the card staying active so the
+user can correct:
+- `slug` doesn't match the schema pattern `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$` (e.g. `Auth V2`, `foo-`, or single-char forms fail).
+- `slug` collides with a slug already in `prd.existing_slugs` (other PRDs).
+- `title` is empty or still contains a `<!-- HUMAN:` marker.
+- `motivation` is empty, still contains a `<!-- HUMAN:` marker, or
+  exceeds 800 characters. Edit-time `edit motivation:` also rejects >800 chars without re-seeding.
+- `motivation`, any `scope.included[]` bullet, any `scope.excluded[]` bullet, or any `design_facts[].{topic,decision,rationale}` contains the regex `\bF\d{2,}\b` (feature IDs are derived facts in the backlog per P4 — they do not belong in narrative fields).
+- `scope.included` is empty (schema requires `minItems: 1`) OR any `scope.included[]` / `scope.excluded[]` bullet is the empty string (schema `minLength: 1`).
+- any `design_facts[]` entry is missing `topic` or `decision`, or has an empty `topic`/`decision` string (schema `minLength: 1`).
+- any `invariants_exercised[]` entry has an `invariant_id` that
+  doesn't match `^INV-[0-9]{3,}$`, or is missing `how_exercised`, or has an empty `how_exercised` (schema `minLength: 1`).
 
-If the invocation is file mode (PRD file already exists) or bundle
-mode, skip card 0 entirely and start at card 1.
+Every string-valued field in the schema carries `minLength: 1` implicitly
+where declared. `edit` / `add` verbs that set a field to the empty
+string are rejected at edit-time with `"<field> requires a non-empty
+value per schema."` — empty inputs never enter session state.
+
+Schema enums and patterns are the authority — when the validator
+in Phase 6 Step 4 would fail a field, Card 0 blocks commit at Step
+2a rather than discovering the failure after Write.
+
+Edits made here are stored in session state and become the
+canonical input to Phase 6 Step 2a. The drafter's frame fields
+(new-PRD mode) or the on-disk JSON (re-run mode) provide the
+starting draft only — once Card 0 is accepted, the session holds
+the final PRD-frame field values, and Phase 6 Step 2a assembles +
+writes the JSON from those values.
+
+**Re-run-mode invariant drift surfacing.** Before displaying Card 0
+in re-run mode, compute the diff between the on-disk
+`invariants_exercised[].invariant_id` set and the current
+`repo_context.invariants[].id` set:
+- Any cited ID that no longer resolves (invariant removed from
+  CLAUDE.md) → seed a HUMAN marker on Card 0 prompting the human
+  to drop or remap it. The accept gate already rejects unresolved
+  IDs.
+- Any newly-registered invariant in `repo_context` that does not
+  appear in `invariants_exercised` → emit an informational note
+  ("INV-### `<name>` was registered after this PRD was authored;
+  consider whether the drafted feature set exercises it."). Not an
+  accept-blocker — the human decides whether the invariant applies.
+
+This drift surface is the only mechanism that catches CLAUDE.md
+changes against an older PRD. Skipping Card 0 in re-run mode would
+let the drift survive the refinement session.
+
+### Step 2a-bis — Prototype disposition card (only when applicable)
+
+**Walked only when** `intent.prototype` is non-null AND the bundle did not include an on-disk `prototype.json` declaring the disposition fields. If a manifest was present, its `mode | stack_match | screens | notes` are taken verbatim and this card is skipped silently.
+
+The card collects ONLY the non-derivable intent that source enumeration cannot recover. Entry, file inventory, and route paths are autodetected — they are not asked again here (P4).
+
+```
+Prototype disposition (1 card)
+
+Detected:  <kind: single-file | directory> @ <relative entry path>
+Files:     <count> (HTML <h>, CSS <c>, JS <j>, images <i>, fonts <f>)
+Screens autodetected: [<label-or-path 1>, <label-or-path 2>, ...]
+
+Disposition:
+  mode:        reference (default) | seed
+  stack_match: false (default) | true
+  screens:     accept autodetected | edit
+  notes:       <empty>
+
+Verbs:
+  accept                      — keep all defaults; advance
+  set mode <reference|seed>
+  set stack_match <true|false>
+  edit screens                — open inline screen list editor
+                                (label, optional path, optional states[])
+  set notes <text>
+  next                        — same as accept; advance to F## walk
+```
+
+**Field semantics** (mirror `schemas/prototype.schema.json`):
+- `mode: reference` (default) — `frontend-designer` extracts visual/behavioral intent from the prototype but rebuilds in the target stack; never copies markup or styles verbatim. Safest default — handles stack mismatch and mature design systems.
+- `mode: seed` — `frontend-designer` may import patterns/styles from the prototype as a starting point. Still emits target-stack output (Tailwind classes, framework-idiomatic shapes). Choose only when the prototype's stack matches the target repo and the project has no existing design system to reconcile against.
+- `stack_match: false` (default) — assume the prototype's framework differs from the target repo. Forces re-derivation.
+- `stack_match: true` — prototype stack = target stack. Unlocks tighter pattern reuse in `seed` mode (no effect under `reference`).
+- `screens: [{label, path?, states?}]` — names that source cannot reliably recover (single-file artifacts with multiple modal states; hash-routed SPAs; sections without semantic IDs). Used as decomposition cues by Card walk and downstream agents. Defaults to autodetected list — accept as-is unless source missed something.
+- `notes` — free-form caveats for downstream agents (e.g. *"dropdown menus are placeholders, ignore for component design"*).
+
+**CLAUDE.md fallback for `mode`.** If the project's `CLAUDE.md` declares `Prototype mode: reference | seed` at the top level, that value seeds the card's default in place of `reference`. The manifest (when present) wins over CLAUDE.md; the card walk wins over the manifest's defaults if the user edits.
+
+**Materialization.** On `accept` / `next`, the disposition is held in session memory; Phase 6 Step 2 writes it to `<slug>/prototype/prototype.json` at commit time alongside the prototype files.
+
+**Card-walk grammar reuse.** This card uses the same `accept | next | back` advancing verbs as Card 0 and the F## walk. Per-field edits use the same `set <field> <value>` and `edit <field>` shapes — no new grammar.
 
 ### Step 2 — Walk each card in F## order
 
@@ -421,16 +638,93 @@ For each drafted entry, print the full card. The current card stays
 active until an advancing verb (`accept`, `drop F##`, `back`) is
 issued.
 
+**Card iteration set.** In new-PRD mode, walk the drafter's
+`drafted_entries[]` in order. In re-run mode (existing JSON PRD),
+walk the UNION: first the on-disk `features[]` in array order
+(seeded from JSON — humans can edit existing features via the
+same verbs), then any new entries from the drafter appended after.
+This is the only surface for editing existing features in a
+JSON PRD; without it, re-run mode would let stale frame/feature
+content survive a refinement session.
+
+**Field seeding from drafter output (new-PRD mode).** Each F##
+card's state is initialized once on first display. In re-run mode,
+seed from on-disk JSON instead:
+
+- `id`, `title`, `ui_design_assets` — verbatim from drafter
+  output (new-PRD) or on-disk `features[<i>]` (re-run).
+- `intra_needs[]` and `cross_needs[]` — the drafter's `needs[]` list
+  is partitioned at seed time (see "Needs partition" below).
+- `layer` — verbatim from drafter's `drafted_entries[<i>].layer`
+  (already lowercase schema enum thanks to Phase 2 Step 8) or
+  on-disk `features[<i>].layer` (re-run mode). The drafter's Phase
+  3 parse already rejects any out-of-enum value, so seeding cannot
+  produce an invalid layer in the normal path.
+- `contract` — verbatim from drafter's `drafted_entries[<i>].contract`
+  (new-PRD) or on-disk `features[<i>].contract` (re-run). Two shapes
+  are possible from the drafter:
+  - **Inferred:** one or more keys with concrete values (flavor (a)
+    in the drafter's contract-inference rule). Walk forward; the
+    human refines or accepts as-is.
+  - **Placeholder:** a single key `__HUMAN__` whose value starts with
+    `<!-- HUMAN: ...` (flavor (b) — drafter could not infer keys
+    without typographic signal). Satisfies `minProperties: 1` so the
+    schema parses, but the accept gate rejects until the human
+    replaces the placeholder via `set contract.<key>: <value>` calls.
+- `oracle.type` — verbatim from drafter (`unit` / `integration` /
+  `e2e` / `smoke`). Editable via `edit oracle.type`.
+- `oracle.assertions` — verbatim from drafter's
+  `drafted_entries[<i>].oracle.assertions[]`. If any element is a
+  `<!-- HUMAN: -->` marker, the accept gate rejects until edited.
+- `oracle.setup`, `oracle.actions`, `oracle.tooling`, `oracle.gating`
+  — verbatim from drafter when present, absent otherwise (schema
+  permits absence). Editable.
+- `source_tag`, `human_markers` — retained for the backlog-entry
+  emission in Phase 6 Step 3. Not displayed as schema fields in the
+  card (they do not appear in the JSON PRD).
+
+**Needs partition.** The drafter emits a flat `needs[]`. At seed
+time, partition each ID:
+- `intra_needs[]` — F## IDs that are in this session's feature set
+  (new-PRD mode: all drafted F## in this session; re-run mode:
+  existing on-disk `features[].id` ∪ new drafted F##). These emit
+  into the JSON PRD's `features[].needs[]` and are subject to the
+  schema xref validator.
+- `cross_needs[]` — F## IDs that appear in the repo-wide
+  `existing_features` but NOT in this PRD's feature set. These
+  represent dependencies on features owned by OTHER PRDs. They
+  are emitted ONLY to the backlog entry's `Needs:` line (visible
+  to `pre-check` through `backlog_fields.needs_ids`), never to
+  the JSON PRD.
+- Any ID that resolves to neither bucket is rejected at edit time
+  as a dangling reference.
+
 **Card display:**
 
 ```
 Card {n} of {N}:
 
-F{id} {title}                        → {section}
-  Spec:     {spec_ref}
-  Needs:    {comma-joined or "—"}
-  Design:   {comma-joined or "—"}
-  Test:     {test_criterion}
+F{id} {title}                        → {layer}
+  Needs (intra-PRD):  {comma-joined or "—"}
+  Needs (cross-PRD):  {comma-joined or "—"}
+  Design:             {comma-joined or "—"}
+
+  Contract:
+    {key}: {value}
+    ...
+
+  Oracle:
+    type:       {unit | integration | e2e | smoke}
+    setup:      {text or "—"}
+    actions:
+      [1] {action 1}
+      [2] {action 2}
+    assertions:
+      [1] {assertion 1}
+      [2] {assertion 2}
+      ...
+    tooling:    {text or "—"}
+    gating:     {text or "—"}
 
   Open markers:
     [1] {marker 1 text}
@@ -438,30 +732,86 @@ F{id} {title}                        → {section}
     ...
 
 Verbs:
-  accept                         — keep as drafted, advance
-  edit <field>: <value>          — replace title/section/test/spec/needs/design
-  answer marker <n>: <text>      — drop marker n, record answer; apply via
-                                   a follow-up `edit` if it belongs in a field
-  skip marker <n>                — ship marker as-is (pre-check will block
-                                   /keel-pipeline on this entry until a
-                                   human resolves it)
-  drop F##                       — remove this card from the draft, advance
-  back                           — revisit the prior card (no-op on card 1)
+  accept                              — commit this card, advance
+  edit title: <text>                  — set/replace title
+  edit layer: <value>                 — must be service|ui|cross-cutting|foundation
+  edit needs: <comma-joined F##>      — full list replace; IDs auto-classify
+                                        into intra_needs vs cross_needs at edit time
+                                        (see Needs partition above); unknown IDs rejected
+  edit design: <comma-joined paths>   — full list replace (must be in intent.ui_design_assets[])
+  set contract.<key>: <value>         — set/replace contract key (drops the drafter's
+                                        `__HUMAN__` placeholder key on first set);
+                                        blocked if value starts with `<!-- HUMAN:` (use an
+                                        edit to a real value, or answer the marker separately)
+  drop contract.<key>                 — remove a contract key; blocked if this would leave
+                                        contract empty (schema minProperties:1 — drop F## instead)
+  edit oracle.type: <enum>            — unit|integration|e2e|smoke
+  edit oracle.setup: <text>           — set setup (empty text clears to null/absent)
+  add oracle.action: <text>           — append action
+  drop oracle.action <n>              — remove action n
+  edit oracle.assertion <n>: <text>   — replace assertion n
+  add oracle.assertion: <text>        — append a new assertion
+  drop oracle.assertion <n>           — remove assertion n (blocked if it would empty the array)
+  edit oracle.tooling: <text>         — set/clear tooling
+  edit oracle.gating: <text>          — set/clear gating
+  answer marker <n>: <text>           — drop marker n, record answer; apply via
+                                        a follow-up `edit`/`set` if it belongs in a field
+  skip marker <n>                     — ship marker as-is (pre-check/test-writer will
+                                        halt on this entry at pipeline time until a
+                                        human resolves it)
+  drop F##                            — remove this card from the draft, advance
+  back                                — revisit the prior card (no-op on card 1)
 ```
 
 If the card has zero markers the `Open markers:` block is omitted
-entirely; `accept` is a single-keystroke advance. Zero-marker cards
-are still walked — the NORTH-STAR requirement is per-card
-conversation, not per-marker.
+entirely. Zero-marker cards are still walked — the NORTH-STAR
+requirement is per-card conversation, not per-marker. A zero-marker
+card is NOT automatically `accept`-eligible: the contract-placeholder
+block still applies.
 
-**Edit-time validation** applies to every `edit`, `answer marker`, and
-`drop` action:
+**Per-card accept gate.** `accept` is rejected with a specific reason
+if any of the following hold, with the card staying active:
+- `title` is empty or contains `<!-- HUMAN:`.
+- `layer` not in schema enum.
+- `contract` is empty, OR still carries the drafter's `__HUMAN__`
+  placeholder key whose value starts with `<!-- HUMAN:`, OR any
+  contract key is the literal `__HUMAN__`, OR any contract value
+  starts with `<!-- HUMAN:`. Contract is feature-specific and MUST
+  be authored before the card ships. A feature with no authorable
+  contract is not pipeline-ready — use `drop F##` and revisit when
+  the contract can be stated.
+- `oracle.assertions` is empty, OR any assertion contains
+  `<!-- HUMAN:`, OR any assertion is the empty string (schema
+  `minLength: 1`).
+- `oracle.type` not in schema enum.
+- `oracle.setup`, `oracle.tooling`, `oracle.gating` present with empty string
+  (if you want them absent, use `edit oracle.<field>:` with no text to clear).
+- any element of `oracle.actions[]` is empty.
+- `intra_needs[]` contains an F## that is not in this session's
+  feature set (new-PRD: drafted ids in this session; re-run:
+  existing on-disk + new drafted) — this would fail the JSON PRD
+  cross-ref validator.
+- `cross_needs[]` contains an F## that is not in the repo's
+  `existing_features` — dangling reference.
+
+`skip marker <n>` on a `human_markers[]` entry is the explicit
+escape hatch for shipping a known gap recorded on the BACKLOG
+ENTRY (not in the JSON PRD). The pipeline halts at pre-check or
+test-writer when a backlog entry carries unresolved HUMAN markers;
+the skill does not silently materialize them. This hatch does
+NOT let the walk ship a card with a placeholder contract or
+oracle.assertions — those fields are schema-required in the JSON
+PRD and have no "skip" path.
+
+**Edit-time validation** applies to every `edit`/`set`/`answer marker`/`drop` action:
 - `needs` must still resolve to real ids (existing features plus
   cards still present in the draft after any `drop`s in this walk).
-- `section` must still exist in `architecture_layers` or
-  `sections_to_create`.
-- `design_assets` entries must still be in `intent.design_assets[]`.
+- `layer` must be in the schema enum.
+- `ui_design_assets` entries must still be in `intent.ui_design_assets[]`.
 - Dep-cycle, title-dup, entry-cap checks.
+- `oracle.type` must be in schema enum.
+- `drop oracle.assertion <n>` is blocked if it would empty
+  `oracle.assertions[]` (schema requires `minItems: 1`).
 
 Reject a card-level action with a specific reason. Card stays active;
 user retries or advances.
@@ -480,7 +830,7 @@ Print:
 ```
 Walk complete. {N} cards drafted for PRD: {slug}.
 
-  [F##] {title}  → {section}  ({marker_count} markers)
+  [F##] {title}  → {layer}  ({marker_count} markers)
   ...
 
 Are all {N} F## entries from this PRD ready?
@@ -549,7 +899,7 @@ Re-read `feature-backlog.md` and SHA-256 it. Compare to the snapshot captured in
 
 Before touching the filesystem, take the pre-run snapshot described in
 the Atomicity block below. The snapshot MUST cover `feature-backlog.md`,
-the PRD file at `docs/exec-plans/prds/<slug>.md`, and the contents of
+the PRD file at `docs/exec-plans/prds/<slug>.json`, and the contents of
 `docs/exec-plans/prds/<slug>/assets/`. Step 2 moves assets into that
 directory, so the filename set of that directory MUST be captured
 BEFORE the first `mv` / `Write` / `rm` call runs. Without this, Step 4
@@ -557,7 +907,7 @@ validator failure leaves orphan assets in tracked territory.
 
 **Basename collision check.** Before moving any asset, enumerate the
 filenames that already exist in `docs/exec-plans/prds/<slug>/assets/`
-(the pre-session snapshot). For each `intent.design_assets[]` entry to
+(the pre-session snapshot). For each `intent.ui_design_assets[]` entry to
 be moved, check whether its basename already exists in that directory.
 If any collision is detected, halt with CTA:
 
@@ -569,33 +919,118 @@ If any collision is detected, halt with CTA:
 Only proceed with the move if every session asset has a unique basename
 relative to the pre-existing assets directory.
 
-For each `intent.design_assets[]` entry that was referenced by at least one drafted entry:
+**Two storage branches based on `intent.prototype`:**
+
+- **Flat-asset branch** (no prototype, OR `intent.prototype.kind == "single-file"`): assets land flat under `docs/exec-plans/prds/<slug>/assets/<basename>`. Single-file HTML artifacts are treated as flat assets — they have no internal structure to preserve.
+- **Prototype directory branch** (`intent.prototype.kind == "directory"`): the prototype's directory structure is preserved under `docs/exec-plans/prds/<slug>/prototype/<original-relative-path>`. The manifest (auto-drafted in Phase 5 Step 2a-bis or read from disk) is written to `docs/exec-plans/prds/<slug>/prototype/prototype.json`. The ignore-list filter (`{node_modules, dist, build, .next, .vite, .git, coverage, out}`) is applied at move time as a second-pass guard, even though Phase 1 enumeration already filtered — late additions during the session would otherwise leak.
+
+For each `intent.ui_design_assets[]` entry that was referenced by at least one drafted entry, route by branch:
+
+**Flat-asset branch:**
 - If the source path is under `.keel-refine-session/<id>/`: move it to `docs/exec-plans/prds/<slug>/assets/<basename>`. Create the target dir first if missing — `Write` a `.gitkeep` file into the empty dir to materialize it. Choose the copy method by file type:
-  - **Text-format assets (SVG, markdown):** prefer `Write` of the new file + Bash `rm` of the old (idempotent and auditable).
+  - **Text-format assets (SVG, markdown, single-file HTML):** prefer `Write` of the new file + Bash `rm` of the old (idempotent and auditable).
   - **Binary assets (PNG, JPG/JPEG, GIF, PDF):** MUST use Bash `mv` (or `cp` + `rm`). The `Write` tool is text-only and will corrupt binary content. Never use `Write` for binary files.
 - If the source path was already under `docs/` (bundle mode with pre-committed assets): leave in place.
-- Update the `design_assets` paths on drafted entries to reflect the final locations.
+- Update the `ui_design_assets` paths on drafted entries to reflect the final locations.
 
-Unused assets (in `intent.design_assets[]` but not referenced by any drafted entry): **leave in the session dir.** They get deleted on session end.
+**Prototype directory branch:**
+- Move every enumerated file (HTML, CSS, JS, images, fonts) under `docs/exec-plans/prds/<slug>/prototype/<original-relative-path>`. Subdirectories are recreated; `mkdir -p` the target parent before each `mv`. Binary files use `mv`/`cp` per the rules above.
+- Write the prototype manifest to `docs/exec-plans/prds/<slug>/prototype/prototype.json` from session state (auto-drafted Phase 5 disposition, or seeded from on-disk source manifest). Schema-validate it before write — if validation fails, halt with the validator's output and roll back per the Atomicity block.
+- Update `ui_design_assets` paths on drafted entries to point inside `prototype/`.
 
-Under the PRD-scope model, assets live under their PRD's folder (`docs/exec-plans/prds/<slug>/assets/`). The legacy `docs/prds/drafts/<timestamp>/` path is obsolete — do not create it.
+Unused assets (in `intent.ui_design_assets[]` but not referenced by any drafted entry): **leave in the session dir.** They get deleted on session end. The prototype manifest is always referenced (it co-locates with the prototype it describes) and is always written.
 
-### Step 2a — Write or update the PRD file
+Under the PRD-scope model, all per-PRD content lives under `docs/exec-plans/prds/<slug>/`: flat assets in `assets/`, prototype contents in `prototype/`. The legacy `docs/prds/drafts/<timestamp>/` path is obsolete — do not create it.
 
-- **Prose mode (new PRD):** Write the **final PRD narrative** to
-  `docs/exec-plans/prds/<slug>.md`. Atomic `Write` call. The "final
-  narrative" is the text as finalized through Card 0 edits in Phase 5
-  Step 2a — NOT the original text synthesized by `backlog-drafter`.
-  If the human typed `edit prd: <text>` during the walk, use THAT
-  text. Likewise for `edit slug: <new-slug>` — the final slug becomes
-  the basename of the file path.
-- **File/bundle mode (existing PRD):** Copy the source PRD into
-  `docs/exec-plans/prds/<slug>.md` if it isn't already there.
-  Preserve the narrative verbatim.
-- Create the parent directory `docs/exec-plans/prds/` if it does not
-  exist. Use `mkdir -p` (or equivalent) via `Bash` before the `Write`
-  call. This is the first-PRD case on a project that has never run
-  `/keel-refine` before — without this step, the `Write` fails.
+### Step 2a — Assemble and write the JSON PRD
+
+Assemble the JSON PRD document from session state — Card 0's
+PRD-frame fields plus every Card n's feature fields. Emit exactly
+the shape required by `schemas/prd.schema.json` (schema_version 1):
+
+```json
+{
+  "schema_version": 1,
+  "id": "<final slug from Card 0>",
+  "title": "<final title from Card 0>",
+  "motivation": "<final motivation from Card 0 (≤800 chars)>",
+  "scope": {
+    "included": ["<bullet 1>", "<bullet 2>", "..."],
+    "excluded": ["<bullet 1>", "..."]
+  },
+  "design_facts": [
+    {"topic": "<t>", "decision": "<d>", "rationale": "<r or null>"}
+  ],
+  "invariants_exercised": [
+    {"invariant_id": "INV-###", "name": "<optional>", "how_exercised": "<text>"}
+  ],
+  "features": [
+    {
+      "id": "F##",
+      "title": "<final>",
+      "layer": "<service|ui|cross-cutting|foundation>",
+      "needs": ["F##", "..."],
+      "contract": { "<key>": "<value>", "...": "..." },
+      "oracle": {
+        "type": "<unit|integration|e2e|smoke>",
+        "assertions": ["<a1>", "..."],
+        "setup": "<string or omit>",
+        "actions": ["<a1>", "..."],
+        "tooling": "<string or omit>",
+        "gating": "<string or omit>"
+      }
+    }
+  ]
+}
+```
+
+Emission rules:
+- Serialize with 2-space indent, UTF-8, trailing newline.
+- Features emitted in the order they were walked (Card 1 → Card N).
+- Each feature's JSON `needs[]` emits ONLY the card's
+  `intra_needs[]` (IDs in this PRD's feature set). Cross-PRD
+  dependencies in `cross_needs[]` are NOT emitted to the JSON PRD
+  — they live only on the backlog entry's `Needs:` line. This
+  keeps the JSON PRD cross-ref validator satisfied while preserving
+  the cross-PRD dependency information for `pre-check` to read.
+- Within `intra_needs[]`, preserve the order typed during the walk
+  (no sort).
+- For each feature's oracle, emit only the optional fields
+  (`setup`, `actions`, `tooling`, `gating`) if Card n set them to
+  non-empty values. Absent from the card state → absent from JSON.
+- For each `design_facts[]` entry, `rationale` is emitted as `null`
+  if the human set `rationale=none`, as the string otherwise, and
+  omitted if the Card 0 `add design_fact:` call omitted the
+  `rationale=` part (schema permits omission).
+
+**Prose/interview/markdown-source modes (new JSON PRD):**
+`Write` the assembled JSON to
+`docs/exec-plans/prds/<slug>.json`. Atomic `Write` call. No
+pre-existing file is read; the skill is the authoritative source
+this session.
+
+**File/bundle mode (existing JSON PRD):** On re-run over an
+already-structured JSON PRD, the Card walk continues from the
+existing contents (Card 0 skipped, Cards 1..N seed from existing
+`features[]` by `id`; new F## entries from this session become
+additional features). The final `Write` overwrites the file with
+the reassembled JSON.
+
+**File/bundle mode (legacy markdown source):** The source .md is
+raw material — read it in Phase 1 for `intent.content`, but never
+write it to `docs/exec-plans/prds/`. The final artifact is JSON at
+`<slug>.json`.
+
+- Create the parent directory `docs/exec-plans/prds/` if it does
+  not exist. Use `mkdir -p` (or equivalent) via `Bash` before the
+  `Write` call. This is the first-PRD case on a project that has
+  never run `/keel-refine` before — without this step, the `Write`
+  fails.
+- The F## IDs MUST NOT appear inside `motivation`, `scope.included`,
+  `scope.excluded`, or `design_facts[].{topic,decision,rationale}` —
+  feature IDs are derived facts in the backlog, per P4 (no
+  redundant storage). Features own their IDs in `features[].id`
+  and nowhere else in the PRD.
 
 **Step 3 — Write backlog entries.**
 
@@ -604,57 +1039,99 @@ Compute the full set of per-section appended blocks. Per-entry format (exact):
 ```markdown
 
 - [ ] **F## Title**
-  Spec: <spec_ref><if needs non-empty: " | Needs: <comma-joined needs>">
-  <if design_assets non-empty:>Design: <comma-joined design_asset paths>
+  <if intra_needs ∪ cross_needs non-empty:>Needs: <comma-joined intra_needs ∪ cross_needs>
+  <if ui_design_assets non-empty:>Design: <prototype-marker?> <comma-joined design_asset paths>
   PRD: <slug>  <!-- OR: PRD-exempt: <legacy|bootstrap|infra|trivial> -->
-  Test: <test_criterion>
   <!-- DRAFTED: {ISO-date} by backlog-drafter; {len(human_markers)} markers remain -->
   {source_tag}
   <!-- HUMAN: {marker 1} -->
   ...
 ```
 
+**Prototype marker on the Design: line.** When at least one path in the entry's `ui_design_assets` lives under `docs/exec-plans/prds/<slug>/prototype/`, prepend a single bracketed token disclosing the disposition: `[prototype:reference]` or `[prototype:seed]` (matching `intent.prototype.mode`). Examples:
+
+```
+Design: [prototype:reference] docs/exec-plans/prds/auth/prototype/index.html, docs/exec-plans/prds/auth/prototype/dashboard.html
+Design: [prototype:seed] docs/exec-plans/prds/lp/prototype/index.html
+Design: docs/exec-plans/prds/auth/assets/wireframe.png  <!-- no prototype, no marker -->
+```
+
+The marker is a wire signal for downstream agents: `pre-check` strips it when parsing `Needs:` neighbors and forwards the disposition into the resolved brief; `frontend-designer` reads the disposition without re-parsing the manifest; `implementer` learns the path family is off-limits without needing to read prototype contents to find out.
+
+If an entry mixes prototype paths and flat-asset paths in `ui_design_assets`, the marker still applies — the disposition tags the entry, not the individual paths. The flat-asset paths stay readable as before; only the prototype paths are subject to the disposition's role-gated read rules.
+
+`Needs:` union order: first the `intra_needs[]` in walk order, then
+the `cross_needs[]` in walk order, comma-joined. `pre-check`'s
+resolver already tolerates both on-this-PRD and cross-PRD IDs in
+the backlog `Needs:` field (via `backlog_fields.needs_ids`), so
+this one line feeds both dependency checks.
+
+The emission format omits `Spec:` and `Test:` lines. Under the
+single-path JSON-only doctrine, the JSON PRD at `PRD: <slug>` IS
+the spec (contract + oracle), and the JSON PRD's `oracle.assertions[]`
+is the acceptance source. Emitting either line would duplicate
+derivable data (P4 violation) and risk drift with the JSON PRD.
+
 Every drafted F## entry MUST carry exactly one of:
-- `PRD: <slug>` — pointing at the PRD file written or updated in Step 2a (the `<slug>` matches the basename of `docs/exec-plans/prds/<slug>.md`), OR
+- `PRD: <slug>` — pointing at the JSON PRD file written or updated in Step 2a (the `<slug>` matches the basename of `docs/exec-plans/prds/<slug>.json`), OR
 - `PRD-exempt: <reason>` — where `<reason>` is one of `legacy`, `bootstrap`, `infra`, `trivial`. Only applies to narrow carve-outs; a standard refine run writing a PRD in Step 2a emits `PRD: <slug>` on every entry.
 
 Entries missing both forms violate invariant 7 and will fail `validate-prds.py` in Step 4.
 
-Formatting rules (same as before, with `Design:` and `PRD:` added):
+Formatting rules:
 - Blank line before the entry.
 - `source_tag` is emitted as-is (full `<!-- SOURCE: ... -->` comment). Do NOT re-wrap.
-- `| Needs: ...` segment omitted when empty. No trailing pipe.
-- `Design:` line omitted entirely when `design_assets` is empty.
+- `Needs:` line omitted entirely when both `intra_needs[]` AND `cross_needs[]` are empty. Otherwise emit on its own line (no `|` separator into `Spec:` since `Spec:` is no longer emitted).
+- `Design:` line omitted entirely when `ui_design_assets` is empty. When present, it carries an optional `[prototype:<mode>]` marker (see "Prototype marker on the Design: line" above) iff any listed path lives under `<slug>/prototype/`.
 - `PRD:` (or `PRD-exempt:`) line is mandatory on every entry. Never omit.
 - HUMAN markers indented two spaces. One per line.
 - `DRAFTED:` prefix with colon — load-bearing for `doc-gardener`.
+- No `Spec:` line. No `Test:` line. See preceding block.
 
 **Atomicity (covers backlog, PRD file, and PRD assets):**
 - Compute all appends in memory.
 - Snapshot pre-run state BEFORE the first mutating operation in Phase 6 Step 2. The snapshot MUST cover:
   - `feature-backlog.md` — full text.
-  - `docs/exec-plans/prds/<slug>.md` — full text if the file existed pre-session; otherwise record "absent" so rollback knows to delete rather than restore.
+  - `docs/exec-plans/prds/<slug>.json` — full text if the file existed pre-session; otherwise record "absent" so rollback knows to delete rather than restore.
   - `docs/exec-plans/prds/<slug>/assets/` — record the set of filenames that existed in this directory pre-session (may be empty, or the directory may not exist yet). Rollback restores this exact pre-session state: remove any file added during this session, keep any file that was already present.
+  - `docs/exec-plans/prds/<slug>/prototype/` — record the set of relative paths (file tree) that existed pre-session, including `prototype.json`. Same restore semantics as `assets/`. The prototype-directory branch in Step 2 may add nested subdirectories; rollback must `rm` every file added this session and `rmdir` every empty subdirectory it created.
 - One `Edit` per section in fixed order (Bootstrap → Foundation → Service → UI → Cross-cutting). Multiple sections → multiple `Edit` calls.
 - On any failure (including validator failure in Step 4):
   1. Restore `feature-backlog.md` from snapshot via a full-file `Write`.
-  2. Either delete `docs/exec-plans/prds/<slug>.md` (if newly-created this session) or restore it from snapshot (if it pre-existed).
+  2. Either delete `docs/exec-plans/prds/<slug>.json` (if newly-created this session) or restore it from snapshot (if it pre-existed).
   3. Remove any file under `docs/exec-plans/prds/<slug>/assets/` that was added during this session — i.e., any file whose name is NOT in the pre-session filename set. Use Bash `rm` per path. If the `assets/` directory did not exist pre-session and is empty after the cleanup, `rmdir` it. Files that existed pre-session MUST be left untouched.
-  4. If `docs/exec-plans/prds/<slug>/` was created by this session (i.e., did not exist pre-session) AND is empty after step 3, `rmdir` it. If it contained pre-existing content, leave it.
-  5. If `docs/exec-plans/prds/` was created by this session (first-PRD case) AND is empty after step 4, `rmdir` it. If it already existed pre-session or contains other PRDs, leave it.
-  6. Abort.
+  4. Remove any file under `docs/exec-plans/prds/<slug>/prototype/` that was added during this session (path NOT in the pre-session set), then `rmdir` every empty subdirectory bottom-up. If the `prototype/` directory did not exist pre-session and is empty after the cleanup, `rmdir` it. Files that existed pre-session MUST be left untouched.
+  5. If `docs/exec-plans/prds/<slug>/` was created by this session (i.e., did not exist pre-session) AND is empty after steps 3–4, `rmdir` it. If it contained pre-existing content, leave it.
+  6. If `docs/exec-plans/prds/` was created by this session (first-PRD case) AND is empty after step 5, `rmdir` it. If it already existed pre-session or contains other PRDs, leave it.
+  7. Abort.
 
-The snapshot-and-rollback MUST include assets because Phase 6 Step 2 moves session-staged design files into `docs/exec-plans/prds/<slug>/assets/` before the backlog/PRD writes happen. Without asset rollback, a late failure (e.g., validator failure in Step 4) leaves orphan asset files in tracked territory while the backlog and PRD get restored — the session would leak pollution.
+The snapshot-and-rollback MUST include both `assets/` AND `prototype/` because Phase 6 Step 2 moves session-staged design files into one or both directories before the backlog/PRD writes happen. Without rollback covering both, a late failure (e.g., validator failure in Step 4) leaves orphan files in tracked territory while the backlog and PRD get restored — the session would leak pollution.
 
 **Step 4 — Stage and commit.**
 
 Collect the set of paths to stage:
 - `docs/exec-plans/active/feature-backlog.md` (always, if changed)
-- `docs/exec-plans/prds/<slug>.md` (the PRD file written or updated in Step 2a)
+- `docs/exec-plans/prds/<slug>.json` (the JSON PRD written in Step 2a)
 - Any files under `docs/exec-plans/prds/<slug>/assets/` (new asset files, if any)
+- Any files under `docs/exec-plans/prds/<slug>/prototype/` (new prototype files, including `prototype.json`, if any — the prototype-directory branch only)
 - Any new section heading creations in the backlog (already part of the backlog file)
 
-- Before `git add`, run `python3 scripts/validate-prds.py --repo .`. If validator exits non-zero, abort Phase 6 with the validator's halt message. Do not proceed with materialization.
+**Step order (important — read carefully).** The JSON write in
+Step 2a and the backlog append in Step 3 have ALREADY mutated the
+filesystem by the time Step 4 runs. The validators below run
+POST-WRITE against files on disk, not in memory. On non-zero exit,
+control flows to the atomicity rollback from Step 3 — restoring
+`feature-backlog.md`, `<slug>.json`, and `<slug>/assets/` to their
+pre-session state — and the skill aborts without staging or
+committing.
+
+- Run validators. On non-zero exit from any, emit the
+  validator's halt message verbatim and trigger the Step 3
+  atomicity rollback. Do not `git add`, do not commit:
+  1. `uv run scripts/validate-prd-json.py docs/exec-plans/prds/<slug>.json` — JSON Schema validation + cross-reference integrity on the PRD written in Step 2a.
+  2. `python3 scripts/validate-prds.py --repo .` — invariant 7 coverage across the backlog (every post-cutoff F## carries `PRD:` or `PRD-exempt:`) plus backlog-side artifact integrity.
+  3. (Conditional) `uv run scripts/validate-prototype-json.py docs/exec-plans/prds/<slug>/prototype/prototype.json` — only when the prototype-directory branch wrote a manifest in Step 2. Validates shape against `schemas/prototype.schema.json`.
+
 
 Execute via `Bash`:
 ```
@@ -676,16 +1153,17 @@ Print:
 ```
 Committing: <message>
   docs/exec-plans/active/feature-backlog.md  (+<lines> lines)
-  docs/exec-plans/prds/<slug>.md  (new | updated)
+  docs/exec-plans/prds/<slug>.json  (new | updated, schema v1)
   {each new asset path under docs/exec-plans/prds/<slug>/assets/} (new)
+  {each new prototype path under docs/exec-plans/prds/<slug>/prototype/} (new)
+  docs/exec-plans/prds/<slug>/prototype/prototype.json  (new | updated, mode <reference|seed>)
 
 [<short-sha>] <message>
 
-Next: /keel-pipeline F<first-id> docs/product-specs/<spec>.md when ready.
-      Specs referenced by drafted entries:
-        <spec_ref> — does not yet exist, author before piping
-        ...
+Next: /keel-pipeline F<first-id> docs/exec-plans/prds/<slug>.json when ready.
 ```
+
+Lines for branches that did not run (no flat assets, no prototype) are omitted.
 
 No confirmation prompt. User who wants a different message uses `git commit --amend -m "..."` after the fact.
 
@@ -711,11 +1189,11 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 
 **Writes:**
 - `.keel-refine-session/**` — session workspace, ephemeral.
-- `docs/exec-plans/prds/<slug>.md` — PRD narrative file, written or updated at commit time.
+- `docs/exec-plans/prds/<slug>.json` — structured JSON PRD (schema v1), written at commit time.
 - `docs/exec-plans/prds/<slug>/assets/**` — referenced design assets, moved from session dir at commit time.
 - `docs/exec-plans/active/feature-backlog.md` — appended to at commit time.
 - `.gitignore` — append `.keel-refine-session/` one time, in preflight, only if missing.
-- No other write path. Not code files. Not spec files. Not `ARCHITECTURE.md` or `CLAUDE.md`.
+- No other write path. Not code files. Not legacy markdown PRDs under `docs/exec-plans/prds/`. Not `ARCHITECTURE.md` or `CLAUDE.md`.
 
 **Reads:**
 - Any repo file for context.
@@ -726,12 +1204,12 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 - Agent output is authoritative — do not second-guess, fix, or silently skip entries. If validation fails, abort.
 - Interview answers are stateless across invocations; a fresh `/keel-refine` starts a new session.
 - Bootstrap is sacred. If the agent returns `bootstrap_gap`, route the human to `/keel-adopt`. Never emit bootstrap-pipeline tasks. Brownfield projects carrying `<!-- KEEL-BOOTSTRAP: not-applicable -->` are considered bootstrap-satisfied — `next_free_id` starts at F01 because shipped placeholders are filtered in Phase 2.
-- Specs are human territory. This skill never creates spec files, not even empty stubs. `Spec:` paths are forward references.
+- The PRD is KEEL-authored, human-steered. The skill writes `<slug>.json` from the Card 0 + Card 1..N walk state. Humans edit fields conversationally via verbs, not in an external editor. Re-invoke `/keel-refine` on an existing PRD to revise it through the same gates.
 
 **Format/size (paste-time validation):**
-- Formats: PNG, JPG/JPEG, GIF, SVG, PDF.
-- Per-file cap: 20 MB.
-- PDF page cap: 20 pages.
+- Formats: PNG, JPG/JPEG, GIF, SVG, PDF, HTML. Bundle-directory mode additionally accepts CSS, JS/MJS, fonts (WOFF/WOFF2/TTF/OTF), and JSON (`prototype.json` only) — these support working-prototype bundles and are never standalone pasted attachments.
+- Per-file cap: 20 MB (heuristic; see Phase 1 provenance note).
+- PDF page cap: 20 pages at paste time (heuristic anchored to the `Read` tool's per-request limit; see Phase 1 PDF row).
 - Reject at paste with a clear error message. Never silently drop or truncate.
 
 ## Failure Modes (skill-level)
@@ -742,8 +1220,11 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 | Preflight fails (bootstrap gate) | Neither F01–F03 ticked nor marker present | Print three-option A/B/C message, exit |
 | `.gitignore` missing `.keel-refine-session/` | New install or user removed it | Append the line (one `Edit`), announce, proceed |
 | PRD path doesn't resolve | User typo | Print fix suggestion, exit |
-| PRD dir has no `README.md` | User misused bundle mode | Print fix suggestion, exit |
+| Bundle dir has no HTML and no `README.md` | User misused bundle mode | Print fix suggestion: "Add a README.md with intent prose, or include an HTML prototype." |
+| Bundle dir has ≥2 HTML files, none `index.html`, no manifest | Ambiguous prototype entry | Halt with CTA naming candidates (Phase 1 step 3) |
+| Bundle dir exceeds 50 files or 100 MB | Build artifacts not pruned | Halt with CTA naming counts; prune `dist/`, `out/`, `node_modules/`, etc. |
 | Pasted file exceeds format/size cap | Wrong format or too large | Print specific error, do not write anything, exit |
+| Prototype manifest fails schema validation | Bad `prototype.json` | Emit validator output verbatim, halt before drafter dispatch |
 | Agent returns malformed YAML | Agent failure | Print parsing error, clean up session dir, exit |
 | Agent returns `ready_to_write` with a false `self_validation` field | Agent misbehavior | Treat as parsing error — do NOT enter review |
 | User action in Phase 5 walk violates validation | Bad edit / answer / drop | Reject with reason; active card stays active; no advance |
@@ -760,5 +1241,7 @@ The skill exits at Phase 6 with a commit in place. The human's next action is ei
 - `backlog-drafter` returns structured YAML to this skill (not a handoff file). Only consumer of the pattern today. If more agents adopt it, factor a shared parser.
 - The `<!-- DRAFTED: ... -->` comment is removed by `doc-gardener` during the post-landing sweep once the entry is `[x]`. Don't worry about long-term hygiene here.
 - The `<!-- SOURCE: ... -->` tag is permanent — it's the idempotency anchor. Future `/keel-refine` runs use it to detect "already drafted from this source."
-- `docs/exec-plans/prds/<slug>/assets/` is the canonical home for assets belonging to a drafted PRD. Over time a human may choose to move them into `docs/design-assets/shared/` or a per-feature directory. `doc-gardener` does not touch these — they're historical record.
-- Claude Code's `Read` tool handles PNG, JPG, SVG, and PDF (up to 20 pages with `pages` param) natively via vision. That's why the `backlog-drafter` and `frontend-designer` agents can see design assets without any intermediary parsing agent.
+- `docs/exec-plans/prds/<slug>/assets/` is the canonical home for flat assets (images, single-file HTML artifacts, PDFs) belonging to a drafted PRD. Over time a human may choose to move them into `docs/design-assets/shared/` or a per-feature directory. `doc-gardener` does not touch these — they're historical record.
+- `docs/exec-plans/prds/<slug>/prototype/` is the canonical home for working UI/UX prototypes (multi-file HTML+CSS+JS bundles) plus their `prototype.json` manifest. Internal directory structure is preserved so the prototype remains locally runnable from the PRD slug dir. `doc-gardener` does not touch these.
+- Claude Code's `Read` tool handles PNG, JPG, GIF, SVG, and PDF natively via vision. PDFs need the `pages` parameter when >10 pages, with a hard 20-page-per-request limit; agents that paginate can read arbitrarily long PDFs in multiple calls. HTML/CSS/JS are read as text (markup or source) — downstream agents extract structure, layout, and state cues from the source rather than a rendered view. Both modes give the `backlog-drafter` and `frontend-designer` agents enough signal to work without an intermediary parsing agent.
+- The prototype-disposition card (Phase 5 Step 2a-bis) is walked only when bundle ingestion detected a prototype shape AND no on-disk `prototype.json` was present. It collects only non-derivable intent — `mode`, `stack_match`, named screens/states, notes — and never re-asks for derivable info like the entry path or file inventory (P4).

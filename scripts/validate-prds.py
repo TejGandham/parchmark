@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
-"""Validate invariant 7 across the backlog + PRD files.
+"""Validate invariant 7 — PRD link integrity on backlog entries.
+
+Checks every F## entry on the backlog carries either `PRD: <slug>` or
+`PRD-exempt: <reason>` (XOR), and that each `PRD: <slug>` resolves to
+an existing PRD file under `docs/exec-plans/prds/`.
+
+**Extension handling.** The pipeline canon (NORTH-STAR §"Feature
+input canon — single path, JSON PRDs only") is structured JSON at
+`<slug>.json`. This validator also accepts a legacy `<slug>.md` for
+unmigrated repos and emits a stderr deprecation warning naming the
+JSON canonical path; the `.md` PRD passes link integrity but the
+warning steers the human to migrate via `/keel-refine`.
+
+Scope: backlog-side invariant 7 enforcement only. For structural
+validation of the PRD JSON content itself (schema, oracle shape,
+cross-references), see the sibling `validate-prd-json.py`.
 
 Stdlib-only. Python 3.10+. Cross-platform.
 
 See docs/design-docs/2026-04-23-keel-prd-scope-design.md §"Validator"
+(invariant 7 design),
+docs/design-docs/2026-04-24-structured-prds.md (JSON PRD direction),
 and docs/process/KEEL-PRINCIPLES.md for the principles this enforces.
 """
 
@@ -16,11 +33,11 @@ from pathlib import Path
 
 ALLOWED_EXEMPT_REASONS = {"legacy", "bootstrap", "infra", "trivial"}
 MARKER_RE = re.compile(r"<!--\s*KEEL-INVARIANT-7:\s*legacy-through=F(\d+)\s*-->")
-# Slug alphabet mirrors SLUG_RE in scripts/keel-prd-view.py: a PRD slug must
-# start AND end with [a-z0-9] so the viewer accepts it. Rejects trailing-hyphen
-# forms like "foo-" or "foo--". Keeping the alphabets aligned prevents
-# validate-prds from silently blessing slugs (e.g. "-foo", "foo-") that the
-# viewer would later reject. Single-char slugs (e.g. "a") still match.
+# Slug alphabet mirrors the PRD `id` pattern in schemas/prd.schema.json:
+# `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`. Rejects trailing-hyphen forms like
+# "foo-" or "foo--". Keeping alphabets aligned prevents validate-prds from
+# silently blessing slugs that the JSON schema would later reject when the
+# markdown PRD is migrated. Single-char slugs (e.g. "a") still match.
 PRD_FIELD_RE = re.compile(r"^\s*PRD:\s*([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)\s*$", re.MULTILINE)
 PRD_EXEMPT_RE = re.compile(r"^\s*PRD-exempt:\s*(\S+)", re.MULTILINE)
 F_PROSE_RE = re.compile(r"(?<![#/\w])F\d{2,}\b")
@@ -203,7 +220,7 @@ def validate(repo: Path) -> list[str]:
         if not prds and not exempts:
             errors.append(
                 f"F{fid:02d} is past the legacy cutoff F{cutoff:02d}; missing PRD: and PRD-exempt:. "
-                f"Fix: add PRD: <slug> pointing at docs/exec-plans/prds/<slug>.md, "
+                f"Fix: add PRD: <slug> pointing at docs/exec-plans/prds/<slug>.json, "
                 f"or add PRD-exempt: <reason> where reason is one of "
                 f"{sorted(ALLOWED_EXEMPT_REASONS)}."
             )
@@ -211,13 +228,29 @@ def validate(repo: Path) -> list[str]:
 
         if prds:
             slug = prds[0]
-            prd_path = prd_dir / f"{slug}.md"
-            if not prd_path.exists():
+            # Pipeline canon (NORTH-STAR §Feature input canon): PRDs are
+            # structured JSON at <slug>.json. Legacy <slug>.md is accepted for
+            # unmigrated repos and triggers a stderr deprecation warning that
+            # names the canonical .json path so the human can migrate via
+            # /keel-refine.
+            prd_path_json = prd_dir / f"{slug}.json"
+            prd_path_md = prd_dir / f"{slug}.md"
+            if prd_path_json.exists():
+                pass  # canonical path
+            elif prd_path_md.exists():
+                print(
+                    f"warning: F{fid:02d} references PRD '{slug}' which exists only as "
+                    f"{prd_path_md}. Pipeline canon is structured JSON at "
+                    f"{prd_path_json}. Migrate via /keel-refine.",
+                    file=sys.stderr,
+                )
+            else:
                 errors.append(
-                    f"F{fid:02d} references PRD '{slug}' but "
-                    f"{prd_path} does not exist. "
-                    f"Fix: create the PRD file, rename the slug, or mark "
-                    f"F{fid:02d} as PRD-exempt with a valid reason."
+                    f"F{fid:02d} references PRD '{slug}' but neither "
+                    f"{prd_path_json} nor {prd_path_md} exists. "
+                    f"Fix: run /keel-refine to author the structured JSON PRD, "
+                    f"rename the slug, or mark F{fid:02d} as PRD-exempt with "
+                    f"a valid reason."
                 )
             referenced_slugs.add(slug)
 
@@ -229,24 +262,33 @@ def validate(repo: Path) -> list[str]:
                     f"got '{reason}'."
                 )
 
-    # Orphan detection: PRD files with no references.
+    # Orphan detection: PRD files (both .json and .md during transition)
+    # with no references. Scope-lint (F## IDs in prose) runs only on markdown
+    # PRDs — it's not meaningful for structured JSON content.
     if prd_dir.exists():
-        for prd_file in prd_dir.glob("*.md"):
+        for prd_file in sorted(
+            list(prd_dir.glob("*.json")) + list(prd_dir.glob("*.md"))
+        ):
             if prd_file.stem not in referenced_slugs:
                 errors.append(
                     f"PRD file {prd_file} is not referenced by any F## in the backlog. "
                     f"Fix: either delete the orphaned PRD or add F## entries that reference it."
                 )
 
+            if prd_file.suffix != ".md":
+                continue
+
             # Scope lint: no F## IDs in prose (ignore fenced/inline code).
+            # Applies to legacy markdown PRDs only.
             text = prd_file.read_text(encoding="utf-8")
             stripped_text = strip_code_blocks(text)
             for m in F_PROSE_RE.finditer(stripped_text):
                 errors.append(
                     f"PRD prose {prd_file} contains F## reference '{m.group(0)}'. "
                     f"Narrative must use theme-level language, not IDs. "
-                    f"Fix: rewrite the prose to describe themes/scope; use "
-                    f"scripts/keel-prd-view.py {prd_file.stem} when you need the feature list."
+                    f"Fix: rewrite the prose to describe themes/scope; the "
+                    f"feature list lives on docs/exec-plans/active/feature-backlog.md "
+                    f"(F## entries tagged `PRD: {prd_file.stem}`)."
                 )
 
     return errors

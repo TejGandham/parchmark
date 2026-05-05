@@ -17,22 +17,28 @@ Conflict resolution follows P6 (authority hierarchy): code > spec > backlog > PR
 
 ## Arguments
 
-The user provides a feature name and spec path:
+The user provides a feature ID and PRD path:
 ```
-/keel-pipeline my-feature docs/product-specs/my-spec.md
+/keel-pipeline F04 docs/exec-plans/prds/my-feature.json
 ```
 
-If no spec path given, ask for one. If no spec exists yet, tell the user to write the spec first — docs drive code.
+The PRD path MUST be a structured JSON PRD. If the path ends in `.md`
+or any non-JSON extension, HALT with:
+> *"PRD path must be a structured JSON file at `docs/exec-plans/prds/<slug>.json`. If you have a markdown spec or prose input, run `/keel-refine` first — it converts non-JSON inputs into structured JSON PRDs. See `docs/process/PIPELINE-DOCTRINE.md` §'Feature input canon — single path, JSON PRDs only'."*
+
+If no PRD exists yet, tell the user to run `/keel-refine` first — it
+is the conversion hub that produces the structured JSON PRD this
+pipeline expects.
 
 ## Before Starting
 
 1. Read `CLAUDE.md` to determine the correct pipeline variant
-2. Read the feature spec
+2. Read the feature's section of the structured JSON PRD via `jq` (see `.claude/agents/pre-check.md` for the read conventions; the pipeline does not re-implement them)
 3. Create the handoff file at `docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`
    by copying from `_TEMPLATE.md`. Then immediately seed the YAML frontmatter:
    - `status: IN-PROGRESS`
    - `pipeline:` — set to `bootstrap`, `backend`, `frontend`, or `cross-cutting`
-   - `spec_ref:` — set to the spec file path and section (e.g., `mvp-spec:4.2`)
+   - `prd_ref:` — set to the structured JSON PRD path and F## (e.g., `docs/exec-plans/prds/my-feature.json#F04`)
    
    These fields MUST be set before dispatching any agent. Downstream agents
    read them for context and routing.
@@ -49,21 +55,10 @@ If no spec path given, ask for one. If no spec exists yet, tell the user to writ
    so any unrelated changes in the tree at pipeline start would be silently
    swept into the feature's commit. Phase 1 refuses that ambiguity.
 
-5. **Branch safety check.**
-   Run `git rev-parse --abbrev-ref HEAD`. If HEAD is `main` or `master`,
-   auto-create the feature branch BEFORE any agent runs:
-
-     git checkout -b keel/F{id}-{slug}
-
-   where `{slug}` is derived from the handoff filename
-   (`docs/exec-plans/active/handoffs/F{id}-{slug}.md` → `keel/F{id}-{slug}`).
-   The pipeline never commits to main/master, and branches BEFORE writing
-   code so that a mid-pipeline halt leaves the feature branch — not main —
-   in the partial state.
-
-6. **Remote resolution.**
-   Resolve which remote Step 9 will push to. Run `git remote` to list
-   configured remotes, then pick one:
+5. **Resolve remote_name.**
+   Resolve which remote Step 9 will push to and which fetch and
+   classification operate against. Run `git remote` to list configured
+   remotes, then pick one:
 
    - **0 remotes** → STOP: "Pipeline lands by opening a PR on a forge,
      but this repo has no remotes configured. Add one with
@@ -79,6 +74,143 @@ If no spec path given, ask for one. If no spec exists yet, tell the user to writ
 
    Store the resolved name in the handoff YAML as `remote_name`. Step 9
    reads this field and never hardcodes a remote.
+
+6. **Fetch base.**
+   `git fetch <remote_name>` so `<base>` (i.e. `<remote_name>/main` or
+   `<remote_name>/master`) reflects merges done since the last local fetch.
+   Without this, the dependency classification below operates on a stale
+   view of base.
+
+7. **Read F##'s Needs from feature-backlog.md.**
+   Locate the F## entry, read its `Needs:` line. Split into intra-PRD and
+   cross-PRD per the existing backlog format (`Needs (intra-PRD): ...`
+   and `Needs (cross-PRD): ...`). If the entry uses the legacy single
+   `Needs: F02, F03` format, treat all as intra-PRD.
+
+8. **Classify each Need (priority order — first match wins):**
+
+   1. **Legacy cutoff.** Need's F## id is ≤ `KEEL-INVARIANT-7:
+      legacy-through=F##` declared at the top of feature-backlog.md →
+      treat as `merged-to-base`.
+   2. **Archived handoff on base.** Run
+      `git ls-tree -r --name-only <remote_name>/<base-branch> -- docs/exec-plans/completed/handoffs/`
+      and look for `F##-*.md`. Found → `merged-to-base`. Step 9
+      sub-step 6 archives the handoff into `completed/`, so its
+      presence on base is a strong landed signal.
+   3. **SHA ancestry.** Search any prior handoff (active or archived)
+      for `parent_sha:` recorded for this Need's F##. If found and
+      `git merge-base --is-ancestor <parent_sha> <remote_name>/<base-branch>`
+      returns 0 → `merged-to-base`.
+   4. **Branch existence.** Run
+      `git for-each-ref --format='%(refname)' refs/heads/keel/F##-* refs/remotes/<remote_name>/keel/F##-*`
+      (match by F## prefix only — slug churn is tolerated). Any match
+      → `branch-exists-unmerged`.
+   5. **Unknown.** None of the above → HALT with the brownfield-
+      adoption CTA from §"Halt CTA wording" below.
+
+9. **Cross-PRD halt.**
+   If any cross-PRD Need is not `merged-to-base` → HALT with the
+   cross-PRD CTA below. Cross-PRD always halts regardless of policy.
+
+10. **Intra-PRD policy decision.**
+    Read `Branching policy:` from CLAUDE.md (default `halt` if absent).
+    Among the F##'s direct intra-PRD Needs, take the unmerged subset `U`:
+    - `U` empty → branch from `<base>`; skip to step 12.
+    - `U` non-empty + policy=`halt` → HALT with the intra-PRD CTA below.
+    - `U` non-empty + policy=`stack` → resolve stack target per
+      §"Stack target resolution" below; record `parent_branch` and
+      `parent_sha` in handoff YAML.
+
+11. **Branch-collision check.**
+    `git for-each-ref refs/heads/keel/F{id}-*` — match the F## prefix
+    only. If a matching branch exists, see §"Re-run handling" below
+    (handoff in `active/` → resume; no handoff → halt with orphan-
+    branch CTA).
+
+12. **Create handoff file.** (existing logic.)
+    Create at `docs/exec-plans/active/handoffs/F{id}-{slug}.md`. Seed
+    YAML frontmatter with `status: IN-PROGRESS`, `pipeline: <variant>`,
+    `prd_ref: <path>#F{id}`, `remote_name: <resolved>`, and (if
+    stacking happened) `parent_branch:` + `parent_sha:`.
+
+13. **Create the feature branch.**
+    `git checkout -b keel/F{id}-{slug} <parent_branch_or_base>` where
+    `<parent_branch_or_base>` is the stack target's branch when stacking,
+    or `<remote_name>/<base-branch>` otherwise. The pipeline never commits
+    to base.
+
+### Re-run handling
+
+When `/keel-pipeline F##` is re-invoked and the handoff file already exists
+at `docs/exec-plans/active/handoffs/F{id}-{slug}.md`:
+
+- Treat the existing handoff as authoritative — do not re-create it.
+- Skip the dependency classification and policy decision steps (their
+  results are already recorded in `parent_branch` / `parent_sha` if
+  stacking happened).
+- If `parent_sha` is recorded and now `git merge-base --is-ancestor
+  <parent_sha> <remote_name>/<base-branch>` returns 0 (parent merged
+  since first run): run §"Restack on re-invocation" below. Otherwise
+  resume from the halt point as today's pipeline does.
+- If the handoff exists in `active/` but no matching branch exists,
+  HALT with the handoff-without-branch CTA below.
+- If a branch matching `keel/F{id}-*` exists locally but no handoff
+  exists in `active/`, HALT with the branch-without-handoff CTA below.
+
+### Stack target resolution
+
+In `stack` mode, after classifying Needs, resolve which branch F## stacks on:
+
+1. Restrict to **direct, intra-PRD, unmerged** Needs (set `U`). Cross-PRD
+   Needs are excluded — Step 9 above already halted if any was unmerged.
+2. **|U| = 0:** branch from `<base>` (no stacking needed).
+3. **|U| = 1:** stack on that Need's branch tip. Record:
+   - `parent_branch:` the branch ref (e.g., `keel/F01-oauth-pkce-flow`)
+   - `parent_sha:` `git rev-parse <parent_branch>` at branch-creation time
+4. **|U| > 1:** examine the dep graph among `U` (consult their `Needs:`
+   lines in feature-backlog.md). If exactly one element of `U` has every
+   other element as an ancestor (the **chain case** — e.g., F02 needs
+   F01, F00; F01 needs F00; F01 is the topmost unmerged Need), stack on
+   it. Otherwise (the **fan-out case** — F02 needs F01 and F00 where
+   neither depends on the other), HALT with the sibling-fan-out CTA below.
+
+### Restack on re-invocation
+
+When the handoff records `parent_sha` and a re-run detects it as ancestor
+of `<base>` (parent merged since first run):
+
+```
+git fetch <remote_name>
+git checkout keel/F{id}-{slug}
+
+# Refuse if F##'s history contains merge commits from the old parent
+# branch — `git rebase --update-refs` would replay the merge and produce
+# duplicate hunks. HALT with the restack-merge-history CTA below.
+# Capture both git log errors and merge-commit presence in two separate steps
+# so a `git log` failure (bad ref, missing object) HALTs rather than silently
+# proceeding past the guard.
+merges=$(git log --merges --format=%H <parent_sha>..HEAD) || HALT \
+    "git log failed reading <parent_sha>..HEAD — bad ref or missing object."
+if [ -n "$merges" ]; then
+    HALT  # restack-merge-history CTA — see Halt CTA wording below
+fi
+
+git rebase --update-refs --onto <remote_name>/<base-branch> <parent_sha>
+# On non-zero exit (conflicts), HALT with the restack-conflict CTA below.
+
+git push --force-with-lease <remote_name> HEAD
+gh pr edit --base <base-branch>   # idempotent if forge auto-retargeted;
+                                    # falls through to manual instructions
+                                    # on gh-missing per the existing
+                                    # Step 9 sub-step 5 pattern.
+```
+
+`git rebase --update-refs` is universal across squash/merge/rebase merge
+strategies; it requires Git ≥ 2.38, which `install.py` enforces as the
+floor. Multi-level cascade is **per-level** — each F##'s restack only
+happens when its own pipeline runs. Out-of-order re-runs leave stale
+stacks until each level's pipeline fires; this is documented behavior,
+not a bug, and aligns with KEEL's no-daemon model.
 
 ### Step 0.5: Roundtable availability
 
@@ -331,17 +463,65 @@ stays in `active/`, the orchestrator halts, and the human resolves the
 failure before any further action.
 
 1. **Doc garbage collection.**
-   Dispatch `doc-gardener` agent unconditionally. NORTH-STAR §Stage 4
-   lists automatic GC as a core requirement. Always run; let the agent
-   decide whether a sweep finds drift. `doc-gardener` is read-only — it
-   returns a findings report. If the report lists STALE or MISSING
-   items, the orchestrator applies the fixes to the working tree NOW
-   (before commit, so they land in the same commit — no amend, no
-   post-push mutation, stable PR diff from open).
+   Dispatch `doc-gardener` agent unconditionally. Always run; let the
+   agent decide whether a sweep finds drift. `doc-gardener` is read-only
+   — it returns a findings report.
+
+   **Mode selection by pipeline variant:**
+   - **Bootstrap variant** (F01–F03, which skip pre-check + implementer):
+     dispatch in ad-hoc mode. The handoff lacks the execution brief and
+     implementer report that pipeline mode requires.
+   - **Standard variants** (backend / frontend / cross-cutting): dispatch
+     in pipeline mode, which scopes findings to the blast radius plus
+     the repo-wide §P5 timeline-artifact sweep.
+
+   Prompt shape (pipeline mode — standard variants):
+   ```
+   **Mode:** pipeline
+   **Handoff:** docs/exec-plans/active/handoffs/F##-<slug>.md
+
+   Run per your §Operating modes. Scope: blast-radius (implementer's
+   `**Changed paths:**`), feature-ID coverage, contract-surface
+   coverage, plus the mandatory repo-wide §P5 sweep. Emit the Doc
+   Garden Report with stable subsection headers and a
+   `doc_garden_verdict` line.
+   ```
+
+   Prompt shape (ad-hoc mode — bootstrap variant):
+   ```
+   **Mode:** ad-hoc
+
+   Run the full baseline sweep (CLAUDE.md / ARCHITECTURE.md / backlog
+   / tech debt / design specs) plus the mandatory repo-wide §P5 sweep.
+   Emit the Doc Garden Report with stable subsection headers and a
+   `doc_garden_verdict` line.
+   ```
+
+   **Verdict capture.** Parse `doc_garden_verdict:` from the report
+   (expect `CLEAN` or `DRIFT_FOUND`) and `drift_count:` (integer) and
+   record both in the handoff YAML frontmatter as `doc_garden_verdict`
+   and `doc_garden_drift_count`. The commit-message verdict block in
+   sub-step 3 emits `doc-garden: CLEAN` or `doc-garden: DRIFT_FOUND (N
+   fixes applied)` so the outcome survives in git history.
+
+   If the report lists STALE or MISSING items, the orchestrator applies
+   the fixes to the working tree NOW (before commit, so they land in
+   the same commit — no amend, no post-push mutation, stable PR diff
+   from open).
+
+   **Halt handling.** If the agent halts with a pipeline-mode precondition
+   failure (missing handoff, missing execution brief, missing implementer
+   report), re-dispatch the agent in ad-hoc mode (second prompt shape above)
+   — the full sweep produces a superset of what pipeline mode would have
+   found. Only STOP Step 9 entirely if the ad-hoc re-dispatch also halts.
 
 2. **Tech-debt log.**
    If `docs/exec-plans/tech-debt-tracker.md` exists, append any new
-   shortcuts discovered during the run and check off any resolved items.
+   shortcuts discovered during the run and DELETE any resolved items.
+   Do not check resolved items off with `[x]` and do not move them
+   to a "Resolved" / "Done" section — `git log` is the landing
+   record. Accumulating a resolved-section is P5 drift the
+   doc-gardener will flag.
 
 3. **Stage and commit.**
    Because "Before Starting" enforced a clean tree, every modified or
@@ -350,24 +530,20 @@ failure before any further action.
 
      git add -A
 
-   Compose the commit subject from the spec file:
-   - The orchestrator was invoked with a full spec path (e.g.,
-     `docs/product-specs/mvp-spec.md`) — that's in conversation context
-     from Step 1. Read that file directly. Do NOT attempt to reconstruct
-     the path from the handoff's `spec_ref` YAML field (which is in
-     `filename:section` shorthand like `mvp-spec:4.2` and does not
-     include the full path).
-   - Extract the first `# ` H1 line from the spec file. Use it as the
-     feature title.
-   - If the spec file is missing or has no H1, fall back to the handoff
+   Compose the commit subject from the PRD:
+   - The orchestrator was invoked with a full PRD path (e.g.,
+     `docs/exec-plans/prds/my-feature.json`) — that's in conversation
+     context from Step 1. Read the target feature's `title` via
+     `jq '.features[] | select(.id=="F##") | .title' <prd-path>`.
+   - If the PRD or target feature is missing, fall back to the handoff
      slug with hyphens replaced by spaces (e.g., `F42-oauth-pkce-flow`
      → `oauth pkce flow`). The fallback is lossy but deterministic.
 
    Message format (HEREDOC):
 
-     feat(F{id}): {feature title from spec H1}
+     feat(F{id}): {feature title from PRD .features[].title}
 
-     Spec: {spec_ref from handoff YAML frontmatter}
+     PRD: {prd_ref from handoff YAML frontmatter}
      Pipeline: {pipeline variant: bootstrap|backend|frontend|cross-cutting}
      Verdicts:
      {verdict_lines}
@@ -383,6 +559,7 @@ failure before any further action.
      safety:      PASS (attempt 1)
      arch-advisor: SOUND
      code-review: APPROVED (attempt 1)
+     doc-garden:  CLEAN | DRIFT_FOUND (N fixes applied)
      roundtable-precheck: APPROVED (attempt 1)
      roundtable-design: APPROVED (attempt 1)
      roundtable-landing: APPROVED (attempt 1)
@@ -406,8 +583,13 @@ failure before any further action.
 
 5. **Open a PR.**
    Probe `gh`: `command -v gh` and `gh auth status`.
-   - If both succeed: `gh pr create --fill` (ready-for-review). On
-     success, record the returned URL in the handoff YAML as `pr_url`.
+   - If both succeed:
+     - **If `parent_branch` is set in the handoff YAML** (stack-mode runs):
+       `gh pr create --base <parent_branch> --fill` (substitute the YAML
+       value for `<parent_branch>`).
+     - **Otherwise** (halt-mode default — no stacking happened): `gh pr
+       create --fill` (gh targets the repo's default branch).
+     On success, record the returned URL in the handoff YAML as `pr_url`.
    - If `gh pr create` errors (auth expired, rate limit, branch policy,
      network): STOP and print:
 
@@ -447,6 +629,113 @@ failure before any further action.
    the archived path, matching what a reviewer sees. Skip the amend if the
    forge rejects force-with-lease — the handoff move lands in a
    follow-up commit on the same branch.
+
+## Halt CTA wording
+
+The exact wording emitted at each halt path. Step 0's halt branches and
+the restack subsection reference these by name.
+
+### Intra-PRD halt (policy=halt)
+
+```
+F02 requires F01 (intra-PRD).
+F01 status: branch keel/F01-<slug> exists locally; parent_sha <SHA>
+            is not an ancestor of <base>.
+            (Detected after `git fetch <remote_name>`.)
+
+Options:
+  1. Merge F01's PR first, then re-run /keel-pipeline F02.
+  2. Set "Branching policy: stack" in CLAUDE.md to stack F02 on F01's
+     branch. Note: stack applies to intra-PRD Needs only; cross-PRD
+     Needs always halt. If F02 already has an open PR, switching to
+     stack may retarget the PR base on next pipeline run.
+```
+
+### Cross-PRD halt (always)
+
+```
+F05 requires F04 (cross-PRD).
+F04 status: not merged to <base>.
+
+Cross-PRD dependencies always halt regardless of branching policy —
+cross-PRD work is reviewed as separate cohesive products. Merge F04
+first, then re-run /keel-pipeline F05.
+```
+
+### Restack conflict
+
+```
+Restack of keel/F02-<slug> onto <base> halted with conflicts.
+
+Resolve in your editor and continue:
+  git status                  # see conflicted paths
+  # edit, then:
+  git add <paths>
+  git rebase --continue       # to finish
+  # or:
+  git rebase --abort          # to undo and halt the pipeline
+```
+
+### Restack — merge history in feature
+
+```
+F02's branch contains a merge commit from its previous parent
+(keel/F01-<slug>) earlier in the stack history. Auto-restacking via
+`git rebase --update-refs --onto` would replay that merge and produce
+duplicate changes.
+
+Resolve manually:
+  git rebase -i <base>        # drop the offending merge commit
+  # or start over from a clean branch off <base> and cherry-pick
+  # F02's unique commits.
+```
+
+### Sibling fan-out (stack mode)
+
+```
+Cannot stack F02 — direct intra-PRD Needs F00 and F01 are both unmerged
+and neither is an ancestor of the other in the backlog dep graph.
+
+Stacking can only target one parent. Options:
+  1. Switch to "Branching policy: halt" temporarily (default), merge one
+     of F00/F01 first, then re-run.
+  2. Edit feature-backlog.md to declare a dep edge between F00 and F01
+     if one exists in reality, then re-run.
+```
+
+### Branch-without-handoff (orphan branch)
+
+```
+Branch keel/F##-<slug> exists locally, but no handoff at
+docs/exec-plans/active/handoffs/F##-<slug>.md.
+
+Either delete the branch (`git branch -D keel/F##-<slug>`) and re-run
+to start fresh, or move a previously-aborted handoff back from
+docs/exec-plans/abandoned/ into active/ to resume.
+```
+
+### Handoff-without-branch (orphan handoff)
+
+```
+Handoff exists at docs/exec-plans/active/handoffs/F##-<slug>.md but
+branch keel/F##-<slug> has been deleted.
+
+Either restore the branch (e.g., `git checkout -b keel/F##-<slug>
+<sha-from-handoff>`) or move the handoff to docs/exec-plans/abandoned/
+and re-run to start fresh.
+```
+
+### Brownfield adoption (Need is "unknown")
+
+```
+Need F## has no archived handoff on <base>, no recorded parent_sha,
+no branch matching keel/F##-*, and is past the
+KEEL-INVARIANT-7: legacy-through=F## marker in feature-backlog.md.
+
+Either F## landed outside KEEL (in which case bump legacy-through, or
+add an archived handoff stub at docs/exec-plans/completed/handoffs/F##-*.md
+and commit to base), or feature-backlog.md has drift. Resolve and re-run.
+```
 
 ## Rules
 
@@ -488,6 +777,11 @@ failure before any further action.
 - **PR-only landing.** Every feature lands by pushing the feature branch
   and opening a PR. No merge-to-base, no strategy selection. To change the
   landing flow, edit Step 9 in the installed skill file.
+- **PR base = parent_branch when stacked, base otherwise.** Step 9 reads
+  `parent_branch` from handoff YAML (set by Step 0 in `stack` mode) and
+  passes it as `--base` to `gh pr create`. Halt mode (the default) leaves
+  `parent_branch` unset and the PR targets base, preserving original
+  behavior.
 - **VERIFIED → READY-TO-LAND → LANDED.** Landing-verifier emits VERIFIED.
   Roundtable review (if enabled) transitions to READY-TO-LAND. Step 9
   transitions to LANDED after commit+push+PR+archive succeed. When

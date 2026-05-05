@@ -9,11 +9,30 @@ requires editing this file — which is the whole point.
 """
 from __future__ import annotations
 
-KEEL_VERSION = "0.10.0"
-RECEIPT_SCHEMA_VERSION = 1
+KEEL_VERSION = "2026.05.9"
+RECEIPT_SCHEMA_VERSION = 2
 RECEIPT_PATH = ".claude/.keel-install.json"
 BUNDLED_UNINSTALLER = ".claude/keel-uninstall.py"
 SETTINGS_FILE = ".claude/settings.json"
+
+# Single source of truth for the Python floor. Bootstrap scripts duplicate
+# the literal `(3, 14)` (they can't safely import this module before their
+# own version check runs on ancient Python). PEP 723 headers duplicate
+# `">=3.14"`. Both duplicates are lint-checked against this constant by
+# scripts/validate-manifest.py — drift fails CI.
+PYTHON_FLOOR: tuple[int, int] = (3, 14)
+PYTHON_FLOOR_PEP723: str = f">={PYTHON_FLOOR[0]}.{PYTHON_FLOOR[1]}"
+
+# PRD schema version. Bumps when the PRD schema shape breaks. Every PRD
+# must declare `schema_version` matching a version the validator supports.
+# See docs/design-docs/2026-04-24-structured-prds.md.
+PRD_SCHEMA_VERSION: int = 1
+
+# Prototype manifest schema version. Bumps when the prototype.json shape
+# breaks. Carried separately from PRD_SCHEMA_VERSION because the two
+# contracts evolve independently — a prototype-shape change shouldn't
+# force PRD revalidation, and vice versa.
+PROTOTYPE_SCHEMA_VERSION: int = 1
 
 AGENTS: list[str] = [
     "arch-advisor.md", "backend-designer.md", "backlog-drafter.md",
@@ -32,7 +51,7 @@ HOOKS: list[str] = ["keel-safety-gate.py", "keel-doc-gate.py"]
 PROCESS_DOCS: list[str] = [
     "THE-KEEL-PROCESS.md", "QUICK-START.md", "BROWNFIELD.md", "GLOSSARY.md",
     "ANTI-PATTERNS.md", "FAILURE-PLAYBOOK.md", "AUTONOMY-PROGRESSION.md",
-    "KEEL-PRINCIPLES.md",
+    "KEEL-PRINCIPLES.md", "PIPELINE-DOCTRINE.md",
 ]
 
 # User-facing framework scripts shipped into installs under scripts/.
@@ -47,8 +66,21 @@ PROCESS_DOCS: list[str] = [
 # shipped — they would be noise in a user install.
 SCRIPTS: list[str] = [
     "validate-prds.py",
+    "validate-prd-json.py",
+    "validate-prototype-json.py",
     "keel-prd-view.py",
+    "keel-feature-resolve.py",
+    "keel_features.py",
     "upgrade-invariant-7.py",
+]
+
+# Schema files under schemas/ shipped into user installs. Loaded by
+# validate-prd-json.py at runtime. PRD schema validates framework frame
+# (PRD shape, feature shape, oracle shape, cross-refs); feature `contract`
+# is intentionally open-shape per docs/design-docs/2026-04-24-structured-prds.md.
+SCHEMAS: list[str] = [
+    "prd.schema.json",
+    "prototype.schema.json",
 ]
 
 # KEEL-internal scripts under scripts/ that are NOT shipped to installs.
@@ -65,21 +97,35 @@ INTERNAL_SCRIPTS: set[str] = {
     "validate-handoff.py",
     "validate-bootstrap-gate.py",
     "validate-manifest.py",
+    "validate-onboarding-parity.py",
+    "migrate-prd-to-json.py",
     "keel_manifest.py",
     "keel_receipt.py",
     "keel_settings.py",
 }
 
 TEMPLATE_ROOT_FILES: list[str] = [
-    "CLAUDE.md", "ARCHITECTURE.md", "Dockerfile", "docker-compose.yml",
+    "NORTH-STAR.md", "CLAUDE.md", "ARCHITECTURE.md",
 ]
 
+# Optional root files — installed only when the user opts in at install
+# time. Currently: Docker scaffolding (Dockerfile + docker-compose.yml).
+# Driven by `install.py`'s `--with-docker` / `--no-docker` flag (or the
+# interactive prompt). When opted out, these files are not copied and
+# the receipt records the user's choice in `optional_features`.
+OPTIONAL_TEMPLATE_ROOT_FILES: dict[str, list[str]] = {
+    "docker": ["Dockerfile", "docker-compose.yml"],
+}
+
 TEMPLATE_DOCS: list[str] = [
-    "docs/north-star.md",
+    # KEEL-owned operating contract — heavy enforcement language for any
+    # agent working in the installed repo. CLAUDE.md @-imports it. Lives
+    # under .claude/ to avoid collision with whatever CLAUDE.md/AGENTS.md
+    # the user already has.
+    ".claude/KEEL-CONTRACT.md",
     "docs/design-docs/core-beliefs.md",
     "docs/design-docs/ui-design.md",
     "docs/design-docs/index.md",
-    "docs/product-specs/_TEMPLATE.md",
     "docs/exec-plans/active/feature-backlog.md",
     "docs/exec-plans/active/handoffs/_TEMPLATE.md",
     "docs/exec-plans/prds/.gitkeep",
