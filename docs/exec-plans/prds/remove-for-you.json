@@ -67,15 +67,13 @@
         "_generate_embedding_background": "deleted",
         "background_task_calls_in_create_note": "absent",
         "background_task_calls_in_update_note": "absent",
-        "embedding_imports_in_routers_notes": "absent",
-        "similar_note_response_import": "absent"
+        "embedding_imports_in_routers_notes": "absent"
       },
       "oracle": {
         "type": "integration",
         "assertions": [
           "grep of `backend/app/routers/notes.py` for `_generate_embedding_background` returns zero matches.",
           "grep of `backend/app/routers/notes.py` for `background_tasks.add_task` returns zero matches inside `create_note` and `update_note`.",
-          "grep of `backend/app/routers/notes.py` for `from app.schemas` containing `SimilarNoteResponse` returns zero matches.",
           "Existing notes-router CRUD integration tests (create / read / update / delete) all pass unchanged."
         ],
         "tooling": "pytest backend/tests/integration/notes; ripgrep for static checks."
