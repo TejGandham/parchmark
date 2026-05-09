@@ -63,7 +63,7 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F13 Delete GET /api/notes/{id}/similar endpoint**
+- [x] **F13 Delete GET /api/notes/{id}/similar endpoint**
   PRD: remove-for-you
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
