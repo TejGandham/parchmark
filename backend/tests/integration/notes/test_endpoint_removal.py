@@ -162,6 +162,5 @@ class TestAccessTrackingTestFileDeleted:
         access_tracking_test = Path(__file__).parent / "test_access_tracking.py"
 
         assert not access_tracking_test.exists(), (
-            f"Expected {access_tracking_test} to be deleted as part of F14, "
-            "but it still exists."
+            f"Expected {access_tracking_test} to be deleted as part of F14, " "but it still exists."
         )
