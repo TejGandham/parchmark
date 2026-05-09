@@ -21,7 +21,6 @@ from app.schemas.schemas import (
     NoteCreate,
     NoteResponse,
     NoteUpdate,
-    SimilarNoteResponse,
 )
 from app.utils.markdown import markdown_service
 
@@ -221,45 +220,6 @@ async def delete_note(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
     return DeleteResponse(message="Note deleted successfully", deleted_id=note_id)
-
-
-@router.get("/{note_id}/similar", response_model=list[SimilarNoteResponse])
-async def get_similar_notes(
-    note_id: str,
-    count: int = 5,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """Get notes similar to the specified note based on content embeddings."""
-    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
-    target_note = result.scalar_one_or_none()
-
-    if not target_note:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-
-    if target_note.embedding is None:
-        return []
-
-    cosine_distance = Note.embedding.cosine_distance(target_note.embedding)
-    result = await db.execute(
-        select(Note, (1 - cosine_distance).label("similarity"))
-        .filter(
-            Note.user_id == current_user.id,
-            Note.id != note_id,
-            Note.embedding.isnot(None),
-        )
-        .order_by(cosine_distance)
-        .limit(count)
-    )
-    return [
-        SimilarNoteResponse(
-            id=str(note.id),
-            title=str(note.title),
-            similarity=round(max(0.0, float(sim)), 4),
-            updatedAt=note.updated_at.isoformat(),
-        )
-        for note, sim in result.all()
-    ]
 
 
 @router.get("/{note_id}", response_model=NoteResponse)
