@@ -56,6 +56,48 @@ Known shortcuts, deferred improvements, and open questions.
       of a broken downgrade, don't invest in this — but the invariant
       was proposed by Claude in roundtable and deferred for this reason.
 
+- [ ] **Pre-existing doc drift surfaced by F14's post-commit doc-gardener.**
+      Ad-hoc sweep after F14 commit found drift not caused by F14 but
+      worth tracking for a future docs cleanup feature: (1) `AGENTS.md:17,140`
+      points to non-existent `docs/north-star.md` — actual file is
+      `NORTH-STAR.md` at repo root; (2) `ARCHITECTURE.md:174,269-281`
+      still describes `routers/notes.py` doing "cosine similarity
+      queries" and lists the deleted `GET /api/notes/{id}/similar`
+      endpoint as active (F13 doc-drift miss); (3) `feature-backlog.md`
+      F12 and F13 entries still carry `<!-- DRAFTED: -->` markers that
+      should have been removed when those features landed; (4)
+      `docs/ai-embeddings-design.md` carries multiple §P5 violations
+      (`### Revision History` section, commit SHAs in metadata table
+      and migration mermaid diagrams); (5)
+      `docs/BACKEND_MIGRATION_RESEARCH.md:3` carries a "Document
+      Created: January 2026" date annotation. Items (1) and (4)–(5) are
+      pre-F14 drift; item (2) is F13's doc-drift miss; item (3) is
+      F12/F13's marker-cleanup miss. Resolution: bundle into a single
+      `chore: doc cleanup sweep` feature, or fold into F21's invariant-4
+      cleanup since several touch the same retirement narrative.
+
+- [ ] **`docs/deployment_upgrade/archive/` P5 timeline-artifact drift.**
+      Doc-gardener flagged three §P5 violations during F14's pipeline:
+      `DEPLOYMENT.md` carries a `## Changelog` section with version
+      table; `PHASE4_GITHUB_SECRETS.md` and `DEPLOYMENT_VALIDATED.md`
+      carry "as of January 2025" annotations in current-state assertions.
+      These predate the §P5 invariant and are unrelated to F14's contract,
+      so deferring rather than bundling into F14's PR. Sweep when
+      touching deployment docs next, or as a dedicated docs cleanup
+      feature.
+
+- [ ] **Endpoint-removal test pattern accumulator.** As the `remove-for-you`
+      retirement progresses (F12, F13, F14 landed; F15, F19, F20 to come),
+      `backend/tests/integration/notes/test_endpoint_removal.py` is
+      becoming an accumulator file holding multiple feature class-pairs
+      (HTTP-tier + grep-tier + filesystem-tier per removed endpoint).
+      Surfaced by roundtable landing review during F14. Tolerable
+      through F20; consider parameterized fixtures or a dedicated
+      `removed_endpoints/` subdirectory if the pattern continues past
+      F20, or retire the grep-tier and filesystem-tier classes entirely
+      across F12–F15 in a single follow-up sweep once the retirement is
+      complete.
+
 - [ ] **Automated browser E2E for live-updates (F07 graduation).** F07
       ships with a hybrid acceptance gate: F07a backend integration
       (pytest + httpx SSE client), F07b frontend unit (Vitest + mocked

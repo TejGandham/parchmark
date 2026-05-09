@@ -426,8 +426,6 @@ uv run python -m app.database.init_db  # Recreate
 | GET    | `/api/notes/{id}`         | Get specific note                                 |
 | PUT    | `/api/notes/{id}`         | Update a note                                     |
 | DELETE | `/api/notes/{id}`         | Delete a note                                     |
-| POST   | `/api/notes/{id}/access`  | Track note access (for "For You" scoring)         |
-| GET    | `/api/notes/{id}/similar` | Similar notes via cosine similarity on embeddings |
 
 ### Settings Endpoints
 

@@ -11,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
-from sqlalchemy.sql import func
 
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
@@ -248,32 +247,6 @@ async def get_note(
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-
-    return _note_to_response(db_note)
-
-
-@router.post("/{note_id}/access", response_model=NoteResponse)
-async def track_note_access(
-    note_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
-    db_note = result.scalar_one_or_none()
-
-    if not db_note:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-
-    db_note.access_count = db_note.access_count + 1  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
-    db_note.last_accessed_at = func.now()  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
-
-    try:
-        await db.commit()
-        await db.refresh(db_note)
-    except SQLAlchemyError as e:
-        await db.rollback()
-        logger.error(f"Failed to track access for note {note_id}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
     return _note_to_response(db_note)
 
