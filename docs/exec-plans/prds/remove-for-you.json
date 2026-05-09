@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "id": "remove-for-you",
+  "title": "Remove the For You section and all embedding / access-tracking infrastructure",
+  "motivation": "The For You section is maintenance bloat: a blended heuristic + AI-similarity ranker that surfaces a 3-item list inside the Command Palette and duplicate block in the notes explorer. Supporting it costs an OpenAI dependency, a pgvector extension, two endpoints, two service modules, three Note columns, a background-task helper, and a documented exemption from tenant-isolation invariants. The feature is not load-bearing for the product; removing it reduces attack surface (no outbound OpenAI calls, no API key handling), shrinks the dependency graph, and tightens existing safety invariants by collapsing their exemption lists. Existing migrations are preserved as history; only forward-only removal happens.",
+  "scope": {
+    "included": [
+      "Removal of the For You UI section from the Command Palette and the duplicate forYouNotes block in NotesExplorer.",
+      "Deletion of the /api/notes/{id}/similar and /api/notes/{id}/access endpoints and their tests.",
+      "Deletion of services/embeddings.py, services/backfill.py, the OpenAI lifespan client, and the embedding background-task helper in routers/notes.py.",
+      "Removal of access_count, last_accessed_at, and embedding columns from the Note model and a forward Alembic migration that drops them and the pgvector extension.",
+      "Removal of openai and pgvector backend dependencies plus all OPENAI_API_KEY / EMBEDDING_MODEL config and doc references.",
+      "Documentation sweep: ARCHITECTURE.md Embeddings section, ai-embeddings-design.md archive, core-beliefs invariants 6 and 7 retirement, and exemption-list shrinkage on invariants 1, 3, and 4."
+    ],
+    "excluded": [
+      "The Command Palette itself remains; only its For You section is removed.",
+      "Existing Alembic migrations (fad201191d3b, 33a4da6b0cac, 49f4bec52ca3) are preserved as history — no rewrite or deletion.",
+      "The realtime-notes-list-revalidation PRD work is unaffected; no overlap with SSE / NOTIFY infrastructure.",
+      "Existing CRUD tests must remain green throughout; this PRD does not introduce new note CRUD behavior."
+    ]
+  },
+  "design_facts": [
+    {
+      "topic": "Migration ordering constraint",
+      "decision": "The Alembic migration that drops the embedding, access_count, and last_accessed_at columns must land in the same change-set as the models.py edits that remove those columns and the pgvector import; no earlier feature in this PRD may drop columns or remove the pgvector import.",
+      "rationale": "If columns drop while the SQLAlchemy model still declares them, model load fails on app boot and every test after the migration fails to collect."
+    },
+    {
+      "topic": "Dependency drop ordering",
+      "decision": "openai is dropped from pyproject.toml only after every backend import of openai is gone; pgvector is dropped only after models.py no longer imports Vector and the migration has run.",
+      "rationale": "uv sync would succeed but backend boot would fail if a code path still imported a removed dependency."
+    },
+    {
+      "topic": "Invariants 6 and 7 retirement",
+      "decision": "Invariant 6 (Embedding failure must never break note CRUD) and invariant 7 (Embedding dimension parity) become vacuous once embeddings are removed; both are retired in core-beliefs.md as part of the documentation sweep.",
+      "rationale": "An invariant whose subject no longer exists is dead text; leaving it cited would mislead future safety-auditor runs."
+    },
+    {
+      "topic": "Invariant 1, 3, 4 exemption-list shrinkage",
+      "decision": "Invariant 1's exempt-helpers list (currently naming _generate_embedding_background and services/backfill.py) collapses to empty; invariant 3's raw-SQL whitelist drops from three sites to two (CREATE EXTENSION vector removed); invariant 4's example list drops the /notes/{id}/access bodyless endpoint.",
+      "rationale": "Fewer exemptions equal a stricter rule and less surface for safety-auditor to second-guess."
+    },
+    {
+      "topic": "Existing migration history preserved",
+      "decision": "No prior migration is deleted or rewritten; a new forward migration with down_revision = 49f4bec52ca3 performs the removal and supports a downgrade that reverses it.",
+      "rationale": "Migration history must remain replayable for any environment that has already applied the embedding migrations."
+    },
+    {
+      "topic": "No frontend dependencies to drop",
+      "decision": "Frontend has no openai / pgvector / vector-similarity client library; removal is code-only on the UI side.",
+      "rationale": "Avoid time spent grepping package.json for non-existent deps."
+    },
+    {
+      "topic": "Invariants_exercised left empty",
+      "decision": "This PRD's invariants_exercised array is empty because no codebase invariant has been registered with an INV-### identifier.",
+      "rationale": "Drafter must never synthesize invariant IDs; impacts on unregistered invariants are recorded in design_facts instead."
+    }
+  ],
+  "invariants_exercised": [],
+  "features": [
+    {
+      "id": "F12",
+      "title": "Strip embedding generation from routers/notes.py",
+      "layer": "service",
+      "needs": [],
+      "contract": {
+        "_generate_embedding_background": "deleted",
+        "background_task_calls_in_create_note": "absent",
+        "background_task_calls_in_update_note": "absent",
+        "embedding_imports_in_routers_notes": "absent",
+        "similar_note_response_import": "absent"
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "grep of `backend/app/routers/notes.py` for `_generate_embedding_background` returns zero matches.",
+          "grep of `backend/app/routers/notes.py` for `background_tasks.add_task` returns zero matches inside `create_note` and `update_note`.",
+          "grep of `backend/app/routers/notes.py` for `from app.schemas` containing `SimilarNoteResponse` returns zero matches.",
+          "Existing notes-router CRUD integration tests (create / read / update / delete) all pass unchanged."
+        ],
+        "tooling": "pytest backend/tests/integration/notes; ripgrep for static checks."
+      }
+    },
+    {
+      "id": "F13",
+      "title": "Delete GET /api/notes/{id}/similar endpoint",
+      "layer": "service",
+      "needs": [],
+      "contract": {
+        "route": "/api/notes/{note_id}/similar",
+        "method": "GET",
+        "endpoint_status": "removed",
+        "response_for_removed_route": 404,
+        "deleted_test_file": "backend/tests/integration/notes/test_similarity.py"
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "GET on `/api/notes/{note_id}/similar` for any authenticated user returns HTTP 404.",
+          "grep of `backend/app/routers/notes.py` for `/similar` returns zero matches.",
+          "File `backend/tests/integration/notes/test_similarity.py` does not exist.",
+          "Existing notes-router CRUD integration tests all pass unchanged."
+        ],
+        "tooling": "pytest with httpx test client; filesystem check."
+      }
+    },
+    {
+      "id": "F14",
+      "title": "Delete POST /api/notes/{id}/access endpoint",
+      "layer": "service",
+      "needs": [],
+      "contract": {
+        "route": "/api/notes/{note_id}/access",
+        "method": "POST",
+        "endpoint_status": "removed",
+        "response_for_removed_route": 404,
+        "deleted_test_file": "backend/tests/integration/notes/test_access_tracking.py"
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "POST on `/api/notes/{note_id}/access` for any authenticated user returns HTTP 404.",
+          "grep of `backend/app/routers/notes.py` for `/access` returns zero matches.",
+          "File `backend/tests/integration/notes/test_access_tracking.py` does not exist.",
+          "Existing notes-router CRUD integration tests all pass unchanged."
+        ],
+        "tooling": "pytest with httpx test client; filesystem check."
+      }
+    },
+    {
+      "id": "F15",
+      "title": "Delete embeddings + backfill services and OpenAI lifespan wiring",
+      "layer": "service",
+      "needs": ["F12", "F13"],
+      "contract": {
+        "deleted_files": [
+          "backend/app/services/embeddings.py",
+          "backend/app/services/backfill.py",
+          "backend/tests/unit/services/test_embeddings.py"
+        ],
+        "main_py_openai_client_init": "removed",
+        "main_py_openai_shutdown_block": "removed",
+        "openai_imports_in_app_tree": "absent",
+        "app_state_openai_client": "absent"
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "Files `backend/app/services/embeddings.py` and `backend/app/services/backfill.py` do not exist.",
+          "File `backend/tests/unit/services/test_embeddings.py` does not exist.",
+          "ripgrep `^(from|import) openai` across `backend/app/` returns zero matches.",
+          "ripgrep `app.state.openai_client` across `backend/app/` returns zero matches.",
+          "FastAPI app boots successfully via the existing lifespan with `OPENAI_API_KEY` unset in the environment."
+        ],
+        "tooling": "pytest; ripgrep; explicit boot test that imports `app.main:app`."
+      }
+    },
+    {
+      "id": "F16",
+      "title": "Strip For You section from CommandPalette.tsx",
+      "layer": "ui",
+      "needs": [],
+      "contract": {
+        "for_you_section_render": "removed",
+        "similarNotes_state": "removed",
+        "getSimilarNotes_call": "removed",
+        "getBlendedForYouNotes_call": "removed",
+        "trackNoteAccess_call": "removed",
+        "imports_removed": ["trackNoteAccess", "getBlendedForYouNotes", "getSimilarNotes"]
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "grep of `ui/src/features/ui/components/CommandPalette.tsx` for `For You` returns zero matches.",
+          "grep of `ui/src/features/ui/components/CommandPalette.tsx` for `getBlendedForYouNotes`, `getSimilarNotes`, and `trackNoteAccess` returns zero matches.",
+          "Vitest run for `ui/src/__tests__/features/ui/components/CommandPalette.test.tsx` passes after For-You-section assertions are dropped.",
+          "Selecting a note from the Command Palette in the rendered component triggers no `/api/notes/*/access` and no `/api/notes/*/similar` request (asserted via mocked fetch)."
+        ],
+        "tooling": "vitest + React Testing Library with mocked fetch; ripgrep."
+      }
+    },
+    {
+      "id": "F17",
+      "title": "Strip forYouNotes block from NotesExplorer.tsx",
+      "layer": "ui",
+      "needs": [],
+      "contract": {
+        "forYouNotes_block": "removed",
+        "getBlendedForYouNotes_import": "removed",
+        "trackNoteAccess_import": "removed",
+        "trackNoteAccess_call": "removed"
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "grep of `ui/src/features/notes/components/NotesExplorer.tsx` for `forYouNotes`, `getBlendedForYouNotes`, and `trackNoteAccess` returns zero matches.",
+          "Vitest run for `ui/src/__tests__/features/notes/components/NotesExplorer.test.tsx` passes after forYouNotes assertions are dropped.",
+          "Rendering the explorer with a list of notes triggers no `/api/notes/*/access` request (asserted via mocked fetch)."
+        ],
+        "tooling": "vitest + React Testing Library with mocked fetch; ripgrep."
+      }
+    },
+    {
+      "id": "F18",
+      "title": "Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types",
+      "layer": "ui",
+      "needs": ["F16", "F17"],
+      "contract": {
+        "deleted_files": [
+          "ui/src/utils/noteScoring.ts",
+          "ui/src/__tests__/utils/noteScoring.test.ts"
+        ],
+        "api_ts_symbols_removed": ["trackNoteAccess", "getSimilarNotes"],
+        "config_api_constants_removed": ["ACCESS", "SIMILAR"],
+        "types_index_changes": {
+          "SimilarNote_interface": "removed",
+          "Note_accessCount_field": "removed",
+          "Note_lastAccessedAt_field": "removed"
+        }
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "Files `ui/src/utils/noteScoring.ts` and `ui/src/__tests__/utils/noteScoring.test.ts` do not exist.",
+          "grep of `ui/src/services/api.ts` for `trackNoteAccess` and `getSimilarNotes` returns zero matches.",
+          "grep of `ui/src/config/api.ts` for `ACCESS` and `SIMILAR` returns zero matches in endpoint-constant declarations.",
+          "grep of `ui/src/types/index.ts` for `SimilarNote`, `accessCount`, and `lastAccessedAt` returns zero matches.",
+          "`tsc --noEmit` over `ui/` succeeds with zero errors."
+        ],
+        "tooling": "tsc; ripgrep; filesystem check."
+      }
+    },
+    {
+      "id": "F19",
+      "title": "Alembic migration drops embedding columns + pgvector extension and updates Note model",
+      "layer": "foundation",
+      "needs": ["F12", "F13", "F14", "F15"],
+      "contract": {
+        "new_migration": {
+          "down_revision": "49f4bec52ca3",
+          "upgrade_drops_columns": ["notes.embedding", "notes.access_count", "notes.last_accessed_at"],
+          "upgrade_runs": "DROP EXTENSION IF EXISTS vector",
+          "downgrade_recreates": "extension + columns (embedding as Vector(1536))"
+        },
+        "models_py": {
+          "Note_columns_removed": ["access_count", "last_accessed_at", "embedding"],
+          "pgvector_sqlalchemy_import": "removed"
+        },
+        "init_db_py": {
+          "create_extension_vector_line": "removed"
+        }
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "`alembic upgrade head` against a database at revision 49f4bec52ca3 succeeds with no error.",
+          "After upgrade, `SELECT extname FROM pg_extension WHERE extname = 'vector'` returns zero rows.",
+          "After upgrade, `information_schema.columns` for table `notes` contains no rows for `embedding`, `access_count`, or `last_accessed_at`.",
+          "`alembic downgrade <prev>` followed by `alembic upgrade head` round-trips successfully.",
+          "grep of `backend/app/models/models.py` for `pgvector` and `Vector(` returns zero matches.",
+          "grep of `backend/app/database/init_db.py` for `CREATE EXTENSION` containing `vector` returns zero matches."
+        ],
+        "tooling": "pytest with testcontainers PostgreSQL; alembic CLI; ripgrep.",
+        "gating": "Must be CI-blocking — broken migration breaks every downstream test."
+      }
+    },
+    {
+      "id": "F20",
+      "title": "Drop openai and pgvector dependencies from pyproject.toml",
+      "layer": "foundation",
+      "needs": ["F15", "F19"],
+      "contract": {
+        "pyproject_toml_dependencies_removed": ["openai>=1.0.0", "pgvector>=0.4.2"],
+        "uv_lock_updated": "regenerated"
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "grep of `backend/pyproject.toml` `[project]` dependency list for `openai` and `pgvector` returns zero matches.",
+          "`uv sync` against the updated `pyproject.toml` and `uv.lock` succeeds.",
+          "Full backend test suite (`make test-backend-all`) runs to completion with all tests passing.",
+          "ripgrep `^(from|import) (openai|pgvector)` across `backend/` (excluding `.venv` and `migrations/versions/` historical files) returns zero matches."
+        ],
+        "tooling": "uv; pytest; ripgrep."
+      }
+    },
+    {
+      "id": "F21",
+      "title": "Documentation sweep: remove embedding / access-tracking references and retire invariants 6 + 7",
+      "layer": "cross-cutting",
+      "needs": ["F19", "F20"],
+      "contract": {
+        "architecture_md": {
+          "embeddings_and_similarity_section": "deleted",
+          "noteScoring_ts_reference": "removed",
+          "services_embeddings_reference": "removed",
+          "services_backfill_reference": "removed",
+          "Vector_1536_mention": "removed"
+        },
+        "ai_embeddings_design_md": "archived to docs/design-docs/archive/ or deleted",
+        "core_beliefs_md": {
+          "invariant_6": "retired",
+          "invariant_7": "retired",
+          "invariant_1_exempt_helpers_block": "removed",
+          "invariant_3_init_db_raw_sql_site": "removed",
+          "invariant_4_access_endpoint_example": "removed"
+        },
+        "agents_and_claude_md": {
+          "access_endpoint_line": "removed",
+          "similar_endpoint_line": "removed",
+          "OPENAI_API_KEY_line": "removed",
+          "EMBEDDING_MODEL_line": "removed",
+          "for_you_command_palette_description": "removed",
+          "note_model_description": "updated"
+        },
+        "grep_clean_literals": [
+          "For You",
+          "noteScoring",
+          "embedding",
+          "OPENAI_API_KEY",
+          "EMBEDDING_MODEL",
+          "/similar",
+          "/access",
+          "pgvector",
+          "SimilarNote"
+        ],
+        "acceptable_residual_locations": [
+          "docs/exec-plans/prds/remove-for-you.json",
+          "git history"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "ripgrep of each literal in `grep_clean_literals` across the working tree, excluding `docs/exec-plans/prds/remove-for-you.json` and `.git/`, returns zero matches.",
+          "`docs/design-docs/core-beliefs.md` no longer documents invariants 6 or 7 as active rules; both are explicitly marked retired or removed.",
+          "`docs/design-docs/core-beliefs.md` no longer lists `_generate_embedding_background` or `services/backfill.py` under invariant 1's exempt helpers.",
+          "`docs/design-docs/core-beliefs.md` no longer lists the `CREATE EXTENSION IF NOT EXISTS vector` site under invariant 3.",
+          "`docs/design-docs/core-beliefs.md` no longer cites `/notes/{id}/access` as an example under invariant 4.",
+          "`ARCHITECTURE.md` no longer contains an `### Embeddings & Similarity` heading.",
+          "`docs/ai-embeddings-design.md` is either absent from `docs/` or relocated under `docs/design-docs/archive/`."
+        ],
+        "tooling": "ripgrep; filesystem check."
+      }
+    }
+  ]
+}
