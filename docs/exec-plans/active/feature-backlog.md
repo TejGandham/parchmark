@@ -16,6 +16,18 @@ Each feature: read spec → write test → write code → verify.
 
 ## Foundation (backend pipeline starts here)
 
+- [ ] **F19 Alembic migration drops embedding columns + pgvector extension and updates Note model**
+  Needs: F12, F13, F14, F15
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F20 Drop openai and pgvector dependencies from pyproject.toml**
+  Needs: F15, F19
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
 ## Service
 
 - [ ] **F01 Postgres trigger emits NOTIFY on note title/content/delete**
@@ -45,6 +57,27 @@ Each feature: read spec → write test → write code → verify.
   Test: The /notes/events stream emits a SSE comment-line heartbeat (`:heartbeat\n\n`) every 30 seconds while idle (verified by connecting an authenticated client, sending no mutations, and asserting at least one `:` comment frame is received within 32s). On client TCP close, the subscriber is removed from the broker within one heartbeat interval (asserted by broker subscriber count before/after). FastAPI lifespan shutdown closes all active streams and the LISTEN connection cleanly (no pending tasks warning in test logs).
   <!-- DRAFTED: 2026-04-24 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:9f3c7b2a1e8d5f04 -->
+
+- [ ] **F12 Strip embedding generation from routers/notes.py**
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F13 Delete GET /api/notes/{id}/similar endpoint**
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F14 Delete POST /api/notes/{id}/access endpoint**
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F15 Delete embeddings + backfill services and OpenAI lifespan wiring**
+  Needs: F12, F13
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
 ## UI
 
@@ -90,6 +123,22 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-04-24 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:9f3c7b2a1e8d5f04 -->
 
+- [ ] **F16 Strip For You section from CommandPalette.tsx**
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F17 Strip forYouNotes block from NotesExplorer.tsx**
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F18 Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types**
+  Needs: F16, F17
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
 ## Cross-cutting
 
 - [ ] **F11 End-to-end cross-user isolation safety test (CI-gated)**
@@ -98,3 +147,9 @@ Each feature: read spec → write test → write code → verify.
   Test: Pytest async integration test (httpx streaming client) that (1) creates two users A and B via the existing seed/user fixtures, (2) opens an authenticated SSE stream as user B and asserts the broker registers exactly one subscriber for B (verifying the connection actually reached the broker — guards against vacuous-pass where B receives nothing because the stream silently failed to register), (3) performs 10 interleaved mutations (mix of POST /api/notes, PATCH /api/notes/{id}, DELETE /api/notes/{id}) as user A via real HTTP calls, (4) asserts B's stream receives EXACTLY ZERO events during a 5-second post-mutation window, (5) as control: performs one mutation as user B and asserts B's stream receives exactly one event with the correct {kind, note_id} payload (proves the stream is alive, not broken). Wired into Forgejo CI as a required gate; merge-blocking. This entry exists because cross-user event leakage would silently violate domain invariants 1 (tenant isolation) and 2 (auth on every non-public route) on a brand-new transport surface that the existing REST tenant-isolation tests do not exercise.
   <!-- DRAFTED: 2026-04-24 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:9f3c7b2a1e8d5f04 -->
+
+- [ ] **F21 Documentation sweep: remove embedding / access-tracking references and retire invariants 6 + 7**
+  Needs: F19, F20
+  PRD: remove-for-you
+  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
