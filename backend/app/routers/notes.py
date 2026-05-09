@@ -5,9 +5,8 @@ Handles note creation, reading, updating, and deletion with user authorization.
 
 import logging
 from datetime import datetime
-from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,7 @@ from sqlalchemy.orm import defer
 from sqlalchemy.sql import func
 
 from app.auth.dependencies import get_current_user
-from app.database.database import get_async_db, get_async_session_factory
+from app.database.database import get_async_db
 from app.models.models import Note, User
 from app.schemas.schemas import (
     DeleteResponse,
@@ -24,7 +23,6 @@ from app.schemas.schemas import (
     NoteUpdate,
     SimilarNoteResponse,
 )
-from app.services.embeddings import generate_embedding, get_openai_client
 from app.utils.markdown import markdown_service
 
 logger = logging.getLogger(__name__)
@@ -46,21 +44,6 @@ def _note_to_response(note: Note) -> NoteResponse:
             "lastAccessedAt": note.last_accessed_at,
         }
     )
-
-
-async def _generate_embedding_background(note_id: str, content: str, client: Any, session_factory: Any) -> None:
-    """Generate embedding in background with its own DB session."""
-    try:
-        embedding = await generate_embedding(content, client)
-        if embedding is not None:
-            async with session_factory() as db:
-                result = await db.execute(select(Note).filter(Note.id == note_id))
-                note = result.scalar_one_or_none()
-                if note is not None:
-                    note.embedding = embedding  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
-                    await db.commit()
-    except Exception as e:
-        logger.warning(f"Background embedding generation failed for note {note_id}: {e}")
 
 
 @router.get("/", response_model=list[NoteResponse])
@@ -90,11 +73,8 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
 @router.post("/", response_model=NoteResponse)
 async def create_note(
     note_data: NoteCreate,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
-    openai_client: Any = Depends(get_openai_client),
-    session_factory: Any = Depends(get_async_session_factory),
 ):
     """
     Create a new note for the authenticated user.
@@ -141,10 +121,6 @@ async def create_note(
         logger.error(f"Failed to create note: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
-    background_tasks.add_task(
-        _generate_embedding_background, note_id, formatted_content, openai_client, session_factory
-    )
-
     return _note_to_response(db_note)
 
 
@@ -152,11 +128,8 @@ async def create_note(
 async def update_note(
     note_id: str,
     note_data: NoteUpdate,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
-    openai_client: Any = Depends(get_openai_client),
-    session_factory: Any = Depends(get_async_session_factory),
 ):
     """
     Update an existing note for the authenticated user.
@@ -186,7 +159,6 @@ async def update_note(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
 
     # Update fields if provided
-    formatted_content: str | None = None
     if note_data.content is not None:
         formatted_content = markdown_service.format_content(note_data.content)
         extracted_title = markdown_service.extract_title(formatted_content)
@@ -204,11 +176,6 @@ async def update_note(
         await db.rollback()
         logger.error(f"Failed to update note {note_id}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
-
-    if note_data.content is not None and formatted_content is not None:
-        background_tasks.add_task(
-            _generate_embedding_background, note_id, formatted_content, openai_client, session_factory
-        )
 
     return _note_to_response(db_note)
 

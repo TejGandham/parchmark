@@ -171,7 +171,7 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
 
 Business logic currently lives in routers, not in a services layer:
 
-- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, background embedding generation, cosine similarity queries
+- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, cosine similarity queries
 - **`routers/settings.py`**: filename sanitization, batched streaming export, password change with auth provider checks, cascading account deletion
 
 The `services/` package holds only embeddings, health checks, and the backfill CLI—not general business logic.
@@ -198,7 +198,7 @@ backend/app/
 │   └── backfill.py             # CLI: backfill embeddings for existing notes
 ├── routers/
 │   ├── auth.py                 # /api/auth/* endpoints
-│   ├── notes.py                # /api/notes/* endpoints (+ background embedding)
+│   ├── notes.py                # /api/notes/* endpoints
 │   ├── settings.py             # /api/settings/* endpoints (streaming ZIP export)
 │   └── health.py               # /api/health endpoint
 ├── utils/
@@ -271,10 +271,6 @@ The frontend includes shared test cases (`markdownTestCases`) to verify parity.
 Optional feature—silently degrades when `OPENAI_API_KEY` is absent.
 
 ```
-Note created/updated
-    → Background task: generate embedding via OpenAI
-    → Store as pgvector Vector(1536) on Note model
-
 GET /api/notes/{id}/similar
     → cosine_distance() query in PostgreSQL
     → Return ranked similar notes
