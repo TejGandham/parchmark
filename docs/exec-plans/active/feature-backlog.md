@@ -58,7 +58,7 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-04-24 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:9f3c7b2a1e8d5f04 -->
 
-- [ ] **F12 Strip embedding generation from routers/notes.py**
+- [x] **F12 Strip embedding generation from routers/notes.py**
   PRD: remove-for-you
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
