@@ -140,8 +140,6 @@ All endpoints are prefixed with `/api`.
 | GET    | `/api/notes/{id}`           | Get note                                 |
 | PUT    | `/api/notes/{id}`           | Update note                              |
 | DELETE | `/api/notes/{id}`           | Delete note                              |
-| POST   | `/api/notes/{id}/access`    | Track note access (for "For You" scoring)|
-| GET    | `/api/notes/{id}/similar`   | Similar notes via cosine similarity      |
 
 ### Settings (`/api/settings`)
 

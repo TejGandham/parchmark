@@ -146,8 +146,6 @@ The frontend integrates with a RESTful backend API:
 | `/api/notes` | POST | Create new note |
 | `/api/notes/:id` | PUT | Update note |
 | `/api/notes/:id` | DELETE | Delete note |
-| `/api/notes/:id/access` | POST | Track note access (for "For You" scoring) |
-| `/api/notes/:id/similar` | GET | Similar notes via embeddings |
 | `/api/settings/user-info` | GET | Account info |
 | `/api/settings/change-password` | POST | Change password |
 | `/api/settings/export-notes` | GET | Export all notes as ZIP |

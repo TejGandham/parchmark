@@ -152,7 +152,7 @@ The full, current API is discoverable at:
 - Dev: <http://localhost:8000/docs>
 - Prod: <https://assets-api.engen.tech/docs>
 
-Notable non-obvious endpoints: `POST /api/notes/{id}/access` (fire-and-forget tracking for the "For You" scoring), `GET /api/notes/{id}/similar` (cosine similarity over embeddings), `GET /api/health` (DB + version info).
+Notable non-obvious endpoints: `GET /api/health` (DB + version info).
 
 ## Environment Variables
 
