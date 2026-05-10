@@ -63,31 +63,63 @@ def _file_matches(path: Path, *patterns: str) -> list[tuple[int, str]]:
 @pytest.fixture(scope="module")
 def migration_container():
     """
-    Spin up a fresh pgvector/pgvector:pg17 container, run alembic upgrade to
-    the F19 parent revision (49f4bec52ca3), and yield (engine, alembic_cfg).
+    Spin up a fresh pgvector/pgvector:pg17 container, materialize the schema
+    state corresponding to F19's parent revision (49f4bec52ca3), and yield
+    (engine, alembic_cfg) so each test class can run command.upgrade(head).
+
+    The migration chain is brownfield-tolerant: revision 3c1162fce719 (root)
+    explicitly skips when `users` doesn't exist, expecting app startup to
+    create tables via Base.metadata.create_all() FIRST. The next revision
+    170dd30cebde isn't brownfield-tolerant (creates an index assuming `notes`
+    exists), so a naive command.upgrade(parent) on a fresh DB fails. The
+    conftest sidesteps this by running create_all() and skipping alembic.
+
+    For F19's migration test we follow the same protocol:
+      1. create_all() materializes the current Note model (without dropped cols)
+      2. ALTER TABLE adds the embedding/access_count/last_accessed_at columns
+         that revisions fad201191d3b, 33a4da6b0cac, 49f4bec52ca3 cumulatively
+         introduce — recreating the schema state F19 expects to operate on.
+      3. command.stamp(parent_revision) marks alembic at parent without
+         re-running the (partially broken on fresh DB) upstream chain.
+      4. Tests then call command.upgrade("head") which runs only F19.
 
     Sets DATABASE_URL in the process environment so backend/migrations/env.py
     picks up the testcontainer URL (env.py ignores set_main_option).
     """
+    # Import here to avoid pulling app code at module load time
+    from app.database.database import Base
+    from app.models import models  # noqa: F401 — registers Note/User on Base
+
     saved_database_url = os.environ.get("DATABASE_URL")
     with PostgresContainer("pgvector/pgvector:pg17") as pg:
         sync_url = pg.get_connection_url()
-        # CRITICAL: env.py reads DATABASE_URL from os.environ and overrides
-        # alembic_cfg.set_main_option. Set it before any alembic command.
         os.environ["DATABASE_URL"] = sync_url
 
         try:
             engine = create_engine(sync_url)
 
+            # Step 1+2: bootstrap schema like app startup does, then add the
+            # columns that revisions fad201191d3b/33a4da6b0cac/49f4bec52ca3
+            # contributed (which F19 will drop).
+            with engine.begin() as conn:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            Base.metadata.create_all(bind=engine)
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS access_count INTEGER NOT NULL DEFAULT 0"))
+                conn.execute(
+                    text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMP WITH TIME ZONE")
+                )
+                conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS embedding vector(1536)"))
+
             alembic_cfg = Config(str(_ALEMBIC_INI))
             alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
 
-            # Seed container at parent revision (creates schema up to 49f4bec52ca3)
-            command.upgrade(alembic_cfg, _PARENT_REVISION)
+            # Step 3: stamp alembic at the parent revision so upgrade head
+            # runs ONLY the F19 migration.
+            command.stamp(alembic_cfg, _PARENT_REVISION)
 
             yield engine, alembic_cfg, sync_url
         finally:
-            # Restore prior DATABASE_URL so other test fixtures aren't affected
             if saved_database_url is None:
                 os.environ.pop("DATABASE_URL", None)
             else:
