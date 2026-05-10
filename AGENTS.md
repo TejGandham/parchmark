@@ -239,7 +239,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 
 ### Command Palette
 - Primary navigation (replaced sidebar); triggered via the search button in the header
-- "For You" section blends heuristic scoring (recency + frequency) with AI similarity when available
+- Shows search results; navigates to the date-grouped notes list in `NotesExplorer`
 - The virtualized note list (`react-window`) lives in `NotesExplorer`, not in the palette itself
 
 ### Deployment
