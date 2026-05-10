@@ -1,10 +1,11 @@
 # F20 — Drop openai and pgvector dependencies from pyproject.toml
 
 ---
-status: IN-PROGRESS
+status: LANDED
 pipeline: backend
 prd_ref: docs/exec-plans/prds/remove-for-you.json#F20
 spec_ref: docs/exec-plans/prds/remove-for-you.json#F20
+pr_url: https://brahma.myth-gecko.ts.net:3000/stackhouse/parchmark/pulls/91
 
 # Pre-check routing (set by pre-check, read by orchestrator)
 intent: mid-sized
