@@ -40,13 +40,13 @@ Layers are listed bottom-up. Code may only import from layers **below** it—nev
  │  Services                           │  HTTP client, markdown service wrapper
  │  services/                          │
  ├─────────────────────────────────────┤
- │  Utils                              │  Error handling, date formatting, scoring
+ │  Utils                              │  Error handling, date formatting
  │  utils/                             │
  ├─────────────────────────────────────┤
  │  Config                             │  API endpoints, env constants, storage keys
  │  config/                            │
  ├─────────────────────────────────────┤
- │  Types                              │  Note, SimilarNote, User interfaces
+ │  Types                              │  Note, User interfaces
  │  types/                             │
  └─────────────────────────────────────┘
 ```
@@ -71,7 +71,7 @@ Layers are listed bottom-up. Code may only import from layers **below** it—nev
 
 ```
 ui/src/
-├── types/index.ts              # Note, SimilarNote, User
+├── types/index.ts              # Note, User
 ├── config/
 │   ├── api.ts                  # API_ENDPOINTS constant
 │   ├── constants.ts            # Vite env vars (API_BASE_URL, etc.)
@@ -82,7 +82,6 @@ ui/src/
 │   ├── markdown.ts             # MarkdownService (synced with backend)
 │   ├── dateFormatting.ts       # Relative/short/full date display
 │   ├── dateGrouping.ts         # Group & sort notes by date
-│   ├── noteScoring.ts          # "For You" heuristic scoring
 │   ├── compactTime.ts          # Compact relative time ("5m", "2h")
 │   ├── markdownStrip.ts        # Plain text extraction from markdown
 │   └── mermaidInit.ts          # Lazy mermaid diagram loader
@@ -265,20 +264,6 @@ Both domains implement the same operations and must stay in sync:
 | Create empty note | `createEmptyNote(title)` | `create_empty_note(title)` |
 
 The frontend includes shared test cases (`markdownTestCases`) to verify parity.
-
-### Embeddings & Similarity
-
-Optional feature—silently degrades when `OPENAI_API_KEY` is absent.
-
-```
-GET /api/notes/{id}/similar
-    → cosine_distance() query in PostgreSQL
-    → Return ranked similar notes
-
-Command Palette "For You"
-    → Blend heuristic score (recency + frequency) with similarity score
-    → 0.4 * heuristic + 0.6 * similarity (when available)
-```
 
 ---
 

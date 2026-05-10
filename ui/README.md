@@ -16,7 +16,6 @@ A modern, fast, and intuitive markdown note-taking application built with React,
 - 📊 **Mermaid Diagrams** - Built-in support for flowcharts and diagrams
 - 🔍 **Command Palette** - Quick note navigation via the header search button
 - 🗺️ **Notes Explorer** - Visual exploration of notes at `/notes/explore`
-- 🤖 **Similar Notes** - AI-powered related note suggestions
 - ⚙️ **Settings** - Account management, password changes, note export
 - 🚀 **Lightning Fast** - Powered by Vite for instant HMR and optimized builds
 - 📱 **Responsive Design** - Seamless experience on desktop and mobile
@@ -105,8 +104,8 @@ src/
 │       ├── components/    # Command palette, header, theme
 │       └── store/         # UI state (theme, palette)
 ├── config/                # Type-safe constants (api, storage)
-├── types/                 # Shared TypeScript types (Note, SimilarNote)
-├── utils/                 # Utilities (errorHandler, markdown, scoring)
+├── types/                 # Shared TypeScript types (Note)
+├── utils/                 # Utilities (errorHandler, markdown)
 ├── services/              # API client
 ├── router.tsx             # Data Router config (loaders, actions)
 ├── test-utils/            # Testing utilities
