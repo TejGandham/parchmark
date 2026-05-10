@@ -14,7 +14,6 @@ ParchMark is a full-stack markdown note-taking app with two domains: a React fro
                                           ▼
                                  ┌────────────────┐
                                  │   PostgreSQL    │
-                                 │   + pgvector    │
                                  └────────────────┘
 ```
 
@@ -155,7 +154,7 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
 | Models | Database (Base class only) |
 | Schemas | Nothing from app (standalone Pydantic models) |
 | Auth | Models, Schemas, Database |
-| Services | Database, Models (embeddings is standalone) |
+| Services | Database, Models |
 | Routers | Auth, Services, Models, Schemas, Database, Utils |
 | Main | All layers (wiring only) |
 
@@ -171,10 +170,10 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
 
 Business logic currently lives in routers, not in a services layer:
 
-- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, cosine similarity queries
+- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing
 - **`routers/settings.py`**: filename sanitization, batched streaming export, password change with auth provider checks, cascading account deletion
 
-The `services/` package holds only embeddings, health checks, and the backfill CLI—not general business logic.
+The `services/` package holds only health checks—not general business logic.
 
 ### Directory Reference
 
@@ -182,10 +181,10 @@ The `services/` package holds only embeddings, health checks, and the backfill C
 backend/app/
 ├── database/
 │   ├── database.py             # Async engine, session factory, get_async_db()
-│   ├── init_db.py              # Table creation, pgvector extension
+│   ├── init_db.py              # Table creation
 │   └── seed.py                 # Default users and notes
 ├── models/
-│   └── models.py               # User, Note (with pgvector embedding column)
+│   └── models.py               # User, Note
 ├── schemas/
 │   └── schemas.py              # Pydantic schemas (no model imports)
 ├── auth/
@@ -193,9 +192,7 @@ backend/app/
 │   ├── dependencies.py         # get_current_user (hybrid JWT + OIDC)
 │   └── oidc_validator.py       # OIDC token validation, discovery caching
 ├── services/
-│   ├── embeddings.py           # OpenAI embedding generation, cosine similarity
-│   ├── health_service.py       # DB connectivity check
-│   └── backfill.py             # CLI: backfill embeddings for existing notes
+│   └── health_service.py       # DB connectivity check
 ├── routers/
 │   ├── auth.py                 # /api/auth/* endpoints
 │   ├── notes.py                # /api/notes/* endpoints

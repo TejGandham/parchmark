@@ -107,3 +107,23 @@ Known shortcuts, deferred improvements, and open questions.
       by recurring merge-gate pain or regressions that slipped past
       F07a+F07b), add Playwright and graduate F07c to an automated F07d.
       See `feature-backlog.md` F07 SPEC-NOTES.
+
+- [ ] **Audit all migrations for brownfield-tolerance guards.** F20's
+      arch-advisor consultation codified the pattern (inspect →
+      `_table_exists` → return early on fresh DB) in CLAUDE.md
+      "Migration history conventions". Existing migrations following
+      the pattern: `3c1162fce719`, `33a4da6b0cac`, `fad201191d3b`,
+      `49f4bec52ca3` (post-F20), `7f1c343772e8` (post-F20). NOT
+      following the pattern: `170dd30cebde_add_indexes` — unconditionally
+      `op.create_index(op.f("ix_notes_user_id"), "notes", ...)` would
+      fail on a literally-empty DB before `Base.metadata.create_all`
+      runs. Currently masked by the fact that fresh deployments
+      historically restored from snapshot or used `create_all + stamp
+      head` rather than `alembic upgrade head` from base. Surfaced by
+      F20 roundtable landing review (Attempt 1, Codex finding #2). Add
+      brownfield guard to `170dd30cebde` and any future migrations.
+      Optionally: tighten F20 oracle assertion 5's regex from
+      `from pgvector|Vector\(` to `from pgvector\.|Vector\(` so
+      historical prose mentioning "pgvector" doesn't force migration-body
+      cosmetic edits to clear the grep (raised by arch-advisor VERIFY
+      future-considerations).
