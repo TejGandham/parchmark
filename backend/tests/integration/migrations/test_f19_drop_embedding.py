@@ -60,36 +60,61 @@ def _file_matches(path: Path, *patterns: str) -> list[tuple[int, str]]:
 # ---------------------------------------------------------------------------
 
 
+# Raw SQL for the schema state at parent revision 49f4bec52ca3.
+# We hand-roll this rather than relying on Base.metadata.create_all() because:
+# 1. The migration chain itself is partially brownfield-tolerant (root revision
+#    3c1162fce719:60 skips on fresh DBs, expecting app-startup create_all to
+#    have run first), so command.upgrade(parent) on an empty DB fails.
+# 2. Base.metadata.create_all() depends on which app modules have been imported
+#    in the worker process — under pytest-xdist that ordering can be non-obvious.
+#    Raw SQL is deterministic and removes the dependency on import side-effects.
+#
+# This SQL recreates the post-49f4bec52ca3 schema (users + notes with the
+# embedding/access_count/last_accessed_at columns the F12-F15 chain produced).
+_PARENT_SCHEMA_SQL = """
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255),
+    email VARCHAR(255),
+    oidc_sub VARCHAR(255) UNIQUE,
+    auth_provider VARCHAR(50) NOT NULL DEFAULT 'local',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_users_id ON users(id);
+CREATE INDEX ix_users_username ON users(username);
+CREATE INDEX ix_users_oidc_sub ON users(oidc_sub);
+
+CREATE TABLE notes (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    embedding vector(1536),
+    access_count INTEGER NOT NULL DEFAULT 0,
+    last_accessed_at TIMESTAMP WITH TIME ZONE
+);
+CREATE INDEX ix_notes_id ON notes(id);
+CREATE INDEX ix_notes_user_id ON notes(user_id);
+"""
+
+
 @pytest.fixture(scope="module")
 def migration_container():
     """
     Spin up a fresh pgvector/pgvector:pg17 container, materialize the schema
-    state corresponding to F19's parent revision (49f4bec52ca3), and yield
-    (engine, alembic_cfg) so each test class can run command.upgrade(head).
-
-    The migration chain is brownfield-tolerant: revision 3c1162fce719 (root)
-    explicitly skips when `users` doesn't exist, expecting app startup to
-    create tables via Base.metadata.create_all() FIRST. The next revision
-    170dd30cebde isn't brownfield-tolerant (creates an index assuming `notes`
-    exists), so a naive command.upgrade(parent) on a fresh DB fails. The
-    conftest sidesteps this by running create_all() and skipping alembic.
-
-    For F19's migration test we follow the same protocol:
-      1. create_all() materializes the current Note model (without dropped cols)
-      2. ALTER TABLE adds the embedding/access_count/last_accessed_at columns
-         that revisions fad201191d3b, 33a4da6b0cac, 49f4bec52ca3 cumulatively
-         introduce — recreating the schema state F19 expects to operate on.
-      3. command.stamp(parent_revision) marks alembic at parent without
-         re-running the (partially broken on fresh DB) upstream chain.
-      4. Tests then call command.upgrade("head") which runs only F19.
+    state corresponding to F19's parent revision (49f4bec52ca3) via raw SQL,
+    stamp alembic at the parent revision, and yield (engine, alembic_cfg, url)
+    so each test class can run command.upgrade(head) to exercise F19's
+    migration.
 
     Sets DATABASE_URL in the process environment so backend/migrations/env.py
     picks up the testcontainer URL (env.py ignores set_main_option).
     """
-    # Import here to avoid pulling app code at module load time
-    from app.database.database import Base
-    from app.models import models  # noqa: F401 — registers Note/User on Base
-
     saved_database_url = os.environ.get("DATABASE_URL")
     with PostgresContainer("pgvector/pgvector:pg17") as pg:
         sync_url = pg.get_connection_url()
@@ -98,24 +123,17 @@ def migration_container():
         try:
             engine = create_engine(sync_url)
 
-            # Step 1+2: bootstrap schema like app startup does, then add the
-            # columns that revisions fad201191d3b/33a4da6b0cac/49f4bec52ca3
-            # contributed (which F19 will drop).
+            # Materialize the parent-revision schema directly.
             with engine.begin() as conn:
-                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            Base.metadata.create_all(bind=engine)
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS access_count INTEGER NOT NULL DEFAULT 0"))
-                conn.execute(
-                    text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMP WITH TIME ZONE")
-                )
-                conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS embedding vector(1536)"))
+                for stmt in _PARENT_SCHEMA_SQL.strip().split(";"):
+                    s = stmt.strip()
+                    if s:
+                        conn.execute(text(s))
 
             alembic_cfg = Config(str(_ALEMBIC_INI))
             alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
 
-            # Step 3: stamp alembic at the parent revision so upgrade head
-            # runs ONLY the F19 migration.
+            # Mark alembic at the parent revision so upgrade head runs only F19.
             command.stamp(alembic_cfg, _PARENT_REVISION)
 
             yield engine, alembic_cfg, sync_url
