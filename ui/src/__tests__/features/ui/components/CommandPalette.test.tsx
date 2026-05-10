@@ -19,15 +19,6 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../../../../services/api', async () => {
-  const actual = await vi.importActual('../../../../services/api');
-  return {
-    ...actual,
-    trackNoteAccess: vi.fn().mockResolvedValue(undefined),
-    getSimilarNotes: vi.fn().mockResolvedValue([]),
-  };
-});
-
 function makeNote(overrides: Partial<Note> & { id: string }): Note {
   return {
     title: `Note ${overrides.id}`,
@@ -172,57 +163,13 @@ describe('CommandPalette', () => {
   });
 
   describe('FOR YOU section', () => {
-    it('shows FOR YOU header when palette is open with notes', () => {
+    // F16 inverse-coverage assertion — /features/4/oracle/assertions/3
+    // This test FAILS before F16 implementation (header IS present) and
+    // PASSES after the section is removed.
+    it('does not render FOR YOU section after F16 removal', () => {
       openPalette();
       renderPalette(sampleNotes);
-      expect(screen.getByTestId('for-you-header')).toHaveTextContent('FOR YOU');
-    });
-
-    it('displays FOR YOU section above RECENT', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      const forYouHeader = screen.getByTestId('for-you-header');
-      const recentHeader = screen.getByTestId('recent-header');
-      const order = forYouHeader.compareDocumentPosition(recentHeader);
-      expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
-
-    it('excludes the current note from FOR YOU', () => {
-      openPalette();
-      renderPalette([
-        ...sampleNotes,
-        makeNote({
-          id: 'current-note',
-          title: 'Current',
-          updatedAt: '2026-02-16T13:00:00Z',
-        }),
-      ]);
-      const forYouHeader = screen.getByTestId('for-you-header');
-      const recentHeader = screen.getByTestId('recent-header');
-      const forYouItems: string[] = [];
-      let sibling = forYouHeader.parentElement!.nextElementSibling;
-      while (sibling && !sibling.contains(recentHeader)) {
-        if (sibling.getAttribute('data-testid') === 'palette-note-item') {
-          forYouItems.push(sibling.textContent ?? '');
-        }
-        sibling = sibling.nextElementSibling;
-      }
-      expect(forYouItems.join('')).not.toContain('Current');
-    });
-
-    it('does not show FOR YOU section when no notes', () => {
-      openPalette();
-      renderPalette([]);
-      expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
-    });
-
-    it('hides FOR YOU section during search', () => {
-      openPalette();
-      renderPalette(sampleNotes);
-      expect(screen.getByTestId('for-you-header')).toBeInTheDocument();
-      fireEvent.change(screen.getByTestId('command-palette-search'), {
-        target: { value: 'Alpha' },
-      });
+      expect(screen.queryByText('FOR YOU')).toBeNull();
       expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
     });
   });
@@ -317,15 +264,6 @@ describe('CommandPalette', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/notes/1');
       expect(useUIStore.getState().isPaletteOpen).toBe(false);
     });
-
-    it('calls trackNoteAccess on selection', async () => {
-      const { trackNoteAccess } = await import('../../../../services/api');
-      openPalette();
-      renderPalette(sampleNotes);
-      const items = screen.getAllByTestId('palette-note-item');
-      fireEvent.click(items[0]);
-      expect(trackNoteAccess).toHaveBeenCalledWith('1');
-    });
   });
 
   describe('Zero notes state', () => {
@@ -351,46 +289,6 @@ describe('CommandPalette', () => {
         target: { value: 'test' },
       });
       expect(screen.queryByTestId('zero-notes-state')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Similar notes integration', () => {
-    it('fetches similar notes when palette opens with currentNoteId', async () => {
-      const { getSimilarNotes } = await import('../../../../services/api');
-      openPalette();
-      renderPalette(sampleNotes);
-      expect(getSimilarNotes).toHaveBeenCalledWith('current-note');
-    });
-
-    it('does NOT fetch similar notes when no currentNoteId', async () => {
-      const { getSimilarNotes } = await import('../../../../services/api');
-      vi.mocked(getSimilarNotes).mockClear();
-
-      renderPalette(sampleNotes);
-      expect(getSimilarNotes).not.toHaveBeenCalled();
-    });
-
-    it('clears similar notes when palette closes', async () => {
-      const { getSimilarNotes } = await import('../../../../services/api');
-      vi.mocked(getSimilarNotes).mockResolvedValue([
-        { id: '2', title: 'Note 2', similarity: 0.9, updatedAt: '' },
-      ]);
-
-      openPalette();
-      renderPalette(sampleNotes);
-      expect(getSimilarNotes).toHaveBeenCalled();
-
-      closePaletteViaStore();
-    });
-
-    it('falls back to heuristic when getSimilarNotes returns empty array', async () => {
-      const { getSimilarNotes } = await import('../../../../services/api');
-      vi.mocked(getSimilarNotes).mockResolvedValue([]);
-
-      openPalette();
-      renderPalette(sampleNotes);
-
-      expect(screen.getByTestId('for-you-header')).toBeInTheDocument();
     });
   });
 

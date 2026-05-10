@@ -1,7 +1,6 @@
 import {
   useRef,
   useEffect,
-  useState,
   useMemo,
   useCallback,
   type MouseEvent,
@@ -9,13 +8,11 @@ import {
 } from 'react';
 import { Portal, Box, Input, Text, VStack, HStack } from '@chakra-ui/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../store/ui';
-import { Note, SimilarNote } from '../../../types';
+import { Note } from '../../../types';
 import { filterNotes, sortNotes } from '../../../utils/dateGrouping';
 import { formatCompactTime } from '../../../utils/compactTime';
-import { getBlendedForYouNotes } from '../../../utils/noteScoring';
-import { trackNoteAccess, getSimilarNotes } from '../../../services/api';
 import { highlightKeyword } from './commandPaletteUtils';
 
 interface CommandPaletteProps {
@@ -66,9 +63,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     null
   ) as MutableRefObject<HTMLInputElement | null>;
   const navigate = useNavigate();
-  const { noteId: currentNoteId } = useParams<{ noteId: string }>();
-
-  const [similarNotes, setSimilarNotes] = useState<SimilarNote[]>([]);
 
   const setSearchInputRef = useCallback((node: HTMLInputElement | null) => {
     searchInputRef.current = node;
@@ -77,32 +71,9 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!isPaletteOpen || !currentNoteId) {
-      setSimilarNotes([]);
-      return;
-    }
-
-    let cancelled = false;
-    getSimilarNotes(currentNoteId).then((result) => {
-      if (!cancelled) {
-        setSimilarNotes(result);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isPaletteOpen, currentNoteId]);
-
   const recentNotes = useMemo(
     () => sortNotes(notes, 'lastModified', 'desc').slice(0, 5),
     [notes]
-  );
-
-  const forYouNotes = useMemo(
-    () => getBlendedForYouNotes(notes, currentNoteId ?? null, similarNotes, 3),
-    [notes, currentNoteId, similarNotes]
   );
 
   const filteredNotes = useMemo(
@@ -121,7 +92,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
   const handleSelect = (noteId: string) => {
     navigate(`/notes/${noteId}`);
     closePalette();
-    trackNoteAccess(noteId);
   };
 
   useEffect(() => {
@@ -263,35 +233,6 @@ export const CommandPalette = ({ notes = [] }: CommandPaletteProps) => {
                       No notes yet — use the + button above to create one
                     </Text>
                   </VStack>
-                )}
-
-                {!isSearching && forYouNotes.length > 0 && (
-                  <>
-                    <Box
-                      px={4}
-                      py={1.5}
-                      borderBottom="1px"
-                      borderColor="secondary.100"
-                      bg="secondary.50"
-                    >
-                      <Text
-                        fontSize="xs"
-                        fontWeight="bold"
-                        color="section.forYou"
-                        letterSpacing="wide"
-                        data-testid="for-you-header"
-                      >
-                        FOR YOU
-                      </Text>
-                    </Box>
-                    {forYouNotes.map((note) => (
-                      <PaletteNoteItem
-                        key={`fy-${note.id}`}
-                        note={note}
-                        onSelect={handleSelect}
-                      />
-                    ))}
-                  </>
                 )}
 
                 {!isSearching && notes.length > 0 && (
