@@ -1,7 +1,7 @@
 # F18 — Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types
 
 ---
-status: IN-PROGRESS
+status: LANDED
 pipeline: frontend
 prd_ref: docs/exec-plans/prds/remove-for-you.json#F18
 
@@ -32,7 +32,7 @@ arch_retry_safety_attempt: 0
 # Pipeline configuration
 remote_name: origin
 roundtable_enabled: true
-pr_url:
+pr_url: https://brahma.myth-gecko.ts.net:3000/stackhouse/parchmark/pulls/90
 
 # Roundtable design review (Step 2.5)
 roundtable_design_attempt: 0
@@ -52,7 +52,6 @@ roundtable_retry_code_review_attempt: 1
 roundtable_retry_spec_review_attempt: 1
 roundtable_retry_safety_attempt: 0
 roundtable_retry_landing_verifier_attempt: 1
-status: READY-TO-LAND
 
 # Doc-gardener (Step 9 sub-step 1)
 doc_garden_verdict: DRIFT_FOUND
