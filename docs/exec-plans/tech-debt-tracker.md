@@ -107,3 +107,26 @@ Known shortcuts, deferred improvements, and open questions.
       by recurring merge-gate pain or regressions that slipped past
       F07a+F07b), add Playwright and graduate F07c to an automated F07d.
       See `feature-backlog.md` F07 SPEC-NOTES.
+
+- [ ] **`/keel-refine` consumer-path enumeration template for removal-features.**
+      Four consecutive removal pipelines required mid-flight PRD amendments
+      because the drafter under-enumerated consumer paths at refine time:
+      F15 (PR #82, `test_backfill.py` import in deleted-target),
+      F19 (PR #85, router/schema/test consumer paths to dropped columns),
+      F20 (paused; migration-history pgvector imports + 4 compose files
+      + conftest image swap),
+      F16+F17 (PR #87, `SimilarNote` import + test-file scope + orphan
+      `section.forYou` semantic token).
+      Pattern: each removal feature's PRD lists the primary deletion target
+      but misses transitive consumers (test files, type imports, style
+      tokens, lockfile/dep ripples, infra image references).
+      Roundtable across all four pipelines independently flagged the same
+      diagnosis — recommendation: extend `/keel-refine` with a removal-
+      feature checklist that walks the drafter through (a) render path,
+      (b) service exports + dependency graph, (c) utility consumers,
+      (d) type/config constants, (e) theme/style tokens, (f) test mocks
+      + shared setup files, (g) infra (compose, dockerfile, lockfile),
+      (h) doc surfaces. Per-removal one-time drafter cost; collapses
+      multiple amendment-PR cycles into one refine pass. The KEEL
+      framework is "a customization point, not a cage" (KEEL-CONTRACT)
+      — this is the framework upgrade the data is asking for.
