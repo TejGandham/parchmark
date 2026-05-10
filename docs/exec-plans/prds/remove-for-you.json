@@ -248,7 +248,19 @@
         },
         "init_db_py": {
           "create_extension_vector_line": "removed"
-        }
+        },
+        "routers_notes_py": {
+          "_note_to_response_fields_removed": ["accessCount", "lastAccessedAt"],
+          "list_query_defer_embedding_removed": true
+        },
+        "schemas_py": {
+          "NoteResponse_fields_removed": ["accessCount", "lastAccessedAt"]
+        },
+        "tests_updated": [
+          "backend/tests/unit/schemas/test_schemas.py",
+          "backend/tests/integration/notes/test_endpoint_removal.py",
+          "backend/tests/integration/notes/test_notes_router.py"
+        ]
       },
       "oracle": {
         "type": "integration",
@@ -258,7 +270,10 @@
           "After upgrade, `information_schema.columns` for table `notes` contains no rows for `embedding`, `access_count`, or `last_accessed_at`.",
           "`alembic downgrade <prev>` followed by `alembic upgrade head` round-trips successfully.",
           "grep of `backend/app/models/models.py` for `pgvector` and `Vector(` returns zero matches.",
-          "grep of `backend/app/database/init_db.py` for `CREATE EXTENSION` containing `vector` returns zero matches."
+          "grep of `backend/app/database/init_db.py` for `CREATE EXTENSION` containing `vector` returns zero matches.",
+          "grep of `backend/app/routers/notes.py` for `access_count`, `last_accessed_at`, and `defer(Note.embedding)` returns zero matches.",
+          "grep of `backend/app/schemas/schemas.py` for `accessCount` and `lastAccessedAt` returns zero matches.",
+          "After the migration runs, `GET /api/notes/`, `POST /api/notes/`, `GET /api/notes/{id}`, `PUT /api/notes/{id}`, and `DELETE /api/notes/{id}` all return their non-error status (200/201/204) against the post-migration schema; serialized note payloads contain no `accessCount` or `lastAccessedAt` fields."
         ],
         "tooling": "pytest with testcontainers PostgreSQL; alembic CLI; ripgrep.",
         "gating": "Must be CI-blocking — broken migration breaks every downstream test."
