@@ -128,9 +128,9 @@ parchmark/
 │       ├── features/    # auth/, notes/, settings/, ui/ (feature-first)
 │       ├── router.tsx   # Data Router (loaders, actions, routes)
 │       ├── services/    # API client
-│       ├── utils/       # errorHandler, markdown, dateGrouping, noteScoring, mermaidInit
+│       ├── utils/       # errorHandler, markdown, dateGrouping, mermaidInit
 │       ├── config/      # type-safe constants (api, storage)
-│       ├── types/       # shared types (Note, SimilarNote)
+│       ├── types/       # shared types (Note)
 │       └── __tests__/   # Vitest
 ├── backend/             # Backend (FastAPI)
 │   └── app/             # auth/, database/, models/, routers/, schemas/, services/

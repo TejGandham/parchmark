@@ -127,7 +127,7 @@ Each feature: read spec → write test → write code → verify.
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F18 Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types**
+- [x] **F18 Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types**
   Needs: F16, F17
   PRD: remove-for-you
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->

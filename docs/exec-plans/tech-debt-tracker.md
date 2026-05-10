@@ -161,3 +161,18 @@ Known shortcuts, deferred improvements, and open questions.
       multiple amendment-PR cycles into one refine pass. The KEEL
       framework is "a customization point, not a cage" (KEEL-CONTRACT)
       — this is the framework upgrade the data is asking for.
+
+- [ ] **F19-residual: `backend/README.md` Note model fields drift.**
+      Lines ~263-265 still describe `access_count`, `last_accessed_at`,
+      and `embedding` Note model fields. F19's migration dropped these
+      columns but the README cleanup wasn't bundled. Surfaced by F18
+      roundtable landing review + doc-gardener Step 9 sweep
+      (deferred from F18 scope as backend-side debt).
+
+- [ ] **F19-residual: orphan `SimilarNoteResponse` Pydantic class.**
+      `backend/app/schemas/schemas.py:88` still defines
+      `SimilarNoteResponse` for the deleted `GET /api/notes/{id}/similar`
+      endpoint (F13). The class has zero consumers post-F13.
+      Surfaced by F18 roundtable landing review + doc-gardener Step 9
+      sweep (deferred from F18 scope as backend-side debt).
+
