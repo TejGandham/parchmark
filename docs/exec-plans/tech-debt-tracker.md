@@ -87,7 +87,7 @@ Known shortcuts, deferred improvements, and open questions.
       feature.
 
 - [ ] **Endpoint-removal test pattern accumulator.** As the `remove-for-you`
-      retirement progresses (F12, F13, F14, F15 landed; F19, F20 to come),
+      retirement progresses (F12, F13, F14, F15, F19 landed; F20 to come),
       `backend/tests/integration/notes/test_endpoint_removal.py` is
       becoming an accumulator file holding multiple feature class-pairs
       (HTTP-tier + grep-tier + filesystem-tier per removed endpoint).

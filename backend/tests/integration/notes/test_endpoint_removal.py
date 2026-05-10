@@ -124,10 +124,9 @@ class TestRouterSourceContainsNoAccessRouteString:
     "grep of `backend/app/routers/notes.py` for `/access` returns zero matches."
 
     NOTE: match on the quoted-slash pattern '"/access"' (or the full decorator
-    literal) — NOT on the bare word 'access'. The surviving helper
-    `_note_to_response` legitimately references `note.access_count` and
-    `note.last_accessed_at` until F19 drops those columns; those must not
-    false-positive here.
+    literal) — NOT on the bare word 'access'. F19 removed access_count and
+    last_accessed_at from _note_to_response; no false-positive risk from those
+    fields remains after F19.
     """
 
     def test_routers_notes_has_no_access_route_string(self):
@@ -137,8 +136,7 @@ class TestRouterSourceContainsNoAccessRouteString:
 
         source = router_file.read_text(encoding="utf-8")
         # Match the route-path literal as it would appear in a decorator:
-        # '"/access"' or '"/{note_id}/access"'. This avoids matching
-        # `access_count` / `last_accessed_at` prose in _note_to_response.
+        # '"/access"' or '"/{note_id}/access"'.
         matches = [
             (lineno, line.rstrip())
             for lineno, line in enumerate(source.splitlines(), start=1)

@@ -104,8 +104,13 @@ class TestGetNotesEndpoint:
         assert len(data) == 1
 
         note = data[0]
-        required_fields = {"id", "title", "content", "createdAt", "updatedAt", "accessCount", "lastAccessedAt"}
-        assert set(note.keys()) == required_fields
+        # F19: accessCount and lastAccessedAt are removed from the Note response schema.
+        required_fields = {"id", "title", "content", "createdAt", "updatedAt"}
+        assert required_fields.issubset(
+            set(note.keys())
+        ), f"Missing required fields. Expected {required_fields}, got {set(note.keys())}"
+        assert "accessCount" not in note, "accessCount must not appear in note payload after F19"
+        assert "lastAccessedAt" not in note, "lastAccessedAt must not appear in note payload after F19"
 
         # Verify datetime fields are ISO format strings
         datetime.fromisoformat(note["createdAt"])

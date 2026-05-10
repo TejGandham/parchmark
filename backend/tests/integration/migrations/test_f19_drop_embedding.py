@@ -1,0 +1,286 @@
+"""
+Integration tests for F19: Alembic migration drops embedding columns + pgvector extension.
+
+Oracle: /features/7/oracle
+Contract: /features/7/contract
+
+Assertions covered:
+  /features/7/oracle/assertions/0 — alembic upgrade head from 49f4bec52ca3 succeeds
+  /features/7/oracle/assertions/1 — pg_extension has no 'vector' row after upgrade
+  /features/7/oracle/assertions/2 — information_schema.columns has no dropped columns after upgrade
+  /features/7/oracle/assertions/3 — downgrade→upgrade round-trip succeeds; columns + extension absent after re-upgrade
+  /features/7/oracle/assertions/4 — grep models.py for pgvector / Vector( returns zero matches
+  /features/7/oracle/assertions/5 — grep init_db.py for CREATE EXTENSION vector returns zero matches
+
+Each test class is self-contained. The migration tests spin up a dedicated
+testcontainers Postgres (pgvector/pgvector:pg17 image — required for downgrade
+recreation of Vector(1536)) seeded at revision 49f4bec52ca3 before applying
+the new F19 head migration.
+"""
+
+import subprocess
+from pathlib import Path
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, text
+from testcontainers.postgres import PostgresContainer
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+_BACKEND_ROOT = Path(__file__).parents[3]  # backend/
+_ALEMBIC_INI = _BACKEND_ROOT / "alembic.ini"
+_MODELS_PY = _BACKEND_ROOT / "app" / "models" / "models.py"
+_INIT_DB_PY = _BACKEND_ROOT / "app" / "database" / "init_db.py"
+
+# The parent revision that F19's migration must be parented against.
+_PARENT_REVISION = "49f4bec52ca3"
+
+
+# ---------------------------------------------------------------------------
+# Fixture: isolated Postgres container seeded at the parent revision
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def migration_container():
+    """
+    Spin up a fresh pgvector/pgvector:pg17 container, run alembic upgrade to
+    the F19 parent revision (49f4bec52ca3), and yield (engine, alembic_cfg).
+
+    Using scope="module" keeps container cost low while letting each test
+    class that needs the post-migration state reuse the same container.
+    The container is seeded once to the parent revision; individual tests
+    that need a clean slate (round-trip) do their own downgrade/upgrade.
+    """
+    with PostgresContainer("pgvector/pgvector:pg17") as pg:
+        sync_url = pg.get_connection_url()
+        engine = create_engine(sync_url)
+
+        alembic_cfg = Config(str(_ALEMBIC_INI))
+        alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
+
+        # Seed container at parent revision (creates schema up to 49f4bec52ca3)
+        command.upgrade(alembic_cfg, _PARENT_REVISION)
+
+        yield engine, alembic_cfg, sync_url
+
+
+# ---------------------------------------------------------------------------
+# /features/7/oracle/assertions/0
+# ---------------------------------------------------------------------------
+
+
+class TestF19UpgradeSucceeds:
+    """alembic upgrade head from 49f4bec52ca3 completes without error."""
+
+    def test_upgrade_head_from_parent_revision_raises_no_exception(self, migration_container):
+        """
+        Oracle: /features/7/oracle/assertions/0
+        Contract: /features/7/contract/new_migration/down_revision == '49f4bec52ca3'
+        """
+        engine, alembic_cfg, _ = migration_container
+        # upgrade to head (the F19 migration)
+        command.upgrade(alembic_cfg, "head")
+        # If we reach here, no exception was raised — assertion is satisfied.
+        # Verify alembic_version table reflects head (not the parent).
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT version_num FROM alembic_version"))
+            current = result.scalar()
+        assert current != _PARENT_REVISION, (
+            f"alembic_version still at parent {_PARENT_REVISION!r} — "
+            "upgrade head produced no new revision. F19 migration may be missing."
+        )
+
+
+# ---------------------------------------------------------------------------
+# /features/7/oracle/assertions/1
+# ---------------------------------------------------------------------------
+
+
+class TestPgExtensionVectorAbsent:
+    """After upgrade, pg_extension has zero rows for 'vector'."""
+
+    def test_vector_extension_not_present_after_upgrade(self, migration_container):
+        """
+        Oracle: /features/7/oracle/assertions/1
+        Contract: /features/7/contract/new_migration/upgrade_runs == 'DROP EXTENSION IF EXISTS vector'
+        """
+        engine, alembic_cfg, _ = migration_container
+        # Ensure we're at head (idempotent if test_upgrade ran first)
+        command.upgrade(alembic_cfg, "head")
+
+        with engine.connect() as conn:
+            rows = conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'")).fetchall()
+
+        assert rows == [], (
+            "Expected pg_extension to have zero rows for extname='vector' after upgrade, " f"but got: {rows}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# /features/7/oracle/assertions/2
+# ---------------------------------------------------------------------------
+
+
+class TestDroppedColumnsAbsentAfterUpgrade:
+    """After upgrade, information_schema.columns has no rows for dropped columns."""
+
+    def test_embedding_access_count_last_accessed_at_absent_from_notes(self, migration_container):
+        """
+        Oracle: /features/7/oracle/assertions/2
+        Contract: /features/7/contract/new_migration/upgrade_drops_columns
+        """
+        engine, alembic_cfg, _ = migration_container
+        command.upgrade(alembic_cfg, "head")
+
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'notes'
+                      AND column_name IN ('embedding', 'access_count', 'last_accessed_at')
+                    """
+                )
+            ).fetchall()
+
+        assert rows == [], (
+            "Expected zero rows in information_schema.columns for "
+            "notes.(embedding, access_count, last_accessed_at) after upgrade, "
+            f"but found: {[r[0] for r in rows]}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# /features/7/oracle/assertions/3
+# ---------------------------------------------------------------------------
+
+
+class TestRoundTripDowngradeUpgrade:
+    """Downgrade to parent then upgrade to head succeeds; post-round-trip state is clean."""
+
+    def test_downgrade_to_parent_then_upgrade_head_succeeds(self, migration_container):
+        """
+        Oracle: /features/7/oracle/assertions/3
+        Verifies that the downgrade recreates extension + columns, and the
+        subsequent re-upgrade removes them again.
+        """
+        engine, alembic_cfg, _ = migration_container
+        # Start from head
+        command.upgrade(alembic_cfg, "head")
+
+        # Downgrade to parent — must not raise
+        command.downgrade(alembic_cfg, _PARENT_REVISION)
+
+        # After downgrade: vector extension must be present (recreated)
+        with engine.connect() as conn:
+            ext_rows = conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'")).fetchall()
+        assert len(ext_rows) == 1, (
+            "After downgrade to parent, expected vector extension to be recreated, " f"but pg_extension has: {ext_rows}"
+        )
+
+        # After downgrade: columns must be present
+        with engine.connect() as conn:
+            col_rows = conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'notes'
+                      AND column_name IN ('embedding', 'access_count', 'last_accessed_at')
+                    ORDER BY column_name
+                    """
+                )
+            ).fetchall()
+        recreated = {r[0] for r in col_rows}
+        assert recreated == {
+            "embedding",
+            "access_count",
+            "last_accessed_at",
+        }, f"After downgrade, expected all three columns recreated but got: {recreated}"
+
+        # Re-upgrade to head
+        command.upgrade(alembic_cfg, "head")
+
+        # Post-round-trip: extension absent
+        with engine.connect() as conn:
+            ext_after = conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'")).fetchall()
+        assert ext_after == [], f"After round-trip upgrade, vector extension still present: {ext_after}"
+
+        # Post-round-trip: columns absent
+        with engine.connect() as conn:
+            col_after = conn.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'notes'
+                      AND column_name IN ('embedding', 'access_count', 'last_accessed_at')
+                    """
+                )
+            ).fetchall()
+        assert col_after == [], f"After round-trip upgrade, dropped columns still present: {[r[0] for r in col_after]}"
+
+
+# ---------------------------------------------------------------------------
+# /features/7/oracle/assertions/4
+# ---------------------------------------------------------------------------
+
+
+class TestModelsPyNoPgvectorReferences:
+    """
+    Static check: backend/app/models/models.py contains no 'pgvector' or 'Vector(' strings.
+    Contract: /features/7/contract/models_py/pgvector_sqlalchemy_import == 'removed'
+    """
+
+    def test_models_py_has_no_pgvector_or_vector_import(self):
+        """
+        Oracle: /features/7/oracle/assertions/4
+        Uses ripgrep (rg) to search for pgvector and Vector( in models.py.
+        Exit code 1 means zero matches — that is the expected RED→GREEN state.
+        """
+        assert _MODELS_PY.exists(), f"models.py not found at {_MODELS_PY}"
+
+        result = subprocess.run(
+            ["rg", "-n", "-e", "pgvector", "-e", r"Vector\(", str(_MODELS_PY)],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 1, (
+            f"Expected zero matches for 'pgvector' / 'Vector(' in {_MODELS_PY}, "
+            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# /features/7/oracle/assertions/5
+# ---------------------------------------------------------------------------
+
+
+class TestInitDbPyNoCreateExtension:
+    """
+    Static check: backend/app/database/init_db.py contains no 'CREATE EXTENSION' + 'vector'.
+    Contract: /features/7/contract/init_db_py/create_extension_vector_line == 'removed'
+    """
+
+    def test_init_db_py_has_no_create_extension_vector(self):
+        """
+        Oracle: /features/7/oracle/assertions/5
+        Uses ripgrep to search for 'CREATE EXTENSION' lines mentioning 'vector'.
+        Exit code 1 means zero matches.
+        """
+        assert _INIT_DB_PY.exists(), f"init_db.py not found at {_INIT_DB_PY}"
+
+        result = subprocess.run(
+            ["rg", "-ni", "CREATE EXTENSION.*vector", str(_INIT_DB_PY)],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 1, (
+            f"Expected zero matches for 'CREATE EXTENSION.*vector' in {_INIT_DB_PY}, "
+            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
+        )

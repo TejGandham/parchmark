@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import defer
 
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
@@ -38,8 +37,6 @@ def _note_to_response(note: Note) -> NoteResponse:
             "content": note.content,
             "createdAt": note.created_at.isoformat(),
             "updatedAt": note.updated_at.isoformat(),
-            "accessCount": note.access_count,
-            "lastAccessedAt": note.last_accessed_at,
         }
     )
 
@@ -59,10 +56,8 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
     Returns:
         List[NoteResponse]: List of user's notes
     """
-    # Query notes for the current user, deferring heavy embedding column
-    result = await db.execute(
-        select(Note).filter(Note.user_id == current_user.id).options(defer(Note.embedding))  # type: ignore[arg-type]
-    )
+    # Query notes for the current user
+    result = await db.execute(select(Note).filter(Note.user_id == current_user.id))
     notes = result.scalars().all()
 
     return [_note_to_response(note) for note in notes]
