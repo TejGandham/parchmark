@@ -11,7 +11,7 @@ Assertions covered:
       and serialized note payloads contain no accessCount / lastAccessedAt fields
 """
 
-import subprocess
+import re
 from pathlib import Path
 
 from fastapi import status
@@ -23,6 +23,20 @@ from fastapi.testclient import TestClient
 _BACKEND_ROOT = Path(__file__).parents[3]
 _ROUTERS_NOTES_PY = _BACKEND_ROOT / "app" / "routers" / "notes.py"
 _SCHEMAS_PY = _BACKEND_ROOT / "app" / "schemas" / "schemas.py"
+
+
+def _file_contains(path: Path, pattern: str) -> list[tuple[int, str]]:
+    """Return list of (lineno, line) tuples where `pattern` (regex) matches.
+
+    Native-Python alternative to ripgrep so the assertion does not depend
+    on `rg` being installed in the CI runner.
+    """
+    matches: list[tuple[int, str]] = []
+    rx = re.compile(pattern)
+    for i, line in enumerate(path.read_text().splitlines(), start=1):
+        if rx.search(line):
+            matches.append((i, line))
+    return matches
 
 
 # ---------------------------------------------------------------------------
@@ -38,56 +52,24 @@ class TestRoutersNotesPyNoDroppedFieldReferences:
     """
 
     def test_routers_notes_has_no_access_count_field(self):
-        """
-        Oracle: /features/7/oracle/assertions/6 (access_count reference)
-        rg for 'access_count' in routers/notes.py must return exit 1.
-        """
+        """Oracle: /features/7/oracle/assertions/6 (access_count reference)."""
         assert _ROUTERS_NOTES_PY.exists(), f"notes.py not found at {_ROUTERS_NOTES_PY}"
-
-        result = subprocess.run(
-            ["rg", "-n", "access_count", str(_ROUTERS_NOTES_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'access_count' in {_ROUTERS_NOTES_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_contains(_ROUTERS_NOTES_PY, r"\baccess_count\b")
+        assert hits == [], f"Expected zero matches for 'access_count' in {_ROUTERS_NOTES_PY}, got: {hits}"
 
     def test_routers_notes_has_no_last_accessed_at_field(self):
-        """
-        Oracle: /features/7/oracle/assertions/6 (last_accessed_at reference)
-        rg for 'last_accessed_at' in routers/notes.py must return exit 1.
-        """
+        """Oracle: /features/7/oracle/assertions/6 (last_accessed_at reference)."""
         assert _ROUTERS_NOTES_PY.exists(), f"notes.py not found at {_ROUTERS_NOTES_PY}"
-
-        result = subprocess.run(
-            ["rg", "-n", "last_accessed_at", str(_ROUTERS_NOTES_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'last_accessed_at' in {_ROUTERS_NOTES_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_contains(_ROUTERS_NOTES_PY, r"\blast_accessed_at\b")
+        assert hits == [], f"Expected zero matches for 'last_accessed_at' in {_ROUTERS_NOTES_PY}, got: {hits}"
 
     def test_routers_notes_has_no_defer_embedding(self):
-        """
-        Oracle: /features/7/oracle/assertions/6 (defer(Note.embedding) reference)
-        rg for 'defer' in routers/notes.py must return exit 1.
+        """Oracle: /features/7/oracle/assertions/6 (defer(Note.embedding) reference).
         Contract: /features/7/contract/routers_notes_py/list_query_defer_embedding_removed == true
         """
         assert _ROUTERS_NOTES_PY.exists(), f"notes.py not found at {_ROUTERS_NOTES_PY}"
-
-        result = subprocess.run(
-            ["rg", "-n", r"defer\(Note\.embedding\)", str(_ROUTERS_NOTES_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'defer(Note.embedding)' in {_ROUTERS_NOTES_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_contains(_ROUTERS_NOTES_PY, r"defer\(Note\.embedding\)")
+        assert hits == [], f"Expected zero matches for 'defer(Note.embedding)' in {_ROUTERS_NOTES_PY}, got: {hits}"
 
 
 # ---------------------------------------------------------------------------
@@ -102,38 +84,16 @@ class TestSchemasPyNoDroppedResponseFields:
     """
 
     def test_schemas_py_has_no_accessCount_field(self):
-        """
-        Oracle: /features/7/oracle/assertions/7 (accessCount)
-        rg for 'accessCount' in schemas.py must return exit 1.
-        """
+        """Oracle: /features/7/oracle/assertions/7 (accessCount)."""
         assert _SCHEMAS_PY.exists(), f"schemas.py not found at {_SCHEMAS_PY}"
-
-        result = subprocess.run(
-            ["rg", "-n", "accessCount", str(_SCHEMAS_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'accessCount' in {_SCHEMAS_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_contains(_SCHEMAS_PY, r"\baccessCount\b")
+        assert hits == [], f"Expected zero matches for 'accessCount' in {_SCHEMAS_PY}, got: {hits}"
 
     def test_schemas_py_has_no_lastAccessedAt_field(self):
-        """
-        Oracle: /features/7/oracle/assertions/7 (lastAccessedAt)
-        rg for 'lastAccessedAt' in schemas.py must return exit 1.
-        """
+        """Oracle: /features/7/oracle/assertions/7 (lastAccessedAt)."""
         assert _SCHEMAS_PY.exists(), f"schemas.py not found at {_SCHEMAS_PY}"
-
-        result = subprocess.run(
-            ["rg", "-n", "lastAccessedAt", str(_SCHEMAS_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'lastAccessedAt' in {_SCHEMAS_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_contains(_SCHEMAS_PY, r"\blastAccessedAt\b")
+        assert hits == [], f"Expected zero matches for 'lastAccessedAt' in {_SCHEMAS_PY}, got: {hits}"
 
 
 # ---------------------------------------------------------------------------

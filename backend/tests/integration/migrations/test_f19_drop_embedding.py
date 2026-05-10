@@ -9,16 +9,22 @@ Assertions covered:
   /features/7/oracle/assertions/1 — pg_extension has no 'vector' row after upgrade
   /features/7/oracle/assertions/2 — information_schema.columns has no dropped columns after upgrade
   /features/7/oracle/assertions/3 — downgrade→upgrade round-trip succeeds; columns + extension absent after re-upgrade
-  /features/7/oracle/assertions/4 — grep models.py for pgvector / Vector( returns zero matches
-  /features/7/oracle/assertions/5 — grep init_db.py for CREATE EXTENSION vector returns zero matches
+  /features/7/oracle/assertions/4 — models.py has no pgvector / Vector( references
+  /features/7/oracle/assertions/5 — init_db.py has no CREATE EXTENSION ... vector
 
 Each test class is self-contained. The migration tests spin up a dedicated
 testcontainers Postgres (pgvector/pgvector:pg17 image — required for downgrade
 recreation of Vector(1536)) seeded at revision 49f4bec52ca3 before applying
 the new F19 head migration.
+
+NOTE on alembic env URL plumbing: backend/migrations/env.py reads the DB URL
+from `os.environ["DATABASE_URL"]` and ignores anything passed via
+`alembic_cfg.set_main_option`. The fixture below sets `DATABASE_URL` in the
+process environment to the testcontainer's URL before invoking alembic.
 """
 
-import subprocess
+import os
+import re
 from pathlib import Path
 
 import pytest
@@ -39,6 +45,16 @@ _INIT_DB_PY = _BACKEND_ROOT / "app" / "database" / "init_db.py"
 _PARENT_REVISION = "49f4bec52ca3"
 
 
+def _file_matches(path: Path, *patterns: str) -> list[tuple[int, str]]:
+    """Native-Python alternative to ripgrep — returns (lineno, line) for matches."""
+    rxs = [re.compile(p) for p in patterns]
+    matches: list[tuple[int, str]] = []
+    for i, line in enumerate(path.read_text().splitlines(), start=1):
+        if any(rx.search(line) for rx in rxs):
+            matches.append((i, line))
+    return matches
+
+
 # ---------------------------------------------------------------------------
 # Fixture: isolated Postgres container seeded at the parent revision
 # ---------------------------------------------------------------------------
@@ -50,22 +66,32 @@ def migration_container():
     Spin up a fresh pgvector/pgvector:pg17 container, run alembic upgrade to
     the F19 parent revision (49f4bec52ca3), and yield (engine, alembic_cfg).
 
-    Using scope="module" keeps container cost low while letting each test
-    class that needs the post-migration state reuse the same container.
-    The container is seeded once to the parent revision; individual tests
-    that need a clean slate (round-trip) do their own downgrade/upgrade.
+    Sets DATABASE_URL in the process environment so backend/migrations/env.py
+    picks up the testcontainer URL (env.py ignores set_main_option).
     """
+    saved_database_url = os.environ.get("DATABASE_URL")
     with PostgresContainer("pgvector/pgvector:pg17") as pg:
         sync_url = pg.get_connection_url()
-        engine = create_engine(sync_url)
+        # CRITICAL: env.py reads DATABASE_URL from os.environ and overrides
+        # alembic_cfg.set_main_option. Set it before any alembic command.
+        os.environ["DATABASE_URL"] = sync_url
 
-        alembic_cfg = Config(str(_ALEMBIC_INI))
-        alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
+        try:
+            engine = create_engine(sync_url)
 
-        # Seed container at parent revision (creates schema up to 49f4bec52ca3)
-        command.upgrade(alembic_cfg, _PARENT_REVISION)
+            alembic_cfg = Config(str(_ALEMBIC_INI))
+            alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
 
-        yield engine, alembic_cfg, sync_url
+            # Seed container at parent revision (creates schema up to 49f4bec52ca3)
+            command.upgrade(alembic_cfg, _PARENT_REVISION)
+
+            yield engine, alembic_cfg, sync_url
+        finally:
+            # Restore prior DATABASE_URL so other test fixtures aren't affected
+            if saved_database_url is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = saved_database_url
 
 
 # ---------------------------------------------------------------------------
@@ -82,10 +108,7 @@ class TestF19UpgradeSucceeds:
         Contract: /features/7/contract/new_migration/down_revision == '49f4bec52ca3'
         """
         engine, alembic_cfg, _ = migration_container
-        # upgrade to head (the F19 migration)
         command.upgrade(alembic_cfg, "head")
-        # If we reach here, no exception was raised — assertion is satisfied.
-        # Verify alembic_version table reflects head (not the parent).
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             current = result.scalar()
@@ -109,7 +132,6 @@ class TestPgExtensionVectorAbsent:
         Contract: /features/7/contract/new_migration/upgrade_runs == 'DROP EXTENSION IF EXISTS vector'
         """
         engine, alembic_cfg, _ = migration_container
-        # Ensure we're at head (idempotent if test_upgrade ran first)
         command.upgrade(alembic_cfg, "head")
 
         with engine.connect() as conn:
@@ -238,22 +260,10 @@ class TestModelsPyNoPgvectorReferences:
     """
 
     def test_models_py_has_no_pgvector_or_vector_import(self):
-        """
-        Oracle: /features/7/oracle/assertions/4
-        Uses ripgrep (rg) to search for pgvector and Vector( in models.py.
-        Exit code 1 means zero matches — that is the expected RED→GREEN state.
-        """
+        """Oracle: /features/7/oracle/assertions/4."""
         assert _MODELS_PY.exists(), f"models.py not found at {_MODELS_PY}"
-
-        result = subprocess.run(
-            ["rg", "-n", "-e", "pgvector", "-e", r"Vector\(", str(_MODELS_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'pgvector' / 'Vector(' in {_MODELS_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_matches(_MODELS_PY, r"pgvector", r"Vector\(")
+        assert hits == [], f"Expected zero matches for 'pgvector' / 'Vector(' in {_MODELS_PY}, got: {hits}"
 
 
 # ---------------------------------------------------------------------------
@@ -268,19 +278,7 @@ class TestInitDbPyNoCreateExtension:
     """
 
     def test_init_db_py_has_no_create_extension_vector(self):
-        """
-        Oracle: /features/7/oracle/assertions/5
-        Uses ripgrep to search for 'CREATE EXTENSION' lines mentioning 'vector'.
-        Exit code 1 means zero matches.
-        """
+        """Oracle: /features/7/oracle/assertions/5."""
         assert _INIT_DB_PY.exists(), f"init_db.py not found at {_INIT_DB_PY}"
-
-        result = subprocess.run(
-            ["rg", "-ni", "CREATE EXTENSION.*vector", str(_INIT_DB_PY)],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 1, (
-            f"Expected zero matches for 'CREATE EXTENSION.*vector' in {_INIT_DB_PY}, "
-            f"but rg returned exit {result.returncode} with matches:\n{result.stdout}"
-        )
+        hits = _file_matches(_INIT_DB_PY, r"(?i)CREATE\s+EXTENSION.*vector")
+        assert hits == [], f"Expected zero matches for 'CREATE EXTENSION ... vector' in {_INIT_DB_PY}, got: {hits}"
