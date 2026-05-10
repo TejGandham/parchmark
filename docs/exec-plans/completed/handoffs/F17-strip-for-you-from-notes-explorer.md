@@ -1,7 +1,7 @@
 # F17 — Strip forYouNotes block from NotesExplorer.tsx
 
 ---
-status: READY-TO-LAND
+status: LANDED
 pipeline: frontend
 prd_ref: docs/exec-plans/prds/remove-for-you.json#F17
 spec_ref: docs/exec-plans/prds/remove-for-you.json#F17
@@ -31,7 +31,7 @@ arch_retry_safety_attempt: 0
 # Pipeline configuration
 remote_name: origin
 roundtable_enabled: true
-pr_url:
+pr_url: https://brahma.myth-gecko.ts.net:3000/stackhouse/parchmark/pulls/89
 
 # Roundtable pre-check review (Step 1.3)
 roundtable_precheck_attempt: 2
