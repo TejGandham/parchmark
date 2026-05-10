@@ -134,7 +134,8 @@
         "deleted_files": [
           "backend/app/services/embeddings.py",
           "backend/app/services/backfill.py",
-          "backend/tests/unit/services/test_embeddings.py"
+          "backend/tests/unit/services/test_embeddings.py",
+          "backend/tests/unit/services/test_backfill.py"
         ],
         "main_py_openai_client_init": "removed",
         "main_py_openai_shutdown_block": "removed",
@@ -146,6 +147,7 @@
         "assertions": [
           "Files `backend/app/services/embeddings.py` and `backend/app/services/backfill.py` do not exist.",
           "File `backend/tests/unit/services/test_embeddings.py` does not exist.",
+          "File `backend/tests/unit/services/test_backfill.py` does not exist.",
           "ripgrep `^(from|import) openai` across `backend/app/` returns zero matches.",
           "ripgrep `app.state.openai_client` across `backend/app/` returns zero matches.",
           "FastAPI app boots successfully via the existing lifespan with `OPENAI_API_KEY` unset in the environment."
