@@ -71,10 +71,9 @@ Each feature: read spec → write test → write code → verify.
 - [x] **F14 Delete POST /api/notes/{id}/access endpoint**
   PRD: remove-for-you
 
-- [ ] **F15 Delete embeddings + backfill services and OpenAI lifespan wiring**
+- [x] **F15 Delete embeddings + backfill services and OpenAI lifespan wiring**
   Needs: F12, F13
   PRD: remove-for-you
-  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
 ## UI
