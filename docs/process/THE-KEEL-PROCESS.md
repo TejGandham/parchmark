@@ -739,9 +739,16 @@ pre-check --> roundtable-precheck? --> test-writer --> implementer --> code-revi
 
 ### The Handoff Mechanism
 
-Each feature gets `docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`. The file is
-append-only during pipeline execution -- each agent reads the full file, then
-appends its output. This preserves context across agent sessions.
+Each feature gets `docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`. Each
+agent reads the full file before writing its own section. Agent output sections
+(e.g. `## pre-check`, `## implementer`) are SNAPSHOT — each agent's section holds
+its latest output and is overwritten on re-run (e.g. after roundtable kickback,
+spec-reviewer DEVIATION, or BLOCKED landing). Roundtable deliberation sections
+(`## roundtable-precheck-review`, `## roundtable-design-review`,
+`## roundtable-landing-review`) are APPEND-only — each attempt becomes a new
+`### Attempt N` block. Revision history lives in the deliberation sections plus
+`git log`, not in duplicate sibling agent sections. This preserves context across
+agent sessions without baking timeline into snapshot content (KEEL P5).
 
 Example handoff (from Repo Man):
 ```markdown

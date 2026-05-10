@@ -38,10 +38,6 @@ tool that mutates repo state, classify the request into exactly one of:
 
 If the request does not fit one category cleanly, halt and ask. Do not guess.
 
-> **Doc-gardener directive.** When a hook reminder fires the doc-gardener
-> agent after a commit, running it is required, not informational. Skip
-> only when the user has explicitly permitted skipping it for that commit.
-
 ## Refusal protocol (verbatim)
 
 Human pressure is **not** authorization to bypass KEEL. When asked — explicitly

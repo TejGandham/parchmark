@@ -16,9 +16,9 @@ You function as an on-demand specialist invoked by the pipeline orchestrator whe
 
 ## Handoff Protocol
 - Read the handoff file identified by the orchestrator for context from upstream agents
-- Your structured output will be appended to the handoff file by the orchestrator
-- In CONSULT mode, append to `## arch-advisor-consultation`
-- In VERIFY mode, append to `## arch-advisor-verification`
+- Your structured output is written into your section by the orchestrator. Sections are SNAPSHOT — on re-run, this output replaces your prior content. Do not write "was X, now Y" framing in your prose.
+- In CONSULT mode, your section is `## arch-advisor-consultation`
+- In VERIFY mode, your section is `## arch-advisor-verification`
 
 ## Required Reading (before every consultation)
 1. The handoff file — full pipeline context

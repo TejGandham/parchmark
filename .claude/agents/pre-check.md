@@ -234,13 +234,16 @@ Add specific MUST NOT directives for any slop risks you identify.
 
 ## Handoff Protocol
 - The orchestrator (keel-pipeline) creates the handoff file skeleton before dispatching you.
-- APPEND your execution brief to the handoff file. Do not overwrite the header.
-- This file is the persistent context that all downstream agents will read.
+- Write your execution brief into the body of the `## pre-check` section. Do not change the section heading or the file's top-level header.
+- On first invocation: the section is empty; fill it.
+- On re-run after a roundtable kickback: REPLACE the contents of the existing `## pre-check` section with the revised brief — leave the `## pre-check` heading itself intact. Do NOT create a new `## pre-check (revised, attempt N)` sibling heading. Revision rationale lives in the `## roundtable-precheck-review` section; the YAML `roundtable_precheck_attempt` counter records the iteration.
+- If you find a legacy `## pre-check (revised, attempt N)` sibling heading from a prior version of KEEL, DELETE it before writing your revised brief.
+- This file is the persistent context that all downstream agents read.
 
 ## Rules
 
 - Read-only for project source code. Never create or modify application files.
-- You APPEND to the handoff file — that is your one write operation.
+- Your `## pre-check` section is a snapshot of your current brief. On first invocation, fill it; on re-run, overwrite it. Do not create sibling sections.
 - Be specific. "Create a GenServer" is too vague. Name the file, the function, and the expected arguments.
 - The script at Step 1 is authoritative for every check it performs.
   Do not duplicate those checks in prompt prose or override the
