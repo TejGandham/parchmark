@@ -286,17 +286,38 @@
       "needs": ["F15", "F19"],
       "contract": {
         "pyproject_toml_dependencies_removed": ["openai>=1.0.0", "pgvector>=0.4.2"],
-        "uv_lock_updated": "regenerated"
+        "uv_lock_updated": "regenerated",
+        "migrations_rewritten": [
+          "backend/migrations/versions/49f4bec52ca3_convert_embedding_to_pgvector.py",
+          "backend/migrations/versions/7f1c343772e8_drop_embedding_columns_and_pgvector.py"
+        ],
+        "migration_rewrite_strategy": "Both migrations: rewrite upgrade() and downgrade() to use raw op.execute() DDL; remove module-level `from pgvector.sqlalchemy import Vector`. Option (a) per F19 roundtable consensus — preserves reversibility, eliminates load-time pgvector import.",
+        "conftest_py_changes": {
+          "testcontainer_image": "pgvector/pgvector:pg17 -> postgres:17",
+          "create_extension_vector_line": "removed"
+        },
+        "docker_compose_image_swaps": [
+          "docker-compose.dev.yml",
+          "docker-compose.yml",
+          "docker-compose.prod.yml",
+          "docker-compose.oidc-test.yml"
+        ],
+        "test_f19_image_unchanged": "backend/tests/integration/migrations/test_f19_drop_embedding.py keeps the pgvector image — F19 round-trip downgrade test recreates vector(1536). Asymmetry is intentional and documented.",
+        "arch_advisor_required": "YES — modifies historical Alembic migrations and changes startup-load semantics across app, dev compose, and CI."
       },
       "oracle": {
         "type": "integration",
         "assertions": [
           "grep of `backend/pyproject.toml` `[project]` dependency list for `openai` and `pgvector` returns zero matches.",
-          "`uv sync` against the updated `pyproject.toml` and `uv.lock` succeeds.",
+          "`cd backend && uv sync` against the updated `pyproject.toml` and `uv.lock` succeeds.",
+          "`cd backend && uv run alembic history` succeeds without pgvector installed in the venv (alembic loads all revision files cleanly, including the two rewritten migrations).",
           "Full backend test suite (`make test-backend-all`) runs to completion with all tests passing.",
-          "ripgrep `^(from|import) (openai|pgvector)` across `backend/` (excluding `.venv` and `migrations/versions/` historical files) returns zero matches."
+          "ripgrep `^(from|import) (openai|pgvector)` across `backend/` (excluding `.venv` and `tests/integration/migrations/test_f19_*.py`) returns zero matches.",
+          "ripgrep `pgvector` across `backend/migrations/versions/` returns zero matches (post-rewrite — no module-level imports remain).",
+          "ripgrep `pgvector/pgvector:pg17` across `docker-compose*.yml` returns zero matches.",
+          "Backend CRUD against vanilla `postgres:17` testcontainer succeeds via `make test-backend-all` (verifies the conftest image swap)."
         ],
-        "tooling": "uv; pytest; ripgrep."
+        "tooling": "uv; pytest; ripgrep; alembic."
       }
     },
     {
