@@ -289,36 +289,45 @@ safety-critical changes. One-way door.
    wrong intent, wrong complexity tier, missing research signal,
    missing safety-auditor flag, missing arch-advisor flag, designer
    needed but flagged NO (or vice versa).
-3. Call `mcp__roundtable__roundtable-canvass` with the critique output + original
-   pre-check brief to synthesize a consensus routing. Pass both so the
-   consensus can choose to keep, flip, or refine individual flags.
-4. Append combined output to `## roundtable-precheck-review` in handoff.
-5. Set `roundtable_precheck_attempt: 1` in YAML.
-6. If the consensus disagrees with pre-check's flags: send the consensus
-   findings back to `pre-check`. Pre-check revises the brief, updates the
-   YAML routing fields. Increment `roundtable_precheck_attempt` to 2,
-   re-run critique + canvass.
-7. If still divergent after attempt 2: proceed with pre-check's latest
+3. Call `mcp__roundtable__roundtable-canvass` with the critique output + the
+   current `## pre-check` brief to synthesize a consensus routing. Pass
+   both so the consensus can choose to keep, flip, or refine individual
+   flags.
+4. Set `roundtable_precheck_attempt: 1` in YAML, then append output to
+   `## roundtable-precheck-review` as a new `### Attempt 1 — <verdict>`
+   block, with `#### Critique` and `#### Canvass` subsections inside.
+   (Deliberation sections are append-only — earlier Attempt blocks
+   remain in place across re-runs.)
+5. If the consensus disagrees with pre-check's flags: send the consensus
+   findings back to `pre-check`. Pre-check REPLACES the contents of its
+   `## pre-check` section with the revised brief (heading intact) — do
+   NOT append a sibling "(revised, attempt N)" heading. Revision
+   rationale lives in the `## roundtable-precheck-review` section.
+   Update YAML routing fields. Increment `roundtable_precheck_attempt`
+   to 2; re-run critique + canvass and append the new combined output
+   as a `### Attempt 2 — <verdict>` block to
+   `## roundtable-precheck-review`.
+6. If still divergent after attempt 2: proceed with pre-check's latest
    classification anyway (advisory, not blocking). Set
    `roundtable_precheck_verdict: CONCERNS` and log the unresolved
    disagreement in the handoff.
-8. If consensus agrees: set `roundtable_precheck_verdict: APPROVED`.
+7. If consensus agrees: set `roundtable_precheck_verdict: APPROVED`.
 
 Roundtable is advisory. Pre-check remains the authoritative router — this
 step only flags blind spots for pre-check to reconsider.
 
 ### Step 1.5: Researcher (if needed)
-If pre-check set `Research needed: YES`, dispatch `researcher` with the specific questions from the execution brief. Append research brief to handoff file.
+If pre-check set `Research needed: YES`, dispatch `researcher` with the specific questions from the execution brief. Write research brief into the `## researcher` section (snapshot — replaces prior content if researcher re-runs).
 
 ### Step 1.7: Arch-advisor consultation (if architecture-tier)
 If pre-check set `Arch-advisor needed: YES` or `Complexity: architecture-tier`,
 dispatch `arch-advisor` agent in CONSULT mode with the execution brief, spec,
 and any research brief. Arch-advisor provides architecture-level guidance
 before design/implementation.
-Append output to `## arch-advisor-consultation` in the handoff file.
+Write output into `## arch-advisor-consultation` (snapshot — replaces prior content on re-run).
 
 ### Step 2: Designer (if needed)
-Dispatch `backend-designer` or `frontend-designer` based on pipeline variant. Append output to handoff file.
+Dispatch `backend-designer` or `frontend-designer` based on pipeline variant. Write output into `## backend-designer / frontend-designer` (snapshot — replaces prior content on re-run, e.g. roundtable design-review kickback).
 
 ### Step 2.5: Roundtable design review (if enabled)
 
@@ -336,24 +345,31 @@ Runs only when `designer_needed: YES` AND `roundtable_enabled: true`.
    (Step 9 sub-step 3) so it's visible after the fact.
 2. Call `mcp__roundtable__roundtable-blueprint` with designer output from handoff.
 3. Call `mcp__roundtable__roundtable-critique` with designer output from handoff.
-4. Append combined output to `## roundtable-design-review` in handoff.
-5. Set `roundtable_design_attempt: 1` in YAML.
-6. If critical concerns raised: send findings back to designer, designer
-   revises, increment `roundtable_design_attempt` to 2, re-run blueprint +
-   critique.
-7. If still concerns after attempt 2: proceed anyway (advisory, not blocking).
+4. Set `roundtable_design_attempt: 1` in YAML, then append output to
+   `## roundtable-design-review` as a new `### Attempt 1 — <verdict>`
+   block, with `#### Blueprint` and `#### Critique` subsections inside.
+   (Deliberation sections are append-only — earlier Attempt blocks
+   remain in place across re-runs.)
+5. If critical concerns raised: send findings back to designer.
+   Re-dispatch designer; the revised output REPLACES the contents of
+   `## backend-designer / frontend-designer` (heading intact). Do NOT
+   append a sibling "(revised, attempt N)" heading. Increment
+   `roundtable_design_attempt` to 2; re-run blueprint + critique and
+   append the new combined output as a `### Attempt 2 — <verdict>`
+   block to `## roundtable-design-review`.
+6. If still concerns after attempt 2: proceed anyway (advisory, not blocking).
    Set `roundtable_design_verdict: CONCERNS`. Log unresolved items in handoff.
-8. If no concerns: set `roundtable_design_verdict: APPROVED`.
+7. If no concerns: set `roundtable_design_verdict: APPROVED`.
 
 Roundtable is advisory. It never directly blocks the pipeline — its findings
 feed back through the designer for revision, not through authoritative gates.
 
 ### Step 3: Test-writer
-Dispatch `test-writer` with the handoff file. It writes tests, never implementation. Append output to handoff file.
+Dispatch `test-writer` with the handoff file. It writes tests, never implementation. Write output into `## test-writer` (snapshot — replaces prior content on re-run).
 
 ### Step 4: Implementer (if needed)
 If pre-check set `Implementer needed: NO`, skip to Step 6 (spec-reviewer) or Step 8 (landing-verifier).
-Otherwise, dispatch `implementer` with the handoff file. It writes code to pass the tests. Never modifies tests. Append output to handoff file.
+Otherwise, dispatch `implementer` with the handoff file. It writes code to pass the tests. Never modifies tests. Write output into `## implementer` (snapshot — replaces prior content on re-run, e.g. after spec-reviewer DEVIATION or code-reviewer CHANGES NEEDED).
 
 ### Step 5: Code review
 Dispatch `code-reviewer` with the handoff file. It reviews code quality —
@@ -410,7 +426,7 @@ If Arch-advisor's verdict is UNSOUND:
   initial spec-review attempts (those counters do not interact)
 - Max 1 Arch-advisor verification retry. If still UNSOUND, escalate to human.
 
-Append output to `## arch-advisor-verification` in the handoff file.
+Write output into `## arch-advisor-verification` (snapshot — replaces prior content on re-run after UNSOUND).
 
 ### Step 8: Landing-verifier
 Dispatch `landing-verifier` with the handoff file. It runs tests and verifies everything is complete. Its output is `VERIFIED` (all gates passed, tests pass) or `BLOCKED`. If BLOCKED, fix blockers and re-run.
@@ -430,9 +446,12 @@ Runs for ALL pipeline variants when `roundtable_enabled: true`.
    (Step 9 sub-step 3) so it's visible after the fact.
 2. Call `mcp__roundtable__roundtable-crosscheck` with implementation summary from handoff.
 3. Call `mcp__roundtable__roundtable-critique` with implementation summary from handoff.
-4. Append combined output to `## roundtable-landing-review` in handoff.
-5. Set `roundtable_landing_attempt: 1` in YAML.
-6. If critical concerns raised: send findings back to implementer, implementer
+4. Set `roundtable_landing_attempt: 1` in YAML, then append output to
+   `## roundtable-landing-review` as a new `### Attempt 1 — <verdict>`
+   block, with `#### Crosscheck` and `#### Critique` subsections inside.
+   (Deliberation sections are append-only — earlier Attempt blocks
+   remain in place across re-runs.)
+5. If critical concerns raised: send findings back to implementer, implementer
    fixes, then re-run the full gate chain with separate counters:
    `code-reviewer` (roundtable_retry_code_review_attempt) →
    `spec-reviewer` (roundtable_retry_spec_review_attempt) →
@@ -440,11 +459,13 @@ Runs for ALL pipeline variants when `roundtable_enabled: true`.
    `arch-advisor?` → `landing-verifier`.
    Each roundtable-triggered gate re-run gets max 1 attempt. If a re-run gate
    itself fails, escalate to human — do not loop further.
-7. After gate chain passes, re-run roundtable landing review (attempt 2).
-8. If still concerns after attempt 2: proceed anyway (advisory, not blocking).
+   After the gate chain passes, increment `roundtable_landing_attempt` to 2;
+   re-run crosscheck + critique and append the new combined output as a
+   `### Attempt 2 — <verdict>` block to `## roundtable-landing-review`.
+6. If still concerns after attempt 2: proceed anyway (advisory, not blocking).
    Set `roundtable_landing_verdict: CONCERNS`. Log unresolved concerns.
-9. If no concerns: set `roundtable_landing_verdict: APPROVED`.
-10. Set handoff status to `READY-TO-LAND`.
+7. If no concerns: set `roundtable_landing_verdict: APPROVED`.
+8. Set handoff status to `READY-TO-LAND`.
 
 When roundtable is disabled (roundtable_enabled: false), skip this step
 entirely. The `VERIFIED` status from Step 8 triggers Step 9 directly.
@@ -740,7 +761,10 @@ and commit to base), or feature-backlog.md has drift. Resolve and re-run.
 ## Rules
 
 - **Never skip steps.** Every agent in the pipeline runs.
-- **Handoff file is the thread.** Each agent reads and appends to it.
+- **Handoff file is the thread.** Each agent reads upstream sections
+  before writing its own. Agent output sections are snapshot —
+  overwritten on re-run. Roundtable deliberation sections are
+  append-only — each attempt becomes a new Attempt N block.
 - **Pre-check decides optionals.** Only skip designer/researcher/safety-auditor if pre-check says so.
 - **Spec-reviewer and safety-auditor are gates.** If they find issues, loop back to implementer.
 - **You don't write code.** Agents write code. You orchestrate.

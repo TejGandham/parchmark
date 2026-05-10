@@ -29,7 +29,7 @@ re-invoke the resolver. Do not re-parse the PRD file. Do not
 re-read the backlog.
 
 ## Handoff Protocol
-- **Pipeline mode:** Read the handoff file identified by the orchestrator. Extract from the execution brief: `**Feature ID:**`, `**Feature pointer base:**`, `**PRD-level invariants:**`. Extract the resolved feature JSON block for `contract` and `oracle` context — use these to identify auth, credentials, tokens, or other security-sensitive behavior that must be checked against the domain invariants below. `prd_invariants_exercised` is PRD-bundle-scoped (context, not a routing signal). Your structured output will be appended to the handoff file.
+- **Pipeline mode:** Read the handoff file identified by the orchestrator. Extract from the execution brief: `**Feature ID:**`, `**Feature pointer base:**`, `**PRD-level invariants:**`. Extract the resolved feature JSON block for `contract` and `oracle` context — use these to identify auth, credentials, tokens, or other security-sensitive behavior that must be checked against the domain invariants below. `prd_invariants_exercised` is PRD-bundle-scoped (context, not a routing signal). Your structured output is written into the `## safety-auditor` section by the orchestrator. The section is SNAPSHOT — on re-run, this output replaces your prior content. Do not write "was X, now Y" framing in your prose.
 - **Ad-hoc mode (via /keel-safety-check):** No handoff file. Scan changed files from `git diff` against the domain invariants below. Report findings directly.
 
 ## Domain Invariants

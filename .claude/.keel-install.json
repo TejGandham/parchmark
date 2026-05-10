@@ -1,9 +1,9 @@
 {
   "git_dirty": false,
-  "git_sha": "c3da975",
+  "git_sha": "277a1a5",
   "gitignore_managed": false,
-  "installed_at": "2026-05-05T15:04:35Z",
-  "keel_version": "2026.05.9",
+  "installed_at": "2026-05-10T02:01:34Z",
+  "keel_version": "2026.05.10",
   "managed_paths": {
     ".claude/KEEL-CONTRACT.md": {
       "installed_hash": "sha256:b1ebfbc3e79fc2269efb7cc3ca6ad50d1ba1f7b21c6238af05b2512cdfb8b943",
@@ -86,7 +86,7 @@
       "kind": "bundled_script"
     },
     ".claude/keel_manifest.py": {
-      "installed_hash": "sha256:f4d3ccca4205e95e44e4ecf8376cc6ba188a30e695f865e119aec0a851a66567",
+      "installed_hash": "sha256:45b0a316d02a9e86018d866b87753a35533c6f6c4bf6e726e312373a7e9374c5",
       "kind": "bundled_script"
     },
     ".claude/keel_receipt.py": {
@@ -255,5 +255,5 @@
       "reason": "already_existed"
     }
   ],
-  "source_url": "https://brahma.myth-gecko.ts.net:3000/stackhouse/keel.git"
+  "source_url": "https://brahma.myth-gecko.ts.net:3000/stackhouse/keel"
 }

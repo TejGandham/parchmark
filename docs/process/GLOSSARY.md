@@ -12,7 +12,7 @@
 
 **North Star** — The vision document (`NORTH-STAR.md`, at the project root) that defines where the project is heading, what principles govern decisions, and how the process evolves through growth stages. Where taste is encoded before it becomes linters.
 
-**Handoff** — An append-only markdown file (`docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`) that persists context between pipeline agents. Each agent reads upstream context and appends its output. Never rewritten — only appended to.
+**Handoff** — A markdown file (`docs/exec-plans/active/handoffs/F{id}-{feature-name}.md`) that persists context between pipeline agents. Each agent reads upstream sections before writing its own. Agent output sections are SNAPSHOT (overwritten on re-run); roundtable deliberation sections (`## roundtable-*-review`) are APPEND-only (each attempt becomes a `### Attempt N` block). Revision history lives in deliberation sections plus `git log`, not in duplicate sibling agent sections.
 
 **Pipeline Variant** — One of four execution paths a feature takes through the agent roster:
 - **Bootstrap:** Three separate features, each dispatching one agent then landing-verifier then roundtable-review? then post-landing:

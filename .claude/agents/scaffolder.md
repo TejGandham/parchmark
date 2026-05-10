@@ -14,7 +14,7 @@ environment-specific settings, or write test infrastructure. That's
 config-writer's job.
 
 ## Handoff Protocol
-- Your structured output will be appended to the handoff file by the orchestrator
+- Your structured output is written into your section by the orchestrator. Sections are SNAPSHOT — on re-run, this output replaces your prior content. Do not write "was X, now Y" framing in your prose.
 
 ## Your Role
 
