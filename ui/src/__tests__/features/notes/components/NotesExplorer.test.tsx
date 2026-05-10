@@ -19,10 +19,6 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../../../../services/api', () => ({
-  trackNoteAccess: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock('../../../../utils/compactTime', () => ({
   formatCompactTime: vi.fn(() => '2d'),
 }));
@@ -90,12 +86,28 @@ describe('NotesExplorer', () => {
     cleanup();
   });
 
-  it('renders "FOR YOU" section header when notes exist and not searching', async () => {
+  // F17 — orphan-element absence: for-you-header must never appear
+  // /features/5/oracle/assertions/1 (structural shape: no For You in any render path)
+  it('for-you-header element is absent when notes exist (F17 orphan-element absence)', async () => {
     await renderExplorer();
-    expect(screen.getByTestId('for-you-header')).toHaveTextContent('FOR YOU');
+    expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
   });
 
-  it('renders date group headers', async () => {
+  it('for-you-header element is absent when searching (F17 orphan-element absence)', async () => {
+    act(() => {
+      useUIStore.getState().actions.setNotesSearchQuery('Alpha');
+    });
+    await renderExplorer();
+    expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
+  });
+
+  it('for-you-header element is absent when notes array is empty (F17 orphan-element absence)', async () => {
+    await renderExplorer([]);
+    expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
+  });
+
+  // react-window invariant: renderDateGroups path renders correctly
+  it('renders date group headers via renderDateGroups path', async () => {
     await renderExplorer();
     const explorer = screen.getByTestId('notes-explorer');
     expect(explorer).toBeInTheDocument();
@@ -105,10 +117,35 @@ describe('NotesExplorer', () => {
     expect(textElements.length).toBeGreaterThan(0);
   });
 
-  it('renders all notes as ExplorerNoteCard elements', async () => {
+  it('renders all notes as ExplorerNoteCard elements via date-grouped path', async () => {
     await renderExplorer();
     const cards = screen.getAllByTestId('explorer-note-card');
     expect(cards.length).toBeGreaterThanOrEqual(sampleNotes.length);
+  });
+
+  // handleSelect no-track behavior: navigate fires (trackNoteAccess absence is verified by deletion fence)
+  it('clicking a note card calls navigate with correct path', async () => {
+    await renderExplorer();
+    const cards = screen.getAllByTestId('explorer-note-card');
+    fireEvent.click(cards[0]);
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/notes\//)
+    );
+  });
+
+  // Empty-state path: zero notes renders empty state without For You
+  it('shows "No notes yet" empty state when notes array is empty', async () => {
+    await renderExplorer([]);
+    expect(screen.getByTestId('zero-notes-state')).toBeInTheDocument();
+    expect(
+      screen.getByText('No notes yet — use the + button above to create one')
+    ).toBeInTheDocument();
+  });
+
+  it('empty state does not reference For You in any way', async () => {
+    await renderExplorer([]);
+    expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
+    expect(screen.queryByText(/for you/i)).not.toBeInTheDocument();
   });
 
   it('shows search result count when searching', async () => {
@@ -138,36 +175,6 @@ describe('NotesExplorer', () => {
     expect(screen.getByTestId('no-notes-found')).toHaveTextContent(
       'No notes found'
     );
-  });
-
-  it('shows "No notes yet" empty state when notes array is empty', async () => {
-    await renderExplorer([]);
-    expect(screen.getByTestId('zero-notes-state')).toBeInTheDocument();
-    expect(
-      screen.getByText('No notes yet — use the + button above to create one')
-    ).toBeInTheDocument();
-  });
-
-  it('clicking a note card calls navigate with correct path', async () => {
-    await renderExplorer();
-    const cards = screen.getAllByTestId('explorer-note-card');
-    fireEvent.click(cards[0]);
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/notes\//)
-    );
-  });
-
-  it('hides FOR YOU section when searching', async () => {
-    act(() => {
-      useUIStore.getState().actions.setNotesSearchQuery('Alpha');
-    });
-    await renderExplorer();
-    expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
-  });
-
-  it('does not show FOR YOU when no notes', async () => {
-    await renderExplorer([]);
-    expect(screen.queryByTestId('for-you-header')).not.toBeInTheDocument();
   });
 
   it('renders explorer toolbar', async () => {
