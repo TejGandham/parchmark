@@ -10,8 +10,6 @@ import {
   groupNotesByDate,
   type GroupedNotes,
 } from '../../../utils/dateGrouping';
-import { getBlendedForYouNotes } from '../../../utils/noteScoring';
-import { trackNoteAccess } from '../../../services/api';
 import { VIRTUALIZATION_THRESHOLD } from '../../ui/components/commandPaletteUtils';
 import ExplorerNoteCard from './ExplorerNoteCard';
 import { ExplorerToolbar } from './ExplorerToolbar';
@@ -67,57 +65,16 @@ export default function NotesExplorer() {
     [allNotesSorted, notesSortDirection]
   );
 
-  const forYouNotes = useMemo(
-    () => getBlendedForYouNotes(notes, null, [], 3),
-    [notes]
-  );
-
   const isSearching = notesSearchQuery.length > 0;
 
-  const visibleNotes = useMemo(() => {
-    if (isSearching) return filteredNotes;
-    const forYou = forYouNotes.length > 0 ? forYouNotes : [];
-    const grouped = allNotesGrouped.flatMap((g) => g.notes);
-    return [...forYou, ...grouped];
-  }, [isSearching, filteredNotes, forYouNotes, allNotesGrouped]);
-
-  const useVirtualScroll = visibleNotes.length > VIRTUALIZATION_THRESHOLD;
+  const useVirtualScroll = filteredNotes.length > VIRTUALIZATION_THRESHOLD;
 
   const handleSelect = useCallback(
     (noteId: string) => {
-      trackNoteAccess(noteId).catch(() => {});
       navigate(`/notes/${noteId}`);
     },
     [navigate]
   );
-
-  const renderForYouSection = () => {
-    if (isSearching || forYouNotes.length === 0) return null;
-    return (
-      <Box>
-        <Text
-          fontSize="xs"
-          fontWeight="bold"
-          color="section.forYou"
-          letterSpacing="wide"
-          textTransform="uppercase"
-          mb={2}
-          data-testid="for-you-header"
-        >
-          FOR YOU
-        </Text>
-        <VStack spacing={2} align="stretch">
-          {forYouNotes.map((note) => (
-            <ExplorerNoteCard
-              key={`fy-${note.id}`}
-              note={note}
-              onSelect={handleSelect}
-            />
-          ))}
-        </VStack>
-      </Box>
-    );
-  };
 
   const renderDateGroups = () => {
     if (isSearching) return null;
@@ -232,7 +189,6 @@ export default function NotesExplorer() {
           renderSearchResults()
         ) : (
           <VStack spacing={6} align="stretch">
-            {renderForYouSection()}
             {renderDateGroups()}
           </VStack>
         )}

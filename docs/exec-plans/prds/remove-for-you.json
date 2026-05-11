@@ -166,17 +166,24 @@
         "getSimilarNotes_call": "removed",
         "getBlendedForYouNotes_call": "removed",
         "trackNoteAccess_call": "removed",
-        "imports_removed": ["trackNoteAccess", "getBlendedForYouNotes", "getSimilarNotes"]
+        "imports_removed": ["trackNoteAccess", "getBlendedForYouNotes", "getSimilarNotes"],
+        "SimilarNote_type_import": "removed",
+        "test_file_modifications": {
+          "path": "ui/src/__tests__/features/ui/components/CommandPalette.test.tsx",
+          "describe_blocks_removed": ["Similar notes integration"],
+          "tests_removed": ["calls trackNoteAccess on selection"],
+          "vi_mock_overrides_removed": ["trackNoteAccess", "getSimilarNotes"]
+        }
       },
       "oracle": {
         "type": "unit",
         "assertions": [
           "grep of `ui/src/features/ui/components/CommandPalette.tsx` for `For You` returns zero matches.",
-          "grep of `ui/src/features/ui/components/CommandPalette.tsx` for `getBlendedForYouNotes`, `getSimilarNotes`, and `trackNoteAccess` returns zero matches.",
-          "Vitest run for `ui/src/__tests__/features/ui/components/CommandPalette.test.tsx` passes after For-You-section assertions are dropped.",
-          "Selecting a note from the Command Palette in the rendered component triggers no `/api/notes/*/access` and no `/api/notes/*/similar` request (asserted via mocked fetch)."
+          "grep of `ui/src/features/ui/components/CommandPalette.tsx` for `getBlendedForYouNotes`, `getSimilarNotes`, `trackNoteAccess`, and `SimilarNote` returns zero matches.",
+          "grep of `ui/src/__tests__/features/ui/components/CommandPalette.test.tsx` for `Similar notes integration`, `calls trackNoteAccess`, `getSimilarNotes`, and `trackNoteAccess` returns zero matches.",
+          "Vitest run for `ui/src/__tests__/features/ui/components/CommandPalette.test.tsx` passes after For-You-section assertions are dropped."
         ],
-        "tooling": "vitest + React Testing Library with mocked fetch; ripgrep."
+        "tooling": "vitest + React Testing Library; ripgrep."
       }
     },
     {
@@ -188,16 +195,17 @@
         "forYouNotes_block": "removed",
         "getBlendedForYouNotes_import": "removed",
         "trackNoteAccess_import": "removed",
-        "trackNoteAccess_call": "removed"
+        "trackNoteAccess_call": "removed",
+        "semanticTokens_section_forYou": "removed"
       },
       "oracle": {
         "type": "unit",
         "assertions": [
           "grep of `ui/src/features/notes/components/NotesExplorer.tsx` for `forYouNotes`, `getBlendedForYouNotes`, and `trackNoteAccess` returns zero matches.",
           "Vitest run for `ui/src/__tests__/features/notes/components/NotesExplorer.test.tsx` passes after forYouNotes assertions are dropped.",
-          "Rendering the explorer with a list of notes triggers no `/api/notes/*/access` request (asserted via mocked fetch)."
+          "grep of `ui/src/styles/foundations/semanticTokens.ts` for `forYou` returns zero matches (the `section.forYou` token is orphan after F16 + F17 land and must be removed in F17)."
         ],
-        "tooling": "vitest + React Testing Library with mocked fetch; ripgrep."
+        "tooling": "vitest + React Testing Library; ripgrep."
       }
     },
     {

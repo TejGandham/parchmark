@@ -78,7 +78,7 @@ handlers must be either:
 **(a)** typed as a `pydantic.BaseModel` subclass imported from
 `app.schemas`, **OR**
 
-**(b)** absent — the endpoint takes no body (e.g. `/logout`, `/notes/{id}/access`).
+**(b)** absent — the endpoint takes no body (e.g. `/logout`).
 
 Forbidden: `dict`, `Any`, `Request`, `Body(...)` with a non-`BaseModel`
 type. Pydantic at the boundary is the only validation layer; bypassing it

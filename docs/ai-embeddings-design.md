@@ -1,5 +1,7 @@
 # AI Embeddings — Design Document
 
+> **Status: Historical** — feature removed in F13 / F14 / F15 / F16 / F17 / F18 (PRD: `remove-for-you`). Design preserved for archaeology; do not treat as current state. Backend column drop tracked by F19.
+
 > Phase 2 of the Command Palette redesign. Adds content-based similarity scoring to the "For You" section using OpenAI embeddings.
 
 <!-- machine-readable revision block — do not edit manually -->

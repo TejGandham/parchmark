@@ -28,7 +28,6 @@ export const semanticTokens = {
     'action.save.bg': 'secondary.50',
 
     // Section header colors
-    'section.forYou': 'secondary.600',
     'section.recent': 'primary.600',
     'section.bg': 'neutral.100',
   },

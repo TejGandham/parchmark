@@ -197,7 +197,7 @@ parchmark/
 │   │   │   └── ui/          # UI components (command palette, theme)
 │   │   ├── config/          # Type-safe constants (api, storage)
 │   │   ├── types/           # Shared TypeScript types
-│   │   ├── utils/           # Utilities (errorHandler, markdown, scoring)
+│   │   ├── utils/           # Utilities (errorHandler, markdown)
 │   │   ├── services/        # API client
 │   │   ├── router.tsx       # Data Router config (loaders, actions)
 │   │   └── __tests__/       # Vitest tests

@@ -11,8 +11,6 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/notes/${id}`,
     UPDATE: (id: string) => `/notes/${id}`,
     DELETE: (id: string) => `/notes/${id}`,
-    ACCESS: (id: string) => `/notes/${id}/access`,
-    SIMILAR: (id: string) => `/notes/${id}/similar`,
   },
   SETTINGS: {
     USER_INFO: '/settings/user-info',

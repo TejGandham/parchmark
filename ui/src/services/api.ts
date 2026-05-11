@@ -1,4 +1,4 @@
-import { Note, SimilarNote } from '../types';
+import { Note } from '../types';
 import { API_BASE_URL } from '../config/constants';
 import { useAuthStore } from '../features/auth/store';
 import { API_ENDPOINTS } from '../config/api';
@@ -148,27 +148,6 @@ export const deleteNote = (id: string): Promise<void> =>
     method: 'DELETE',
   });
 
-export const trackNoteAccess = async (noteId: string): Promise<void> => {
-  try {
-    await request(API_ENDPOINTS.NOTES.ACCESS(noteId), {
-      method: 'POST',
-    });
-  } catch {
-    // Fire-and-forget: silently swallow failures
-  }
-};
-
-export const getSimilarNotes = async (
-  noteId: string
-): Promise<SimilarNote[]> => {
-  try {
-    return await request<SimilarNote[]>(API_ENDPOINTS.NOTES.SIMILAR(noteId));
-  } catch {
-    // Graceful degradation: return empty array on failure
-    return [];
-  }
-};
-
 // Settings API
 export interface UserInfo {
   username: string;
@@ -230,8 +209,6 @@ export default {
   createNote,
   updateNote,
   deleteNote,
-  trackNoteAccess,
-  getSimilarNotes,
   getUserInfo,
   changePassword,
   exportNotes,

@@ -119,17 +119,15 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-04-24 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:9f3c7b2a1e8d5f04 -->
 
-- [ ] **F16 Strip For You section from CommandPalette.tsx**
+- [x] **F16 Strip For You section from CommandPalette.tsx**
   PRD: remove-for-you
-  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F17 Strip forYouNotes block from NotesExplorer.tsx**
+- [x] **F17 Strip forYouNotes block from NotesExplorer.tsx**
   PRD: remove-for-you
-  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F18 Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types**
+- [x] **F18 Delete noteScoring util, API wrappers, endpoint constants, and SimilarNote types**
   Needs: F16, F17
   PRD: remove-for-you
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->

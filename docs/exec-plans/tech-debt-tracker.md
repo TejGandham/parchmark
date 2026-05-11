@@ -108,6 +108,74 @@ Known shortcuts, deferred improvements, and open questions.
       F07a+F07b), add Playwright and graduate F07c to an automated F07d.
       See `feature-backlog.md` F07 SPEC-NOTES.
 
+- [ ] **`renderDateGroups` path lacks virtualization (TD-F17-1).** Surfaced
+      by F17 roundtable landing review. The non-search render path in
+      `NotesExplorer.tsx` (`renderDateGroups`) renders every note as a
+      non-windowed React element. Pre-existing — search-only virtualization
+      predates the `remove-for-you` PRD — but increasingly load-bearing
+      post-F17 since the For You splice no longer sits on top. Threshold
+      to act: re-evaluate when avg user note count exceeds ~200, or when
+      a slow-render report comes in. Fix: virtualize `renderDateGroups`
+      with the same `react-window` pattern used in `renderSearchResults`,
+      or paginate. Out of scope for F17's contract.
+
+- [ ] **Deletion-fence regex hardening (TD-F17-2).** Surfaced by F17
+      roundtable landing review (Claude + Codex). Both
+      `NotesExplorer.f17-deletion.test.tsx` and the F16 sibling
+      `CommandPalette.f16-deletion.test.tsx` use raw substring regex
+      against file contents (e.g. `/forYou/`). A future innocent
+      identifier like `notForYou` would false-trip; comments would
+      also match. Fix: tighten to word-boundary patterns
+      (`\bforYou\b`) and exclude comments. Retire both fence files
+      entirely once F18 lands and the symbols are gone repo-wide
+      (the fence is a transient guard, not a durable test).
+
+- [ ] **Search-virtualization branch untested at scale (TD-F17-3).**
+      Surfaced by F17 roundtable landing review (Codex). The
+      virtualization gate in `NotesExplorer.tsx` (`filteredNotes.length
+      > 50`) is never exercised by the test suite — `sampleNotes`
+      contains 5 items, threshold is 50. A future refactor could break
+      virtualized search without CI catching. Fix: add a >50-notes
+      search test asserting `virtual-notes-list` renders with the
+      expected count. Optional polish; not a contract requirement.
+
+- [ ] **`/keel-refine` consumer-path enumeration template for removal-features.**
+      Four consecutive removal pipelines required mid-flight PRD amendments
+      because the drafter under-enumerated consumer paths at refine time:
+      F15 (PR #82, `test_backfill.py` import in deleted-target),
+      F19 (PR #85, router/schema/test consumer paths to dropped columns),
+      F20 (paused; migration-history pgvector imports + 4 compose files
+      + conftest image swap),
+      F16+F17 (PR #87, `SimilarNote` import + test-file scope + orphan
+      `section.forYou` semantic token).
+      Pattern: each removal feature's PRD lists the primary deletion target
+      but misses transitive consumers (test files, type imports, style
+      tokens, lockfile/dep ripples, infra image references).
+      Roundtable across all four pipelines independently flagged the same
+      diagnosis — recommendation: extend `/keel-refine` with a removal-
+      feature checklist that walks the drafter through (a) render path,
+      (b) service exports + dependency graph, (c) utility consumers,
+      (d) type/config constants, (e) theme/style tokens, (f) test mocks
+      + shared setup files, (g) infra (compose, dockerfile, lockfile),
+      (h) doc surfaces. Per-removal one-time drafter cost; collapses
+      multiple amendment-PR cycles into one refine pass. The KEEL
+      framework is "a customization point, not a cage" (KEEL-CONTRACT)
+      — this is the framework upgrade the data is asking for.
+
+- [ ] **F19-residual: `backend/README.md` Note model fields drift.**
+      Lines ~263-265 still describe `access_count`, `last_accessed_at`,
+      and `embedding` Note model fields. F19's migration dropped these
+      columns but the README cleanup wasn't bundled. Surfaced by F18
+      roundtable landing review + doc-gardener Step 9 sweep
+      (deferred from F18 scope as backend-side debt).
+
+- [ ] **F19-residual: orphan `SimilarNoteResponse` Pydantic class.**
+      `backend/app/schemas/schemas.py:88` still defines
+      `SimilarNoteResponse` for the deleted `GET /api/notes/{id}/similar`
+      endpoint (F13). The class has zero consumers post-F13.
+      Surfaced by F18 roundtable landing review + doc-gardener Step 9
+      sweep (deferred from F18 scope as backend-side debt).
+
 - [ ] **Audit future migrations for brownfield-tolerance guards.** F20's
       arch-advisor consultation codified the pattern (inspect →
       `_table_exists` → return early on fresh DB) in CLAUDE.md
