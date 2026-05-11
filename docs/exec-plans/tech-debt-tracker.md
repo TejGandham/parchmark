@@ -60,21 +60,14 @@ Known shortcuts, deferred improvements, and open questions.
       Ad-hoc sweep after F14 commit found drift not caused by F14 but
       worth tracking for a future docs cleanup feature: (1) `AGENTS.md:17,140`
       points to non-existent `docs/north-star.md` — actual file is
-      `NORTH-STAR.md` at repo root; (2) `ARCHITECTURE.md:174,269-281`
-      still describes `routers/notes.py` doing "cosine similarity
-      queries" and lists the deleted `GET /api/notes/{id}/similar`
-      endpoint as active (F13 doc-drift miss); (3) `feature-backlog.md`
-      F12 and F13 entries still carry `<!-- DRAFTED: -->` markers that
-      should have been removed when those features landed; (4)
-      `docs/ai-embeddings-design.md` carries multiple §P5 violations
-      (`### Revision History` section, commit SHAs in metadata table
-      and migration mermaid diagrams); (5)
-      `docs/BACKEND_MIGRATION_RESEARCH.md:3` carries a "Document
-      Created: January 2026" date annotation. Items (1) and (4)–(5) are
-      pre-F14 drift; item (2) is F13's doc-drift miss; item (3) is
-      F12/F13's marker-cleanup miss. Resolution: bundle into a single
-      `chore: doc cleanup sweep` feature, or fold into F21's invariant-4
-      cleanup since several touch the same retirement narrative.
+      `NORTH-STAR.md` at repo root; (2) `docs/BACKEND_MIGRATION_RESEARCH.md:3`
+      carries a "Document Created: January 2026" date annotation. Items
+      previously tracked here that are now resolved: (a) ARCHITECTURE.md
+      cosine-similarity / `/similar` endpoint references (swept by F20+F21);
+      (b) F12/F13 DRAFTED markers (cleaned during retirement); (c)
+      `docs/ai-embeddings-design.md` §P5 violations (file archived by F21
+      to `docs/design-docs/archive/`; archived content is historical
+      by contract).
 
 - [ ] **`docs/deployment_upgrade/archive/` P5 timeline-artifact drift.**
       Doc-gardener flagged three §P5 violations during F14's pipeline:
@@ -86,17 +79,16 @@ Known shortcuts, deferred improvements, and open questions.
       touching deployment docs next, or as a dedicated docs cleanup
       feature.
 
-- [ ] **Endpoint-removal test pattern accumulator.** As the `remove-for-you`
-      retirement progresses (F12, F13, F14, F15, F19 landed; F20 to come),
-      `backend/tests/integration/notes/test_endpoint_removal.py` is
-      becoming an accumulator file holding multiple feature class-pairs
-      (HTTP-tier + grep-tier + filesystem-tier per removed endpoint).
-      Surfaced by roundtable landing review during F14. Tolerable
-      through F20; consider parameterized fixtures or a dedicated
-      `removed_endpoints/` subdirectory if the pattern continues past
-      F20, or retire the grep-tier and filesystem-tier classes entirely
-      across F12–F15 in a single follow-up sweep once the retirement is
-      complete.
+- [ ] **Endpoint-removal test pattern accumulator.** With the
+      `remove-for-you` retirement complete (F12-F22 landed),
+      `backend/tests/integration/notes/test_endpoint_removal.py` is an
+      accumulator file holding multiple feature class-pairs (HTTP-tier
+      + grep-tier + filesystem-tier per removed endpoint). Surfaced by
+      roundtable landing review during F14. Consider parameterized
+      fixtures or a dedicated `removed_endpoints/` subdirectory if the
+      pattern recurs in future retirements, or retire the grep-tier and
+      filesystem-tier classes entirely across F12–F15 in a single
+      follow-up sweep now that the retirement is complete.
 
 - [ ] **Automated browser E2E for live-updates (F07 graduation).** F07
       ships with a hybrid acceptance gate: F07a backend integration

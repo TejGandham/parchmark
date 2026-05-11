@@ -21,7 +21,7 @@ Each feature: read spec → write test → write code → verify.
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F20 Drop openai and pgvector dependencies from pyproject.toml**
+- [x] **F20 Drop openai and pgvector dependencies from pyproject.toml**
   Needs: F15, F19
   PRD: remove-for-you
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
@@ -148,8 +148,7 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-04-24 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:9f3c7b2a1e8d5f04 -->
 
-- [ ] **F21 Documentation sweep: remove embedding / access-tracking references and retire invariants 6 + 7**
+- [x] **F21 Documentation sweep: remove embedding / access-tracking references and retire invariants 6 + 7**
   Needs: F19, F20
   PRD: remove-for-you
-  <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->

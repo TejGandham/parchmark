@@ -1,6 +1,6 @@
 # ParchMark Backend API
 
-A FastAPI-based backend for the ParchMark note-taking application, providing JWT + OIDC hybrid authentication, note management, AI-powered similarity search, and user settings.
+A FastAPI-based backend for the ParchMark note-taking application, providing JWT + OIDC hybrid authentication, note management, and user settings.
 
 ## 🚀 Quick Start
 
@@ -78,10 +78,10 @@ backend/
 │   │   ├── init_db.py       # Database initialization
 │   │   └── seed.py          # Database seeding utilities
 │   ├── models/
-│   │   └── models.py        # SQLAlchemy models (User, Note w/ pgvector)
+│   │   └── models.py        # SQLAlchemy models (User, Note)
 │   ├── routers/
 │   │   ├── auth.py          # Authentication endpoints
-│   │   ├── notes.py         # Notes CRUD + access tracking + similar
+│   │   ├── notes.py         # Notes CRUD
 │   │   ├── settings.py      # User settings, export, account management
 │   │   └── health.py        # Health check endpoint
 │   ├── schemas/

@@ -4,7 +4,7 @@
 
 Alembic migration history is largely append-only, but a narrow exception
 exists for dep-removal hygiene. The boundaries below were established by
-F20 (dropping `openai` and `pgvector` from `pyproject.toml`) when removing
+F20 (dropping retired dependencies from `pyproject.toml`) when removing
 load-time imports of an absent package required patching two historical
 migration bodies. The carve-out is documented here so future operators do
 not mistake it for a general license to retouch migrations.

@@ -2,7 +2,7 @@
 
 Non-negotiable principles that govern every decision in ParchMark.
 
-## Domain Safety — The Nine Invariants
+## Domain Safety — The Seven Invariants
 
 Each rule below was derived from current code (Phase 4 of `/keel-adopt`),
 stress-tested by a multi-model roundtable (`challenge` + `hivemind`), and
@@ -23,10 +23,6 @@ statement.
 
 `<user_id>` is either `current_user.id` from request scope or a trusted
 argument passed to an explicitly named internal helper.
-
-**Exempt helpers** (must be kept narrow):
-- `_generate_embedding_background` (`backend/app/routers/notes.py`)
-- Any function in `backend/app/services/backfill.py`
 
 Rationale: ParchMark is multi-tenant; a missing `user_id` filter is a direct
 IDOR / cross-user data leak. This is the single highest-stakes rule in the
@@ -53,19 +49,15 @@ transitively via a router-level `dependencies=[...]`), **OR**
 Any new public endpoint requires an explicit update to this list and the
 safety-auditor rule — public routes don't become public by accident.
 
-### 3. No raw SQL outside three whitelisted sites
+### 3. No raw SQL outside the one whitelisted site
 
 Raw SQL via `text(...)` is allowed only at:
 
-- `backend/app/models/models.py` — `server_default=text("0")` on
-  `Note.access_count`
-- `backend/app/database/init_db.py` — `CREATE EXTENSION IF NOT EXISTS vector`
 - `backend/app/services/health_service.py` — `SELECT 1` connectivity probe
 
 Every other database access must go through the SQLAlchemy 2.0 async ORM
-(`db.execute(select(...))`, `update(...)`, `delete(...)`) or pgvector
-helpers (`cosine_distance`). No string concatenation, no f-strings in
-queries.
+(`db.execute(select(...))`, `update(...)`, `delete(...)`). No string
+concatenation, no f-strings in queries.
 
 Normal `db.execute(select/update/delete/insert)` is **not** restricted —
 it's the intended async ORM entry point.
@@ -100,32 +92,6 @@ interpolate any of:
 Password / token leakage in logs is a compliance-level incident. The
 codebase is currently clean; this rule keeps it that way.
 
-### 6. Embedding failure must never break note CRUD
-
-`generate_embedding()` in `backend/app/services/embeddings.py` must have a
-top-level `try/except` that catches all exceptions and returns `None`.
-No `raise` statement may be reachable from the top-level body.
-
-Note create/update handlers in `backend/app/routers/notes.py` must invoke
-embedding work **exclusively through** `background_tasks.add_task(...)` —
-never as a synchronous `await generate_embedding(...)` before returning
-the HTTP response.
-
-Rationale: embeddings are a product-level optional feature. Self-hosters
-without an OpenAI key must be able to create and edit notes. A synchronous
-embedding call on the HTTP path would make OpenAI availability a
-note-CRUD dependency.
-
-### 7. Embedding dimension parity
-
-`EMBEDDING_DIMENSIONS` in `backend/app/services/embeddings.py` must equal
-the `Vector(N)` column dimension in `backend/app/models/models.py`
-(currently both `1536`).
-
-Drift between these two constants produces either an `INSERT` error on
-write or a silent similarity-search failure on read. The rule is a
-one-liner grep that compares both values.
-
 ### 8. Passwords never stored raw
 
 Every assignment to `.password_hash` in `backend/app/**` must have a
@@ -155,7 +121,7 @@ Keying on a mutable attribute is an account-linking vulnerability.
   tacit knowledge — all must be encoded here as markdown, code, config, or
   committed test output.
 - **Two authoritative data stores:** PostgreSQL for persistent state
-  (users, notes, embeddings), browser `localStorage` for ephemeral client
+  (users, notes), browser `localStorage` for ephemeral client
   state (auth tokens, UI preferences, sort order). No other stores.
 - **Server owns markdown rendering decisions.** When frontend and backend
   disagree about note metadata (e.g. extracted title), the backend's
@@ -209,7 +175,7 @@ Docs must not contradict each other. Before writing tests, verify that
 product-specs, design-docs, exec-plans, and ARCHITECTURE.md agree.
 `spec-reviewer` agent runs this check.
 
-### Layer 1: Safety Invariants (the nine)
+### Layer 1: Safety Invariants (the seven)
 
 The rules in this document. **Must be enforced against real I/O** —
 mocking safety means testing your mock.
@@ -221,8 +187,6 @@ mocking safety means testing your mock.
 | #3 Raw SQL | Grep-based audit in CI. |
 | #4 Typed body | Integration test posts `{"extra": "field"}` to a mutation endpoint and asserts rejection (enforced by Pydantic `extra="forbid"` where configured). |
 | #5 Secrets in logs | Unit test captures `caplog` during a login/password-change flow and asserts no log record contains the plaintext. |
-| #6 Embedding non-fatal | Integration test disables the OpenAI key and asserts note create/update returns 200 in `< 500 ms`. |
-| #7 Dimension parity | Unit test imports both constants and asserts equality. |
 | #8 Password-hash write | Unit test against `User.set_password`/equivalents — rejects non-hashed input. |
 | #9 OIDC sub | Unit test in `test_oidc_validator.py` verifies lookup uses `oidc_sub`, not `preferred_username`. |
 
@@ -235,14 +199,13 @@ Tagged slow — skipped from the fast loop. Lives in
 ### Layer 2b: Pure Domain Logic (Fast)
 
 No I/O. Tests for derived fields (e.g. `extractTitle`), pure functions
-(note scoring, date grouping), business rules. Lives in
+(date grouping), business rules. Lives in
 `backend/tests/unit/` (Python) and `ui/src/**/__tests__/` (TypeScript).
 
 ### Layer 3: Service / Process Behavior
 
-Service behavior with mocked external dependencies (OpenAI client, HTTP
-calls to Authelia). Python uses `unittest.mock`; TypeScript uses Vitest's
-`vi.mock`.
+Service behavior with mocked external dependencies (HTTP calls to Authelia).
+Python uses `unittest.mock`; TypeScript uses Vitest's `vi.mock`.
 
 ### Layer 4: UI / Component Behavior
 

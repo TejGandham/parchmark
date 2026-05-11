@@ -128,7 +128,7 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
  │  Routers                            │  API endpoint handlers
  │  routers/{auth,notes,settings,health}│
  ├─────────────────────────────────────┤
- │  Services                           │  Embeddings, health checks
+ │  Services                           │  Health checks
  │  services/                          │
  ├─────────────────────────────────────┤
  │  Auth                               │  JWT, OIDC, dependencies
