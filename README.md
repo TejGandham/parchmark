@@ -14,8 +14,6 @@ A modern, full-stack markdown note-taking application built with React and FastA
 - **User Isolation**: Each user has their own private note collection
 - **Command Palette**: Quick navigation and note switching via the header search button
 - **Notes Explorer**: Visual exploration of notes at `/notes/explore`
-- **Similar Notes**: AI-powered related note suggestions via OpenAI embeddings (pgvector)
-- **"For You" Scoring**: Blends recency, frequency, and AI similarity for personalized note ranking
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Dark Mode Support**: Toggle between light and dark themes
 - **Mermaid Diagrams**: Render flowcharts and diagrams in your notes
@@ -208,10 +206,10 @@ parchmark/
 │   ├── app/
 │   │   ├── auth/            # JWT + OIDC authentication
 │   │   ├── database/        # Async SQLAlchemy + PostgreSQL
-│   │   ├── models/          # SQLAlchemy models (User, Note w/ pgvector)
+│   │   ├── models/          # SQLAlchemy models (User, Note)
 │   │   ├── routers/         # API endpoints (auth, notes, settings, health)
 │   │   ├── schemas/         # Pydantic schemas
-│   │   ├── services/        # Embeddings, health, backfill
+│   │   ├── services/        # health
 │   │   ├── utils/           # Markdown processing
 │   │   └── middleware/       # Request middleware
 │   ├── tests/               # unit/, integration/
@@ -390,11 +388,10 @@ uv run python -m app.database.init_db  # Recreate
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy 2.0** (async) with PostgreSQL + pgvector
+- **SQLAlchemy 2.0** (async) with PostgreSQL
 - **Pydantic** for data validation
 - **JWT + OIDC** hybrid authentication (local + Authelia SSO)
 - **Bcrypt** for password hashing
-- **OpenAI embeddings** for note similarity (optional)
 - **CalVer** versioning (`YYYYMMDD.HHMM.sha`)
 - **uvicorn** ASGI server
 
@@ -575,8 +572,6 @@ USE_HTTPS=true
 | `OIDC_ISSUER_URL`             | OIDC issuer URL                      | —                                                         |
 | `OIDC_AUDIENCE`               | OIDC audience identifier             | —                                                         |
 | `OIDC_USERNAME_CLAIM`         | OIDC claim for username              | `preferred_username`                                      |
-| `OPENAI_API_KEY`              | OpenAI API key (embeddings)          | — (feature disabled if absent)                            |
-| `EMBEDDING_MODEL`             | Embedding model override             | `text-embedding-3-small`                                  |
 
 ### Nginx Configuration
 

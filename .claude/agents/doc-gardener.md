@@ -114,8 +114,9 @@ Ad-hoc mode runs the full baseline sweep below PLUS the §P5 timeline-artifact s
 P5 violations are a recurring failure mode. Sweep EVERY markdown file in
 `docs/`, `.claude/`, `template/`, plus repo-root `AGENTS.md`, and flag
 any of the following regex-detectable patterns. Skip only files under
-`docs/superpowers/specs/YYYY-MM-DD-*` and `docs/design-docs/YYYY-MM-DD-*`
-(archival by dated filename — their content is historical by contract).
+`docs/design-docs/YYYY-MM-DD-*` and anything under `docs/design-docs/archive/`
+(archival by dated filename or archive-prefix — their content is historical
+by contract).
 
 | Pattern (grep) | What's wrong | Fix |
 |-|-|-|

@@ -35,16 +35,16 @@ All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
 - **Backlog** at `docs/exec-plans/active/feature-backlog.md`
 - **Tech debt** at `docs/exec-plans/tech-debt-tracker.md`
 - **Active plans** in `docs/exec-plans/active/`, completed in `completed/`
-- **Domain invariants** (the nine rules the safety-auditor enforces) live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md)
+- **Domain invariants** (the seven rules the safety-auditor enforces) live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md)
 
 ### Pipeline Preferences
 
 | Setting | Value | Notes |
 |-|-|-|
-| Roundtable review | `true` | `challenge` + `hivemind` MCP tools; gracefully skipped when MCP is unavailable. Required for any change that amends the nine invariants or crosses an architectural layer boundary; optional for routine feature work. |
+| Roundtable review | `true` | `challenge` + `hivemind` MCP tools; gracefully skipped when MCP is unavailable. Required for any change that amends the seven invariants or crosses an architectural layer boundary; optional for routine feature work. |
 | Branching policy | `halt` | Controls how `/keel-pipeline F##` handles unmerged `Needs:`. `halt` (default — least-assuming) refuses to start F## with unmerged Needs and emits a CTA. `stack` (opt-in) branches F## from the unmerged intra-PRD ancestor's tip and sets the PR base to that branch (use `tea pr create --base <parent>` for parchmark's Forgejo workflow — see Gotchas §"Git Remotes"). Cross-PRD Needs always halt regardless of policy. Stack-mode restack on re-invocation requires Git ≥ 2.38. See Step 0 of `.claude/skills/keel-pipeline/SKILL.md`. |
 | Prototype mode | `reference` | Default disposition when `/keel-refine` ingests a UI/UX prototype bundle. `reference` (default — least-assuming) treats prototype assets as visual context; `seed` permits agents to lift markup/styles from the prototype into the implementation. Per-prototype `prototype.json` overrides this; per-card edits during the refine walk override that. See Step 2a-bis in `.claude/skills/keel-refine/SKILL.md`. |
-| Safety-gate hook | PreToolUse on Edit/Write | Surfaces a reminder to run `/safety-check` when editing files under `backend/app/{auth,routers,models,services/embeddings,database}/` |
+| Safety-gate hook | PreToolUse on Edit/Write | Surfaces a reminder to run `/safety-check` when editing files under `backend/app/{auth,routers,models,database}/` |
 | Formatter hook | PostToolUse on Edit/Write | Auto-runs `ruff format` + `ruff check --fix` on `.py` files and `prettier` on `.ts`/`.tsx` files |
 | Markdown parity hook | PostToolUse on Edit/Write | Reminds to run `/parchmark-markdown-sync` when editing either `markdown.ts` or `markdown.py` |
 | Doc-drift hook | PostToolUse on Bash | Reminds to invoke the `doc-gardener` agent after `git commit` |
@@ -179,8 +179,6 @@ OIDC_AUDIENCE=parchmark
 OIDC_OPAQUE_TOKEN_PREFIX=           # optional: restrict opaque token format (e.g. "authelia_at_")
 OIDC_DISCOVERY_URL=                 # optional: separate URL for discovery (e.g. internal cluster DNS)
 OIDC_USERNAME_CLAIM=preferred_username
-OPENAI_API_KEY=                     # optional: embeddings silently disable if absent
-EMBEDDING_MODEL=text-embedding-3-small  # optional override
 ```
 
 ### Build-time (Docker)
@@ -231,11 +229,6 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - `origin` = Forgejo on brahma (`brahma.myth-gecko.ts.net:3000`) — the only remote developers push to; hosts CI and deploy
 - GitHub (`github.com/TejGandham/parchmark`) is a read-only offsite backup mirror, populated by automated sync — no local remote is configured and developers never push to it manually
 - Use `tea` for all Forgejo PR management
-
-### Embeddings
-- `OPENAI_API_KEY` is optional — embeddings and similarity search silently degrade if absent
-- Backfill existing notes: `cd backend && uv run python -m app.services.backfill`
-- Note model has `embedding` (pgvector `Vector(1536)`), `access_count`, `last_accessed_at`
 
 ### Command Palette
 - Primary navigation (replaced sidebar); triggered via the search button in the header

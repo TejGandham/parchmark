@@ -249,11 +249,22 @@ class TestF20BrownfieldReplay49f4:
 @pytest.fixture(scope="module")
 def fresh_vanilla_migration_container():
     """
-    Spin up postgres:17 (NO pgvector), run Base.metadata.create_all() to
-    produce the current (post-7f1c) schema, then yield (engine, alembic_cfg).
+    Spin up postgres:17 (NO pgvector), run command.upgrade(alembic_cfg, 'head')
+    against the EMPTY DB first (all migrations early-return on the missing notes
+    table), then run Base.metadata.create_all() to produce the current
+    (post-7f1c) schema.  Yield (engine, alembic_cfg).
 
-    The vanilla image exercises the fresh-DB no-op early-return path that the
-    brownfield-tolerant rewrites of 49f4bec52ca3 and 7f1c343772e8 must implement.
+    Order matches production boot sequence (docker-entrypoint.sh):
+      1. alembic upgrade head  — against empty DB; all brownfield guards
+         early-return because notes does not exist yet; alembic stamps at head.
+      2. init_database() / Base.metadata.create_all() — creates the
+         post-7f1c schema tables.
+      3. (seed_database, not exercised here)
+
+    The OLD order (create_all FIRST) was wrong: it caused 33a4da6b0cac's
+    brownfield guard to see notes and attempt to add the embedding column,
+    then 49f4's guard to attempt CREATE EXTENSION vector — which fails on the
+    vanilla postgres:17 image (no vector.so).
 
     Importing app.models.models (which registers all mapped classes with Base)
     before calling create_all() ensures the full current schema is materialized,
@@ -266,17 +277,22 @@ def fresh_vanilla_migration_container():
         try:
             engine = create_engine(sync_url)
 
-            # Import models to ensure all ORM classes are registered with Base
-            # before calling create_all.  Must happen after DATABASE_URL is set
-            # so any module-level engine construction (if any) uses the right URL.
+            alembic_cfg = Config(str(_ALEMBIC_INI))
+            alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
+
+            # Step 1: run alembic upgrade against the empty DB first.
+            # All brownfield migrations early-return (notes table absent);
+            # alembic stamps the version table at head.
+            command.upgrade(alembic_cfg, "head")
+
+            # Step 2: materialize the current ORM schema (post-7f1c).
+            # Import models to register all ORM classes with Base before
+            # calling create_all.  Must happen after DATABASE_URL is set.
             import app.models.models  # noqa: F401 — side-effect: registers ORM classes
             from app.database.database import Base
 
             with engine.begin() as conn:
                 Base.metadata.create_all(bind=conn)
-
-            alembic_cfg = Config(str(_ALEMBIC_INI))
-            alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
 
             yield engine, alembic_cfg
         finally:
