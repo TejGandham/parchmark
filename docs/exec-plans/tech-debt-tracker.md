@@ -176,3 +176,18 @@ Known shortcuts, deferred improvements, and open questions.
       Surfaced by F18 roundtable landing review + doc-gardener Step 9
       sweep (deferred from F18 scope as backend-side debt).
 
+- [ ] **Audit future migrations for brownfield-tolerance guards.** F20's
+      arch-advisor consultation codified the pattern (inspect →
+      `_table_exists` → return early on fresh DB) in CLAUDE.md
+      "Migration history conventions". All six migrations in the current
+      chain follow the pattern (`170dd30cebde` was retrofitted in F20's
+      post-merge-fix-1 after CI surfaced the gap on fresh vanilla-postgres
+      containers). Going forward: every new migration MUST include the
+      `_table_exists` / column / index inspector guards before mutating
+      DDL, so the chain remains replayable on a literally-empty DB
+      regardless of the `create_all` vs `alembic-first` boot ordering.
+      Optionally: tighten F20 oracle assertion 5's regex from
+      `from pgvector|Vector\(` to `from pgvector\.|Vector\(` so
+      historical prose mentioning "pgvector" doesn't force migration-body
+      cosmetic edits to clear the grep (raised by arch-advisor VERIFY
+      future-considerations).
