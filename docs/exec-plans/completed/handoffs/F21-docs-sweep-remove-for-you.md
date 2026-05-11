@@ -1,7 +1,8 @@
 # F21 — Documentation sweep: remove embedding / access-tracking references and retire invariants 6 + 7
 
 ---
-status: IN-PROGRESS
+status: LANDED
+pr_url: https://brahma.myth-gecko.ts.net:3000/stackhouse/parchmark/pulls/93
 pipeline: cross-cutting
 prd_ref: docs/exec-plans/prds/remove-for-you.json#F21
 spec_ref: docs/exec-plans/prds/remove-for-you.json#F21
