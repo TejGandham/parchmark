@@ -85,15 +85,6 @@ class NoteResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SimilarNoteResponse(BaseModel):
-    id: str = Field(..., description="Note ID")
-    title: str = Field(..., description="Note title")
-    similarity: float = Field(..., description="Cosine similarity score (0-1)")
-    updatedAt: str = Field(..., description="ISO timestamp of last update")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # Success Response Schemas
 class MessageResponse(BaseModel):
     """Schema for simple message responses."""

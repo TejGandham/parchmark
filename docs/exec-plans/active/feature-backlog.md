@@ -75,6 +75,12 @@ Each feature: read spec → write test → write code → verify.
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
+- [x] **F22 Retire F19 residuals — backend/README.md note-model fields + orphan SimilarNoteResponse schema**
+  Needs: F19, F20
+  PRD-exempt: trivial
+  <!-- DRAFTED: 2026-05-11 by /keel-refine (PRD-exempt); 0 markers remain -->
+  <!-- SOURCE: prose:f19-residual-cleanup -->
+
 ## UI
 
 - [ ] **F05 Frontend SSE client (fetch-event-source + Bearer auth)**

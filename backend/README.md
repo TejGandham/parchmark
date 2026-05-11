@@ -87,9 +87,7 @@ backend/
 │   ├── schemas/
 │   │   └── schemas.py       # Pydantic schemas
 │   ├── services/
-│   │   ├── embeddings.py    # OpenAI embedding generation
-│   │   ├── health_service.py # Health check logic
-│   │   └── backfill.py      # Backfill embeddings for existing notes
+│   │   └── health_service.py # Health check logic
 │   ├── utils/
 │   │   └── markdown.py      # Markdown processing (mirrors frontend)
 │   └── middleware/           # Request middleware
@@ -184,9 +182,6 @@ OIDC_USERNAME_CLAIM=preferred_username
 OIDC_OPAQUE_TOKEN_PREFIX=           # e.g. "authelia_at_"
 OIDC_DISCOVERY_URL=                 # optional: internal cluster DNS
 
-# Embeddings (optional — similarity search disabled if absent)
-OPENAI_API_KEY=
-EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 ## 🌐 Frontend Integration
@@ -260,9 +255,6 @@ Common HTTP status codes:
 - `content`: Text
 - `created_at`: DateTime
 - `updated_at`: DateTime
-- `access_count`: Integer (for "For You" scoring)
-- `last_accessed_at`: DateTime
-- `embedding`: Vector(1536) (pgvector, for similarity search)
 
 ### Database Operations
 
