@@ -791,3 +791,59 @@ Per SKILL §8.5 sub-step 6, after Attempt 1 with CONCERNS that don't trigger cod
 
 **roundtable_landing_verdict: CONCERNS** (operational + pre-existing project bug; no F20 code change required)
 
+
+## post-merge-fix-1 — brownfield guard on 170dd30cebde
+
+**Trigger.** F20 PR CI on `keel/F20-drop-openai-pgvector-deps` failed in the
+fresh-DB chain test:
+
+```
+FAILED tests/integration/migrations/test_f20_brownfield_rewrites.py::TestF20FreshDbFullChain::test_upgrade_head_on_fresh_db_raises_no_exception
+sqlalchemy.exc.ProgrammingError: relation "notes" does not exist
+[SQL: CREATE INDEX ix_notes_user_id ON notes (user_id)]
+```
+
+The failing statement is in `170dd30cebde_add_indexes_for_user_id_username_oidc_.py`,
+which unconditionally executed `op.create_index(op.f("ix_notes_user_id"), "notes", ...)`.
+This is exactly the gap Codex flagged as MEDIUM #2 in roundtable Attempt 1
+above — pre-existing project bug, masked while the project ran on
+`pgvector/pgvector:pg17` because F20-test bodies were the first to actually
+replay the chain on a fresh vanilla-postgres container without
+`Base.metadata.create_all()` having pre-populated the indexes.
+
+**Why this is in F20 scope (not deferred).** F20 swapped four docker-compose
+files + the conftest container from `pgvector/pgvector:pg17` -> `postgres:17`
+and introduced the CLAUDE.md "Migration history conventions" section that
+codifies the brownfield-tolerant pattern. The conftest swap is the
+dep-removal action; this brownfield guard is the hygiene completion. The
+conventions section explicitly permits "patching bodies for dep-removal
+hygiene". Without this fix, F20 itself does not land green.
+
+**Change.** Single file edit:
+- `backend/migrations/versions/170dd30cebde_add_indexes_for_user_id_username_oidc_.py`
+  - Added `import sqlalchemy as sa`.
+  - Added inline `_table_exists` / `_get_existing_indexes` helpers (matching
+    the shape used by `3c1162fce719` and `7f1c343772e8`).
+  - `upgrade()`: bind inspector; if `notes` absent, return (fresh DB pre-create_all);
+    if `ix_notes_user_id` already present, return (post-create_all brownfield);
+    otherwise create the index as before.
+  - `downgrade()`: symmetric guards before drop.
+
+No other migrations touched. No CLAUDE.md / PRD edits. Tests untouched —
+test-writer's `test_upgrade_head_on_fresh_db_raises_no_exception` now
+passes by construction once the guard exists.
+
+**tech-debt-tracker.md** entry "Audit all migrations for brownfield-tolerance
+guards" trimmed: the specific `170dd30cebde` callout is removed (now
+resolved); the residual item is reshaped to "Audit future migrations for
+brownfield-tolerance guards" — codifying the rule going forward rather than
+flagging a known offender.
+
+**Local verification.**
+- `cd backend && uv run ruff check tests app migrations` -> All checks passed!
+- `cd backend && uv run alembic history` -> full 6-revision chain prints,
+  `170dd30cebde -> fad201191d3b` link intact.
+- Integration test `test_upgrade_head_on_fresh_db_raises_no_exception`
+  not runnable locally (no Docker); CI will verify on the next push.
+
+**Next: ci-poll-and-merge.**
