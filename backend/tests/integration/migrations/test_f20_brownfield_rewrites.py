@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 from testcontainers.postgres import PostgresContainer
 
@@ -349,15 +350,14 @@ class TestF20FreshDbFullChain:
         engine, alembic_cfg = fresh_vanilla_migration_container
         command.upgrade(alembic_cfg, "head")
 
-        # The head revision in the chain is 7f1c343772e8.
-        _HEAD_REVISION = "7f1c343772e8"
+        head_revision = ScriptDirectory.from_config(alembic_cfg).get_current_head()
 
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             current = result.scalar()
 
-        assert current == _HEAD_REVISION, (
-            f"Expected alembic_version to record head revision {_HEAD_REVISION!r} "
+        assert current == head_revision, (
+            f"Expected alembic_version to record head revision {head_revision!r} "
             f"after full-chain upgrade on fresh DB, but got {current!r}. "
             "A migration in the chain may have raised before alembic could stamp it."
         )
