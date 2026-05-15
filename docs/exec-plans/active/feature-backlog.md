@@ -75,6 +75,29 @@ Each feature: read spec → write test → write code → verify.
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
+- [ ] **F23 Postgres trigger emits NOTIFY on note title/content/delete**
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F24 Per-worker LISTEN consumer plus per-user broker fanout**
+  Needs: F23
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F25 Authenticated SSE endpoint /notes/events**
+  Needs: F24
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F26 SSE lifecycle heartbeat and disconnect cleanup**
+  Needs: F25
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
 - [x] **F22 Retire F19 residuals — backend/README.md note-model fields + orphan SimilarNoteResponse schema**
   Needs: F19, F20
   PRD-exempt: trivial
@@ -139,6 +162,42 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
+- [ ] **F27 Frontend SSE client with bearer auth**
+  Needs: F25
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F28 Notes loader revalidation on received events**
+  Needs: F27
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F29 Initial-connect and reconnect reconciliation**
+  Needs: F27
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F30 SSE auto-reconnect with exponential backoff**
+  Needs: F27
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F31 SSE auth-failure refresh and logout handling**
+  Needs: F27
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
+- [ ] **F32 Event stream teardown on logout**
+  Needs: F27
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->
+
 ## Cross-cutting
 
 - [ ] **F11 End-to-end cross-user isolation safety test (CI-gated)**
@@ -152,3 +211,9 @@ Each feature: read spec → write test → write code → verify.
   Needs: F19, F20
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
+
+- [ ] **F33 End-to-end cross-user isolation safety test**
+  Needs: F23, F24, F25, F28
+  PRD: realtime-notes-list-revalidation
+  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: prose:1dd071ec29355a67 -->

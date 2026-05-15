@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "id": "realtime-notes-list-revalidation",
+  "title": "Realtime Notes List Revalidation",
+  "motivation": "The notes list should reflect server-side creates, updates, and deletes without manual refresh or client polling. This PRD introduces server-push change delivery over authenticated Server-Sent Events and hooks the UI into router data revalidation, while preserving per-user isolation, reconnect recovery, and existing auth semantics.",
+  "scope": {
+    "included": [
+      "PostgreSQL-backed note change emission and per-worker fanout to subscribers.",
+      "Authenticated SSE delivery of note change events to active browser sessions.",
+      "Frontend stream subscription, router revalidation, reconnect recovery, auth refresh handling, and logout cleanup.",
+      "CI-gated cross-user isolation coverage for the new event transport."
+    ],
+    "excluded": [
+      "Long polling.",
+      "Bidirectional WebSocket transport.",
+      "Optimistic in-place patching of the notes cache.",
+      "Cross-device collaborative editing of a single open note."
+    ]
+  },
+  "design_facts": [
+    {
+      "topic": "Emission trigger scope",
+      "decision": "PostgreSQL triggers emit note-change notifications for inserts, deletes, and title/content updates while excluding embedding-only updates.",
+      "rationale": "Background embedding writes should not create client-visible note-list churn."
+    },
+    {
+      "topic": "Fanout topology",
+      "decision": "Every uvicorn worker owns one LISTEN connection and an in-process per-user broker.",
+      "rationale": "Postgres NOTIFY provides cross-worker delivery while each worker handles its own connected clients."
+    },
+    {
+      "topic": "Subscriber pressure",
+      "decision": "Subscriber queues are bounded at fifty events and slow consumers are disconnected.",
+      "rationale": "A stalled browser tab must not block delivery to other subscribers."
+    },
+    {
+      "topic": "Stream authentication",
+      "decision": "The stream uses the standard Authorization bearer header and forbids query-string tokens.",
+      "rationale": "Bearer tokens in URLs would leak through proxy and access logs."
+    },
+    {
+      "topic": "Idle heartbeat",
+      "decision": "The SSE stream emits a thirty-second comment-line heartbeat.",
+      "rationale": "Idle streams need an observable keepalive and a cleanup cadence."
+    },
+    {
+      "topic": "Wire payload",
+      "decision": "Client-visible events carry only kind and note_id while user_id stays server-side for routing.",
+      "rationale": "The client does not need routing identity, and omitting it narrows leakage risk."
+    },
+    {
+      "topic": "Reconnect recovery",
+      "decision": "The frontend revalidates on every stream open, including reconnect opens.",
+      "rationale": "Postgres NOTIFY is fire-and-forget, so reconnect open is the recovery boundary for missed events."
+    },
+    {
+      "topic": "Reconnect backoff",
+      "decision": "Reconnect attempts use exponential backoff starting at one second and capped at thirty seconds.",
+      "rationale": "Outages should not trigger tight reconnect loops."
+    },
+    {
+      "topic": "Auth failure handling",
+      "decision": "A stream 401 triggers the existing token refresh path before reconnect; refresh failure logs out and stops reconnecting.",
+      "rationale": "The stream should reuse existing auth semantics instead of inventing a separate credential lifecycle."
+    },
+    {
+      "topic": "Logout teardown",
+      "decision": "Logout aborts the active event stream within one hundred milliseconds.",
+      "rationale": "Subscribers must not leak across logout/login cycles."
+    }
+  ],
+  "invariants_exercised": [],
+  "features": [
+    {
+      "id": "F23",
+      "title": "Postgres trigger emits NOTIFY on note title/content/delete",
+      "layer": "service",
+      "needs": [],
+      "contract": {
+        "trigger_table": "notes",
+        "trigger_events": [
+          "INSERT",
+          "UPDATE",
+          "DELETE"
+        ],
+        "update_columns": [
+          "title",
+          "content"
+        ],
+        "excluded_update_columns": [
+          "embedding"
+        ],
+        "notify_channel": "notes_events",
+        "payload_fields": [
+          "user_id",
+          "kind",
+          "note_id"
+        ],
+        "transactional_delivery": true,
+        "migration_required": true
+      },
+      "oracle": {
+        "type": "integration",
+        "setup": "Alembic migration applied against PostgreSQL with at least one note row available.",
+        "assertions": [
+          "A committed note insert, title/content update, and delete each produce exactly one event on the intended Postgres notification channel.",
+          "A transaction rollback produces no delivered note-change event.",
+          "An update that does not touch note title/content/delete semantics does not produce client-visible notification noise."
+        ],
+        "tooling": "pytest with an async PostgreSQL LISTEN connection."
+      }
+    },
+    {
+      "id": "F24",
+      "title": "Per-worker LISTEN consumer plus per-user broker fanout",
+      "layer": "service",
+      "needs": [
+        "F23"
+      ],
+      "contract": {
+        "listen_channel": "notes_events",
+        "listener_scope": "one_per_uvicorn_worker",
+        "startup_hook": "FastAPI lifespan",
+        "broker_scope": "in_process_per_worker",
+        "subscriber_key": "user_id",
+        "subscriber_queue_limit": 50,
+        "slow_consumer_policy": "disconnect_subscriber",
+        "fanout_rule": "route payloads only to subscribers matching payload.user_id",
+        "multi_tab_policy": "independent_subscribers",
+        "cross_worker_delivery": "postgres_notify_broadcast",
+        "payload_fields": [
+          "user_id",
+          "kind",
+          "note_id"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "setup": "FastAPI lifespan running with PostgreSQL NOTIFY available.",
+        "assertions": [
+          "Each worker starts exactly one LISTEN connection on the note events channel.",
+          "A broker with subscribers for two users routes each payload only to subscribers for that payload's user.",
+          "A saturated subscriber queue is disconnected without preventing other subscribers from receiving events.",
+          "Two broker instances each receive every PostgreSQL notification, proving cross-worker fanout through Postgres."
+        ],
+        "tooling": "pytest async integration tests with broker instances and PostgreSQL NOTIFY."
+      }
+    },
+    {
+      "id": "F25",
+      "title": "Authenticated SSE endpoint /notes/events",
+      "layer": "service",
+      "needs": [
+        "F24"
+      ],
+      "contract": {
+        "route": "/notes/events",
+        "method": "GET",
+        "auth_scheme": "Authorization Bearer",
+        "success_status": 200,
+        "content_type": "text/event-stream",
+        "subscriber_key": "current_user.id",
+        "wire_payload_fields": [
+          "kind",
+          "note_id"
+        ],
+        "server_only_fields": [
+          "user_id"
+        ],
+        "unauthorized_status": 401,
+        "disconnect_cleanup": "unregister_subscriber"
+      },
+      "oracle": {
+        "type": "integration",
+        "setup": "Authenticated and unauthenticated HTTP clients plus an in-process broker test double.",
+        "assertions": [
+          "GET `/notes/events` with a valid bearer token returns an SSE stream and registers one subscriber under the authenticated user id.",
+          "Missing or invalid bearer credentials receive 401 and do not register a subscriber.",
+          "Each emitted SSE event contains only the client-visible event fields, not the routing user id.",
+          "Client disconnect unregisters the subscriber from the broker."
+        ],
+        "tooling": "pytest with httpx streaming client."
+      }
+    },
+    {
+      "id": "F26",
+      "title": "SSE lifecycle heartbeat and disconnect cleanup",
+      "layer": "service",
+      "needs": [
+        "F25"
+      ],
+      "contract": {
+        "route": "/notes/events",
+        "heartbeat_interval_seconds": 30,
+        "heartbeat_frame": ":heartbeat\n\n",
+        "disconnect_cleanup_deadline": "within_one_heartbeat_interval",
+        "shutdown_behavior": "close_streams_and_listen_connection"
+      },
+      "oracle": {
+        "type": "integration",
+        "setup": "Authenticated SSE stream connected and idle.",
+        "assertions": [
+          "The stream emits a comment-line heartbeat every 30 seconds while idle.",
+          "After client TCP close, the subscriber is removed from the broker within one heartbeat interval.",
+          "FastAPI lifespan shutdown closes active streams and the LISTEN connection without pending task warnings."
+        ],
+        "tooling": "pytest with async streaming client and fake or bounded timers."
+      }
+    },
+    {
+      "id": "F27",
+      "title": "Frontend SSE client with bearer auth",
+      "layer": "ui",
+      "needs": [
+        "F25"
+      ],
+      "contract": {
+        "module_path": "ui/src/services/notesEventStream.ts",
+        "transport_library": "@microsoft/fetch-event-source",
+        "route": "/notes/events",
+        "auth_header_source": "existing_api_bearer_token",
+        "public_api": "subscribe(callback) returns dispose",
+        "event_payload_fields": [
+          "kind",
+          "note_id"
+        ],
+        "dispose_behavior": "abort_fetch_stream"
+      },
+      "oracle": {
+        "type": "unit",
+        "setup": "Mocked fetch-stream transport and auth store token state.",
+        "assertions": [
+          "Opening a stream calls the transport with the same bearer Authorization header used by REST requests.",
+          "Injected SSE frames invoke the subscriber callback once per frame with parsed event payload.",
+          "Calling dispose aborts the underlying fetch and stops forwarding events."
+        ],
+        "tooling": "Vitest with mocked fetch-event-source."
+      }
+    },
+    {
+      "id": "F28",
+      "title": "Notes loader revalidation on received events",
+      "layer": "ui",
+      "needs": [
+        "F27"
+      ],
+      "contract": {
+        "mount_scope": "NotesLayout",
+        "event_handler": "router.revalidate",
+        "revalidation_frequency": "once_per_received_event",
+        "router_loader_id": "notes-layout",
+        "idle_polling": "forbidden"
+      },
+      "oracle": {
+        "type": "e2e",
+        "setup": "Notes route rendered with a mocked router and the notes event stream subscriber attached.",
+        "assertions": [
+          "Injecting three received events calls `router.revalidate()` exactly three times.",
+          "Creating a note through a separate authenticated client causes the rendered notes list to show the new note within two seconds.",
+          "During a 30 second idle window before mutation, the browser makes no polling-style requests to `/api/notes`."
+        ],
+        "tooling": "Vitest route test plus browser smoke."
+      }
+    },
+    {
+      "id": "F29",
+      "title": "Initial-connect and reconnect reconciliation",
+      "layer": "ui",
+      "needs": [
+        "F27"
+      ],
+      "contract": {
+        "revalidate_on_initial_open": true,
+        "revalidate_on_reconnect_open": true,
+        "missed_event_recovery": "forced_loader_revalidation",
+        "applies_to_transport": "notes event stream"
+      },
+      "oracle": {
+        "type": "e2e",
+        "setup": "Notes event stream client connected to router revalidation with controllable open/close events.",
+        "assertions": [
+          "The client invokes `router.revalidate()` immediately on initial stream open.",
+          "After stream close and re-open, the client invokes `router.revalidate()` again.",
+          "After backend interruption and missed mutation, the rendered notes list reflects the mutation within two seconds of stream re-open without manual action."
+        ],
+        "tooling": "Vitest fake stream lifecycle plus browser smoke."
+      }
+    },
+    {
+      "id": "F30",
+      "title": "SSE auto-reconnect with exponential backoff",
+      "layer": "ui",
+      "needs": [
+        "F27"
+      ],
+      "contract": {
+        "failure_conditions": [
+          "server_close",
+          "network_error",
+          "non_401_5xx_response"
+        ],
+        "initial_delay_seconds": 1,
+        "multiplier": 2,
+        "max_delay_seconds": 30,
+        "reset_after_stable_seconds": 30
+      },
+      "oracle": {
+        "type": "unit",
+        "setup": "Notes event stream client under fake timers with controllable transport failures.",
+        "assertions": [
+          "After a stream close, reconnect attempts occur at one, three, seven, fifteen, thirty-one, and sixty-one seconds.",
+          "Reconnect delay caps at thirty seconds after repeated failures.",
+          "Backoff resets to one second after a successful stream open that remains stable for at least thirty seconds."
+        ],
+        "tooling": "Vitest fake timers."
+      }
+    },
+    {
+      "id": "F31",
+      "title": "SSE auth-failure refresh and logout handling",
+      "layer": "ui",
+      "needs": [
+        "F27"
+      ],
+      "contract": {
+        "failure_status": 401,
+        "refresh_path": "existing_useAuthStore_token_refresh",
+        "refresh_before_reconnect": true,
+        "success_behavior": "reconnect_with_new_bearer_token",
+        "failure_behavior": "logout_once_and_stop_reconnects",
+        "loop_guard": "no_infinite_refresh_loop"
+      },
+      "oracle": {
+        "type": "unit",
+        "setup": "Mocked auth store, mocked stream response, and fake timers.",
+        "assertions": [
+          "A 401 stream response invokes the existing token refresh path before the next reconnect attempt.",
+          "After refresh succeeds, the client reconnects with the new bearer token and resets backoff.",
+          "After refresh fails, logout is invoked exactly once and no further reconnect attempts are scheduled."
+        ],
+        "tooling": "Vitest with mocked auth store and fake timers."
+      }
+    },
+    {
+      "id": "F32",
+      "title": "Event stream teardown on logout",
+      "layer": "ui",
+      "needs": [
+        "F27"
+      ],
+      "contract": {
+        "logout_signal": "useAuthStore.logout",
+        "auth_state_transition": "isAuthenticated_true_to_false",
+        "teardown_deadline_ms": 100,
+        "teardown_behavior": "abort_active_stream",
+        "event_forwarding_after_teardown": "forbidden"
+      },
+      "oracle": {
+        "type": "unit",
+        "setup": "Active notes event stream subscription and mocked auth store state.",
+        "assertions": [
+          "When authentication transitions to false, the active stream is aborted within 100ms.",
+          "After teardown, no further events are forwarded to subscribers.",
+          "A backend smoke check observes broker subscriber count decrement after logout."
+        ],
+        "tooling": "Vitest fake timers plus backend smoke."
+      }
+    },
+    {
+      "id": "F33",
+      "title": "End-to-end cross-user isolation safety test",
+      "layer": "cross-cutting",
+      "needs": [
+        "F23",
+        "F24",
+        "F25",
+        "F28"
+      ],
+      "contract": {
+        "test_type": "e2e",
+        "transport": "/notes/events",
+        "actors": [
+          "user_a",
+          "user_b"
+        ],
+        "user_b_stream_registration_required": true,
+        "user_a_mutation_count": 10,
+        "mutations": [
+          "POST_note",
+          "PATCH_note",
+          "DELETE_note"
+        ],
+        "leak_window_seconds": 5,
+        "negative_assertion": "user_b_receives_zero_user_a_events",
+        "control_assertion": "user_b_receives_one_user_b_event",
+        "ci_gating": "required"
+      },
+      "oracle": {
+        "type": "e2e",
+        "setup": "Two authenticated users, an active SSE stream for user B, and real HTTP note mutation calls for user A and user B.",
+        "assertions": [
+          "User B's stream registers with the broker before the isolation assertions begin.",
+          "Ten interleaved mutations by user A produce zero events on user B's stream during the five second observation window.",
+          "One mutation by user B produces exactly one event on user B's stream with the expected payload.",
+          "The test is wired into CI as a required gate."
+        ],
+        "tooling": "pytest async integration test with httpx streaming client.",
+        "gating": "CI merge-blocking."
+      }
+    }
+  ]
+}
