@@ -1,7 +1,7 @@
 # Postgres trigger emits NOTIFY on note title/content/delete
 
 ---
-status: IN-PROGRESS
+status: LANDED
 pipeline: backend
 spec_ref:
 prd_ref: docs/exec-plans/prds/realtime-notes-list-revalidation.json#F23
@@ -30,7 +30,7 @@ remote_name: origin
 roundtable_enabled: false
 roundtable_precheck_skipped: true
 roundtable_precheck_skip_reason: Roundtable MCP tools are unavailable in this Codex session.
-pr_url:
+pr_url: https://brahma.myth-gecko.ts.net:3000/stackhouse/parchmark/pulls/94
 
 roundtable_design_attempt: 0
 roundtable_design_verdict:
