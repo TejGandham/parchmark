@@ -70,7 +70,7 @@ roundtable_retry_safety_attempt: 0
 - Trigger table: `notes`
 - Trigger events: `INSERT`, `UPDATE`, `DELETE`
 - Update columns: `title`, `content`
-- Excluded update columns: `embedding`
+- Excluded update columns: retired vector-storage fields
 - Notify channel: `notes_events`
 - Payload fields: `user_id`, `kind`, `note_id`
 - Transactional delivery: true
