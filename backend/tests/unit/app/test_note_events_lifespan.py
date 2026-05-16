@@ -20,6 +20,15 @@ async def test_lifespan_starts_one_note_event_listener_after_database_init(monke
     monkeypatch.setattr("app.main.init_database", lambda: True)
     monkeypatch.setattr("app.main.create_note_event_listener", lambda: listener)
 
+    class FakeStreamManager:
+        def open(self):
+            events.append("streams-open")
+
+        async def close_all(self):
+            events.append("streams-close")
+
+    monkeypatch.setattr(main_module, "note_event_stream_manager", FakeStreamManager())
+
     async def fake_oidc_close():
         events.append("oidc-close")
 
@@ -33,6 +42,6 @@ async def test_lifespan_starts_one_note_event_listener_after_database_init(monke
 
     async with lifespan(app):
         assert app.state.note_event_listener is listener
-        assert events == ["start"]
+        assert events == ["streams-open", "start"]
 
-    assert events == ["start", "stop", "oidc-close", "engine-dispose"]
+    assert events == ["streams-open", "start", "streams-close", "stop", "oidc-close", "engine-dispose"]

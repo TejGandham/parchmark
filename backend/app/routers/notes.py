@@ -3,12 +3,13 @@ Notes CRUD routes for ParchMark backend API.
 Handles note creation, reading, updating, and deletion with user authorization.
 """
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -24,6 +25,11 @@ from app.schemas.schemas import (
     NoteCreate,
     NoteResponse,
     NoteUpdate,
+)
+from app.services.note_event_streams import (
+    NOTE_EVENTS_HEARTBEAT_FRAME,
+    NOTE_EVENTS_HEARTBEAT_INTERVAL_SECONDS,
+    note_event_stream_manager,
 )
 from app.services.note_events import note_event_broker
 from app.utils.markdown import markdown_service
@@ -58,14 +64,48 @@ async def get_current_user_for_note_events(
     return await get_current_user(credentials, db)
 
 
-async def _note_events_sse_stream(user_id: int) -> AsyncIterator[str]:
+async def _note_events_sse_stream(
+    user_id: int,
+    request: Request,
+    heartbeat_interval_seconds: float = NOTE_EVENTS_HEARTBEAT_INTERVAL_SECONDS,
+) -> AsyncIterator[str]:
     subscriber = note_event_broker.subscribe(user_id=user_id)
+    note_event_stream_manager.register(subscriber)
     try:
-        while not subscriber.closed:
-            event = await subscriber.queue.get()
-            data = json.dumps({"kind": event.kind, "note_id": event.note_id})
-            yield f"data: {data}\n\n"
+        while not subscriber.closed and not note_event_stream_manager.is_closing:
+            if await request.is_disconnected():
+                break
+
+            event_task = asyncio.create_task(subscriber.queue.get())
+            shutdown_task = asyncio.create_task(note_event_stream_manager.shutdown_event().wait())
+            try:
+                done, _ = await asyncio.wait(
+                    {event_task, shutdown_task},
+                    timeout=heartbeat_interval_seconds,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            finally:
+                pending_tasks = [task for task in (event_task, shutdown_task) if not task.done()]
+                for task in pending_tasks:
+                    task.cancel()
+                if pending_tasks:
+                    await asyncio.gather(*pending_tasks, return_exceptions=True)
+
+            if shutdown_task in done or note_event_stream_manager.is_closing:
+                break
+
+            if event_task in done:
+                event = event_task.result()
+                data = json.dumps({"kind": event.kind, "note_id": event.note_id})
+                yield f"data: {data}\n\n"
+                continue
+
+            if await request.is_disconnected():
+                break
+
+            yield NOTE_EVENTS_HEARTBEAT_FRAME
     finally:
+        note_event_stream_manager.unregister(subscriber)
         note_event_broker.unsubscribe(subscriber)
 
 
@@ -92,10 +132,13 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
 
 
 @router.get("/events", status_code=status.HTTP_200_OK)
-async def stream_note_events(current_user: User = Depends(get_current_user_for_note_events)):
+async def stream_note_events(
+    request: Request,
+    current_user: User = Depends(get_current_user_for_note_events),
+):
     """Stream authenticated note-change events as Server-Sent Events."""
     return StreamingResponse(
-        _note_events_sse_stream(user_id=current_user.id),  # type: ignore[arg-type]
+        _note_events_sse_stream(user_id=current_user.id, request=request),  # type: ignore[arg-type]
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
