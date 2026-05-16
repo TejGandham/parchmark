@@ -158,7 +158,7 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-05-09 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F27 Frontend SSE client with bearer auth**
+- [x] **F27 Frontend SSE client with bearer auth**
   Needs: F25
   PRD: realtime-notes-list-revalidation
   <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
