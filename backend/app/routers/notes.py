@@ -3,14 +3,19 @@ Notes CRUD routes for ParchMark backend API.
 Handles note creation, reading, updating, and deletion with user authorization.
 """
 
+import json
 import logging
+from collections.abc import AsyncIterator
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.auth import credentials_exception
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
 from app.models.models import Note, User
@@ -20,12 +25,14 @@ from app.schemas.schemas import (
     NoteResponse,
     NoteUpdate,
 )
+from app.services.note_events import note_event_broker
 from app.utils.markdown import markdown_service
 
 logger = logging.getLogger(__name__)
 
 # Create router for notes endpoints
 router = APIRouter(prefix="/notes", tags=["notes"])
+note_events_security = HTTPBearer(auto_error=False)
 
 
 def _note_to_response(note: Note) -> NoteResponse:
@@ -39,6 +46,27 @@ def _note_to_response(note: Note) -> NoteResponse:
             "updatedAt": note.updated_at.isoformat(),
         }
     )
+
+
+async def get_current_user_for_note_events(
+    credentials: HTTPAuthorizationCredentials | None = Depends(note_events_security),
+    db: AsyncSession = Depends(get_async_db),
+) -> User:
+    """Authenticate note-event streams with a 401 for missing bearer credentials."""
+    if credentials is None:
+        raise credentials_exception
+    return await get_current_user(credentials, db)
+
+
+async def _note_events_sse_stream(user_id: int) -> AsyncIterator[str]:
+    subscriber = note_event_broker.subscribe(user_id=user_id)
+    try:
+        while not subscriber.closed:
+            event = await subscriber.queue.get()
+            data = json.dumps({"kind": event.kind, "note_id": event.note_id})
+            yield f"data: {data}\n\n"
+    finally:
+        note_event_broker.unsubscribe(subscriber)
 
 
 @router.get("/", response_model=list[NoteResponse])
@@ -61,6 +89,19 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
     notes = result.scalars().all()
 
     return [_note_to_response(note) for note in notes]
+
+
+@router.get("/events", status_code=status.HTTP_200_OK)
+async def stream_note_events(current_user: User = Depends(get_current_user_for_note_events)):
+    """Stream authenticated note-change events as Server-Sent Events."""
+    return StreamingResponse(
+        _note_events_sse_stream(user_id=current_user.id),  # type: ignore[arg-type]
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/", response_model=NoteResponse)

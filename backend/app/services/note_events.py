@@ -31,7 +31,7 @@ class NoteEvent:
 
     user_id: int
     kind: str
-    note_id: int
+    note_id: int | str
 
 
 class NoteEventSubscriber:
@@ -181,8 +181,8 @@ def _note_event_from_payload(payload: Mapping[str, Any]) -> NoteEvent:
     kind = payload["kind"]
     note_id = payload["note_id"]
 
-    if not isinstance(user_id, int) or not isinstance(note_id, int) or not isinstance(kind, str):
-        raise ValueError("note event payload fields must be user_id:int, kind:str, note_id:int")
+    if not isinstance(user_id, int) or not isinstance(note_id, int | str) or not isinstance(kind, str):
+        raise ValueError("note event payload fields must be user_id:int, kind:str, note_id:int|str")
 
     return NoteEvent(user_id=user_id, kind=kind, note_id=note_id)
 

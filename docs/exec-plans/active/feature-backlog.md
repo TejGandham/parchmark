@@ -84,10 +84,9 @@ Each feature: read spec → write test → write code → verify.
   PRD: realtime-notes-list-revalidation
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
-- [ ] **F25 Authenticated SSE endpoint /notes/events**
+- [x] **F25 Authenticated SSE endpoint /notes/events**
   Needs: F24
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
 - [ ] **F26 SSE lifecycle heartbeat and disconnect cleanup**
