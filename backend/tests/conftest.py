@@ -158,6 +158,13 @@ def client(test_db_session, test_async_db_session):
     """Create a test client with database dependency override."""
     from unittest.mock import patch
 
+    class NoopNoteEventListener:
+        async def start(self):
+            return None
+
+        async def stop(self):
+            return None
+
     # Override sync get_db (kept for backwards compatibility)
     def override_get_db():
         try:
@@ -184,7 +191,10 @@ def client(test_db_session, test_async_db_session):
     # Mock init_database during app startup since test fixtures handle table creation.
     # The lifespan event calls init_database() which would try to connect to the
     # production database URL, not our test container.
-    with patch("app.main.init_database", return_value=True):
+    with (
+        patch("app.main.init_database", return_value=True),
+        patch("app.main.create_note_event_listener", return_value=NoopNoteEventListener()),
+    ):
         with TestClient(app) as test_client:
             yield test_client
 

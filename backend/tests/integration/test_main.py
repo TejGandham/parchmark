@@ -4,7 +4,7 @@ Tests app configuration, middleware, exception handlers, and root endpoints.
 """
 
 import json
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import status
@@ -292,10 +292,13 @@ class TestApplicationLifespan:
     """Test application lifespan events."""
 
     @patch("app.main.init_database")
+    @patch("app.main.create_note_event_listener")
     @patch("app.main.logger")
-    def test_lifespan_startup(self, mock_logger, mock_init_db):
+    def test_lifespan_startup(self, mock_logger, mock_create_listener, mock_init_db):
         """Test application startup lifespan event."""
         mock_init_db.return_value = True
+        listener = AsyncMock()
+        mock_create_listener.return_value = listener
 
         # Import and test lifespan function
         from app.main import app, lifespan
@@ -312,6 +315,8 @@ class TestApplicationLifespan:
 
         # Verify database initialization was called
         mock_init_db.assert_called_once()
+        listener.start.assert_awaited_once()
+        listener.stop.assert_awaited_once()
 
         # Verify logging
         assert mock_logger.info.call_count >= 2  # Startup and completion messages

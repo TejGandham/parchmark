@@ -154,7 +154,17 @@ def test_app_boots_without_openai_api_key(monkeypatch: pytest.MonkeyPatch) -> No
 
     from app.main import app
 
-    with patch("app.main.init_database", return_value=True):
+    class NoopNoteEventListener:
+        async def start(self):
+            return None
+
+        async def stop(self):
+            return None
+
+    with (
+        patch("app.main.init_database", return_value=True),
+        patch("app.main.create_note_event_listener", return_value=NoopNoteEventListener()),
+    ):
         with TestClient(app) as test_client:
             response = test_client.get("/api/health")
             # A 200 or any non-500 startup-failure code confirms boot succeeded.

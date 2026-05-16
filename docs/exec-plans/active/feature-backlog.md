@@ -75,15 +75,13 @@ Each feature: read spec → write test → write code → verify.
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F23 Postgres trigger emits NOTIFY on note title/content/delete**
+- [x] **F23 Postgres trigger emits NOTIFY on note title/content/delete**
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
-- [ ] **F24 Per-worker LISTEN consumer plus per-user broker fanout**
+- [x] **F24 Per-worker LISTEN consumer plus per-user broker fanout**
   Needs: F23
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
 - [ ] **F25 Authenticated SSE endpoint /notes/events**

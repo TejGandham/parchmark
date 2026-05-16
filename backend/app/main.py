@@ -16,6 +16,7 @@ from app.auth.oidc_validator import oidc_validator
 from app.database.database import async_engine
 from app.database.init_db import init_database
 from app.routers import auth, health, notes, settings
+from app.services.note_events import create_note_event_listener
 from app.version import VERSION, get_version_info
 
 # Load environment variables
@@ -54,12 +55,26 @@ async def lifespan(app: FastAPI):
         logger.critical(f"Database initialization error: {e}")
         raise RuntimeError(f"Database initialization failed: {e}") from e
 
+    note_event_listener = create_note_event_listener()
+    app.state.note_event_listener = note_event_listener
+    try:
+        await note_event_listener.start()
+    except Exception as e:
+        logger.critical(f"Note event listener startup error: {e}")
+        raise RuntimeError(f"Note event listener startup failed: {e}") from e
+
     logger.info("ParchMark API startup complete")
 
     yield
 
     # Shutdown
     logger.info("Shutting down ParchMark API...")
+
+    # Stop the per-worker Postgres LISTEN consumer
+    active_note_event_listener = getattr(app.state, "note_event_listener", None)
+    if active_note_event_listener is not None:
+        await active_note_event_listener.stop()
+        app.state.note_event_listener = None
 
     # Close OIDC validator HTTP client
     await oidc_validator.close()
