@@ -89,10 +89,9 @@ Each feature: read spec → write test → write code → verify.
   PRD: realtime-notes-list-revalidation
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
-- [ ] **F26 SSE lifecycle heartbeat and disconnect cleanup**
+- [x] **F26 SSE lifecycle heartbeat and disconnect cleanup**
   Needs: F25
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
 - [x] **F22 Retire F19 residuals — backend/README.md note-model fields + orphan SimilarNoteResponse schema**

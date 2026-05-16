@@ -16,6 +16,7 @@ from app.auth.oidc_validator import oidc_validator
 from app.database.database import async_engine
 from app.database.init_db import init_database
 from app.routers import auth, health, notes, settings
+from app.services.note_event_streams import note_event_stream_manager
 from app.services.note_events import create_note_event_listener
 from app.version import VERSION, get_version_info
 
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
         logger.critical(f"Database initialization error: {e}")
         raise RuntimeError(f"Database initialization failed: {e}") from e
 
+    note_event_stream_manager.open()
     note_event_listener = create_note_event_listener()
     app.state.note_event_listener = note_event_listener
     try:
@@ -69,6 +71,9 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down ParchMark API...")
+
+    # Close active SSE streams before the per-worker LISTEN consumer stops
+    await note_event_stream_manager.close_all()
 
     # Stop the per-worker Postgres LISTEN consumer
     active_note_event_listener = getattr(app.state, "note_event_listener", None)
