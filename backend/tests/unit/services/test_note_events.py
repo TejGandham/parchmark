@@ -82,9 +82,9 @@ def test_publish_payload_requires_declared_f23_fields():
     broker = NoteEventBroker()
     subscriber = broker.subscribe(user_id=3)
 
-    broker.publish_payload({"user_id": 3, "kind": "deleted", "note_id": 44})
+    broker.publish_payload({"user_id": 3, "kind": "deleted", "note_id": "note-44"})
 
-    assert subscriber.queue.get_nowait() == NoteEvent(user_id=3, kind="deleted", note_id=44)
+    assert subscriber.queue.get_nowait() == NoteEvent(user_id=3, kind="deleted", note_id="note-44")
 
 
 def test_publish_payload_rejects_missing_or_invalid_fields():
