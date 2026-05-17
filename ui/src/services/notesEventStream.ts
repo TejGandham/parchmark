@@ -21,6 +21,12 @@ const INITIAL_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 const STABLE_STREAM_RESET_MS = 30000;
 
+class AuthFailureError extends Error {
+  constructor() {
+    super('Notes event stream authentication failed');
+  }
+}
+
 const getAuthHeaders = (): Record<string, string> => {
   const token = useAuthStore.getState().token;
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -49,6 +55,10 @@ const isNoteEventPayload = (payload: unknown): payload is NoteEventPayload => {
 };
 
 const validateEventStreamResponse = (response: Response): void => {
+  if (response.status === 401) {
+    throw new AuthFailureError();
+  }
+
   if (response.status >= 500) {
     throw new Error(`Retryable notes event stream status: ${response.status}`);
   }
@@ -71,6 +81,8 @@ export const subscribe = (
   let reconnectTimer: ReturnType<typeof window.setTimeout> | undefined;
   let stableStreamTimer: ReturnType<typeof window.setTimeout> | undefined;
   let nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+  let authRefreshAttempted = false;
+  let logoutStarted = false;
 
   const clearReconnectTimer = () => {
     if (reconnectTimer !== undefined) {
@@ -96,12 +108,60 @@ export const subscribe = (
   };
 
   const markStreamOpen = () => {
+    authRefreshAttempted = false;
     clearStableStreamTimer();
     stableStreamTimer = window.setTimeout(() => {
       nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
       stableStreamTimer = undefined;
     }, STABLE_STREAM_RESET_MS);
     options.onOpen?.();
+  };
+
+  const stopAndLogout = () => {
+    if (logoutStarted) {
+      return;
+    }
+
+    logoutStarted = true;
+    disposed = true;
+    clearReconnectTimer();
+    clearStableStreamTimer();
+    activeController?.abort();
+    void useAuthStore
+      .getState()
+      .actions.logout()
+      .catch(() => undefined);
+  };
+
+  const handleAuthFailure = async () => {
+    if (disposed) {
+      return;
+    }
+
+    clearStableStreamTimer();
+
+    if (authRefreshAttempted) {
+      stopAndLogout();
+      return;
+    }
+
+    authRefreshAttempted = true;
+    const refreshed = await useAuthStore
+      .getState()
+      .actions.refreshTokens()
+      .catch(() => false);
+
+    if (disposed) {
+      return;
+    }
+
+    if (!refreshed) {
+      stopAndLogout();
+      return;
+    }
+
+    nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+    startStream();
   };
 
   const scheduleReconnect = () => {
@@ -112,6 +172,15 @@ export const subscribe = (
     clearStableStreamTimer();
     const delay = takeReconnectDelay();
     reconnectTimer = window.setTimeout(startStream, delay);
+  };
+
+  const handleStreamFailure = (error: unknown) => {
+    if (error instanceof AuthFailureError) {
+      void handleAuthFailure();
+      return;
+    }
+
+    scheduleReconnect();
   };
 
   const startStream = () => {
@@ -157,7 +226,7 @@ export const subscribe = (
       onerror(error) {
         throw error;
       },
-    }).then(scheduleReconnect, scheduleReconnect);
+    }).then(scheduleReconnect, handleStreamFailure);
   };
 
   startStream();

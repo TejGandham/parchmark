@@ -217,6 +217,142 @@ describe('notesEventStream', () => {
     dispose();
   });
 
+  it('refreshes tokens before reconnecting after a 401 stream response', async () => {
+    vi.useFakeTimers();
+    let token = 'expired-token';
+    let resolveRefresh: (success: boolean) => void = () => undefined;
+    const refreshTokens = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+    const logout = vi.fn().mockResolvedValue(undefined);
+    (useAuthStore.getState as Mock).mockImplementation(() => ({
+      token,
+      actions: { refreshTokens, logout },
+    }));
+    (fetchEventSource as Mock)
+      .mockImplementationOnce((_input, options) =>
+        options.onopen(new Response(null, { status: 401 }))
+      )
+      .mockImplementation(() => new Promise(() => undefined));
+
+    const dispose = subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(fetchEventSource).toHaveBeenCalledTimes(1);
+
+    token = 'fresh-token';
+    resolveRefresh(true);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetchEventSource).toHaveBeenCalledTimes(2);
+    expect((fetchEventSource as Mock).mock.calls[1][1].headers).toEqual({
+      Authorization: 'Bearer fresh-token',
+    });
+    expect(logout).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  it('resets backoff after successful auth refresh reconnects with a new bearer token', async () => {
+    vi.useFakeTimers();
+    let token = 'expired-token';
+    const refreshTokens = vi.fn(async () => {
+      token = 'fresh-token';
+      return true;
+    });
+    const logout = vi.fn().mockResolvedValue(undefined);
+    (useAuthStore.getState as Mock).mockImplementation(() => ({
+      token,
+      actions: { refreshTokens, logout },
+    }));
+    (fetchEventSource as Mock)
+      .mockImplementationOnce(() => Promise.reject(new Error('network down')))
+      .mockImplementationOnce((_input, options) =>
+        options.onopen(new Response(null, { status: 401 }))
+      )
+      .mockImplementationOnce(() => Promise.resolve())
+      .mockImplementation(() => new Promise(() => undefined));
+
+    const dispose = subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(3);
+    expect((fetchEventSource as Mock).mock.calls[2][1].headers).toEqual({
+      Authorization: 'Bearer fresh-token',
+    });
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetchEventSource).toHaveBeenCalledTimes(3);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(4);
+    expect(logout).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  it('logs out once and stops reconnecting when auth refresh fails', async () => {
+    vi.useFakeTimers();
+    const refreshTokens = vi.fn().mockResolvedValue(false);
+    const logout = vi.fn().mockResolvedValue(undefined);
+    (useAuthStore.getState as Mock).mockReturnValue({
+      token: 'expired-token',
+      actions: { refreshTokens, logout },
+    });
+    (fetchEventSource as Mock).mockImplementation((_input, options) =>
+      options.onopen(new Response(null, { status: 401 }))
+    );
+
+    subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refresh forever when a refreshed stream still receives 401', async () => {
+    vi.useFakeTimers();
+    let token = 'expired-token';
+    const refreshTokens = vi.fn(async () => {
+      token = 'fresh-token';
+      return true;
+    });
+    const logout = vi.fn().mockResolvedValue(undefined);
+    (useAuthStore.getState as Mock).mockImplementation(() => ({
+      token,
+      actions: { refreshTokens, logout },
+    }));
+    (fetchEventSource as Mock).mockImplementation((_input, options) =>
+      options.onopen(new Response(null, { status: 401 }))
+    );
+
+    subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(refreshTokens).toHaveBeenCalledTimes(1);
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(2);
+  });
+
   it('aborts and suppresses later callback delivery after dispose', () => {
     const callback = vi.fn();
     const dispose = subscribe(callback);
