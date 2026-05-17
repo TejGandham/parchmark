@@ -164,10 +164,9 @@ Each feature: read spec → write test → write code → verify.
   <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
-- [ ] **F28 Notes loader revalidation on received events**
+- [x] **F28 Notes loader revalidation on received events**
   Needs: F27
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
 - [ ] **F29 Initial-connect and reconnect reconciliation**
