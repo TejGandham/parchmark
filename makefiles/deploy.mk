@@ -2,8 +2,8 @@
 # These targets help manage deployment via GitHub Actions and production server
 
 # Production URLs
-PROD_BACKEND_URL := https://assets-api.engen.tech
 PROD_FRONTEND_URL := https://notes.engen.tech
+PROD_BACKEND_URL := $(PROD_FRONTEND_URL)
 PROD_HOST := notes.engen.tech
 PROD_USER := deploy
 PROD_DIR := /home/deploy/parchmark
@@ -245,8 +245,8 @@ deploy-help: ## Show comprehensive deployment workflow guide
 	@echo ""
 	@echo "$(GREEN)🔗 PRODUCTION URLS:$(NC)"
 	@echo "  Frontend: $(PROD_FRONTEND_URL)"
-	@echo "  Backend:  $(PROD_BACKEND_URL)"
-	@echo "  API Docs: $(PROD_BACKEND_URL)/docs"
+	@echo "  Backend:  $(PROD_BACKEND_URL)/api"
+	@echo "  API Docs: not publicly exposed via production ingress"
 	@echo ""
 	@echo "$(YELLOW)📚 Documentation:$(NC)"
 	@echo "  deploy/SERVER_SETUP.md                  # Server setup guide"
