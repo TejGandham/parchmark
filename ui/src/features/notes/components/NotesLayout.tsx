@@ -20,11 +20,11 @@ export default function NotesLayout() {
   const { revalidate } = useRevalidator();
 
   useEffect(() => {
-    const dispose = subscribe(() => {
+    const revalidateNotes = () => {
       revalidate();
-    });
+    };
 
-    return dispose;
+    return subscribe(revalidateNotes, { onOpen: revalidateNotes });
   }, [revalidate]);
 
   return (
