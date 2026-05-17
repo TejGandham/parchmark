@@ -169,10 +169,9 @@ Each feature: read spec → write test → write code → verify.
   PRD: realtime-notes-list-revalidation
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
-- [ ] **F29 Initial-connect and reconnect reconciliation**
+- [x] **F29 Initial-connect and reconnect reconciliation**
   Needs: F27
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
 - [ ] **F30 SSE auto-reconnect with exponential backoff**

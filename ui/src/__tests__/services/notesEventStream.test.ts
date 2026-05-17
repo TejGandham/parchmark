@@ -3,6 +3,7 @@ import { subscribe } from '../../services/notesEventStream';
 import { useAuthStore } from '../../features/auth/store';
 
 vi.mock('@microsoft/fetch-event-source', () => ({
+  EventStreamContentType: 'text/event-stream',
   fetchEventSource: vi.fn(() => new Promise(() => undefined)),
 }));
 
@@ -91,6 +92,22 @@ describe('notesEventStream', () => {
     options.onmessage({ data: '{"kind":"updated","note_id":123}' });
 
     expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('notifies once per stream open for initial connect and reconnect recovery', async () => {
+    const onOpen = vi.fn();
+
+    subscribe(vi.fn(), { onOpen });
+
+    const options = (fetchEventSource as Mock).mock.calls[0][1];
+    const response = new Response(null, {
+      headers: { 'content-type': 'text/event-stream' },
+    });
+
+    await options.onopen(response);
+    await options.onopen(response);
+
+    expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
   it('aborts and suppresses later callback delivery after dispose', () => {

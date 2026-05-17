@@ -1,4 +1,7 @@
-import { fetchEventSource } from '@microsoft/fetch-event-source';
+import {
+  EventStreamContentType,
+  fetchEventSource,
+} from '@microsoft/fetch-event-source';
 import { API_BASE_URL } from '../config/constants';
 import { useAuthStore } from '../features/auth/store';
 
@@ -9,6 +12,9 @@ export type NoteEventPayload = {
 
 export type NoteEventCallback = (event: NoteEventPayload) => void;
 export type NoteEventDispose = () => void;
+export type NoteEventStreamOptions = {
+  onOpen?: () => void;
+};
 
 const NOTE_EVENTS_PATH = '/notes/events';
 
@@ -39,7 +45,20 @@ const isNoteEventPayload = (payload: unknown): payload is NoteEventPayload => {
   return typeof event.kind === 'string' && typeof event.note_id === 'string';
 };
 
-export const subscribe = (callback: NoteEventCallback): NoteEventDispose => {
+const validateEventStreamResponse = (response: Response): void => {
+  const contentType = response.headers.get('content-type');
+
+  if (!contentType?.startsWith(EventStreamContentType)) {
+    throw new Error(
+      `Expected content-type to be ${EventStreamContentType}, Actual: ${contentType}`
+    );
+  }
+};
+
+export const subscribe = (
+  callback: NoteEventCallback,
+  options: NoteEventStreamOptions = {}
+): NoteEventDispose => {
   const controller = new AbortController();
   let disposed = false;
 
@@ -51,6 +70,13 @@ export const subscribe = (callback: NoteEventCallback): NoteEventDispose => {
         ...init,
         headers: applyAuthHeader(init?.headers),
       });
+    },
+    async onopen(response) {
+      validateEventStreamResponse(response);
+
+      if (!disposed) {
+        options.onOpen?.();
+      }
     },
     onmessage(message) {
       if (disposed) {

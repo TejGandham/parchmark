@@ -4,12 +4,16 @@ import { render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import * as routerDom from 'react-router-dom';
-import type { NoteEventCallback } from '../../../../services/notesEventStream';
+import type {
+  NoteEventCallback,
+  NoteEventStreamOptions,
+} from '../../../../services/notesEventStream';
 
 const notesEventStreamMock = vi.hoisted(() => ({
   subscribe: vi.fn(),
   dispose: vi.fn(),
   lastCallback: undefined as NoteEventCallback | undefined,
+  lastOptions: undefined as NoteEventStreamOptions | undefined,
 }));
 
 // Mock react-router-dom hooks
@@ -61,9 +65,11 @@ describe('NotesLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     notesEventStreamMock.lastCallback = undefined;
+    notesEventStreamMock.lastOptions = undefined;
     notesEventStreamMock.subscribe.mockImplementation(
-      (callback: NoteEventCallback) => {
+      (callback: NoteEventCallback, options: NoteEventStreamOptions = {}) => {
         notesEventStreamMock.lastCallback = callback;
+        notesEventStreamMock.lastOptions = options;
         return notesEventStreamMock.dispose;
       }
     );
@@ -135,6 +141,35 @@ describe('NotesLayout', () => {
     });
 
     expect(revalidate).toHaveBeenCalledTimes(3);
+  });
+
+  it('revalidates immediately when the notes event stream opens', async () => {
+    const revalidate = vi.fn();
+    vi.mocked(routerDom.useRevalidator).mockReturnValue({
+      revalidate,
+      state: 'idle',
+    });
+
+    await renderComponent();
+
+    notesEventStreamMock.lastOptions?.onOpen?.();
+
+    expect(revalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('revalidates again when the notes event stream reconnects', async () => {
+    const revalidate = vi.fn();
+    vi.mocked(routerDom.useRevalidator).mockReturnValue({
+      revalidate,
+      state: 'idle',
+    });
+
+    await renderComponent();
+
+    notesEventStreamMock.lastOptions?.onOpen?.();
+    notesEventStreamMock.lastOptions?.onOpen?.();
+
+    expect(revalidate).toHaveBeenCalledTimes(2);
   });
 
   it('disposes the notes event stream subscription on unmount', async () => {
