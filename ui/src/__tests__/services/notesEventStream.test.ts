@@ -16,8 +16,15 @@ vi.mock('../../features/auth/store', () => ({
 describe('notesEventStream', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (fetchEventSource as Mock).mockImplementation(
+      () => new Promise(() => undefined)
+    );
     global.fetch = vi.fn();
     (useAuthStore.getState as Mock).mockReturnValue({ token: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('subscribes to notes events with the REST bearer Authorization header', () => {
@@ -97,7 +104,7 @@ describe('notesEventStream', () => {
   it('notifies once per stream open for initial connect and reconnect recovery', async () => {
     const onOpen = vi.fn();
 
-    subscribe(vi.fn(), { onOpen });
+    const dispose = subscribe(vi.fn(), { onOpen });
 
     const options = (fetchEventSource as Mock).mock.calls[0][1];
     const response = new Response(null, {
@@ -108,6 +115,106 @@ describe('notesEventStream', () => {
     await options.onopen(response);
 
     expect(onOpen).toHaveBeenCalledTimes(2);
+    dispose();
+  });
+
+  it('reconnects after stream close with exponential backoff timing', async () => {
+    vi.useFakeTimers();
+    (fetchEventSource as Mock).mockImplementation(() => Promise.resolve());
+
+    const dispose = subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+
+    const expectedAttemptTimes = [1000, 3000, 7000, 15000, 31000, 61000];
+    let elapsedMs = 0;
+
+    for (const [index, attemptTimeMs] of expectedAttemptTimes.entries()) {
+      await vi.advanceTimersByTimeAsync(attemptTimeMs - elapsedMs - 1);
+      expect(fetchEventSource).toHaveBeenCalledTimes(index + 1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchEventSource).toHaveBeenCalledTimes(index + 2);
+      elapsedMs = attemptTimeMs;
+    }
+
+    dispose();
+  });
+
+  it('caps reconnect delay at thirty seconds after repeated failures', async () => {
+    vi.useFakeTimers();
+    (fetchEventSource as Mock).mockImplementation(() =>
+      Promise.reject(new Error('network down'))
+    );
+
+    const dispose = subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+
+    for (const delayMs of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+      const expectedCallsBeforeDelay = (fetchEventSource as Mock).mock.calls
+        .length;
+
+      await vi.advanceTimersByTimeAsync(delayMs - 1);
+      expect(fetchEventSource).toHaveBeenCalledTimes(expectedCallsBeforeDelay);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchEventSource).toHaveBeenCalledTimes(
+        expectedCallsBeforeDelay + 1
+      );
+    }
+
+    dispose();
+  });
+
+  it('reconnects after retryable 5xx stream-open responses', async () => {
+    vi.useFakeTimers();
+    (fetchEventSource as Mock).mockImplementation((_input, options) =>
+      options.onopen(
+        new Response(null, {
+          status: 503,
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      )
+    );
+
+    const dispose = subscribe(vi.fn());
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetchEventSource).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(2);
+    dispose();
+  });
+
+  it('resets reconnect backoff after thirty seconds of stable open time', async () => {
+    vi.useFakeTimers();
+    const openStreams: Array<() => void> = [];
+    (fetchEventSource as Mock).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          openStreams.push(resolve);
+        })
+    );
+
+    const dispose = subscribe(vi.fn());
+    openStreams[0]();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchEventSource).toHaveBeenCalledTimes(2);
+
+    const secondAttempt = (fetchEventSource as Mock).mock.calls[1][1];
+    await secondAttempt.onopen(
+      new Response(null, {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    );
+    await vi.advanceTimersByTimeAsync(30000);
+
+    openStreams[1]();
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetchEventSource).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchEventSource).toHaveBeenCalledTimes(3);
+    dispose();
   });
 
   it('aborts and suppresses later callback delivery after dispose', () => {

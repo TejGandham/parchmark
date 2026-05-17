@@ -17,6 +17,9 @@ export type NoteEventStreamOptions = {
 };
 
 const NOTE_EVENTS_PATH = '/notes/events';
+const INITIAL_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 30000;
+const STABLE_STREAM_RESET_MS = 30000;
 
 const getAuthHeaders = (): Record<string, string> => {
   const token = useAuthStore.getState().token;
@@ -46,6 +49,10 @@ const isNoteEventPayload = (payload: unknown): payload is NoteEventPayload => {
 };
 
 const validateEventStreamResponse = (response: Response): void => {
+  if (response.status >= 500) {
+    throw new Error(`Retryable notes event stream status: ${response.status}`);
+  }
+
   const contentType = response.headers.get('content-type');
 
   if (!contentType?.startsWith(EventStreamContentType)) {
@@ -59,45 +66,106 @@ export const subscribe = (
   callback: NoteEventCallback,
   options: NoteEventStreamOptions = {}
 ): NoteEventDispose => {
-  const controller = new AbortController();
   let disposed = false;
+  let activeController: AbortController | undefined;
+  let reconnectTimer: ReturnType<typeof window.setTimeout> | undefined;
+  let stableStreamTimer: ReturnType<typeof window.setTimeout> | undefined;
+  let nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
 
-  void fetchEventSource(`${API_BASE_URL}${NOTE_EVENTS_PATH}`, {
-    headers: getAuthHeaders(),
-    signal: controller.signal,
-    fetch(input, init) {
-      return fetch(input, {
-        ...init,
-        headers: applyAuthHeader(init?.headers),
-      });
-    },
-    async onopen(response) {
-      validateEventStreamResponse(response);
+  const clearReconnectTimer = () => {
+    if (reconnectTimer !== undefined) {
+      window.clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
+    }
+  };
 
-      if (!disposed) {
-        options.onOpen?.();
-      }
-    },
-    onmessage(message) {
-      if (disposed) {
-        return;
-      }
+  const clearStableStreamTimer = () => {
+    if (stableStreamTimer !== undefined) {
+      window.clearTimeout(stableStreamTimer);
+      stableStreamTimer = undefined;
+    }
+  };
 
-      let payload: unknown;
-      try {
-        payload = JSON.parse(message.data) as unknown;
-      } catch {
-        return;
-      }
+  const takeReconnectDelay = () => {
+    const delay = nextReconnectDelayMs;
+    nextReconnectDelayMs = Math.min(
+      nextReconnectDelayMs * 2,
+      MAX_RECONNECT_DELAY_MS
+    );
+    return delay;
+  };
 
-      if (isNoteEventPayload(payload)) {
-        callback(payload);
-      }
-    },
-  });
+  const markStreamOpen = () => {
+    clearStableStreamTimer();
+    stableStreamTimer = window.setTimeout(() => {
+      nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+      stableStreamTimer = undefined;
+    }, STABLE_STREAM_RESET_MS);
+    options.onOpen?.();
+  };
+
+  const scheduleReconnect = () => {
+    if (disposed) {
+      return;
+    }
+
+    clearStableStreamTimer();
+    const delay = takeReconnectDelay();
+    reconnectTimer = window.setTimeout(startStream, delay);
+  };
+
+  const startStream = () => {
+    if (disposed) {
+      return;
+    }
+
+    clearReconnectTimer();
+    activeController = new AbortController();
+
+    void fetchEventSource(`${API_BASE_URL}${NOTE_EVENTS_PATH}`, {
+      headers: getAuthHeaders(),
+      signal: activeController.signal,
+      fetch(input, init) {
+        return fetch(input, {
+          ...init,
+          headers: applyAuthHeader(init?.headers),
+        });
+      },
+      async onopen(response) {
+        validateEventStreamResponse(response);
+
+        if (!disposed) {
+          markStreamOpen();
+        }
+      },
+      onmessage(message) {
+        if (disposed) {
+          return;
+        }
+
+        let payload: unknown;
+        try {
+          payload = JSON.parse(message.data) as unknown;
+        } catch {
+          return;
+        }
+
+        if (isNoteEventPayload(payload)) {
+          callback(payload);
+        }
+      },
+      onerror(error) {
+        throw error;
+      },
+    }).then(scheduleReconnect, scheduleReconnect);
+  };
+
+  startStream();
 
   return () => {
     disposed = true;
-    controller.abort();
+    clearReconnectTimer();
+    clearStableStreamTimer();
+    activeController?.abort();
   };
 };
