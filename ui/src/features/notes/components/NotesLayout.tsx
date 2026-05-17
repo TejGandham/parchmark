@@ -1,14 +1,31 @@
 // ui/src/features/notes/components/NotesLayout.tsx
-import { Outlet, useLoaderData, useParams, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import {
+  Outlet,
+  useLoaderData,
+  useParams,
+  Link,
+  useRevalidator,
+} from 'react-router-dom';
 import { Box, Flex } from '@chakra-ui/react';
 import Header from '../../ui/components/Header';
 import { CommandPalette } from '../../ui/components/CommandPalette';
 import { Note } from '../../../types';
+import { subscribe } from '../../../services/notesEventStream';
 import '../../ui/styles/layout.css';
 
 export default function NotesLayout() {
   const { notes } = useLoaderData() as { notes: Note[] };
   const { noteId } = useParams();
+  const { revalidate } = useRevalidator();
+
+  useEffect(() => {
+    const dispose = subscribe(() => {
+      revalidate();
+    });
+
+    return dispose;
+  }, [revalidate]);
 
   return (
     <Box minH="100vh" bg="bg.canvas" className="bg-texture">

@@ -4,6 +4,13 @@ import { render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import * as routerDom from 'react-router-dom';
+import type { NoteEventCallback } from '../../../../services/notesEventStream';
+
+const notesEventStreamMock = vi.hoisted(() => ({
+  subscribe: vi.fn(),
+  dispose: vi.fn(),
+  lastCallback: undefined as NoteEventCallback | undefined,
+}));
 
 // Mock react-router-dom hooks
 vi.mock('react-router-dom', async () => {
@@ -12,8 +19,13 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useLoaderData: vi.fn(),
     useParams: vi.fn(),
+    useRevalidator: vi.fn(),
   };
 });
+
+vi.mock('../../../../services/notesEventStream', () => ({
+  subscribe: notesEventStreamMock.subscribe,
+}));
 
 // Mock Header component
 vi.mock('../../../../features/ui/components/Header', () => ({
@@ -48,8 +60,19 @@ const mockNotes = [
 describe('NotesLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    notesEventStreamMock.lastCallback = undefined;
+    notesEventStreamMock.subscribe.mockImplementation(
+      (callback: NoteEventCallback) => {
+        notesEventStreamMock.lastCallback = callback;
+        return notesEventStreamMock.dispose;
+      }
+    );
     vi.mocked(routerDom.useLoaderData).mockReturnValue({ notes: mockNotes });
     vi.mocked(routerDom.useParams).mockReturnValue({});
+    vi.mocked(routerDom.useRevalidator).mockReturnValue({
+      revalidate: vi.fn(),
+      state: 'idle',
+    });
   });
 
   async function renderComponent(noteId?: string) {
@@ -86,5 +109,39 @@ describe('NotesLayout', () => {
   it('renders full-width layout without sidebar', async () => {
     await renderComponent();
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
+  });
+
+  it('revalidates the notes loader once per received note event', async () => {
+    const revalidate = vi.fn();
+    vi.mocked(routerDom.useRevalidator).mockReturnValue({
+      revalidate,
+      state: 'idle',
+    });
+
+    await renderComponent();
+
+    expect(notesEventStreamMock.subscribe).toHaveBeenCalledTimes(1);
+    notesEventStreamMock.lastCallback?.({
+      kind: 'created',
+      note_id: 'note-3',
+    });
+    notesEventStreamMock.lastCallback?.({
+      kind: 'updated',
+      note_id: 'note-1',
+    });
+    notesEventStreamMock.lastCallback?.({
+      kind: 'deleted',
+      note_id: 'note-2',
+    });
+
+    expect(revalidate).toHaveBeenCalledTimes(3);
+  });
+
+  it('disposes the notes event stream subscription on unmount', async () => {
+    const { unmount } = await renderComponent();
+
+    unmount();
+
+    expect(notesEventStreamMock.dispose).toHaveBeenCalledTimes(1);
   });
 });
