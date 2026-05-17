@@ -179,10 +179,9 @@ Each feature: read spec → write test → write code → verify.
   PRD: realtime-notes-list-revalidation
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
-- [ ] **F31 SSE auth-failure refresh and logout handling**
+- [x] **F31 SSE auth-failure refresh and logout handling**
   Needs: F27
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
 
 - [ ] **F32 Event stream teardown on logout**
