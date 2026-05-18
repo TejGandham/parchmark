@@ -90,15 +90,13 @@ Known shortcuts, deferred improvements, and open questions.
       filesystem-tier classes entirely across F12–F15 in a single
       follow-up sweep now that the retirement is complete.
 
-- [ ] **Automated browser E2E for live-updates (F07 graduation).** F07
-      ships with a hybrid acceptance gate: F07a backend integration
-      (pytest + httpx SSE client), F07b frontend unit (Vitest + mocked
-      fetch-event-source), F07c manual Chrome DevTools MCP verification
-      before merge. Parchmark has no browser E2E suite today. When F07c
-      manual-run cost exceeds the tooling investment (likely signalled
-      by recurring merge-gate pain or regressions that slipped past
-      F07a+F07b), add Playwright and graduate F07c to an automated F07d.
-      See `feature-backlog.md` F07 SPEC-NOTES.
+- [ ] **Automated browser E2E for realtime note updates.** The live-update
+      flow now has backend integration coverage, frontend stream-client
+      unit coverage, and Forgejo-gated cross-user SSE isolation coverage,
+      but ParchMark still has no automated browser E2E suite for the rendered
+      notes list. Add Playwright coverage when manual browser verification
+      becomes recurring merge-gate work or when rendered-list regressions slip
+      past the backend and unit gates.
 
 - [ ] **`renderDateGroups` path lacks virtualization (TD-F17-1).** Surfaced
       by F17 roundtable landing review. The non-search render path in
