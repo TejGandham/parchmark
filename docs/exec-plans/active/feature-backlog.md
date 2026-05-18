@@ -203,8 +203,7 @@ Each feature: read spec → write test → write code → verify.
   PRD: remove-for-you
   <!-- SOURCE: prose:c4f1d9a2e7b8a3f5 -->
 
-- [ ] **F33 End-to-end cross-user isolation safety test**
+- [x] **F33 End-to-end cross-user isolation safety test**
   Needs: F23, F24, F25, F28
   PRD: realtime-notes-list-revalidation
-  <!-- DRAFTED: 2026-05-15 by backlog-drafter; 0 markers remain -->
   <!-- SOURCE: prose:1dd071ec29355a67 -->
