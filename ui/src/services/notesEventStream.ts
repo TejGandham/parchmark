@@ -83,6 +83,7 @@ export const subscribe = (
   let nextReconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
   let authRefreshAttempted = false;
   let logoutStarted = false;
+  let unsubscribeAuth: (() => void) | undefined;
 
   const clearReconnectTimer = () => {
     if (reconnectTimer !== undefined) {
@@ -117,16 +118,30 @@ export const subscribe = (
     options.onOpen?.();
   };
 
+  const unsubscribeFromAuth = () => {
+    unsubscribeAuth?.();
+    unsubscribeAuth = undefined;
+  };
+
+  const teardownStream = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    clearReconnectTimer();
+    clearStableStreamTimer();
+    activeController?.abort();
+    unsubscribeFromAuth();
+  };
+
   const stopAndLogout = () => {
     if (logoutStarted) {
       return;
     }
 
     logoutStarted = true;
-    disposed = true;
-    clearReconnectTimer();
-    clearStableStreamTimer();
-    activeController?.abort();
+    teardownStream();
     void useAuthStore
       .getState()
       .actions.logout()
@@ -229,12 +244,13 @@ export const subscribe = (
     }).then(scheduleReconnect, handleStreamFailure);
   };
 
+  unsubscribeAuth = useAuthStore.subscribe((state, previousState) => {
+    if (previousState.isAuthenticated && !state.isAuthenticated) {
+      teardownStream();
+    }
+  });
+
   startStream();
 
-  return () => {
-    disposed = true;
-    clearReconnectTimer();
-    clearStableStreamTimer();
-    activeController?.abort();
-  };
+  return teardownStream;
 };

@@ -2,6 +2,17 @@ import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { subscribe } from '../../services/notesEventStream';
 import { useAuthStore } from '../../features/auth/store';
 
+type AuthStateSnapshot = {
+  isAuthenticated: boolean;
+};
+
+const authStoreMock = vi.hoisted(() => ({
+  unsubscribe: vi.fn(),
+  authListener: undefined as
+    | ((state: AuthStateSnapshot, previousState: AuthStateSnapshot) => void)
+    | undefined,
+}));
+
 vi.mock('@microsoft/fetch-event-source', () => ({
   EventStreamContentType: 'text/event-stream',
   fetchEventSource: vi.fn(() => new Promise(() => undefined)),
@@ -10,6 +21,10 @@ vi.mock('@microsoft/fetch-event-source', () => ({
 vi.mock('../../features/auth/store', () => ({
   useAuthStore: {
     getState: vi.fn(() => ({ token: null })),
+    subscribe: vi.fn((listener) => {
+      authStoreMock.authListener = listener;
+      return authStoreMock.unsubscribe;
+    }),
   },
 }));
 
@@ -20,7 +35,13 @@ describe('notesEventStream', () => {
       () => new Promise(() => undefined)
     );
     global.fetch = vi.fn();
+    authStoreMock.authListener = undefined;
+    authStoreMock.unsubscribe.mockClear();
     (useAuthStore.getState as Mock).mockReturnValue({ token: null });
+    (useAuthStore.subscribe as Mock).mockImplementation((listener) => {
+      authStoreMock.authListener = listener;
+      return authStoreMock.unsubscribe;
+    });
   });
 
   afterEach(() => {
@@ -351,6 +372,49 @@ describe('notesEventStream', () => {
     expect(refreshTokens).toHaveBeenCalledTimes(1);
     expect(logout).toHaveBeenCalledTimes(1);
     expect(fetchEventSource).toHaveBeenCalledTimes(2);
+  });
+
+  it('aborts the active stream within 100ms when authentication transitions to false', async () => {
+    vi.useFakeTimers();
+
+    subscribe(vi.fn());
+    const options = (fetchEventSource as Mock).mock.calls[0][1];
+
+    authStoreMock.authListener?.(
+      { isAuthenticated: false },
+      { isAuthenticated: true }
+    );
+    await vi.advanceTimersByTimeAsync(99);
+
+    expect(options.signal.aborted).toBe(true);
+  });
+
+  it('does not forward events after logout-triggered teardown', () => {
+    const callback = vi.fn();
+
+    subscribe(callback);
+    const options = (fetchEventSource as Mock).mock.calls[0][1];
+
+    options.onmessage({ data: '{"kind":"created","note_id":"before"}' });
+    authStoreMock.authListener?.(
+      { isAuthenticated: false },
+      { isAuthenticated: true }
+    );
+    options.onmessage({ data: '{"kind":"updated","note_id":"after"}' });
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith({
+      kind: 'created',
+      note_id: 'before',
+    });
+  });
+
+  it('unsubscribes from auth-state changes when the stream subscription is disposed', () => {
+    const dispose = subscribe(vi.fn());
+
+    dispose();
+
+    expect(authStoreMock.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it('aborts and suppresses later callback delivery after dispose', () => {
