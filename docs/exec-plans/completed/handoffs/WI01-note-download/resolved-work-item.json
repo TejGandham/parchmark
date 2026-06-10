@@ -1,0 +1,60 @@
+{
+  "schema_version": 6,
+  "source_hash": "e44098592e715bbeb040b1761b02ea2965057a6e22b7a6c4e9e58d5392e47b8f",
+  "work_item": {
+    "id": "WI01",
+    "slug": "read-view-note-download-button-markdown-export",
+    "title": "Read-view note download button (markdown export)",
+    "layer": "ui",
+    "index": 0,
+    "pointer_base": "/work_items/0",
+    "complexity_hint": null
+  },
+  "binder": {
+    "path": "C:\\Users\\Developer\\src\\parchmark\\.keel\\worktrees\\WI01-note-download\\docs\\exec-plans\\binders\\note-download.json",
+    "slice": {
+      "id": "WI01",
+      "title": "Read-view note download button (markdown export)",
+      "layer": "ui",
+      "needs": [],
+      "contract": {
+        "file_format": "markdown",
+        "file_extension": ".md",
+        "filename_rule": "slugify(note.title) + '.md'; filesystem-safe on all platforms (e.g. 'Meeting Notes 6/10' \u2192 'meeting-notes-6-10.md'). When the title slugifies to empty (empty/whitespace-only title), fall back to the note id: 'note-<id>.md'. 'Untitled Note' slugifies normally (untitled-note.md).",
+        "file_body_source": "removeH1FromContent(note.content) \u2014 the title-stripped markdown the read view renders; NOT the full note.content",
+        "control": "download IconButton with a download icon, matching the existing Delete IconButton pattern in NoteActions",
+        "placement": "read-view action toolbar, alongside Edit and Delete",
+        "generation": "pure client-side; file generated in the browser from already-loaded note data; no backend route, no fetch"
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "Read view of a note renders a download control (an icon button with a download icon) in the action toolbar alongside Edit and Delete.",
+          "Activating the download control triggers a browser file download whose filename is the slugified note title plus '.md' (e.g. a note titled 'Meeting Notes 6/10' downloads as 'meeting-notes-6-10.md').",
+          "The downloaded file body equals removeH1FromContent(note.content) \u2014 the title-stripped markdown \u2014 and does NOT contain the H1 title line.",
+          "Downloading performs no network request \u2014 the file is built from the note data already loaded into the read view.",
+          "A note whose title slugifies to empty (e.g. whitespace-only) downloads as 'note-<id>.md' using the note's id."
+        ],
+        "setup": "A logged-in user viewing a note in the read (non-editing) view, with the note already present in loader data.",
+        "tooling": "Vitest + React Testing Library with render from test-utils/render; mock or assert on the browser download mechanism (anchor click / object URL)."
+      }
+    },
+    "invariants_exercised": [],
+    "prototype_mode": null
+  },
+  "dependencies": {
+    "intra_binder": [],
+    "cross_binder": []
+  },
+  "test_tooling": {
+    "type": "unit",
+    "tooling": "Vitest + React Testing Library with render from test-utils/render; mock or assert on the browser download mechanism (anchor click / object URL)."
+  },
+  "pretriage_inputs": {
+    "cross_module_touch": false,
+    "security_sensitive_inv": false,
+    "novel_dependency": true,
+    "frozen_seam_impact": false,
+    "architecture_tier_hint": false
+  }
+}
