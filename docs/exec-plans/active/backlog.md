@@ -11,4 +11,10 @@ Each feature: read spec → write test → write code → verify.
 
 ---
 
-No work items pending. Draft new entries with `/keel-refine`.
+## UI
+
+- [ ] **WI01 Read-view note download button (markdown export)**
+  Binder: note-download
+  <!-- DRAFTED: 2026-06-10 by backlog-drafter; 0 markers remain -->
+  <!-- SOURCE: 79f3c5e6a1b2d4c8 -->
+
