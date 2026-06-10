@@ -7,6 +7,8 @@ Each feature: read spec → write test → write code → verify.
 **Principles:** `docs/design-docs/core-beliefs.md`
 **Architecture:** `ARCHITECTURE.md`
 
+<!-- KEEL-BOOTSTRAP: not-applicable -->
+
 ---
 
 No work items pending. Draft new entries with `/keel-refine`.
