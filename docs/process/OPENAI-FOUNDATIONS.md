@@ -51,9 +51,9 @@ Business logic domain contains three tiers: {Types → Config → Repo} at botto
 
 | OpenAI Concept | KEEL Mechanism |
 |---|---|
-| AGENTS.md as table of contents | CLAUDE.md ~80 lines with pointers to docs/ |
-| Structured docs/ directory | docs/exec-plans/prds (JSON PRDs), design-docs, exec-plans hierarchy |
-| Execution plans with progress logs | Handoff files (per-feature; agent output sections snapshot, deliberation sections append-only) |
+| AGENTS.md as table of contents | AGENTS.md ~80-line table of contents (host-neutral content root); CLAUDE.md is a thin `@AGENTS.md` pointer on Claude Code |
+| Structured docs/ directory | docs/exec-plans/binders (JSON Binders), design-docs, exec-plans hierarchy |
+| Execution plans with progress logs | Handoff directories (per-feature; agent output files snapshot; deliberation attempts appended as new files in `<touchpoint>-review/`) |
 | Custom linters for architecture | safety-auditor agent + PreToolUse hooks |
 | Background doc-gardening agents | doc-gardener agent (periodic batch sweeps) |
 | Agent-to-agent review | spec-reviewer agent in pipeline |

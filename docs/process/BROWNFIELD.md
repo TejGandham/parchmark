@@ -19,10 +19,10 @@ what the rules are, and what not to break.
 
 | You need | You don't need |
 |-|-|
-| CLAUDE.md as entry point | To document every past feature |
+| The project guide as entry point | To document every past feature |
 | ARCHITECTURE.md showing current structure | A product spec for existing functionality |
 | Core beliefs and domain invariants | Handoff files for past work |
-| A feature backlog of *upcoming* work | To retrofit the testing layers onto existing tests |
+| A backlog of *upcoming* work | To retrofit the testing layers onto existing tests |
 | Safety-auditor configured for your domain | To rewrite existing code to match KEEL patterns |
 
 The goal is minimum viable context: enough for an agent to build the next
@@ -46,10 +46,10 @@ Read the entire codebase. Describe:
 - What the build/run/test commands are
 ```
 
-This gives you a draft for CLAUDE.md and ARCHITECTURE.md written from the
+This gives you a draft for the project guide and ARCHITECTURE.md written from the
 code's perspective, not from memory.
 
-### 2. Write CLAUDE.md
+### 2. Write the project guide
 
 Use the agent's output as a starting point. Keep it under 100 lines:
 
@@ -60,7 +60,7 @@ Use the agent's output as a starting point. Keep it under 100 lines:
 
 ## Quick Facts
 - Stack: [from agent's analysis]
-- Runtime: [Docker / local / cloud]
+- Runtime: [local / container / cloud]
 - Tests: [framework, how to run]
 
 ## Safety Rules
@@ -73,7 +73,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md)
 [Build, run, test commands — 4-6 lines]
 ```
 
-The agent already read the code, so CLAUDE.md confirms and organizes what
+The agent already read the code, so the project guide confirms and organizes what
 it learned rather than introducing new information.
 
 ### 3. Write ARCHITECTURE.md
@@ -102,91 +102,93 @@ Examples by domain:
 - **Data pipeline:** Transforms must be idempotent. Never silently drop records.
 - **Git operations:** Never force-push. Always --ff-only. Never modify working tree.
 
-Write these in `docs/design-docs/core-beliefs.md`. Configure the
-safety-auditor agent with grep patterns that detect violations.
-See `examples/domain-invariants/` for templates.
+Write these in `docs/design-docs/core-beliefs.md`, and register them in
+the project guide §Safety Rules with stable `INV-###` IDs (`INV-001`, `INV-002`, …) —
+that section is the registry `/keel-refine` reads and every Binder cites in
+`invariants_exercised`. Configure the safety-auditor agent with grep patterns
+that detect violations. See `examples/domain-invariants/` for templates.
 
 ### 5. Configure the safety-auditor
 
-Edit `.claude/agents/safety-auditor.md`:
+Edit the safety-auditor agent master:
 - Add your invariant rules
 - Add grep patterns that detect violations
 - Add your critical file paths
 
-Edit `.claude/hooks/keel-safety-gate.py`:
+Edit `.keel/hooks/keel-safety-gate.py`:
 - Set the file patterns that trigger safety reminders before edits
 
 This is your mechanical enforcement layer. It catches violations that
 code review misses.
 
-### 6. Write a feature backlog of upcoming work
+### 6. Write a backlog of upcoming work
 
-Open `docs/exec-plans/active/feature-backlog.md`. List the next features
+Open `docs/exec-plans/active/backlog.md`. List the next features
 you want to build — not past features. Format:
 
 ```markdown
 ## Next Features
 
-- [ ] **F01 [Feature name]**
+- [ ] **WI01 [Feature name]**
   Spec: [where the requirements are, even if informal]
   Test: [how you'll know it's done]
 
-- [ ] **F02 [Feature name]**
-  Needs: F01
+- [ ] **WI02 [Feature name]**
+  Needs: WI01
   Test: [acceptance criteria]
 ```
 
-For brownfield, bootstrap features (F01-F03) don't apply — your project
-already has Docker, a framework, and test infrastructure. Either
+For brownfield, the greenfield bootstrap features (scaffold/test-infra) don't apply — your project
+already has a framework and test infrastructure. Either
 `/keel-adopt` Phase 6e stamped `<!-- KEEL-BOOTSTRAP: not-applicable -->`
-in `feature-backlog.md` automatically, or you paste that marker manually
+in `backlog.md` automatically, or you paste that marker manually
 on its own line between the `**Architecture:**` preamble and the first
-`---` divider. Start directly with **F01** (numbering resets for
-brownfield — `/keel-refine` filters out the shipped F04-F07 placeholders
-when the marker is present, so the first real feature gets F01).
+`---` divider. Start directly with **WI01** (numbering resets for
+brownfield — `/keel-refine` filters out the shipped WI03-WI06 placeholders
+when the marker is present, so the first real feature gets WI01).
 
 **Caught in the brownfield dead-end** (preflight complaining that
 bootstrap isn't ticked after `/keel-adopt` ran)? Paste the marker line
-into `feature-backlog.md` manually and re-run `/keel-refine`. Do **not**
-re-run `/keel-adopt` — it will overwrite your customized `CLAUDE.md`
+into `backlog.md` manually and re-run `/keel-refine`. Do **not**
+re-run `/keel-adopt` — it will overwrite your customized project guide
 and `ARCHITECTURE.md`.
 
-### 7. Draft a JSON PRD for your first feature
+### 7. Draft a JSON Binder for your first feature
 
 Pick the next feature you want to build. Run `/keel-refine` to draft
-a JSON PRD plus matching backlog entries. The skill walks you through
+a JSON Binder plus matching backlog entries. The skill walks you through
 the answers conversationally — what does it do, inputs, outputs, edge
 cases, which invariants apply — and writes the result to
-`docs/exec-plans/prds/<slug>.json` (validated against
-`schemas/prd.schema.json`). The JSON PRD's per-feature `contract` +
+`docs/exec-plans/binders/<slug>.json` (validated against
+`schemas/binder.schema.json`). The JSON Binder's per-feature `contract` +
 `oracle` ARE the spec; no separate markdown spec file is needed.
 
-**Have a PRD already?** Brownfield projects often do — an existing
+**Have a Binder already?** Brownfield projects often do — an existing
 product document, an internal wiki page, wireframes, hi-fi comps, a
-working UI/UX prototype from Claude or another design tool, or a
-paragraph from a teammate. Run `/keel-refine` with the PRD path, a
+working UI/UX prototype from your agent host or another design tool, or a
+paragraph from a teammate. Run `/keel-refine` with the Binder path, a
 bundle directory (README + sibling images/PDFs, or a working prototype
 with `index.html` + linked CSS/JS, or a single-file HTML artifact), a
 prose description, or nothing — then paste screenshots directly in
 chat. `backlog-drafter`
-will draft candidate `F##` backlog entries with dependency edges,
+will draft candidate `WI##` backlog entries with dependency edges,
 per-feature `contract` + `oracle` (the spec content), optional
 `Design:` refs on UI entries, and `<!-- HUMAN: ... -->` markers where
 it couldn't resolve a field. The skill then walks you through each
 drafted card one at a time — you `accept`, `edit`,
-`answer marker <n>`, `skip marker <n>`, or `drop F##` per card.
-Once every card is walked, type `commit` to write the JSON PRD at
-`docs/exec-plans/prds/<slug>.json` plus the matching backlog entries
-and auto-commit, or `abort` to discard. The JSON PRD IS the spec —
+`answer marker <n>`, `skip marker <n>`, or `drop WI##` per card.
+Once every card is walked, type `commit` to write the JSON Binder at
+`docs/exec-plans/binders/<slug>.json` plus the matching backlog entries
+and auto-commit, or `abort` to discard. The JSON Binder IS the spec —
 no separate markdown spec file is created. See
-[QUICK-START.md](QUICK-START.md#optional-draft-the-backlog-from-a-prd--keel-refine)
-or [THE-KEEL-PROCESS §6](THE-KEEL-PROCESS.md#6-the-feature-backlog)
+[QUICK-START.md](QUICK-START.md#3-your-first-feature-via-an-binder)
+or [THE-KEEL-PROCESS §6](THE-KEEL-PROCESS.md#6-the-backlog)
 for the full flow.
 
 ### 8. Run your first feature through the pipeline
 
 ```
-/keel-pipeline F01 docs/exec-plans/prds/<slug>.json
+/keel-pipeline WI01 docs/exec-plans/binders/<slug>.json
 ```
 
 The pipeline will:
@@ -196,7 +198,7 @@ The pipeline will:
 4. **spec-reviewer** — verify the implementation matches the spec
 5. **landing-verifier** — verify everything lands clean
 
-The agent already has context from CLAUDE.md and ARCHITECTURE.md. It will
+The agent already has context from the project guide and ARCHITECTURE.md. It will
 follow your existing patterns because it read your codebase in step 1.
 
 ---
@@ -236,12 +238,12 @@ members who do use KEEL benefit from the accumulated context.
 ## Upgrading to invariant 7
 
 If your project adopted KEEL before invariant 7 landed, your existing
-F## entries predate the PRD-link requirement. Two paths:
+WI## entries predate the Binder-link requirement. Two paths:
 
 ### Automatic (for `/keel-adopt` users — first-time adoption)
 
 `/keel-adopt` Phase 6e now stamps the grandfather marker
-automatically: `<!-- KEEL-INVARIANT-7: legacy-through=F<max> -->`.
+automatically: `<!-- KEEL-INVARIANT-7: legacy-through=WI<max> -->`.
 Nothing further to do.
 
 ### Manual (for existing KEEL projects)
@@ -252,16 +254,16 @@ Run the upgrade script once:
 python3 scripts/upgrade-invariant-7.py
 ```
 
-It scans `docs/exec-plans/active/feature-backlog.md`, finds the
-highest existing F## ID, and places the marker in the preamble:
+It scans `docs/exec-plans/active/backlog.md`, finds the
+highest existing WI## ID, and places the marker in the preamble:
 
 ```
-<!-- KEEL-INVARIANT-7: legacy-through=F<N> -->
+<!-- KEEL-INVARIANT-7: legacy-through=WI<N> -->
 ```
 
-After this, F## entries at or below F<N> are grandfathered (no PRD
-or PRD-exempt required). From F<N+1> forward, every new backlog
-entry must carry `PRD: <slug>` or `PRD-exempt: <reason>`.
+After this, WI## entries at or below WI<N> are grandfathered (no Binder
+or Binder-exempt required). From WI<N+1> forward, every new backlog
+entry must carry `Binder: <slug>` or `Binder-exempt: <reason>`.
 
 ### Opting out (not recommended)
 
@@ -275,13 +277,14 @@ when ready.
 
 ```
 [ ] Agent has read the full codebase
-[ ] CLAUDE.md written (under 100 lines)
+[ ] The project guide written (under 100 lines)
 [ ] NORTH-STAR.md written (vision + growth-stage cues)
 [ ] ARCHITECTURE.md written (module map + layers at minimum)
 [ ] Domain invariants defined in core-beliefs.md
 [ ] Safety-auditor configured with grep patterns
 [ ] Safety-gate hook configured with critical file patterns
-[ ] Feature backlog created with upcoming features
+[ ] Backlog created with upcoming features
+[ ] KEEL configuration committed — working tree clean (/keel-adopt Phase 7)
 [ ] First feature spec written
 [ ] First feature run through pipeline
 ```

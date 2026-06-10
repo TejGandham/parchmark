@@ -13,8 +13,8 @@ import re
 import sys
 from pathlib import Path
 
-MARKER_RE = re.compile(r"<!--\s*KEEL-INVARIANT-7:\s*legacy-through=F(\d+)\s*-->")
-F_ID_RE = re.compile(r"^\s*-\s*\[[ x]\]\s*\*\*F(\d+)\s", re.MULTILINE)
+MARKER_RE = re.compile(r"<!--\s*KEEL-INVARIANT-7:\s*legacy-through=WI(\d+)\s*-->")
+WI_ID_RE = re.compile(r"^\s*-\s*\[[ x]\]\s*\*\*WI(\d+)\s", re.MULTILINE)
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,10 +31,10 @@ def halt(msg: str) -> None:
 def main() -> int:
     args = parse_args()
     repo = Path(args.repo).resolve()
-    backlog = repo / "docs" / "exec-plans" / "active" / "feature-backlog.md"
+    backlog = repo / "docs" / "exec-plans" / "active" / "backlog.md"
 
     if not backlog.exists():
-        halt(f"no feature-backlog.md at {backlog}.")
+        halt(f"no backlog.md at {backlog}.")
 
     # Read with preserved line endings to avoid CRLF→LF translation.
     with open(backlog, "r", encoding="utf-8", newline="") as f:
@@ -44,9 +44,9 @@ def main() -> int:
         print("upgrade-invariant-7: KEEL-INVARIANT-7 marker already present. No changes.")
         return 0
 
-    f_ids = [int(m.group(1)) for m in F_ID_RE.finditer(text)]
-    max_id = max(f_ids) if f_ids else 0
-    marker = f"<!-- KEEL-INVARIANT-7: legacy-through=F{max_id:02d} -->"
+    wi_ids = [int(m.group(1)) for m in WI_ID_RE.finditer(text)]
+    max_id = max(wi_ids) if wi_ids else 0
+    marker = f"<!-- KEEL-INVARIANT-7: legacy-through=WI{max_id:02d} -->"
 
     # Detect the file's dominant line ending to preserve it end-to-end.
     nl = "\r\n" if "\r\n" in text else "\n"
@@ -62,7 +62,7 @@ def main() -> int:
     if insert_at is None:
         halt(
             f"backlog at {backlog} has no H1 heading (line starting with `# `). "
-            "Add a canonical H1 like `# Feature Backlog` before running this script."
+            "Add a canonical H1 like `# Backlog` before running this script."
         )
 
     # Skip any immediately following blank lines.
@@ -81,9 +81,9 @@ def main() -> int:
 
     print(
         f"upgrade-invariant-7: Placed KEEL-INVARIANT-7 marker with "
-        f"legacy-through=F{max_id:02d} based on current max feature ID.\n"
-        f"Entries F01-F{max_id:02d} are grandfathered; new entries from "
-        f"F{max_id+1:02d} forward must carry PRD: or PRD-exempt:.\n"
+        f"legacy-through=WI{max_id:02d} based on current max feature ID.\n"
+        f"Entries WI01-WI{max_id:02d} are grandfathered; new entries from "
+        f"WI{max_id+1:02d} forward must carry Binder: or Binder-exempt:.\n"
         f"Edit the marker value in {backlog.relative_to(repo)} if this is wrong."
     )
     return 0

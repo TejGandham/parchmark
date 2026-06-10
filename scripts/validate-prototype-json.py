@@ -61,7 +61,7 @@ _SCHEMA_SEARCH_DEPTH = 4
 def load_schema() -> dict:
     """Locate schemas/prototype.schema.json by walking up from the script.
 
-    Mirrors validate-prd-json.py — KEEL scripts ship as standalone files,
+    Mirrors validate-binder-json.py — KEEL scripts ship as standalone files,
     so a path-anchored lookup is the right tool. See AGENTS.md §Python
     conventions.
     """

@@ -4,11 +4,11 @@ Things that break the process. Each anti-pattern includes what goes wrong and wh
 
 ## The 1000-Page Manual
 
-**What:** Putting everything in CLAUDE.md / AGENTS.md — all rules, all context, all instructions in one massive file.
+**What:** Putting everything in the project guide — all rules, all context, all instructions in one massive file.
 
 **Why it fails:** Context is a scarce resource. A giant file crowds out the task, the code, and the relevant docs. Agents pattern-match locally instead of navigating intentionally. The file rots instantly because humans stop maintaining it.
 
-**Instead:** CLAUDE.md is ~80-100 lines. It's a table of contents with pointers to docs/. Progressive disclosure — agents read what they need when they need it.
+**Instead:** The project guide is ~80-100 lines. It's a table of contents with pointers to docs/. Progressive disclosure — agents read what they need when they need it.
 
 ## Vague Specs
 
@@ -24,7 +24,7 @@ Things that break the process. Each anti-pattern includes what goes wrong and wh
 
 **Why it fails:** Too many moving parts for one pipeline run. Tests become integration tests by accident. Failures are hard to isolate.
 
-**Instead:** Decompose into layer-specific features with explicit dependencies. F04 (foundation) → F12 (service, needs F04) → F17 (UI, needs F12).
+**Instead:** Decompose into layer-specific features with explicit dependencies. WI04 (foundation) → WI12 (service, needs WI04) → WI17 (UI, needs WI12).
 
 ## Testing Implementation Details
 
@@ -33,6 +33,14 @@ Things that break the process. Each anti-pattern includes what goes wrong and wh
 **Why it fails:** Implementation changes break tests even when behavior is correct. Implementer is constrained unnecessarily.
 
 **Instead:** Test the spec contract. "Given X input, expect Y output." "When event Z occurs, state changes to W." Test what, not how.
+
+## Weakening Inherited Tests
+
+**What:** Editing or deleting a test a *prior* feature wrote — an inherited acceptance contract — to make the current feature's code pass (or to keep a green suite green).
+
+**Why it fails:** The oracle moves with the code, so the regression is invisible to "all tests pass." This is how a feature silently breaks a contract another feature relies on — a P6 inversion (code beating tests).
+
+**Instead:** A failing inherited test means your code is wrong — fix the code. If the behavior is *deliberately* changing, that is a spec change, not a test edit: halt, update the owning spec/backlog with human sign-off, and let the test follow the spec (P6: spec > test > code). Only add new tests for your own feature.
 
 ## "Try Harder"
 

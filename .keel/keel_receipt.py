@@ -49,6 +49,7 @@ def hash_dir(path: Path) -> str:
 def new_receipt(
     keel_version: str,
     *,
+    host: str = "claude",
     git_sha: str | None = None,
     git_dirty: bool = False,
     source_url: str | None = None,
@@ -57,6 +58,11 @@ def new_receipt(
     return {
         "receipt_schema_version": RECEIPT_SCHEMA_VERSION,
         "keel_version": keel_version,
+        # Which agent host this install targets ("claude" | "codex"). Drives
+        # host-conditional uninstall (settings.json is claude-only; the .codex/
+        # surface is codex-only). Schema v2 receipts predate this field; readers
+        # treat its absence as "claude" (the only host then).
+        "host": host,
         "installed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "git_sha": git_sha,
         "git_dirty": git_dirty,

@@ -32,7 +32,7 @@ agent legibility wins.
 **Agents start with a small, stable entry point and navigate to
 deeper sources as needed.**
 
-The entry point (CLAUDE.md for user projects, AGENTS.md for
+The entry point (the project guide for user projects, AGENTS.md for
 framework contributors) is a table of contents, not an encyclopedia.
 Every deeper source is reachable in O(1) navigation from the entry
 point or from a stable predecessor. Agents should never have to
@@ -48,12 +48,12 @@ any of them violates agent legibility or progressive disclosure.
 ### P3. The repo is self-sufficient
 
 **The repo's current state is always sufficient to reconstruct any
-view — PRD, architecture doc, design summary, dependency graph, or
+view — Binder, architecture doc, design summary, dependency graph, or
 anything else derivable from authored state.**
 
 A reconstruction tool (synthesizer) must be *possible* at any
 moment. It does not have to be *implemented* on day 1. The design
-must leave all the raw material in the repo so that year-3 Claude,
+must leave all the raw material in the repo so that a year-3 agent host,
 landing cold, can reconstruct any view needed.
 
 ### P4. No redundant storage
@@ -63,10 +63,10 @@ author. Anything derivable from other repo state shouldn't be stored
 redundantly — if it is, it's a cache that can stale.**
 
 Concrete examples:
-- PRD files do not carry `feature_ids: [...]` manifests. That list
-  is derivable from the backlog via `grep "PRD: <slug>"`.
-- PRD files do not declare `state: accepted` or lifecycle fields.
-  State is emergent from whether F## entries reference the PRD and
+- Binder files do not carry `feature_ids: [...]` manifests. That list
+  is derivable from the backlog via `grep "Binder: <slug>"`.
+- Binder files do not declare `state: accepted` or lifecycle fields.
+  State is emergent from whether WI## entries reference the Binder and
   whether they're `[ ]` or `[x]`.
 - Directory structure does not encode completion status. A
   `completed/` folder that mirrors `active/` is a cache of `[x]`
@@ -83,7 +83,21 @@ the repo-as-snapshot doesn't need to narrate how it got here.**
 No "changelog" field on artifacts. No "last modified" timestamps
 baked into content. No "was originally X, then Y, now Z" commentary
 in docs. The repo reflects *what is*, not *how it got here*. If the
-reader needs history, they run `git log`.
+reader needs history, they run `git log`. In content we state what
+is; version control holds the timeline.
+
+**Rationale is not timeline.** P5 bans *timeline* — how a thing
+came to be ("was X, now Y", changelogs, dates, commit SHAs,
+migration narratives) — not *present-tense design rationale*. A
+statement of *why a current constraint exists* is allowed and often
+load-bearing: "the bootstrap is stdlib-only because it runs before
+deps exist" is a fact about what IS, stated so a cold-landing agent
+does not "fix" a counterintuitive but deliberate design (a P1 /
+Chesterton's-fence concern). The rule of thumb: **state what IS and
+why it IS; never how it came to be.** This does not open the
+no-agent-authorized-exceptions door below — it draws the line
+between rationale (allowed, snapshot) and history (forbidden,
+timeline), so neither swallows the other.
 
 This principle unlocks principle P4 — much of what contributors
 might otherwise want to store redundantly is actually history
@@ -114,6 +128,19 @@ markdown file is a P5 violation and must not land:
 - "Forthcoming" / "will land" / "pending" references to work
   already in the repo. When the work lands, remove the promise.
 
+**No agent-authorized exceptions.** The first move on encountering
+timeline-in-content — a historical reason for a decision, a "how it
+was achieved" note, a migration narrative, a maintained CHANGELOG — is
+always the default: delete it or rewrite to current state, and let
+`git log` carry the why. An agent never grants itself an exception. The
+exception path opens only when rewriting to a current-state snapshot
+would lose meaning the repo genuinely needs; even then the agent does
+not decide. It halts, names the specific content and why a snapshot
+loses it, and surfaces the call to the human responsible for the repo —
+the user in this framework's own repo, the project owner in an
+installed one — proceeding only on their explicit sign-off for that one
+instance. Absent that sign-off, the snapshot rule wins.
+
 **Archival docs use dated filenames.** Historical design reviews,
 snapshots, and retrospectives that are intrinsically dated go
 under `docs/design-docs/YYYY-MM-DD-<slug>.md` (or the equivalent).
@@ -127,9 +154,9 @@ annotations.
 ### P6. Code, specs, and backlog win
 
 **What delivered code, committed specs, and the backlog say is true
-trumps any document that says otherwise. If a PRD claims F12 ships
-something but F12's spec/code shipped something different, the
-spec/code win — the PRD is stale or wrong.**
+trumps any document that says otherwise. If a Binder claims WI12 ships
+something but WI12's spec/code shipped something different, the
+spec/code win — the Binder is stale or wrong.**
 
 This establishes the authority hierarchy when artifacts disagree.
 The validator and agents resolve conflicts by trusting the
@@ -137,12 +164,12 @@ lowest-level artifact that carries the disputed fact:
 
 | Conflict | Winner |
 |-|-|
-| PRD narrative vs. backlog state | Backlog |
+| Binder narrative vs. backlog state | Backlog |
 | Backlog entry vs. spec content | Spec |
 | Spec vs. delivered code | Code |
 | Delivered code vs. test outcomes | Test outcomes |
 
-A PRD claiming a feature that was never implemented is a stale PRD,
+A Binder claiming a feature that was never implemented is a stale Binder,
 not a missing feature. The validator and agents flag this but do
 not "correct" the upstream artifact by inventing work.
 
@@ -168,20 +195,20 @@ When any gate, validator, agent, or skill cannot proceed, it must:
 
 Examples of correct halts:
 
-> *"Feature F11 has no `PRD:` or `PRD-exempt:` field, and the
-> KEEL-INVARIANT-7 cutoff is F10. Add `PRD: <slug>` pointing to an
-> existing PRD at `docs/exec-plans/prds/<slug>.json`, or add
-> `PRD-exempt: <reason>` where reason is one of legacy, bootstrap,
+> *"Feature WI11 has no `Binder:` or `Binder-exempt:` field, and the
+> KEEL-INVARIANT-7 cutoff is WI10. Add `Binder: <slug>` pointing to an
+> existing Binder at `docs/exec-plans/binders/<slug>.json`, or add
+> `Binder-exempt: <reason>` where reason is one of legacy, bootstrap,
 > infra, or trivial."*
 
-> *"Walk complete. 8 cards drafted for PRD: user-password-auth. Are
-> all F08-F15 from this PRD ready? Verbs: commit, revisit F##,
+> *"Walk complete. 8 cards drafted for Binder: user-password-auth. Are
+> all WI08-WI15 from this Binder ready? Verbs: commit, revisit WI##,
 > abort."*
 
-> *"F26 has 2 unresolved HUMAN markers blocking the pipeline.
-> Resolve them in `feature-backlog.md` by editing the entry, then
-> re-run `/keel-pipeline F26`. See marker-resolution workflow in
-> CLAUDE.md."*
+> *"WI26 has 2 unresolved HUMAN markers blocking the pipeline.
+> Resolve them in `backlog.md` by editing the entry, then
+> re-run `/keel-pipeline WI26`. See marker-resolution workflow in
+> the project guide."*
 
 Examples of failures the principle forbids:
 
@@ -189,14 +216,12 @@ Examples of failures the principle forbids:
   figure out what to do."
 - Continuing past a failed validation "to be helpful."
 - Retrying a failing operation in a loop without new information.
-- Guessing at a recovery path (e.g., auto-creating a missing PRD
+- Guessing at a recovery path (e.g., auto-creating a missing Binder
   file with a placeholder).
 
-The design precedent: `testbed-feedback/post-walk-state-skipped.md`
-documented the ParchMark `/keel-refine` orchestrator silently
-skipping Phase 5 Step 3 — fallthrough instead of halt. The fix is
-structural: Step 3 is a required verb, and halting there is the
-correct behavior.
+Required steps halt rather than fall through. When a pipeline verb
+cannot proceed, the correct behavior is to halt with a call-to-action,
+never silent fallthrough.
 
 ---
 
@@ -265,6 +290,14 @@ They are designed to be orthogonal. If a real conflict arises:
   lower-authority one. **Resolution:** the lower-authority
   derivation wins, per P6 itself. The higher-authority artifact is
   storing a cached assertion.
+- **P1 (legibility) + P4 (no redundant storage) conflict** when a
+  derivable fact would aid legibility if cached inline at the point
+  of use. **Resolution:** prefer a *pointer* to the source over an
+  inline cache, per P2 — a cache stales expensively, a pointer is
+  cheap to follow. This is the same resolution direction the first
+  pair above takes; stated here as its own pair because the
+  temptation recurs (a derivable-but-legibility-helpful cache) and
+  the answer is always the pointer.
 
 Conflicts are rare. Most apparent conflicts are false — one frame
 satisfies all principles; finding it is the design work.

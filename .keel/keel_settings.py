@@ -28,6 +28,25 @@ def _hook_has_command(hook: dict, command: str) -> bool:
     return hook.get("command") == command
 
 
+def _make_hook_obj(spec: HookSpec, command: str) -> dict[str, Any]:
+    """Build the settings.json command-hook object from a spec.
+
+    Nested under a `{matcher, hooks:[…]}` wrapper. Preserves the optional
+    `async` flag verbatim (carried through, not hardcoded, so non-timing
+    hooks stay synchronous). Spec fields `event`, `matcher`, and `signature`
+    are installer/manifest metadata, not part of the hook object.
+    """
+    hook_obj: dict[str, Any] = {"type": "command", "command": command}
+    if spec.get("async"):
+        hook_obj["async"] = spec["async"]
+    return hook_obj
+
+
+def _check_command_str(cmd: object, where: str) -> None:
+    if cmd is not None and not isinstance(cmd, str):
+        raise ValueError(f"{where}['command'] must be a string")
+
+
 def _validate_hooks_shape(settings: dict) -> None:
     """Raise TypeError/ValueError on unexpected shape at any level.
 
@@ -36,6 +55,11 @@ def _validate_hooks_shape(settings: dict) -> None:
     crash mid-mutation. Validates that `command`, when present on a
     hook entry, is a string — otherwise downstream exact-match
     comparisons would raise TypeError deep inside the walk.
+
+    Every entry in settings['hooks'][event] is a matcher-wrapper
+    `{matcher, hooks: [{type, command, async}, …]}`. This is the only
+    shape the Claude Code event-config contract accepts; `matcher: ""`
+    is the catch-all matcher (a normal matcher string, not a special case).
     """
     if not isinstance(settings, dict):
         raise TypeError("settings must be a dict")
@@ -52,21 +76,14 @@ def _validate_hooks_shape(settings: dict) -> None:
             if not isinstance(entry, dict):
                 raise ValueError(
                     f"settings['hooks'][{event!r}][{i}] must be a dict")
+            where = f"settings['hooks'][{event!r}][{i}]"
             inner = entry.get("hooks")
             if inner is not None and not isinstance(inner, list):
-                raise ValueError(
-                    f"settings['hooks'][{event!r}][{i}]['hooks'] "
-                    f"must be a list or absent")
+                raise ValueError(f"{where}['hooks'] must be a list or absent")
             for j, h in enumerate(inner or []):
                 if not isinstance(h, dict):
-                    raise ValueError(
-                        f"settings['hooks'][{event!r}][{i}]['hooks'][{j}] "
-                        f"must be a dict")
-                cmd = h.get("command")
-                if cmd is not None and not isinstance(cmd, str):
-                    raise ValueError(
-                        f"settings['hooks'][{event!r}][{i}]['hooks'][{j}]"
-                        f"['command'] must be a string")
+                    raise ValueError(f"{where}['hooks'][{j}] must be a dict")
+                _check_command_str(h.get("command"), f"{where}['hooks'][{j}]")
 
 
 def merge_hooks(settings: dict,
@@ -90,10 +107,13 @@ def merge_hooks(settings: dict,
 
     for spec in specs:
         event = spec["event"]
-        matcher = spec["matcher"]
         command = spec["command"]
-
         event_arr = new["hooks"].setdefault(event, [])
+
+        # Every spec carries a `matcher` and uses the nested matcher-wrapper
+        # shape. `matcher: ""` is the catch-all matcher (a normal matcher
+        # string) — no special-casing.
+        matcher = spec["matcher"]
         matcher_entry = _find_matcher_entry(event_arr, matcher)
         if matcher_entry is None:
             matcher_entry = {"matcher": matcher, "hooks": []}
@@ -105,7 +125,7 @@ def merge_hooks(settings: dict,
         # script path via a different command string are NOT treated as
         # duplicates; KEEL adds its own entry alongside them.
         if not any(_hook_has_command(h, command) for h in hooks_list):
-            hooks_list.append({"type": "command", "command": command})
+            hooks_list.append(_make_hook_obj(spec, command))
             inserted_cmds.append(command)
 
     return new, inserted_cmds
@@ -130,7 +150,7 @@ def remove_hooks_by_command(settings: dict, commands: list[str]) -> tuple[dict, 
     cmd_set = set(commands)
     for event in list(hooks_root.keys()):
         event_arr = hooks_root.get(event, [])
-        kept_matchers: list[dict] = []
+        kept_entries: list[dict] = []
         for entry in event_arr:
             hooks_list = entry.get("hooks", [])
             kept: list[dict] = []
@@ -142,9 +162,9 @@ def remove_hooks_by_command(settings: dict, commands: list[str]) -> tuple[dict, 
             if kept:
                 new_entry = dict(entry)
                 new_entry["hooks"] = kept
-                kept_matchers.append(new_entry)
-        if kept_matchers:
-            hooks_root[event] = kept_matchers
+                kept_entries.append(new_entry)
+        if kept_entries:
+            hooks_root[event] = kept_entries
         else:
             del hooks_root[event]
 
