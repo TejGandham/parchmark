@@ -3,17 +3,17 @@
 # requires-python = ">=3.14"
 # dependencies = ["jsonschema>=4.25"]
 # ///
-"""Validate a structured KEEL PRD (JSON) against schemas/prd.schema.json.
+"""Validate a structured KEEL Binder (JSON) against schemas/binder.schema.json.
 
 Applies three validation stages:
-  1. JSON Schema validation (structural — PRD frame, feature frame, oracle
+  1. JSON Schema validation (structural — Binder frame, feature frame, oracle
      shape, cross-reference IDs)
-  2. Intra-PRD cross-reference integrity (features[].needs[] resolve,
+  2. Intra-Binder cross-reference integrity (work_items[].needs[] resolve,
      feature IDs unique, no self-dependency)
   3. Invariant-ID existence (`invariants_exercised[].invariant_id` resolves
-     to an INV-### token declared in the project's CLAUDE.md §Safety Rules
-     — the same source `keel-refine` parses to seed the drafter's
-     `repo_context.invariants[]` list)
+     to an INV-### token declared in the project guide's §Safety Rules
+     (AGENTS.md, or CLAUDE.md as fallback) — the same source `keel-refine`
+     parses to seed the drafter's `repo_context.invariants[]` list)
 
 Feature-specific contract content is intentionally NOT validated here.
 Contract shapes are case-by-case and cannot be generalized into required
@@ -22,7 +22,7 @@ pipeline time by test-writer via expected-vs-declared key introspection.
 See docs/design-docs/2026-04-24-structured-prds.md for the full rationale.
 
 Usage:
-  uv run scripts/validate-prd-json.py path/to/prd.json [--format human|json]
+  uv run scripts/validate-binder-json.py path/to/binder.json [--format human|json]
 
 Exit codes:
   0  validation passed
@@ -52,14 +52,14 @@ class Feature(TypedDict):
     oracle: dict
 
 
-class Prd(TypedDict):
+class Binder(TypedDict):
     id: str
     title: str
     motivation: str
     scope: dict
     design_facts: list[dict]
     invariants_exercised: list[dict]
-    features: list[Feature]
+    work_items: list[Feature]
 
 
 @dataclass(slots=True, frozen=True)
@@ -69,17 +69,17 @@ class Finding:
 
 
 class Validator(Protocol):
-    def validate(self, doc: Prd) -> list[Finding]: ...
+    def validate(self, doc: Binder) -> list[Finding]: ...
 
 
 # --- Validator stages -------------------------------------------------------
 
 @dataclass(slots=True, frozen=True)
 class SchemaValidator:
-    """JSON Schema validation of the PRD frame."""
+    """JSON Schema validation of the Binder frame."""
     schema: dict
 
-    def validate(self, doc: Prd) -> list[Finding]:
+    def validate(self, doc: Binder) -> list[Finding]:
         v = Draft202012Validator(self.schema)
         errors = sorted(v.iter_errors(doc), key=lambda e: list(e.absolute_path))
         return [
@@ -96,45 +96,45 @@ class XrefValidator:
     """Cross-reference integrity on top of the schema.
 
     Only runs when SchemaValidator reports no findings — if the document
-    is shape-invalid (e.g. `features` is not a list), xref checks are
+    is shape-invalid (e.g. `work_items` is not a list), xref checks are
     meaningless and would raise Python errors instead of producing
     structured findings. Skipping until schema passes keeps P7 intact.
 
-    Scope: intra-PRD references only. `needs[]` must resolve to some
-    F## in the same PRD; feature IDs must be unique. Existence of
+    Scope: intra-Binder references only. `needs[]` must resolve to some
+    WI## in the same Binder; feature IDs must be unique. Existence of
     `invariants_exercised[].invariant_id` is checked by
-    `InvariantXrefValidator` against the project's CLAUDE.md
-    §Safety Rules.
+    `InvariantXrefValidator` against the project guide's §Safety Rules
+    (AGENTS.md, or CLAUDE.md as fallback).
     """
 
-    def validate(self, doc: Prd) -> list[Finding]:
+    def validate(self, doc: Binder) -> list[Finding]:
         findings: list[Finding] = []
-        features = doc.get("features", [])
-        if not isinstance(features, list):
+        work_items = doc.get("work_items", [])
+        if not isinstance(work_items, list):
             return findings  # schema stage would have already reported this
         known_ids = {
-            f["id"] for f in features
+            f["id"] for f in work_items
             if isinstance(f, dict) and isinstance(f.get("id"), str)
         }
 
         seen_ids: dict[str, list[int]] = {}
-        for i, feature in enumerate(features):
-            if not isinstance(feature, dict):
+        for i, work_item in enumerate(work_items):
+            if not isinstance(work_item, dict):
                 continue
-            fid = feature.get("id")
-            needs = feature.get("needs", [])
+            fid = work_item.get("id")
+            needs = work_item.get("needs", [])
             if isinstance(needs, list):
                 # Dangling dependency
                 for need in needs:
                     if isinstance(need, str) and need not in known_ids:
                         findings.append(Finding(
-                            path=f"/features/{i}/needs",
-                            message=f"'{need}' does not resolve to any feature in this PRD",
+                            path=f"/work_items/{i}/needs",
+                            message=f"'{need}' does not resolve to any feature in this Binder",
                         ))
                 # Self-dependency
                 if isinstance(fid, str) and fid in needs:
                     findings.append(Finding(
-                        path=f"/features/{i}/needs",
+                        path=f"/work_items/{i}/needs",
                         message=f"feature '{fid}' declares itself as a dependency",
                     ))
             if isinstance(fid, str):
@@ -146,19 +146,19 @@ class XrefValidator:
                 first = positions[0]
                 for dup_pos in positions[1:]:
                     findings.append(Finding(
-                        path=f"/features/{dup_pos}/id",
+                        path=f"/work_items/{dup_pos}/id",
                         message=(
                             f"duplicate feature id '{fid}' "
-                            f"(already declared at /features/{first}/id)"
+                            f"(already declared at /work_items/{first}/id)"
                         ),
                     ))
 
         return findings
 
 
-# --- Invariant registry (CLAUDE.md §Safety Rules) ---------------------------
+# --- Invariant registry (project guide §Safety Rules) -----------------------
 
-_CLAUDE_SEARCH_DEPTH = 4  # mirrors _SCHEMA_SEARCH_DEPTH below
+_GUIDE_SEARCH_DEPTH = 4  # mirrors _SCHEMA_SEARCH_DEPTH below
 # Heading regex tolerates up to 3 spaces of indentation (CommonMark
 # permits it on ATX headings and setext underlines, consistent with
 # `_FENCE` below) and trailing content after "Rules" (anchors `{#id}`,
@@ -190,32 +190,35 @@ _FENCE_CLOSE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})\s*$")
 # to content OUTSIDE fenced code blocks — see `_strip_markdown_noise`.
 _HTML_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 # Word-boundaried token regex: `INV-001A` does not match `INV-001`,
-# preventing typo'd registry entries from satisfying real PRD citations.
+# preventing typo'd registry entries from satisfying real Binder citations.
 _INV_TOKEN = re.compile(r"\bINV-[0-9]{3,}\b")
 
 
-def _locate_claude_md(prd_path: Path) -> Path | None:
-    """Walk upward from the PRD's directory for the first CLAUDE.md.
+def _locate_project_guide(binder_path: Path) -> Path | None:
+    """Walk upward from the Binder's directory for the project guide.
 
-    Search depth matches the schema locator: validates that PRDs live
-    inside an installed KEEL project, where CLAUDE.md is at the project
-    root. The first match wins (closest to the PRD), so a fixture
-    directory can ship its own CLAUDE.md without falling through to a
-    framework-repo CLAUDE.md higher up the tree. Symlinked CLAUDE.md is
+    The project guide holds §Safety Rules and is `AGENTS.md` on every host
+    (the host-neutral content root); `CLAUDE.md` is Claude Code's auto-load
+    file and ships as a thin `@AGENTS.md` pointer, so it is only the
+    fallback for a repo that keeps its rules in CLAUDE.md directly. At each
+    level AGENTS.md is preferred over CLAUDE.md; the first level with either
+    wins (closest to the Binder), so a fixture directory can ship its own
+    guide without falling through to a framework-repo guide higher up the
+    tree. Search depth matches the schema locator. A symlinked guide is
     accepted (`is_file()` follows the link); a *broken* symlink is also
-    returned so the caller's `read_text` raises and surfaces a clear
-    halt — silently walking past a broken nearest-CLAUDE.md and binding
-    to a parent-tree CLAUDE.md would validate against the wrong
-    registry.
+    returned so the caller's `read_text` raises and surfaces a clear halt —
+    silently walking past a broken nearest guide and binding to a
+    parent-tree one would validate against the wrong registry.
     """
-    here = prd_path.resolve().parent
-    candidates = [here, *list(here.parents)[:_CLAUDE_SEARCH_DEPTH]]
+    here = binder_path.resolve().parent
+    candidates = [here, *list(here.parents)[:_GUIDE_SEARCH_DEPTH]]
     for candidate in candidates:
-        path = candidate / "CLAUDE.md"
-        if path.is_file():
-            return path
-        if path.is_symlink():  # broken symlink (target does not exist)
-            return path
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            path = candidate / name
+            if path.is_file():
+                return path
+            if path.is_symlink():  # broken symlink (target does not exist)
+                return path
     return None
 
 
@@ -224,7 +227,7 @@ def _strip_markdown_noise(text: str) -> str:
 
     Counter-examples or illustrative tokens inside ```fences``` or
     `<!-- comments -->` inside §Safety Rules must not register as
-    declared invariants — that would let a PRD citing a bogus INV-###
+    declared invariants — that would let a Binder citing a bogus INV-###
     pass the existence check.
 
     Two passes:
@@ -330,23 +333,24 @@ def _extract_safety_rules_section(text: str) -> str | None:
 
 @dataclass(slots=True, frozen=True)
 class InvariantXrefValidator:
-    """Validate `invariants_exercised[].invariant_id` against CLAUDE.md.
+    """Validate `invariants_exercised[].invariant_id` against the project guide.
 
-    Source of truth is CLAUDE.md §Safety Rules — the same convention
-    `keel-refine` Phase 2 step 5 reads to seed the drafter's
-    `repo_context.invariants[]` list, and that `backlog-drafter` is
-    contractually bound to (line 98 of backlog-drafter.md). Putting the
-    same parse in the standalone validator turns a soft drafter contract
-    into a hard gate that also catches post-draft drift (e.g. an
-    invariant renamed in CLAUDE.md after PRDs were written).
+    Source of truth is the project guide's §Safety Rules (AGENTS.md, or
+    CLAUDE.md as fallback) — the same convention `keel-refine` Phase 2
+    step 5 reads to seed the drafter's `repo_context.invariants[]` list,
+    and that `backlog-drafter` is contractually bound to (line 98 of
+    backlog-drafter.md). Putting the same parse in the standalone validator
+    turns a soft drafter contract into a hard gate that also catches
+    post-draft drift (e.g. an invariant renamed in the guide after Binders
+    were written).
 
-    Skipped silently when the PRD has no `invariants_exercised` entries
-    — a PRD without invariant citations needs no registry.
+    Skipped silently when the Binder has no `invariants_exercised` entries
+    — a Binder without invariant citations needs no registry.
     """
 
-    prd_path: Path
+    binder_path: Path
 
-    def validate(self, doc: Prd) -> list[Finding]:
+    def validate(self, doc: Binder) -> list[Finding]:
         invs = doc.get("invariants_exercised", [])
         if not isinstance(invs, list) or not invs:
             return []
@@ -358,25 +362,26 @@ class InvariantXrefValidator:
         if not cited:
             return []
 
-        claude_md = _locate_claude_md(self.prd_path)
-        if claude_md is None:
+        guide_path = _locate_project_guide(self.binder_path)
+        if guide_path is None:
             return [Finding(
                 path="/invariants_exercised",
                 message=(
-                    f"cannot resolve invariant IDs: no CLAUDE.md found within "
-                    f"{_CLAUDE_SEARCH_DEPTH} levels above {self.prd_path}. "
-                    f"PRD cites {len(cited)} invariant(s). Run /keel-adopt "
+                    f"cannot resolve invariant IDs: no project guide "
+                    f"(AGENTS.md or CLAUDE.md) found within "
+                    f"{_GUIDE_SEARCH_DEPTH} levels above {self.binder_path}. "
+                    f"Binder cites {len(cited)} invariant(s). Run /keel-adopt "
                     f"(brownfield) or /keel-setup (greenfield) to install a "
-                    f"CLAUDE.md with §Safety Rules."
+                    f"project guide with §Safety Rules."
                 ),
             )]
 
         try:
-            text = claude_md.read_text(encoding="utf-8")
+            text = guide_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as e:
             return [Finding(
                 path="/invariants_exercised",
-                message=f"cannot read {claude_md}: {e}",
+                message=f"cannot read {guide_path}: {e}",
             )]
 
         # Strip fenced code blocks and HTML comments before BOTH section
@@ -390,8 +395,8 @@ class InvariantXrefValidator:
             return [Finding(
                 path="/invariants_exercised",
                 message=(
-                    f"{claude_md} has no '## Safety Rules' section. "
-                    f"PRD cites {len(cited)} invariant(s). Add the section "
+                    f"{guide_path} has no '## Safety Rules' section. "
+                    f"Binder cites {len(cited)} invariant(s). Add the section "
                     f"and declare your INV-### invariants — run /keel-adopt "
                     f"(brownfield) or /keel-setup (greenfield) to walk through "
                     f"invariant authoring."
@@ -403,12 +408,12 @@ class InvariantXrefValidator:
             return [Finding(
                 path="/invariants_exercised",
                 message=(
-                    f"{claude_md} §Safety Rules declares no INV-### tokens. "
-                    f"PRD cites {len(cited)} invariant(s). If safety rules "
+                    f"{guide_path} §Safety Rules declares no INV-### tokens. "
+                    f"Binder cites {len(cited)} invariant(s). If safety rules "
                     f"haven't been customized yet, run /keel-adopt "
                     f"(brownfield) or /keel-setup (greenfield). If your "
                     f"project has no registered invariants, remove the "
-                    f"invariants_exercised entries from this PRD."
+                    f"invariants_exercised entries from this Binder."
                 ),
             )]
 
@@ -419,7 +424,7 @@ class InvariantXrefValidator:
                 findings.append(Finding(
                     path=f"/invariants_exercised/{i}/invariant_id",
                     message=(
-                        f"'{inv_id}' is not declared in {claude_md} "
+                        f"'{inv_id}' is not declared in {guide_path} "
                         f"§Safety Rules. Add it there, or replace with one "
                         f"of: {declared_list}."
                     ),
@@ -429,17 +434,17 @@ class InvariantXrefValidator:
 
 # --- Schema loader ----------------------------------------------------------
 
-SCHEMA_REL = Path("schemas") / "prd.schema.json"
+SCHEMA_REL = Path("schemas") / "binder.schema.json"
 # How far up the tree to search. The script lives at scripts/ in both
 # the KEEL source tree and user installs; the schema is a sibling dir
 # (schemas/) one level up. A small cap keeps the search bounded and
-# prevents an unrelated `schemas/prd.schema.json` in a grandparent
+# prevents an unrelated `schemas/binder.schema.json` in a grandparent
 # directory from silently winning.
 _SCHEMA_SEARCH_DEPTH = 4
 
 
 def load_schema() -> dict:
-    """Locate schemas/prd.schema.json by walking up from the script location.
+    """Locate schemas/binder.schema.json by walking up from the script location.
 
     Note: `importlib.resources` is the idiomatic loader for resources
     bundled in an installable Python package. KEEL scripts ship as
@@ -461,24 +466,24 @@ def load_schema() -> dict:
 
 # --- Output -----------------------------------------------------------------
 
-def render(fmt: str, findings: list[Finding], prd_path: Path) -> str:
+def render(fmt: str, findings: list[Finding], binder_path: Path) -> str:
     match fmt:
         case "human":
             if not findings:
-                return f"OK: {prd_path} is a valid KEEL PRD."
-            lines = [f"PRD validation FAILED for {prd_path}:"]
+                return f"OK: {binder_path} is a valid KEEL Binder."
+            lines = [f"Binder validation FAILED for {binder_path}:"]
             lines.extend(f"  {f.path}: {f.message}" for f in findings)
             lines.extend([
                 "",
                 "Resolve each finding (see message — some require editing "
-                "the PRD, others CLAUDE.md), then re-run:",
-                f"  uv run scripts/validate-prd-json.py {prd_path}",
+                "the Binder, others the project guide), then re-run:",
+                f"  uv run scripts/validate-binder-json.py {binder_path}",
             ])
             return "\n".join(lines)
         case "json":
             return json.dumps(
                 {
-                    "prd": str(prd_path),
+                    "binder": str(binder_path),
                     "passed": not findings,
                     "findings": [
                         {"path": f.path, "message": f.message} for f in findings
@@ -494,9 +499,9 @@ def render(fmt: str, findings: list[Finding], prd_path: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate a KEEL structured (JSON) PRD.",
+        description="Validate a KEEL structured (JSON) Binder.",
     )
-    parser.add_argument("prd", type=Path, help="Path to a structured PRD JSON file")
+    parser.add_argument("binder", type=Path, help="Path to a structured Binder JSON file")
     parser.add_argument(
         "--format",
         choices=["human", "json"],
@@ -505,23 +510,23 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not args.prd.is_file():
-        print(f"halt: PRD not found at {args.prd}", file=sys.stderr)
+    if not args.binder.is_file():
+        print(f"halt: Binder not found at {args.binder}", file=sys.stderr)
         return 2
 
     try:
-        doc = json.loads(args.prd.read_text(encoding="utf-8"))
+        doc = json.loads(args.binder.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         print(
-            f"halt: {args.prd} is not valid JSON: "
+            f"halt: {args.binder} is not valid JSON: "
             f"{e.msg} (line {e.lineno}, col {e.colno})",
             file=sys.stderr,
         )
         return 2
     except UnicodeDecodeError as e:
         print(
-            f"halt: {args.prd} is not UTF-8 text: {e.reason} "
-            f"(byte {e.start}-{e.end}). PRD files must be UTF-8 JSON.",
+            f"halt: {args.binder} is not UTF-8 text: {e.reason} "
+            f"(byte {e.start}-{e.end}). Binder files must be UTF-8 JSON.",
             file=sys.stderr,
         )
         return 2
@@ -542,10 +547,10 @@ def main() -> int:
     if not findings:
         findings = (
             XrefValidator().validate(doc)
-            + InvariantXrefValidator(prd_path=args.prd).validate(doc)
+            + InvariantXrefValidator(binder_path=args.binder).validate(doc)
         )
 
-    print(render(args.format, findings, args.prd))
+    print(render(args.format, findings, args.binder))
     return 1 if findings else 0
 
 

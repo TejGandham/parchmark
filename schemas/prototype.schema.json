@@ -30,7 +30,7 @@
     },
     "screens": {
       "type": "array",
-      "description": "Named screens or routes in the prototype. Used by backlog-drafter as decomposition cues — typically one F## per screen, with cross-cutting components extracted to their own F## when shared. Source cannot reliably recover screen names for hash-routed SPAs or single-file artifacts with multiple modal states; this field is the only place that signal lives.",
+      "description": "Named screens or routes in the prototype. Used by backlog-drafter as decomposition cues — typically one WI## per screen, with cross-cutting components extracted to their own WI## when shared. Source cannot reliably recover screen names for hash-routed SPAs or single-file artifacts with multiple modal states; this field is the only place that signal lives.",
       "items": {
         "type": "object",
         "required": ["label"],

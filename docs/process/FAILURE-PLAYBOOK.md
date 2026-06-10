@@ -55,22 +55,22 @@ Pipeline stalls or produces bad output
   │
   ├─ Roundtable landing review raises concerns? (Step 8.5)
   │    → Send findings back to implementer
-  │    → Implementer fixes, re-run full gate chain:
-  │      code-reviewer → spec-reviewer → safety-auditor? → arch-advisor? → landing-verifier
+  │    → Implementer fixes, re-run the review gates concurrently:
+  │      [code-reviewer ∥ spec-reviewer ∥ safety-auditor? ∥ arch-advisor-verify?] → landing-verifier
   │    → Max 1 roundtable-triggered gate re-run per gate
   │    → Re-run roundtable landing review (attempt 2)
   │    → If still CONCERNS after 2 attempts: proceed anyway (advisory)
   │    → If a roundtable-triggered gate re-run itself fails: escalate to human
   │
-  ├─ Push rejected at Step 9?
-  │    → STOP, print the raw git error
-  │    → Human resolves (e.g., auth, branch protection) and reruns push
-  │    → Commit is already local — no work lost
-  │
-  ├─ gh pr create fails at Step 9?
-  │    → Print manual PR instructions — branch is pushed
-  │    → Human opens the PR on the forge UI
-  │    → Do not fail the pipeline
+  ├─ Push or PR-create fails during `/keel-submit`? (NOT the pipeline)
+  │    → Step 9 is repo-local: the pipeline commits + archives, never
+  │      pushes or opens a PR. Publishing is the separate `/keel-submit`
+  │      skill, run by the human.
+  │    → `/keel-submit` is fail-fast and idempotent: it STOPs on the raw
+  │      error, names the pushed-branch fact and the resume command, and
+  │      re-running skips the already-published WIs.
+  │    → The feature is already done repo-locally (committed + archived) —
+  │      a submit failure loses no work.
   │
   ├─ pre-check routed wrong? (skipped designer when one was needed)
   │    → Insert the missing stage now
@@ -83,17 +83,25 @@ Pipeline stalls or produces bad output
   │
   ├─ /keel-refine preflight fails (bootstrap gate not satisfied)?
   │    → Skill prints an A/B/C remediation message; follow it.
-  │    → [A] Greenfield: tick F01–F03 as [x] in
-  │        docs/exec-plans/active/feature-backlog.md, then re-run.
+  │    → [A] Greenfield, bootstrap not yet run: run each bootstrap feature
+  │        in backlog.md in order (/keel-pipeline WI01, then WI02, …);
+  │        each ticks its own box on landing (you never tick by hand).
+  │        Re-run /keel-refine once every bootstrap box is [x]. If the
+  │        Bootstrap section is still the shipped bootstrap template, run
+  │        /keel-setup first to adapt it to your stack.
   │    → [B] Brownfield (primary path for an already-adopted repo):
   │        paste `<!-- KEEL-BOOTSTRAP: not-applicable -->` on its own line
   │        between the **Architecture:** preamble and the first `---`
-  │        divider in feature-backlog.md. Re-run /keel-refine.
+  │        divider in backlog.md. Re-run /keel-refine.
   │    → [C] Brownfield, first-time adoption: run /keel-adopt.
-  │        Phase 5d stamps the marker automatically.
+  │        Phase 6e stamps the marker automatically.
   │    → WARNING: if /keel-adopt has already run once, do NOT re-run it
-  │      (it will overwrite CLAUDE.md and ARCHITECTURE.md). Use [B].
+  │      (it will overwrite the project guide and ARCHITECTURE.md). Use [B].
   │    → Full context: docs/process/BROWNFIELD.md §6.
+  │
+  ├─ Maintenance-lane change can't be explained as maintenance? (a hunk adds product behavior)
+  │    → Halt. Route to /keel-refine and run it as a feature.
+  │    → "When in doubt, it is a feature." See PIPELINE-DOCTRINE.md §"The maintenance lane".
   │
   └─ Agent produces garbled or off-topic output?
        → Re-run the same agent (model hiccup, not a process failure)
@@ -101,65 +109,65 @@ Pipeline stalls or produces bad output
        → Summarize the handoff, keeping only the current agent's inputs
 ```
 
-## PRD-scope halts
+## Binder-scope halts
 
-### pre-check blocks on missing PRD link
+### pre-check blocks on missing Binder link
 
-**Symptom:** `/keel-pipeline F##` halts with *"F## references PRD 'X' but `docs/exec-plans/prds/X.json` does not exist."*
+**Symptom:** `/keel-pipeline WI##` halts with *"WI## references Binder 'X' but `docs/exec-plans/binders/X.json` does not exist."*
 
-**Cause:** Typo in `PRD:` field, or PRD file was renamed/deleted.
+**Cause:** Typo in `Binder:` field, or Binder file was renamed/deleted.
 
 **Fix:**
-- If the PRD should exist: create the file at the referenced path (narrative only, no feature list).
-- If the slug was a typo: correct the F## entry's `PRD:` field in the backlog.
-- If the F## is legacy work: change `PRD: <slug>` to `PRD-exempt: legacy`.
+- If the Binder should exist: create the file at the referenced path (narrative only, no feature list).
+- If the slug was a typo: correct the WI## entry's `Binder:` field in the backlog.
+- If the WI## is legacy work: change `Binder: <slug>` to `Binder-exempt: legacy`.
 
-### pre-check blocks on invalid PRD-exempt reason
+### pre-check blocks on invalid Binder-exempt reason
 
-**Symptom:** `/keel-pipeline F##` halts with *"F## declares PRD-exempt with reason '<x>'; must be one of legacy/bootstrap/infra/trivial."*
+**Symptom:** `/keel-pipeline WI##` halts with *"WI## declares Binder-exempt with reason '<x>'; must be one of legacy/bootstrap/infra/trivial."*
 
 **Cause:** Free-form reason used instead of one of the four allowed values.
 
-**Fix:** Edit the F## entry to use one of the four allowed reasons. If none fit, the feature likely should have a PRD — author one.
+**Fix:** Edit the WI## entry to use one of the four allowed reasons. If none fit, the feature likely should have a Binder — author one.
 
-### validate-prds.py reports orphaned PRD file
+### validate-binders.py reports orphaned Binder file
 
-**Symptom:** CI validator reports *"PRD file `docs/exec-plans/prds/<slug>.json` is not referenced by any F##."*
+**Symptom:** CI validator reports *"Binder file `docs/exec-plans/binders/<slug>.json` is not referenced by any WI##."*
 
-**Cause:** A PRD was drafted but all its F## were dropped or never added.
+**Cause:** A Binder was drafted but all its WI## were dropped or never added.
 
-**Fix:** Either delete the orphaned PRD file (git log preserves history) or add F## entries that reference it.
+**Fix:** Either delete the orphaned Binder file (git log preserves history) or add WI## entries that reference it.
 
-### validate-prds.py reports F## ID mentioned in PRD prose
+### validate-binders.py reports WI## ID mentioned in Binder prose
 
-**Symptom:** Validator reports *"PRD prose `<slug>.md` contains F## reference — narrative must use theme-level language, not IDs."*
+**Symptom:** Validator reports *"Binder prose `<slug>.md` contains WI## reference — narrative must use theme-level language, not IDs."*
 
-**Cause:** Someone pasted an F## list into the PRD narrative (common drift toward Jira-docification).
+**Cause:** Someone pasted a WI## list into the Binder narrative (common drift toward Jira-docification).
 
-**Fix:** Rewrite the prose to describe themes/scope, not IDs. The feature list lives on `docs/exec-plans/active/feature-backlog.md` (F## entries tagged `PRD: <slug>`) — don't cache it in the PRD file. For a JSON PRD, `uv run scripts/keel-prd-view.py docs/exec-plans/prds/<slug>.json` renders the canonical view.
+**Fix:** Rewrite the prose to describe themes/scope, not IDs. The feature list lives on `docs/exec-plans/active/backlog.md` (WI## entries tagged `Binder: <slug>`) — don't cache it in the Binder file. For a JSON Binder, `uv run scripts/keel-binder-view.py docs/exec-plans/binders/<slug>.json` renders the canonical view.
 
-## Halt: F## has unmerged Needs (halt-mode default)
+## Halt: WI## has unmerged Needs (halt-mode default)
 
-**Symptom:** `/keel-pipeline F02` halts at Step 0 with "F02 requires
-F01 (intra-PRD). F01 status: ... not an ancestor of <base>."
+**Symptom:** `/keel-pipeline WI02` halts at Step 0 with "WI02 requires
+WI01 (intra-Binder). WI01 status: ... not an ancestor of <base>."
 
-**Cause:** F02 declares F01 in its `Needs:` and F01 has not yet been
+**Cause:** WI02 declares WI01 in its `Needs:` and WI01 has not yet been
 merged to base. The default `Branching policy: halt` refuses to start
 on unmerged Needs.
 
 **Resolution:** One of:
-1. Merge F01's PR, then re-run `/keel-pipeline F02`.
-2. Set `Branching policy: stack` in CLAUDE.md (intra-PRD only —
-   cross-PRD always halts) and re-run. F02 will branch from F01's
-   tip; on F01's eventual merge, the next /keel-pipeline F02
+1. Merge or integrate WI01 to trunk (locally, or via its PR if you use a forge), then re-run `/keel-pipeline WI02`.
+2. Set `Branching policy: stack` in the project guide (intra-Binder only —
+   cross-Binder always halts) and re-run. WI02 will branch from WI01's
+   tip; on WI01's eventual merge, the next /keel-pipeline WI02
    invocation restacks onto base.
 
 ## Halt: stacked-branch restack hit conflicts
 
-**Symptom:** `/keel-pipeline F02` halts at re-invocation with
-"Restack of keel/F02-<slug> onto <base> halted with conflicts."
+**Symptom:** `/keel-pipeline WI02` halts at re-invocation with
+"Restack of keel/WI02-<slug> onto <base> halted with conflicts."
 
-**Cause:** F02's commits touch files that F01 modified after F02
+**Cause:** WI02's commits touch files that WI01 modified after WI02
 branched. `git rebase --update-refs --onto` cannot resolve the
 overlap automatically.
 
@@ -167,7 +175,7 @@ overlap automatically.
 1. `git status` to see conflicted paths.
 2. Edit each conflicted file, `git add <path>`.
 3. `git rebase --continue` to complete the restack, then re-run
-   `/keel-pipeline F02`.
+   `/keel-pipeline WI02`.
 4. Or `git rebase --abort` to undo; the pipeline halts and the
    handoff stays in `active/`.
 

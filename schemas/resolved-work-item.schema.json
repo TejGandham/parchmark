@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keel.framework/schemas/resolved-work-item.schema.json",
+  "title": "KEEL resolved feature",
+  "description": "Deterministic resolver output for a feature, materialized once at pipeline Step 0 and read by all downstream agents.",
+  "type": "object",
+  "required": ["schema_version", "source_hash", "work_item", "binder", "dependencies"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 6 },
+    "source_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of canonical JSON (sort_keys=True, separators=(',',':')) of { binder_slice, backlog_entry, security_list }."
+    },
+    "work_item": {
+      "type": "object",
+      "required": ["id", "slug", "title", "layer", "index"],
+      "additionalProperties": false,
+      "properties": {
+        "id":    { "type": "string", "pattern": "^WI[0-9]{2,}$" },
+        "slug":  { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$" },
+        "title": { "type": "string", "minLength": 1 },
+        "layer": { "enum": ["ui", "backend", "cross-cutting"] },
+        "index": { "type": "integer", "minimum": 0 },
+        "pointer_base": { "type": "string" },
+        "complexity_hint": { "type": ["string", "null"] }
+      }
+    },
+    "binder": {
+      "type": "object",
+      "required": ["path", "slice"],
+      "additionalProperties": false,
+      "properties": {
+        "path":  { "type": "string" },
+        "slice": { "type": "object" },
+        "invariants_exercised": { "type": "array", "items": { "type": "string" } },
+        "prototype_mode": { "type": ["string", "null"] }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "required": ["intra_binder", "cross_binder"],
+      "additionalProperties": false,
+      "properties": {
+        "intra_binder": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "status"],
+            "additionalProperties": false,
+            "properties": {
+              "id":     { "type": "string", "pattern": "^WI[0-9]{2,}$" },
+              "status": { "enum": ["done", "branch-exists-unmerged", "unknown"] },
+              "files":  { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "cross_binder": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "status", "binder_ref"],
+            "additionalProperties": false,
+            "properties": {
+              "id":      { "type": "string", "pattern": "^WI[0-9]{2,}$" },
+              "status":  { "enum": ["done", "branch-exists-unmerged", "unknown"] },
+              "binder_ref": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "test_tooling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type":           { "type": "string" },
+        "tooling":        { "type": "string" }
+      }
+    },
+    "design_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "pretriage_inputs": {
+      "type": "object",
+      "required": ["cross_module_touch", "security_sensitive_inv", "novel_dependency", "frozen_seam_impact", "architecture_tier_hint"],
+      "additionalProperties": false,
+      "properties": {
+        "cross_module_touch":     { "type": "boolean" },
+        "security_sensitive_inv": { "type": "boolean" },
+        "novel_dependency":       { "type": "boolean" },
+        "frozen_seam_impact":     { "type": "boolean" },
+        "architecture_tier_hint": { "type": "boolean" }
+      }
+    }
+  }
+}

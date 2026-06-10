@@ -1,5 +1,65 @@
 {
   "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
     "PostToolUse": [
       {
         "hooks": [
@@ -22,22 +82,126 @@
       {
         "hooks": [
           {
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-doc-gate.py\"",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-doc-gate.py\"",
             "type": "command"
           }
         ],
         "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
     ],
     "PreToolUse": [
       {
         "hooks": [
           {
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/keel-safety-gate.py\"",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-safety-gate.py\"",
             "type": "command"
           }
         ],
         "matcher": "Edit|Write"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.keel/hooks/keel-timing-hook.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
     ]
   }

@@ -3,19 +3,19 @@
 # requires-python = ">=3.14"
 # dependencies = ["jsonschema>=4.25"]
 # ///
-"""Synthesizer: render a schema-valid KEEL JSON PRD as deterministic markdown.
+"""Synthesizer: render a schema-valid KEEL JSON Binder as deterministic markdown.
 
 JSON is canonical; this output is a read-time cache for humans. Same JSON
 input always produces byte-identical markdown.
 
 Usage:
-  uv run scripts/keel-prd-view.py path/to/prd.json
-  uv run scripts/keel-prd-view.py path/to/prd.json --feature F03
-  uv run scripts/keel-prd-view.py path/to/prd.json --output rendered.md
+  uv run scripts/keel-binder-view.py path/to/binder.json
+  uv run scripts/keel-binder-view.py path/to/binder.json --feature WI03
+  uv run scripts/keel-binder-view.py path/to/binder.json --output rendered.md
 
 Exit codes:
   0  rendered successfully
-  1  PRD failed schema validation OR --feature ID not found
+  1  Binder failed schema validation OR --feature ID not found
   2  invocation error (file not found, not JSON, not UTF-8, malformed flag)
 """
 from __future__ import annotations
@@ -66,7 +66,7 @@ class Scope(TypedDict):
     excluded: list[str]
 
 
-class Prd(TypedDict, total=False):
+class Binder(TypedDict, total=False):
     schema_version: int
     id: str
     title: str
@@ -74,25 +74,25 @@ class Prd(TypedDict, total=False):
     scope: Scope
     design_facts: list[DesignFact]
     invariants_exercised: list[Invariant]
-    features: list[Feature]
+    work_items: list[Feature]
 
 
-# --- Schema loader (same pattern as validate-prd-json.py) -------------------
+# --- Schema loader (same pattern as validate-binder-json.py) -------------------
 
-SCHEMA_REL = Path("schemas") / "prd.schema.json"
+SCHEMA_REL = Path("schemas") / "binder.schema.json"
 _SCHEMA_SEARCH_DEPTH = 4
 
 # --feature CLI value must match the schema's feature-ID pattern.
-FEATURE_ID_RE = re.compile(r"^F\d{2,}$")
+FEATURE_ID_RE = re.compile(r"^WI\d{2,}$")
 
 # Sentinel for empty optional scalars (Setup, Tooling, Gating, Needs).
 EMPTY_SCALAR = "—"
 
 
 def load_schema() -> dict:
-    """Locate schemas/prd.schema.json by walking up from the script location.
+    """Locate schemas/binder.schema.json by walking up from the script location.
 
-    Mirrors validate-prd-json.py — KEEL scripts ship as standalone files,
+    Mirrors validate-binder-json.py — KEEL scripts ship as standalone files,
     not as a packaged Python distribution, so a path-anchored lookup is the
     right tool. See AGENTS.md §Python conventions.
     """
@@ -108,7 +108,7 @@ def load_schema() -> dict:
     )
 
 
-def validate_prd(doc: dict, schema: dict) -> list[str]:
+def validate_epic(doc: dict, schema: dict) -> list[str]:
     """Return formatted schema-validation findings; empty list = clean."""
     v = Draft202012Validator(schema)
     errors = sorted(v.iter_errors(doc), key=lambda e: list(e.absolute_path))
@@ -122,28 +122,28 @@ def _format_error(e) -> str:
 
 # --- Renderers --------------------------------------------------------------
 
-def render_full(prd: Prd) -> str:
-    """Render the full PRD. Sections in fixed order; arrays in source order."""
+def render_full(binder: Binder) -> str:
+    """Render the full Binder. Sections in fixed order; arrays in source order."""
     parts: list[str] = [
-        f"# {prd['title']}",
+        f"# {binder['title']}",
         "",
-        prd["motivation"],
+        binder["motivation"],
         "",
-        _render_scope(prd["scope"]),
-        _render_design_facts(prd["design_facts"]),
-        _render_invariants(prd["invariants_exercised"]),
+        _render_scope(binder["scope"]),
+        _render_design_facts(binder["design_facts"]),
+        _render_invariants(binder["invariants_exercised"]),
         "## Features",
         "",
     ]
-    for feature in prd["features"]:
-        parts.append(_render_feature(feature, heading_level=3))
+    for work_item in binder["work_items"]:
+        parts.append(_render_feature(work_item, heading_level=3))
     return "\n".join(parts).rstrip() + "\n"
 
 
-def render_feature_slice(prd: Prd, feature: Feature) -> str:
-    """Render a single feature with PRD title for context. Heading promoted to H2."""
+def render_feature_slice(binder: Binder, feature: Feature) -> str:
+    """Render a single feature with Binder title for context. Heading promoted to H2."""
     parts = [
-        f"# {prd['title']} — {feature['id']}",
+        f"# {binder['title']} — {feature['id']}",
         "",
         _render_feature(feature, heading_level=2),
     ]
@@ -244,12 +244,12 @@ def _render_bullet_list(items: list[str]) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Render a schema-valid KEEL JSON PRD as deterministic markdown.",
+        description="Render a schema-valid KEEL JSON Binder as deterministic markdown.",
     )
-    parser.add_argument("prd", type=Path, help="Path to the JSON PRD")
+    parser.add_argument("binder", type=Path, help="Path to the JSON Binder")
     parser.add_argument(
         "--feature",
-        help="Render only this feature (e.g. F03). Slice includes PRD title.",
+        help="Render only this feature (e.g. WI03). Slice includes Binder title.",
     )
     parser.add_argument(
         "--output",
@@ -258,23 +258,23 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not args.prd.is_file():
-        print(f"halt: PRD not found at {args.prd}", file=sys.stderr)
+    if not args.binder.is_file():
+        print(f"halt: Binder not found at {args.binder}", file=sys.stderr)
         return 2
 
     try:
-        doc = json.loads(args.prd.read_text(encoding="utf-8"))
+        doc = json.loads(args.binder.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         print(
-            f"halt: {args.prd} is not valid JSON: "
+            f"halt: {args.binder} is not valid JSON: "
             f"{e.msg} (line {e.lineno}, col {e.colno})",
             file=sys.stderr,
         )
         return 2
     except UnicodeDecodeError as e:
         print(
-            f"halt: {args.prd} is not UTF-8 text: {e.reason} "
-            f"(byte {e.start}-{e.end}). PRD files must be UTF-8 JSON.",
+            f"halt: {args.binder} is not UTF-8 text: {e.reason} "
+            f"(byte {e.start}-{e.end}). Binder files must be UTF-8 JSON.",
             file=sys.stderr,
         )
         return 2
@@ -285,17 +285,17 @@ def main() -> int:
         print(f"halt: {e}", file=sys.stderr)
         return 2
 
-    findings = validate_prd(doc, schema)
+    findings = validate_epic(doc, schema)
     if findings:
         print(
-            f"halt: {args.prd} fails KEEL PRD schema validation:",
+            f"halt: {args.binder} fails KEEL Binder schema validation:",
             file=sys.stderr,
         )
         for f in findings:
             print(f"  {f}", file=sys.stderr)
         print(
-            "\nFix the PRD or run "
-            f"`uv run scripts/validate-prd-json.py {args.prd}` for full diagnostics.",
+            "\nFix the Binder or run "
+            f"`uv run scripts/validate-binder-json.py {args.binder}` for full diagnostics.",
             file=sys.stderr,
         )
         return 1
@@ -303,18 +303,18 @@ def main() -> int:
     if args.feature is not None:
         if not FEATURE_ID_RE.match(args.feature):
             print(
-                f"halt: --feature must match ^F\\d{{2,}}$, got '{args.feature}'. "
-                f"Example: --feature F03.",
+                f"halt: --feature must match ^WI\\d{{2,}}$, got '{args.feature}'. "
+                f"Example: --feature WI03.",
                 file=sys.stderr,
             )
             return 2
         target = next(
-            (f for f in doc["features"] if f["id"] == args.feature), None,
+            (f for f in doc["work_items"] if f["id"] == args.feature), None,
         )
         if target is None:
-            available = ", ".join(f["id"] for f in doc["features"])
+            available = ", ".join(f["id"] for f in doc["work_items"])
             print(
-                f"halt: feature '{args.feature}' not found in {args.prd}. "
+                f"halt: feature '{args.feature}' not found in {args.binder}. "
                 f"Available: {available}",
                 file=sys.stderr,
             )

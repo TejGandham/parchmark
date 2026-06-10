@@ -1,6 +1,6 @@
 ---
 name: keel-adopt
-description: "Use when adopting KEEL in an existing codebase. Scans the repo, drafts CLAUDE.md and ARCHITECTURE.md, proposes domain invariants for confirmation, and wires up safety enforcement."
+description: "Use when adopting KEEL in an existing codebase. Scans the repo, drafts the project guide and ARCHITECTURE.md, proposes domain invariants for confirmation, and wires up safety enforcement."
 ---
 
 # KEEL Adopt
@@ -29,11 +29,12 @@ also stamps the `KEEL-INVARIANT-7` marker in Phase 6e. See
 digraph adopt {
   rankdir=LR;
   discover [label="1. Discover" shape=box];
-  claude_md [label="2. CLAUDE.md" shape=box];
+  claude_md [label="2. Project guide" shape=box];
   northstar [label="3. North Star" shape=box];
   arch [label="4. ARCHITECTURE" shape=box];
   invariants [label="5. Invariants" shape=box];
   safety [label="6. Safety + agent config" shape=box];
+  commit [label="7. Commit config" shape=box];
   done [label="Done" shape=doublecircle];
 
   discover -> claude_md;
@@ -41,9 +42,23 @@ digraph adopt {
   northstar -> arch [label="human reviews"];
   arch -> invariants [label="human reviews"];
   invariants -> safety [label="human confirms each"];
-  safety -> done [label="human reviews"];
+  safety -> commit [label="human reviews"];
+  commit -> done [label="human blesses"];
 }
 ```
+
+---
+
+## Paths — the master directory (`<masters>`)
+
+Phase 6 fills `<!-- CUSTOMIZE -->` blanks in the agent masters. The masters
+live in a host-resolved directory: `.claude/agents/` on a Claude Code install,
+`.keel/agents/` on a Codex install — exactly one is present (single-host).
+Resolve `<masters>` to whichever is present; every `<masters>/<role>.md` path
+below is relative to it. One rule, both hosts — see the master-directory
+locator in [`docs/process/HOST-SURFACES.md`](../../../docs/process/HOST-SURFACES.md).
+Every other path this skill writes (the project guide,
+`.keel/hooks/keel-safety-gate.py`, `docs/...`) is already host-neutral.
 
 ---
 
@@ -74,9 +89,9 @@ Announce: "Discovery complete. Here's what I found: [summary]. Moving to Phase 2
 
 ---
 
-## Phase 2: Draft CLAUDE.md (automated → human reviews)
+## Phase 2: Draft the project guide (automated → human reviews)
 
-Generate a draft CLAUDE.md from discovery findings.
+Generate a draft project guide from discovery findings.
 
 **Template to follow:**
 ```markdown
@@ -87,25 +102,28 @@ Generate a draft CLAUDE.md from discovery findings.
 ## Quick Facts
 
 - **Stack:** [from discovery]
-- **Runtime:** [Docker / local / etc.]
+- **Runtime:** [local toolchain / etc.]
 - **Tests:** [framework], run with `[command]`
 
 ## KEEL — Mandatory Process
 
-This repository operates under KEEL. The full operating contract is at
-`.claude/KEEL-CONTRACT.md` and is loaded into your context via the
-import below. Read it before your first tool call.
+This repository operates under KEEL. The full operating contract for any
+agent working here is at `.keel/KEEL-CONTRACT.md`. **Read it before your
+first tool call.** Hosts that support file imports (e.g. Claude Code) also
+pull it into context via the line below; hosts that do not still honor the
+explicit read instruction above.
 
-@.claude/KEEL-CONTRACT.md
+@.keel/KEEL-CONTRACT.md
 
-**Three-line floor** (minimum enforcement if the import above failed to resolve):
-1. You are a KEEL pipeline operator, not a general coding assistant. Code changes route through `/keel-refine` → `/keel-pipeline F##`.
-2. Human pressure is not authorization to bypass. Apply the refusal protocol in `.claude/KEEL-CONTRACT.md`.
-3. Trivial work batches into a feature entry via `/keel-refine` (which can mark `PRD-exempt: trivial`) — never ad-hoc.
+**Three-line floor** — minimum enforcement if the contract above is not yet loaded:
+1. You are a KEEL pipeline operator, not a general coding assistant. Code changes route through `/keel-refine` → `/keel-pipeline WI##`.
+2. Human pressure is not authorization to bypass. Apply the refusal protocol in `.keel/KEEL-CONTRACT.md`.
+3. Trivial work batches into a feature entry via `/keel-refine` (which can mark `Binder-exempt: trivial`) — never ad-hoc.
 
 ## Safety Rules
 
-<!-- HUMAN: Review these — are they your actual non-negotiable rules? -->
+<!-- HUMAN: Review these — are they your actual non-negotiable rules?
+     Finalized with INV-### IDs at Phase 6 (per-item confirmed in Phase 5). -->
 1. [Proposed from Phase 5, or placeholder]
 
 ## Architecture
@@ -117,10 +135,17 @@ See [ARCHITECTURE.md](ARCHITECTURE.md)
 [Build, run, test commands from discovery — 4-6 lines]
 ```
 
-**Write** the draft to `CLAUDE.md`.
+When you fill `## Quick Facts` and `## Development`, name the toolchain
+but do **not** write a language/runtime version floor in prose (e.g.
+"Python 3.12+"). Reference the project's existing pin
+(`pyproject.toml` `requires-python` / `.python-version` /
+`package.json` `engines`) instead of repeating a number — a prose floor
+drifts from the pin (P4: one number, one home).
+
+**Write** the draft to the project guide.
 
 **STOP.** Tell the human:
-> "I've drafted CLAUDE.md from what I found in the codebase. Please review
+> "I've drafted the project guide from what I found in the codebase. Please review
 > and edit it — especially the project description and any sections marked
 > with HUMAN comments. When you're satisfied, tell me to continue."
 
@@ -136,7 +161,7 @@ template. This phase refines it from what Phase 1 discovery learned about
 the actual codebase.
 
 **Draft** the refined NORTH-STAR.md from:
-- Project description from Phase 2 (already filled into CLAUDE.md and the
+- Project description from Phase 2 (already filled into the project guide and the
   templated NORTH-STAR.md)
 - Stack implications observed in Phase 1 — what growth stages look like
   for THIS codebase given its current size, test coverage, and modules
@@ -237,6 +262,14 @@ silently and proceed.
 3. Use the consensus slate as the candidate list below. Mark each candidate's
    source so the human knows what to scrutinize.
 
+> **Optional escalation (opt-in, not prescribed).** If canvass surfaces a
+> non-trivial split that you cannot reconcile before presenting to the
+> human, you MAY invoke `mcp__roundtable__roundtable-converge` on the prior
+> dispatch as a final reconciliation pass. If convergence returns a clearer recommendation, use it in place of the canvass output for the next step; otherwise keep the canvass result and surface the split to the human. Skip when the panel already
+> agreed, when there is a single-model panel, or when time/token budget
+> would not afford a second round. See `docs/process/REVIEW-PANEL.md` §"When the
+> panel splits".
+
 **Present each candidate individually. Do NOT present a bulk document.**
 
 Format for each:
@@ -267,7 +300,26 @@ After all candidates are reviewed, announce:
 
 ## Phase 6: Scaffold Safety + Agent Config (automated → human reviews)
 
-Wire confirmed invariants into the KEEL safety enforcement layer.
+Wire confirmed invariants into the KEEL safety enforcement layer. **Start by
+registering them in the project guide §Safety Rules** — that section is the canonical
+invariant registry `/keel-refine` reads.
+
+**Register confirmed invariants in the project guide §Safety Rules.** Replace the
+provisional §Safety Rules list drafted earlier in the project guide (the
+`[Proposed from Phase 5, or placeholder]` line) with the Phase 5 confirmed
+set. Prefix each rule with a minted `INV-###` ID — `INV-001`, `INV-002`, … in
+confirmation order:
+
+    ## Safety Rules
+
+    1. **INV-001 — Short name.** Full rule text.
+    2. **INV-002 — Short name.** Full rule text.
+
+These IDs are the traceability anchor: `/keel-refine` parses this list, and
+in every Binder (a bounded body of related work that decomposes into Work Items) each `invariants_exercised[].invariant_id` must resolve to an `INV-###`
+declared here (schema pattern `^INV-[0-9]{3,}$`). Without IDs no invariant is
+citable and every Binder drafts with empty `invariants_exercised`. A project with
+no domain invariants leaves the section empty — that is valid.
 
 **6a. Write `docs/design-docs/core-beliefs.md`**
 
@@ -276,14 +328,27 @@ Use the template from `template/docs/design-docs/core-beliefs.md`. Fill in:
 - Testing strategy adapted to the project's existing test framework
 - Design philosophy from what you observed in the codebase
 
-**6b. Configure `.claude/agents/safety-auditor.md`**
+Fill **every** `<!-- CUSTOMIZE -->` blank from the test framework and patterns
+Phase 1 discovery observed in the existing codebase — these are setup-owned and
+the Phase 7 verification halts on any that survive:
+- §Domain Safety (`:11`) — the confirmed invariants as safety tests
+- the four testing-layer sections — Layer 1 Safety Invariants (`:66`),
+  Layer 2a Integration (`:76`), Layer 3 Service (`:91`), Layer 4 UI (`:100`)
+- §Layer 5 Acceptance project-specific criteria (`:123`)
+- §Testing Infrastructure (`:127`) — the interface/mock-framework/fixture/tag
+  shape the existing tests actually use
+
+Apply the same version-floor rule as Phase 2: name the toolchain, not a
+prose version number — reference the existing pin.
+
+**6b. Configure `<masters>/safety-auditor.md`**
 
 In the agent definition, replace the `<!-- CUSTOMIZE -->` sections with:
 - The confirmed invariant rules
 - The grep patterns from Phase 5
 - The critical file paths for this project
 
-**6c. Configure `.claude/hooks/keel-safety-gate.py`**
+**6c. Configure `.keel/hooks/keel-safety-gate.py`**
 
 Set the `CRITICAL_PATTERNS` variable to match the project's critical files:
 ```bash
@@ -292,7 +357,7 @@ CRITICAL_PATTERNS="*/auth/*|*/middleware/*|*/transactions/*"
 
 **6d. Configure stack-specific agent commands**
 
-Fill `<!-- CUSTOMIZE -->` sections in the seven pipeline agents with the
+Fill `<!-- CUSTOMIZE -->` sections in the six pipeline agents with the
 build/test/scaffold/format commands the codebase actually uses. **Source
 every value from Phase 1 discovery** — observed test command, real build
 command, the framework actually present, the formatter the existing code
@@ -305,40 +370,37 @@ fields. If Phase 1 didn't surface a value (rare), fall back to the
 stack default and mark with `<!-- HUMAN: confirm? -->` so the human
 catches it on review.
 
-- `.claude/agents/pre-check.md` — build/compile command (from Makefile,
+- `<masters>/pre-check.md` — build/compile command (from Makefile,
   package.json scripts, Cargo.toml, mix.exs aliases, etc.)
-- `.claude/agents/test-writer.md` — test framework, mock framework,
+- `<masters>/test-writer.md` — test framework, mock framework,
   test command (from observed test directories + dependency files)
-- `.claude/agents/implementer.md` — formatter command, domain
+- `<masters>/implementer.md` — formatter command, domain
   invariants confirmed in Phase 5
-- `.claude/agents/landing-verifier.md` — test command per pipeline
+- `<masters>/landing-verifier.md` — test command per pipeline
   variant (backend, frontend, cross-cutting if applicable)
-- `.claude/agents/scaffolder.md` — framework scaffold command (only
+- `<masters>/scaffolder.md` — framework scaffold command (only
   relevant if the project uses a framework with a generator;
   brownfield projects often skip this — leave a `<!-- HUMAN: ... -->`
   marker if there's no scaffold pattern in use)
-- `.claude/agents/docker-builder.md` — stack required tools (only
-  relevant if the project ships with Docker; if the user installed
-  with `--no-docker` and no Dockerfile exists, leave a comment noting
-  the agent is bypassed for this project)
-- `.claude/agents/config-writer.md` — build/compile command (same
+- `<masters>/config-writer.md` — build/compile command (same
   value as pre-check.md, kept consistent)
 
-**Write** all seven files. The values must be consistent across them
+**Write** all six files. The values must be consistent across them
 where they share a field (e.g., the test command in `test-writer.md`,
-`landing-verifier.md`, and CLAUDE.md `## Development` should match).
+`landing-verifier.md`, and the project guide `## Development` should match).
 
 **6e. Stamp brownfield bootstrap marker**
 
 Brownfield projects already have runtime, scaffold, and test infrastructure
-— that's the definition. KEEL's bootstrap features (F01–F03) are greenfield-
-only. Mark this in the backlog so `/keel-refine` knows bootstrap is satisfied.
+— that's the definition. KEEL's bootstrap features (tagged `Binder-exempt:
+bootstrap`) are greenfield-only. Mark this in the backlog so `/keel-refine`
+knows bootstrap is satisfied.
 
 Three independent, idempotent sub-steps. Each sub-step has its own
 fingerprint gate — any deviation from the shipped template means "user
 customized this" and we skip that sub-step.
 
-Target file: `docs/exec-plans/active/feature-backlog.md`.
+Target file: `docs/exec-plans/active/backlog.md`.
 
 **6e.1 Stamp marker (always, idempotent).**
 
@@ -352,21 +414,18 @@ Target file: `docs/exec-plans/active/feature-backlog.md`.
 
 **6e.2 Strip Bootstrap section (gated).**
 
-Only if the Bootstrap section contains these three exact unticked entries
-(bit-exact, including the `[ ]`, the `**F0N Title**` formatting, the Spec
-and Test lines):
+Only if the Bootstrap section contains these two exact unticked entries
+(bit-exact on the `[ ]`, the `**WI0N Title**` formatting, and the Test lines;
+the trailing `| Binder-exempt: bootstrap` on each Spec line is **optional** —
+match both the current tagged template and pre-tag legacy templates):
 
 ```markdown
-- [ ] **F01 Docker dev environment**
-  Spec: core-beliefs:Container | Agent: docker-builder
-  Test: `docker compose build` succeeds, container has required tools
+- [ ] **WI01 Project scaffold**
+  Spec: [YOUR-SPEC]:technical | Agent: scaffolder | Binder-exempt: bootstrap
+  Test: App boots at expected port
 
-- [ ] **F02 Project scaffold**
-  Spec: [YOUR-SPEC]:technical | Needs: F01 | Agent: scaffolder
-  Test: App boots at expected port inside container
-
-- [ ] **F03 Test infrastructure**
-  Spec: core-beliefs:Testing | Needs: F02 | Agent: config-writer
+- [ ] **WI02 Test infrastructure**
+  Spec: core-beliefs:Testing | Needs: WI01 | Agent: config-writer | Binder-exempt: bootstrap
   Test: Mock framework configured, test helper compiles
 ```
 
@@ -377,8 +436,9 @@ Replace the entire `## Bootstrap (...)` block (heading + body up to the next
 <!-- Bootstrap not applicable — brownfield adoption on {ISO-date}. -->
 ```
 
-Any deviation (F01 renamed, F02 ticked, extra entries added, etc.) → skip
-this sub-step. Log: `"6e.2 skipped: Bootstrap section customized."`
+Any deviation (an entry's title or Spec changed, an entry already ticked,
+extra entries added, etc.) → skip this sub-step. Log: `"6e.2 skipped:
+Bootstrap section customized."`
 
 **6e.3 Clear placeholder entries (gated, per section).**
 
@@ -388,10 +448,10 @@ placeholder pattern AND whose Spec line contains the literal `[spec:section]`:
 
 | Section | Placeholder title |
 |-|-|
-| Foundation | `**F04 [YOUR FOUNDATION FEATURE]**` |
-| Service | `**F05 [YOUR SERVICE FEATURE]**` |
-| UI | `**F06 [YOUR UI FEATURE]**` |
-| Cross-cutting | `**F07 [YOUR CROSS-CUTTING FEATURE]**` |
+| Foundation | `**WI03 [YOUR FOUNDATION FEATURE]**` |
+| Service | `**WI04 [YOUR SERVICE FEATURE]**` |
+| UI | `**WI05 [YOUR UI FEATURE]**` |
+| Cross-cutting | `**WI06 [YOUR CROSS-CUTTING FEATURE]**` |
 
 Remove that single entry (and its body: Spec, Needs, Design, Test lines,
 plus the blank line separator). Preserve the section heading and its
@@ -404,29 +464,29 @@ customized."`
 **6e.ii — Stamp the KEEL-INVARIANT-7 marker**
 
 After bootstrap marker placement, scan the backlog for the highest
-existing F## ID. Stamp the grandfather marker in the backlog preamble:
+existing WI## ID. Stamp the grandfather marker in the backlog preamble:
 
 ```
-<!-- KEEL-INVARIANT-7: legacy-through=F<max> -->
+<!-- KEEL-INVARIANT-7: legacy-through=WI<max> -->
 ```
 
 Announce (CTA-style):
 
-> *"Placed KEEL-INVARIANT-7 marker with `legacy-through=F<max>`
-> based on current max feature ID. Entries F01-F<max> are
-> grandfathered; new entries from F<max+1> forward must carry
-> `PRD:` or `PRD-exempt:`. Edit the marker value in the backlog
+> *"Placed KEEL-INVARIANT-7 marker with `legacy-through=WI<max>`
+> based on current max feature ID. Entries WI01-WI<max> are
+> grandfathered; new entries from WI<max+1> forward must carry
+> `Binder:` or `Binder-exempt:`. Edit the marker value in the backlog
 > if this is wrong."*
 
 **Canonical brownfield backlog** (used by 6e.1 when the file is missing):
 
 ````markdown
-# Feature Backlog
+# Backlog
 
 Smallest independently testable features. Execute top-to-bottom.
 Each feature: read spec → write test → write code → verify.
 
-**PRDs:** `docs/exec-plans/prds/<slug>.json` (drafted by `/keel-refine`)
+**Binders:** `docs/exec-plans/binders/<slug>.json` (drafted by `/keel-refine`)
 **Principles:** `docs/design-docs/core-beliefs.md`
 **Architecture:** `ARCHITECTURE.md`
 
@@ -436,7 +496,7 @@ Each feature: read spec → write test → write code → verify.
 
 ## Foundation
 
-<!-- BROWNFIELD: Start real features at F01. Foundation-layer modules. -->
+<!-- BROWNFIELD: Start real features at WI01. Foundation-layer modules. -->
 
 ## Service
 
@@ -452,7 +512,7 @@ Each feature: read spec → write test → write code → verify.
 ````
 
 **STOP.** Tell the human:
-> "I've stamped `feature-backlog.md` with the brownfield bootstrap marker.
+> "I've stamped `backlog.md` with the brownfield bootstrap marker.
 > Actions taken: {list of completed sub-steps}. Skipped (content was
 > customized): {list of skipped sub-steps, or 'none'}. Review the backlog
 > and confirm it's clean. When satisfied, tell me to continue."
@@ -461,17 +521,129 @@ Wait for confirmation before proceeding to 6f.
 
 **6f. Configure pipeline preferences**
 
-Fill the `## Pipeline Preferences` section in CLAUDE.md:
-- Roundtable review: `true` (default — gracefully skipped if MCP unavailable)
+Fill the `## Pipeline Preferences` section in the project guide. Every knob (Review
+panel, Branching policy, Prototype mode, Maintenance review, Onboarding commit)
+ships with a sensible default and a doc block explaining it; keep the defaults
+unless the project needs otherwise, and adjust any during the interview.
 
 **Write** all files.
 
 **STOP.** Tell the human:
 > "Safety enforcement and pipeline preferences are configured. Review
 > core-beliefs.md, the safety-auditor agent definition, keel-safety-gate.py,
-> and the pipeline preferences in CLAUDE.md. These control what the
-> auditor enforces and whether roundtable review runs. When satisfied,
+> and the pipeline preferences in the project guide. These control what the
+> auditor enforces and which review panel runs. When satisfied,
 > we're done with adoption."
+
+Wait for confirmation before proceeding to Phase 7.
+
+---
+
+## Phase 7: Commit adoption config (verify → stage → bless → commit)
+
+Adoption just authored the repo's KEEL configuration. Leaving it uncommitted
+face-plants the very first `/keel-pipeline`, which enforces a clean working
+tree. Adoption owns its own commit — this is **not** the maintenance lane (that
+lane is for ongoing non-feature churn; the KEEL configuration is authored by
+the skill that produced it). Four ordered sub-steps — IDENTICAL in shape to
+keel-setup Phase 7.
+
+**7a. Residual-marker verification (HALT on any setup-owned survivor).**
+
+Before staging, grep ONLY the files this skill authored (the allowlist below).
+Do **not** grep project-wide — the shipped skill sources themselves contain
+literal `<!-- CUSTOMIZE` strings, and a brownfield tree's `node_modules`/vendor
+dirs would false-halt.
+
+Allowlist (exactly the files adoption writes):
+- `the project guide`
+- `NORTH-STAR.md`
+- `ARCHITECTURE.md`
+- `docs/design-docs/core-beliefs.md`
+- `<masters>/pre-check.md`, `test-writer.md`, `implementer.md`,
+  `landing-verifier.md`, `scaffolder.md`, `config-writer.md`,
+  `safety-auditor.md`
+- `.keel/hooks/keel-safety-gate.py`
+
+Two halting conditions over the allowlist:
+1. **Any `DELETE AFTER FILLING`** — the installer strips these on copy
+   (`install.py` regex). A survivor means the install is defective; surface it.
+2. **Any UNFILLED `<!-- CUSTOMIZE -->` fill blank** — a CUSTOMIZE marker whose
+   adjacent value is still a placeholder (`[YOUR ...]`, `[spec:section]`, an
+   empty table cell like `| <!-- CUSTOMIZE --> | | | |`). Also halt on any
+   surviving `[YOUR INVARIANT RULE`, `[YOUR ...]`, or `<!-- HUMAN:` in an
+   allowlist file.
+
+**NOT a fill blank — do not halt on these:** the `## Pipeline Preferences`
+knob-label comments in the project guide (`<!-- CUSTOMIZE: Review panel -->`,
+`Branching policy`, `Prototype mode`) sit *above* an already-populated value
+line (`- **Review panel:** personas`) — they are persistent discoverability
+anchors for the knobs and MUST remain. The optional project guide
+"Add your own spec files" CUSTOMIZE is user-fills-later.
+
+**NOT in the allowlist — never grepped, never halts:** `backlog.md` (its
+section-heading CUSTOMIZE comments are deferred to `/keel-refine` by Phase 6e.3,
+preserved on purpose; the `<!-- KEEL-BOOTSTRAP: not-applicable -->` and
+`<!-- KEEL-INVARIANT-7: ... -->` markers are expected committed content, not
+residue), `docs/design-docs/ui-design.md` and `docs/design-docs/index.md`
+(user-fills-later; `ui-design.md` ships to every install including non-UI
+projects), and the resident skill sources (`.claude/skills/` on Claude Code,
+`.agents/skills/` on Codex).
+
+On a survivor, **HALT (P7)**: list each as `file:line` plus one line of
+context, name the phase that should have filled it (e.g. "Phase 6a fills
+core-beliefs testing sections"), and the next step:
+> "Setup-owned markers are still unfilled. Re-run the listed phase / fill the
+> marker, then re-run Phase 7. I will not commit a half-configured repo."
+
+**7b. Stage the allowlist + dirty-tree guard.**
+
+Stage ONLY the enumerated allowlist as an explicit pathspec — **never
+`git add -A`** (an `-A` here would sweep the user's unrelated WIP into the
+config commit; that ambiguity is exactly why the pipeline's clean-tree gate
+exists). The diff legitimately includes the `KEEL-BOOTSTRAP: not-applicable`
+and `KEEL-INVARIANT-7` backlog markers — that is expected adoption content, not
+residue. Then run `git status --porcelain`: if any UNSTAGED or untracked
+residue remains, note it in the bless prompt:
+> "These files are not part of the KEEL config commit and will leave the tree
+> dirty; the first `/keel-pipeline` will halt until you commit or stash them:
+> `<list>`."
+
+Present `git diff --cached` plus a file/line summary of what is staged.
+
+**7c. Bless gate (default — present-and-bless).**
+
+> "This is your project's KEEL configuration. Review the staged diff above.
+> Reply `commit` to commit it as one snapshot, or tell me what to change."
+
+Wait for the explicit `commit` verb. On a change request: edit, re-stage the
+pathspec, re-present — reentrant.
+
+**Onboarding-commit knob.** Read `Onboarding commit:` from the
+`## Pipeline Preferences` section you drafted in the project guide (Phase 6f). The
+default — and the behavior when the key is absent — is **bless**: present the
+diff and wait (7c). Only `Onboarding commit: auto` skips the 7c bless gate and
+commits directly (for headless / CI installs). This is a **separate axis** from
+pipeline-execution autonomy (`docs/process/AUTONOMY-PROGRESSION.md`) — do NOT
+infer auto-commit from the autonomy stage. Pushing (7d) is always interactive
+regardless.
+
+**7d. Commit + offer push.**
+
+Commit with message `chore(keel-adopt): configure <project>` (`<project>` from
+the project guide's name/heading). Capture the commit exit code — if a user pre-commit
+hook rejects it, surface stderr and **HALT** (do not proceed to push); do not
+use `--no-verify`. Note the current branch in the bless prompt
+(`git branch --show-current` → "Committing to branch `<name>`.") — this is a
+note, not a forced branch creation.
+
+**Push is always interactive** regardless of autonomy stage (it is a
+network/org-visible action). Only if `git remote` lists a remote, offer:
+> "Push `<branch>` to `<remote>`? (push/skip)"
+
+On push rejection (e.g. branch protection), report the git error verbatim and
+the next step (open a PR / create a branch), then exit cleanly — do not loop,
+never force-push.
 
 ---
 
@@ -481,29 +653,35 @@ Print the brownfield checklist from `docs/process/BROWNFIELD.md`:
 
 ```
 [x] Agent has read the full codebase
-[x] CLAUDE.md written
+[x] Project guide written
 [x] NORTH-STAR.md written
 [x] ARCHITECTURE.md written
 [x] Domain invariants defined in core-beliefs.md
 [x] Safety-auditor configured
 [x] Safety-gate hook configured
-[x] Brownfield bootstrap marker stamped in feature-backlog.md
-[ ] First real feature drafted — use /keel-refine, or edit feature-backlog.md by hand
+[x] Brownfield bootstrap marker stamped in backlog.md
+[x] KEEL configuration committed — working tree is clean
+[ ] First real feature drafted — use /keel-refine, or edit backlog.md by hand
 [ ] First feature spec written — YOUR TURN
 [ ] First feature run through pipeline — use /keel-pipeline
 ```
 
 Tell the human:
-> "KEEL adoption is complete. `feature-backlog.md` is marker-stamped and
-> ready for real features starting at F01. Next: draft entries with
-> `/keel-refine` (PRD or prose input) or edit the backlog by hand, then
-> write the spec for your first feature and run `/keel-pipeline` to execute it."
+> "KEEL adoption is complete and the configuration is committed (clean tree).
+> `backlog.md` is marker-stamped and ready for real features starting at WI01.
+> Next: draft entries with `/keel-refine` (Binder or prose input) or edit the
+> backlog by hand, then write the spec for your first feature and run
+> `/keel-pipeline` to execute it."
 
 ## Rules
 
 - **Every phase has a human checkpoint.** Never proceed without confirmation.
 - **Phase 5 is per-item, not bulk.** Present one invariant at a time.
-- **Draft, don't prescribe.** CLAUDE.md and ARCHITECTURE.md are drafts for human refinement.
+- **Draft, don't prescribe.** The project guide and ARCHITECTURE.md are drafts for human refinement.
 - **Mark what you don't know.** Use `<!-- HUMAN: ... -->` markers (with colon, specific question), never guess at intent.
 - **Don't touch existing code.** This skill writes KEEL docs, not project code.
 - **Don't automate backlog/specs.** Steps 6-8 from BROWNFIELD.md are human judgment. **Exception:** Phase 6e stamps the bootstrap marker and removes bit-exact template scaffolding (per-sub-step fingerprint-gated). It never authors user-facing content — every sub-step is either a deterministic marker insertion or a bit-exact placeholder removal.
+- **Phase 7 commits only adoption-owned files via an explicit pathspec.** It is
+  adoption's own configuration commit, NOT the maintenance lane. Never
+  `git add -A`; never force-push; HALT on any unfilled setup-owned marker
+  (7a) or pre-commit-hook rejection (7d).

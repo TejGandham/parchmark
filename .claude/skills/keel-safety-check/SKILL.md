@@ -9,8 +9,9 @@ Run an immediate safety audit on the current working tree changes. Dispatches th
 
 ## When to Use
 
-- After editing files that touch domain-critical operations
-  <!-- CUSTOMIZE: e.g., git.ex, auth.py, transforms.ts, queries.sql -->
+- After editing files that touch domain-critical operations — the
+  critical paths/patterns defined in the safety-auditor agent master
+  §What to Scan
 - Before committing changes that touch invariant-protected code
 - When the PreToolUse hook reminds you to
 
@@ -26,17 +27,28 @@ Inside the pipeline, `safety-auditor` is dispatched by `keel-pipeline` with hand
 
 ## Domain Invariant Rules
 
-<!-- CUSTOMIZE: Replace with your project's invariant rules from core-beliefs.md.
-     See examples/domain-invariants/ for templates. -->
-
-From CLAUDE.md and `docs/design-docs/core-beliefs.md`:
-
-1. [YOUR INVARIANT RULE 1]
-2. [YOUR INVARIANT RULE 2]
-3. [YOUR INVARIANT RULE 3]
+This quick-check audits the changes against the project's invariant rules
+registered in the project guide §Safety Rules — the canonical registry.
+The safety-auditor agent master carries the matching scan expressions
+for each rule.
 
 ## Execution
 
-Dispatch the `safety-auditor` agent. It is read-only and reports findings.
+Dispatch the `safety-auditor` agent (read-only; reports findings). Its spawn
+message MUST open with the KEEL-ROLE preamble (canonical text:
+`docs/process/HOST-SURFACES.md` §"Subagent dispatch"), substituting
+`safety-auditor` for `<role>`:
+
+> `[KEEL-ROLE safety-auditor]` Operate as the `safety-auditor` role. Acquire
+> your role contract by the FIRST route that applies, then do the audit:
+> (1) RESIDENT — your system prompt already identifies you as the
+> `safety-auditor` agent and contains its contract: proceed, do not re-read;
+> (2) INJECTED — your context contains a line starting with
+> `[KEEL-ROLE-INJECTED safety-auditor complete=true`: that injected text IS
+> your contract, do not re-read; (3) POINTER — neither applies: execute a
+> BLOCKING READ of `.keel/agents/safety-auditor.md` in full and follow it; if
+> it cannot be read in full, STOP and report. Never improvise the role.
+> THEN: audit the working-tree diff against the domain invariant rules and
+> report PASS or VIOLATIONS.
 
 If violations are found, fix them before committing.
