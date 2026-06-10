@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@anthropic-ai/mcp-server-postgres",
+        "@modelcontextprotocol/server-postgres",
         "postgresql://parchmark_user:parchmark_password@localhost:5432/parchmark_db"
       ]
     }
