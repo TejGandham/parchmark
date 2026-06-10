@@ -17,6 +17,25 @@ Known shortcuts, deferred improvements, and open questions.
 
 <!-- Shortcuts taken, unexpected issues discovered during feature work -->
 
+- [ ] **safety-auditor agent master carries unfilled placeholder invariants.**
+      Surfaced during WI01 (karta lane): `.claude/agents/safety-auditor.md`
+      still contains the framework template's `[YOUR INVARIANT RULE N]`
+      CUSTOMIZE block, while the project's seven configured invariants live
+      in `docs/design-docs/core-beliefs.md` (named by AGENTS.md as the
+      registry the auditor enforces). The master's fail-closed rule reads
+      literally as "invariants unconfigured." Fold the seven rules (or an
+      explicit pointer to the core-beliefs registry) into the agent master
+      so the file and the registry agree.
+
+- [ ] **`test-utils/render` references point to a non-existent module.**
+      AGENTS.md (Testing table) and `docs/design-docs/core-beliefs.md`
+      (Layer 4, Testing Infrastructure) reference `ui/test-utils/render.tsx`;
+      no such file exists. The actual provider-wrapping helpers are
+      `TestProvider` / `renderWithProviders` in
+      `ui/src/__tests__/__mocks__/testUtils.tsx`. Surfaced by WI01, whose
+      Binder oracle tooling cited "render from test-utils/render". Either
+      create the documented helper or fix both doc references.
+
 ### From `/keel-adopt` (Phase 4 roundtable)
 
 - [ ] **Markdown parity as a shared test fixture.** The proposed Invariant

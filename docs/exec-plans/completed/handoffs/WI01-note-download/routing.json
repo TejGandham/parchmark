@@ -1,0 +1,45 @@
+{
+  "schema_version": 5,
+  "work_item": {
+    "id": "WI01",
+    "slug": "note-download"
+  },
+  "status": "IN-PROGRESS",
+  "pipeline": "karta",
+  "binder_ref": "docs/exec-plans/binders/note-download.json",
+  "branch": {
+    "parent_branch": null,
+    "parent_sha": null
+  },
+  "review_panel": "none",
+  "precheck_escalation_count": 0,
+  "source_hash": "e44098592e715bbeb040b1761b02ea2965057a6e22b7a6c4e9e58d5392e47b8f",
+  "routing": {
+    "intent": "mid-sized",
+    "complexity": "trivial",
+    "designer_needed": false,
+    "researcher_needed": false,
+    "safety_auditor_needed": false,
+    "arch_advisor_needed": false,
+    "implementer_needed": true
+  },
+  "pretriage": {
+    "recommended_model": "opus",
+    "score": 2,
+    "reason": "novel_dependency"
+  },
+  "gates": {
+    "conformance": {
+      "verdict": "CONFORMANT",
+      "attempt": 1
+    },
+    "safety": {
+      "verdict": "PASS",
+      "attempt": 1
+    }
+  },
+  "doc_garden": {
+    "verdict": "CLEAN",
+    "drift_count": 0
+  }
+}

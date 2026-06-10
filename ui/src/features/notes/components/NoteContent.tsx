@@ -30,6 +30,7 @@ import {
 } from '../../../services/markdownService';
 import NoteActions from './NoteActions';
 import NoteMetadata from './NoteMetadata';
+import { downloadNoteAsMarkdown } from '../utils/noteDownload';
 import '../styles/notes.css';
 import '../styles/markdown.css';
 import ReactMarkdown from 'react-markdown';
@@ -202,6 +203,9 @@ const NoteContent = () => {
     );
   }
 
+  // Pure client-side markdown export — built from the already-loaded note
+  const downloadNote = () => downloadNoteAsMarkdown(currentNote);
+
   // Extract the first line after the H1 to avoid duplicating the title in content
   const renderContent = () => {
     if (isEditing) {
@@ -246,6 +250,7 @@ const NoteContent = () => {
           onSave={saveNote}
           onCancel={cancelEditing}
           onDelete={openDeleteDialog}
+          onDownload={downloadNote}
           isSaving={isSaving}
           isDeleting={isDeleting}
         />

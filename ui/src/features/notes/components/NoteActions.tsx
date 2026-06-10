@@ -1,6 +1,11 @@
 import { HStack, Button, IconButton, Tooltip } from '@chakra-ui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faSave, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faDownload,
+  faEdit,
+  faSave,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 
 interface NoteActionsProps {
   isEditing: boolean;
@@ -8,6 +13,7 @@ interface NoteActionsProps {
   onSave: () => void;
   onCancel?: () => void;
   onDelete?: () => void;
+  onDownload?: () => void;
   isSaving?: boolean;
   isDeleting?: boolean;
 }
@@ -18,6 +24,7 @@ const NoteActions = ({
   onSave,
   onCancel,
   onDelete,
+  onDownload,
   isSaving = false,
   isDeleting = false,
 }: NoteActionsProps) => {
@@ -49,6 +56,20 @@ const NoteActions = ({
         </>
       ) : (
         <>
+          {onDownload && (
+            <Tooltip label="Download note" placement="bottom">
+              <IconButton
+                aria-label="Download note"
+                icon={<FontAwesomeIcon icon={faDownload} />}
+                variant="ghost"
+                size="sm"
+                color="text.muted"
+                isDisabled={isDeleting}
+                _hover={{ color: 'primary.500', bg: 'primary.50' }}
+                onClick={onDownload}
+              />
+            </Tooltip>
+          )}
           {onDelete && (
             <Tooltip label="Delete note" placement="bottom">
               <IconButton
