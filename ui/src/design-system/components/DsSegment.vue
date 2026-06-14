@@ -119,7 +119,7 @@ function handleKeydown(event: KeyboardEvent, index: number) {
     color 0.15s ease;
 }
 
-.ds-segment__item:hover:not(:disabled) {
+.ds-segment__item:not(.is-active):hover:not(:disabled) {
   color: var(--text);
 }
 

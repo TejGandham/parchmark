@@ -13,6 +13,8 @@
       "muted":      { "$value": "#8f867b", "$extensions": { "com.parchmark.cssName": "muted" } },
       "line":       { "$value": "#322e29", "$extensions": { "com.parchmark.cssName": "line" } },
       "line-2":     { "$value": "#3b362f", "$extensions": { "com.parchmark.cssName": "line-2" } },
+      "tool-hover-border": { "$value": "{color.burgundy.300}", "$extensions": { "com.parchmark.cssName": "tool-hover-border" } },
+      "menu-hover-surface": { "$value": "{color.neutral.100}", "$extensions": { "com.parchmark.cssName": "menu-hover-surface" } },
       "topbar-bg":  { "$value": "rgba(27,25,23,.82)", "$extensions": { "com.parchmark.cssName": "topbar-bg" } },
       "paper-grain": { "$value": "rgba(255,255,255,.022)", "$extensions": { "com.parchmark.cssName": "paper-grain" } },
       "scrim":      { "$value": "rgba(0,0,0,.42)", "$extensions": { "com.parchmark.cssName": "scrim" } },

@@ -13,6 +13,8 @@
       "muted":      { "$value": "{color.neutral.500}", "$extensions": { "com.parchmark.cssName": "muted" } },
       "line":       { "$value": "#ece8e1", "$description": "Hairline borders.", "$extensions": { "com.parchmark.cssName": "line" } },
       "line-2":     { "$value": "#e2ddd4", "$description": "Stronger borders.", "$extensions": { "com.parchmark.cssName": "line-2" } },
+      "tool-hover-border": { "$value": "{color.burgundy.300}", "$description": "Tool button hover border.", "$extensions": { "com.parchmark.cssName": "tool-hover-border" } },
+      "menu-hover-surface": { "$value": "{color.neutral.100}", "$description": "Menu item hover surface.", "$extensions": { "com.parchmark.cssName": "menu-hover-surface" } },
       "topbar-bg":  { "$value": "rgba(246,244,239,.85)", "$description": "Topbar translucent backdrop.", "$extensions": { "com.parchmark.cssName": "topbar-bg" } },
       "paper-grain": { "$value": "rgba(88,12,36,.025)", "$description": "Subtle app shell grain.", "$extensions": { "com.parchmark.cssName": "paper-grain" } },
       "scrim":      { "$value": "rgba(43,40,37,.3)", "$description": "Mobile drawer scrim.", "$extensions": { "com.parchmark.cssName": "scrim" } },
