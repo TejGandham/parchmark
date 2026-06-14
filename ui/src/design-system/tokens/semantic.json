@@ -46,6 +46,7 @@
       "topbar-padding-x": { "$value": "28px", "$extensions": { "com.parchmark.cssName": "topbar-padding-x" } },
       "topbar-padding-y": { "$value": "12px", "$extensions": { "com.parchmark.cssName": "topbar-padding-y" } },
       "topbar-gap": { "$value": "14px", "$extensions": { "com.parchmark.cssName": "topbar-gap" } },
+      "sidebar-width": { "$value": "{layout.sidebar-width}", "$description": "Desktop app shell sidebar width.", "$extensions": { "com.parchmark.cssName": "sidebar-width" } },
       "tool-size": { "$value": "34px", "$extensions": { "com.parchmark.cssName": "tool-size" } },
       "tool-radius": { "$value": "9px", "$extensions": { "com.parchmark.cssName": "tool-radius" } },
       "segment-radius": { "$value": "9px", "$extensions": { "com.parchmark.cssName": "segment-radius" } },

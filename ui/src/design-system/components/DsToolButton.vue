@@ -30,6 +30,7 @@ withDefaults(defineProps<DsToolButtonProps>(), {
 .ds-tool-button {
   position: relative;
   display: grid;
+  flex: none;
   width: var(--tool-size);
   height: var(--tool-size);
   padding: 0;
