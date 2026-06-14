@@ -60,6 +60,7 @@
   --muted: var(--n500);
   --tool-hover-border: var(--p300); /** Tool button hover border. */
   --menu-hover-surface: var(--n100); /** Menu item hover surface. */
+  --sidebar-width: var(--sidebar-w); /** Desktop app shell sidebar width. */
 }
 
 /**
