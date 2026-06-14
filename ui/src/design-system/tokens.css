@@ -1,0 +1,98 @@
+/**
+ * ParchMark design tokens — GENERATED, do not edit by hand.
+ * Source of truth: tokens/*.json (W3C DTCG format). Rebuild: npm run build:tokens
+ */
+
+:root {
+  --p50: #F2E8EB;
+  --p100: #E5D2D8;
+  --p200: #D8BBC4;
+  --p300: #BF94A1;
+  --p400: #A66C7E;
+  --p500: #8D455B;
+  --p600: #742E45;
+  --p700: #5B172E;
+  --p800: #580c24;
+  --p900: #42061A;
+  --n50: #FAF9F7;
+  --n100: #F5F3F0;
+  --n200: #E9E6E1;
+  --n300: #D1CCC4;
+  --n400: #A8A199;
+  --n500: #7F7770;
+  --n600: #5F5851;
+  --n700: #403C37;
+  --n800: #2B2825;
+  --n900: #1A1816;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: Inter, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --r: 12px;
+  --sidebar-w: 312px;
+  --canvas: #f6f4ef; /** App background (parchment). */
+  --surface: #ffffff; /** Cards, panels, editor. */
+  --surface-2: #fbfaf7; /** Subtle raised surface. */
+  --line: #ece8e1; /** Hairline borders. */
+  --line-2: #e2ddd4; /** Stronger borders. */
+  --topbar-bg: rgba(246,244,239,.85); /** Topbar translucent backdrop. */
+  --paper-grain: rgba(88,12,36,.025); /** Subtle app shell grain. */
+  --scrim: rgba(43,40,37,.3); /** Mobile drawer scrim. */
+  --focus-ring: #F2E8EB; /** Focus outline ring. */
+  --danger: #b3261e; /** Destructive action foreground. */
+  --danger-surface: #fdecea; /** Destructive action hover surface. */
+  --shadow-sm: 0 1px 2px 0 rgba(43,40,37,.06), 0 1px 1px 0 rgba(43,40,37,.04);
+  --shadow: 0 6px 24px -10px rgba(43,40,37,.20); /** Default elevation. Legacy CSS name is plain --shadow. */
+  --shadow-lg: 0 24px 60px -24px rgba(43,40,37,.32);
+  --topbar-padding-x: 28px;
+  --topbar-padding-y: 12px;
+  --topbar-gap: 14px;
+  --tool-size: 34px;
+  --tool-radius: 9px;
+  --segment-radius: 9px;
+  --segment-item-radius: 7px;
+  --menu-radius: 12px;
+  --drawer-width: 300px;
+  --sidebar-collapse: 860px;
+  --accent: var(--p800);
+  --accent-600: var(--p600);
+  --text: var(--n900);
+  --text-2: var(--n600);
+  --muted: var(--n500);
+}
+
+/**
+ * ParchMark design tokens — GENERATED, do not edit by hand.
+ * Source of truth: tokens/*.json (W3C DTCG format). Rebuild: npm run build:tokens
+ */
+
+[data-theme="dark"] {
+  --accent: #8a1a38;
+  --accent-600: #d28fa0;
+  --canvas: #1b1917;
+  --surface: #252220;
+  --surface-2: #211e1c;
+  --text: #f1ece4;
+  --text-2: #bdb4a8;
+  --muted: #8f867b;
+  --line: #322e29;
+  --line-2: #3b362f;
+  --topbar-bg: rgba(27,25,23,.82);
+  --paper-grain: rgba(255,255,255,.022);
+  --scrim: rgba(0,0,0,.42);
+  --focus-ring: #3a2128;
+  --danger: #f08a80;
+  --danger-surface: #3a1f1d;
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.3);
+  --shadow: 0 8px 28px -12px rgba(0,0,0,.6);
+  --shadow-lg: 0 28px 70px -28px rgba(0,0,0,.7);
+  --p50: #3a2128;
+  --p100: #46262f;
+  --p200: #5a2f3a;
+  --p300: #7a4150;
+  --n100: #2c2926;
+  --n200: #352f2a;
+  --n300: #4a443d;
+  --n400: #6f675d;
+  --n800: #e8e2da;
+  --n900: #f5f1ea;
+}

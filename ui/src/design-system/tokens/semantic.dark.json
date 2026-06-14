@@ -1,0 +1,58 @@
+{
+  "semantic": {
+    "$description": "Desk lamp (dark) context — overrides for the semantic tier. Maps 1:1 to a DTCG resolver context once Style Dictionary ships full resolver support (tracking: style-dictionary#1590).",
+    "color": {
+      "$type": "color",
+      "accent":     { "$value": "#8a1a38", "$extensions": { "com.parchmark.cssName": "accent" } },
+      "accent-600": { "$value": "#d28fa0", "$extensions": { "com.parchmark.cssName": "accent-600" } },
+      "canvas":     { "$value": "#1b1917", "$extensions": { "com.parchmark.cssName": "canvas" } },
+      "surface":    { "$value": "#252220", "$extensions": { "com.parchmark.cssName": "surface" } },
+      "surface-2":  { "$value": "#211e1c", "$extensions": { "com.parchmark.cssName": "surface-2" } },
+      "text":       { "$value": "#f1ece4", "$extensions": { "com.parchmark.cssName": "text" } },
+      "text-2":     { "$value": "#bdb4a8", "$extensions": { "com.parchmark.cssName": "text-2" } },
+      "muted":      { "$value": "#8f867b", "$extensions": { "com.parchmark.cssName": "muted" } },
+      "line":       { "$value": "#322e29", "$extensions": { "com.parchmark.cssName": "line" } },
+      "line-2":     { "$value": "#3b362f", "$extensions": { "com.parchmark.cssName": "line-2" } },
+      "topbar-bg":  { "$value": "rgba(27,25,23,.82)", "$extensions": { "com.parchmark.cssName": "topbar-bg" } },
+      "paper-grain": { "$value": "rgba(255,255,255,.022)", "$extensions": { "com.parchmark.cssName": "paper-grain" } },
+      "scrim":      { "$value": "rgba(0,0,0,.42)", "$extensions": { "com.parchmark.cssName": "scrim" } },
+      "focus-ring": { "$value": "#3a2128", "$extensions": { "com.parchmark.cssName": "focus-ring" } },
+      "danger":     { "$value": "#f08a80", "$extensions": { "com.parchmark.cssName": "danger" } },
+      "danger-surface": { "$value": "#3a1f1d", "$extensions": { "com.parchmark.cssName": "danger-surface" } }
+    },
+    "shadow": {
+      "$type": "shadow",
+      "sm": {
+        "$value": [{ "offsetX": "0", "offsetY": "1px", "blur": "2px", "spread": "0", "color": "rgba(0,0,0,.3)" }],
+        "$extensions": { "com.parchmark.cssName": "shadow-sm" }
+      },
+      "md": {
+        "$value": [{ "offsetX": "0", "offsetY": "8px", "blur": "28px", "spread": "-12px", "color": "rgba(0,0,0,.6)" }],
+        "$extensions": { "com.parchmark.cssName": "shadow" }
+      },
+      "lg": {
+        "$value": [{ "offsetX": "0", "offsetY": "28px", "blur": "70px", "spread": "-28px", "color": "rgba(0,0,0,.7)" }],
+        "$extensions": { "com.parchmark.cssName": "shadow-lg" }
+      }
+    }
+  },
+  "color": {
+    "$description": "TRANSITIONAL DEBT: dark mode re-points some PRIMITIVES because component CSS consumes them directly (e.g. .minitag uses --p100, .prose th uses --n100). Canonical tiering forbids this — primitives should be immutable. Delete these once component CSS is migrated to semantic tokens.",
+    "burgundy": {
+      "$type": "color",
+      "50":  { "$value": "#3a2128", "$extensions": { "com.parchmark.cssName": "p50" } },
+      "100": { "$value": "#46262f", "$extensions": { "com.parchmark.cssName": "p100" } },
+      "200": { "$value": "#5a2f3a", "$extensions": { "com.parchmark.cssName": "p200" } },
+      "300": { "$value": "#7a4150", "$extensions": { "com.parchmark.cssName": "p300" } }
+    },
+    "neutral": {
+      "$type": "color",
+      "100": { "$value": "#2c2926", "$extensions": { "com.parchmark.cssName": "n100" } },
+      "200": { "$value": "#352f2a", "$extensions": { "com.parchmark.cssName": "n200" } },
+      "300": { "$value": "#4a443d", "$extensions": { "com.parchmark.cssName": "n300" } },
+      "400": { "$value": "#6f675d", "$extensions": { "com.parchmark.cssName": "n400" } },
+      "800": { "$value": "#e8e2da", "$extensions": { "com.parchmark.cssName": "n800" } },
+      "900": { "$value": "#f5f1ea", "$extensions": { "com.parchmark.cssName": "n900" } }
+    }
+  }
+}
