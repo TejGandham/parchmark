@@ -1,0 +1,46 @@
+{
+  "color": {
+    "$description": "Primitive brand ramps. Never consumed for new work — reference these from the semantic tier. (Existing component CSS still uses some directly; see README.)",
+    "burgundy": {
+      "$type": "color",
+      "50":  { "$value": "#F2E8EB", "$extensions": { "com.parchmark.cssName": "p50" } },
+      "100": { "$value": "#E5D2D8", "$extensions": { "com.parchmark.cssName": "p100" } },
+      "200": { "$value": "#D8BBC4", "$extensions": { "com.parchmark.cssName": "p200" } },
+      "300": { "$value": "#BF94A1", "$extensions": { "com.parchmark.cssName": "p300" } },
+      "400": { "$value": "#A66C7E", "$extensions": { "com.parchmark.cssName": "p400" } },
+      "500": { "$value": "#8D455B", "$extensions": { "com.parchmark.cssName": "p500" } },
+      "600": { "$value": "#742E45", "$extensions": { "com.parchmark.cssName": "p600" } },
+      "700": { "$value": "#5B172E", "$extensions": { "com.parchmark.cssName": "p700" } },
+      "800": { "$value": "#580c24", "$extensions": { "com.parchmark.cssName": "p800" } },
+      "900": { "$value": "#42061A", "$extensions": { "com.parchmark.cssName": "p900" } }
+    },
+    "neutral": {
+      "$type": "color",
+      "$description": "Warm neutrals.",
+      "50":  { "$value": "#FAF9F7", "$extensions": { "com.parchmark.cssName": "n50" } },
+      "100": { "$value": "#F5F3F0", "$extensions": { "com.parchmark.cssName": "n100" } },
+      "200": { "$value": "#E9E6E1", "$extensions": { "com.parchmark.cssName": "n200" } },
+      "300": { "$value": "#D1CCC4", "$extensions": { "com.parchmark.cssName": "n300" } },
+      "400": { "$value": "#A8A199", "$extensions": { "com.parchmark.cssName": "n400" } },
+      "500": { "$value": "#7F7770", "$extensions": { "com.parchmark.cssName": "n500" } },
+      "600": { "$value": "#5F5851", "$extensions": { "com.parchmark.cssName": "n600" } },
+      "700": { "$value": "#403C37", "$extensions": { "com.parchmark.cssName": "n700" } },
+      "800": { "$value": "#2B2825", "$extensions": { "com.parchmark.cssName": "n800" } },
+      "900": { "$value": "#1A1816", "$extensions": { "com.parchmark.cssName": "n900" } }
+    }
+  },
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "serif": { "$value": ["Playfair Display", "Georgia", "serif"], "$extensions": { "com.parchmark.cssName": "serif" } },
+      "sans":  { "$value": ["Inter", "system-ui", "sans-serif"], "$extensions": { "com.parchmark.cssName": "sans" } },
+      "mono":  { "$value": ["JetBrains Mono", "ui-monospace", "Menlo", "monospace"], "$extensions": { "com.parchmark.cssName": "mono" } }
+    }
+  },
+  "radius": {
+    "base": { "$type": "dimension", "$value": "12px", "$extensions": { "com.parchmark.cssName": "r" } }
+  },
+  "layout": {
+    "sidebar-width": { "$type": "dimension", "$value": "312px", "$extensions": { "com.parchmark.cssName": "sidebar-w" } }
+  }
+}

@@ -9,5 +9,4 @@ else
     cp /etc/nginx/conf.d/nginx.http.conf /etc/nginx/conf.d/default.conf
 fi
 
-# Start Nginx
 exec nginx -g 'daemon off;'
