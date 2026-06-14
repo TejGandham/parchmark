@@ -17,65 +17,51 @@ Known shortcuts, deferred improvements, and open questions.
 
 <!-- Shortcuts taken, unexpected issues discovered during feature work -->
 
-- [ ] **safety-auditor agent master carries unfilled placeholder invariants.**
-      Surfaced during WI01 (karta lane): `.claude/agents/safety-auditor.md`
-      still contains the framework template's `[YOUR INVARIANT RULE N]`
-      CUSTOMIZE block, while the project's seven configured invariants live
-      in `docs/design-docs/core-beliefs.md` (named by AGENTS.md as the
-      registry the auditor enforces). The master's fail-closed rule reads
-      literally as "invariants unconfigured." Fold the seven rules (or an
-      explicit pointer to the core-beliefs registry) into the agent master
-      so the file and the registry agree.
-
 - [ ] **`test-utils/render` references point to a non-existent module.**
       AGENTS.md (Testing table) and `docs/design-docs/core-beliefs.md`
       (Layer 4, Testing Infrastructure) reference `ui/test-utils/render.tsx`;
       no such file exists. The actual provider-wrapping helpers are
       `TestProvider` / `renderWithProviders` in
-      `ui/src/__tests__/__mocks__/testUtils.tsx`. Surfaced by WI01, whose
-      Binder oracle tooling cited "render from test-utils/render". Either
-      create the documented helper or fix both doc references.
+      `ui/src/__tests__/__mocks__/testUtils.tsx`. Either create the
+      documented helper or fix both doc references.
 
-### From `/keel-adopt` (Phase 4 roundtable)
+### Cross-cutting
 
-- [ ] **Markdown parity as a shared test fixture.** The proposed Invariant
-      #7 ("markdown utils FE/BE must match") was dropped from the grep
-      safety-auditor set because cross-language regex equivalence can't be
-      reliably grep-enforced. Follow-up: port the `markdownTestCases`
-      fixture from `ui/src/utils/markdown.ts` into a JSON file that both
-      test suites import, then write a Python test in
-      `backend/tests/unit/` that loads it and asserts identical outputs.
-      Until then, parity is enforced only by convention + the
-      `parchmark-markdown-sync` skill.
+- [ ] **Markdown parity as a shared test fixture.** Frontend/backend
+      markdown utils must produce identical output, but cross-language
+      regex equivalence can't be reliably enforced by a static check.
+      Follow-up: port the `markdownTestCases` fixture from
+      `ui/src/utils/markdown.ts` into a JSON file that both test suites
+      import, then write a Python test in `backend/tests/unit/` that loads
+      it and asserts identical outputs. Until then, parity is enforced only
+      by convention + the `parchmark-markdown-sync` skill.
 
-- [ ] **Auth-provider consistency DB invariant** (surfaced by Codex in the
-      hivemind pass). `User.auth_provider='local'` should imply
-      `password_hash IS NOT NULL`; `auth_provider='oidc'` should imply
-      `oidc_sub IS NOT NULL`. Currently only the Python-side logic
-      enforces this; adding a CHECK constraint would make it DB-level.
+- [ ] **Auth-provider consistency DB invariant.**
+      `User.auth_provider='local'` should imply `password_hash IS NOT NULL`;
+      `auth_provider='oidc'` should imply `oidc_sub IS NOT NULL`. Currently
+      only the Python-side logic enforces this; adding a CHECK constraint
+      would make it DB-level.
 
-- [ ] **CORS `ALLOWED_ORIGINS` sanity check** (Claude, hivemind). No
-      invariant rule forbids `*` wildcards in production. Add a
-      safety-auditor grep pattern once we've confirmed the deploy
+- [ ] **CORS `ALLOWED_ORIGINS` sanity check.** Nothing forbids `*`
+      wildcards in production. Add a check once we've confirmed the deploy
       pipeline never sets a wildcard.
 
-- [ ] **`Depends(get_async_db)` enforcement.** Add an invariant that
-      prohibits module-level `AsyncSession` construction; every session
-      must be request-scoped via `Depends`. Current code already honours
-      this but it's un-gated.
+- [ ] **`Depends(get_async_db)` enforcement.** Prohibit module-level
+      `AsyncSession` construction; every session must be request-scoped via
+      `Depends`. Current code already honours this but it's un-enforced.
 
 ## Post-MVP
 
 <!-- Improvements to make after core features land -->
 
-- [ ] **Automated doc-drift sweeps.** Today `doc-gardener` is invoked
-      manually; schedule periodic sweeps once the repo grows past ~50
+- [ ] **Automated doc-drift sweeps.** Doc-drift checks are run manually
+      today; schedule periodic sweeps once the repo grows past ~50
       docs or we catch our second stale cross-reference in review.
 - [ ] **Alembic reversibility CI check.** Until we actually feel the pain
-      of a broken downgrade, don't invest in this — but the invariant
-      was proposed by Claude in roundtable and deferred for this reason.
+      of a broken downgrade, don't invest in this — deferred for this
+      reason.
 
-- [ ] **Pre-existing doc drift surfaced by F14's post-commit doc-gardener.**
+- [ ] **Pre-existing doc drift surfaced by an F14 post-commit doc sweep.**
       Ad-hoc sweep after F14 commit found drift not caused by F14 but
       worth tracking for a future docs cleanup feature: (1) `AGENTS.md:17,140`
       points to non-existent `docs/north-star.md` — actual file is
@@ -89,7 +75,7 @@ Known shortcuts, deferred improvements, and open questions.
       by contract).
 
 - [ ] **`docs/deployment_upgrade/archive/` P5 timeline-artifact drift.**
-      Doc-gardener flagged three §P5 violations during F14's pipeline:
+      A doc sweep flagged three §P5 violations during F14:
       `DEPLOYMENT.md` carries a `## Changelog` section with version
       table; `PHASE4_GITHUB_SECRETS.md` and `DEPLOYMENT_VALIDATED.md`
       carry "as of January 2025" annotations in current-state assertions.
@@ -103,7 +89,7 @@ Known shortcuts, deferred improvements, and open questions.
       `backend/tests/integration/notes/test_endpoint_removal.py` is an
       accumulator file holding multiple feature class-pairs (HTTP-tier
       + grep-tier + filesystem-tier per removed endpoint). Surfaced by
-      roundtable landing review during F14. Consider parameterized
+      landing review during F14. Consider parameterized
       fixtures or a dedicated `removed_endpoints/` subdirectory if the
       pattern recurs in future retirements, or retire the grep-tier and
       filesystem-tier classes entirely across F12–F15 in a single
@@ -118,7 +104,7 @@ Known shortcuts, deferred improvements, and open questions.
       past the backend and unit gates.
 
 - [ ] **`renderDateGroups` path lacks virtualization (TD-F17-1).** Surfaced
-      by F17 roundtable landing review. The non-search render path in
+      by F17 landing review. The non-search render path in
       `NotesExplorer.tsx` (`renderDateGroups`) renders every note as a
       non-windowed React element. Pre-existing — search-only virtualization
       predates the `remove-for-you` PRD — but increasingly load-bearing
@@ -129,7 +115,7 @@ Known shortcuts, deferred improvements, and open questions.
       or paginate. Out of scope for F17's contract.
 
 - [ ] **Deletion-fence regex hardening (TD-F17-2).** Surfaced by F17
-      roundtable landing review (Claude + Codex). Both
+      landing review. Both
       `NotesExplorer.f17-deletion.test.tsx` and the F16 sibling
       `CommandPalette.f16-deletion.test.tsx` use raw substring regex
       against file contents (e.g. `/forYou/`). A future innocent
@@ -140,7 +126,7 @@ Known shortcuts, deferred improvements, and open questions.
       (the fence is a transient guard, not a durable test).
 
 - [ ] **Search-virtualization branch untested at scale (TD-F17-3).**
-      Surfaced by F17 roundtable landing review (Codex). The
+      Surfaced by F17 landing review. The
       virtualization gate in `NotesExplorer.tsx` (`filteredNotes.length
       > 50`) is never exercised by the test suite — `sampleNotes`
       contains 5 items, threshold is 50. A future refactor could break
@@ -148,41 +134,16 @@ Known shortcuts, deferred improvements, and open questions.
       search test asserting `virtual-notes-list` renders with the
       expected count. Optional polish; not a contract requirement.
 
-- [ ] **`/keel-refine` consumer-path enumeration template for removal-features.**
-      Four consecutive removal pipelines required mid-flight PRD amendments
-      because the drafter under-enumerated consumer paths at refine time:
-      F15 (PR #82, `test_backfill.py` import in deleted-target),
-      F19 (PR #85, router/schema/test consumer paths to dropped columns),
-      F20 (paused; migration-history pgvector imports + 4 compose files
-      + conftest image swap),
-      F16+F17 (PR #87, `SimilarNote` import + test-file scope + orphan
-      `section.forYou` semantic token).
-      Pattern: each removal feature's PRD lists the primary deletion target
-      but misses transitive consumers (test files, type imports, style
-      tokens, lockfile/dep ripples, infra image references).
-      Roundtable across all four pipelines independently flagged the same
-      diagnosis — recommendation: extend `/keel-refine` with a removal-
-      feature checklist that walks the drafter through (a) render path,
-      (b) service exports + dependency graph, (c) utility consumers,
-      (d) type/config constants, (e) theme/style tokens, (f) test mocks
-      + shared setup files, (g) infra (compose, dockerfile, lockfile),
-      (h) doc surfaces. Per-removal one-time drafter cost; collapses
-      multiple amendment-PR cycles into one refine pass. The KEEL
-      framework is "a customization point, not a cage" (KEEL-CONTRACT)
-      — this is the framework upgrade the data is asking for.
-
-- [ ] **Audit future migrations for brownfield-tolerance guards.** F20's
-      arch-advisor consultation codified the pattern (inspect →
-      `_table_exists` → return early on fresh DB) in CLAUDE.md
-      "Migration history conventions". All six migrations in the current
-      chain follow the pattern (`170dd30cebde` was retrofitted in F20's
-      post-merge-fix-1 after CI surfaced the gap on fresh vanilla-postgres
-      containers). Going forward: every new migration MUST include the
-      `_table_exists` / column / index inspector guards before mutating
-      DDL, so the chain remains replayable on a literally-empty DB
-      regardless of the `create_all` vs `alembic-first` boot ordering.
-      Optionally: tighten F20 oracle assertion 5's regex from
-      `from pgvector|Vector\(` to `from pgvector\.|Vector\(` so
-      historical prose mentioning "pgvector" doesn't force migration-body
-      cosmetic edits to clear the grep (raised by arch-advisor VERIFY
-      future-considerations).
+- [ ] **Audit future migrations for brownfield-tolerance guards.** F20
+      codified the pattern (inspect → `_table_exists` → return early on
+      fresh DB) in CLAUDE.md "Migration history conventions". All six
+      migrations in the current chain follow the pattern (`170dd30cebde`
+      was retrofitted in F20's post-merge-fix-1 after CI surfaced the gap
+      on fresh vanilla-postgres containers). Going forward: every new
+      migration MUST include the `_table_exists` / column / index inspector
+      guards before mutating DDL, so the chain remains replayable on a
+      literally-empty DB regardless of the `create_all` vs `alembic-first`
+      boot ordering. Optionally: tighten F20's pgvector grep assertion from
+      `from pgvector|Vector\(` to `from pgvector\.|Vector\(` so historical
+      prose mentioning "pgvector" doesn't force migration-body cosmetic
+      edits to clear the grep.

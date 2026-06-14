@@ -47,11 +47,3 @@ coverage.xml
 
 .claude/settings.local.json
 
-# >>> KEEL-managed worktree exclusion — DO NOT EDIT this block >>>
-# /karta-drive builds each work item in an ephemeral git worktree under
-# .keel/worktrees/. These are disposable scaffolding, never tracked —
-# an un-ignored worktree stages as a bogus gitlink under `git add -A`.
-# Removed on uninstall.
-
-.keel/worktrees/
-# <<< KEEL-managed worktree exclusion <<<

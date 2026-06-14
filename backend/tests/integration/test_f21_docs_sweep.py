@@ -132,7 +132,7 @@ _EXCLUDED_DIR_PARTS: tuple[str, ...] = (
     "docs/exec-plans/completed",
     # (A/B) All PRD JSON files are source-of-record documents
     "docs/exec-plans/prds",
-    # (B) Archived deployment and design docs — historical, pre-KEEL artefacts
+    # (B) Archived deployment and design docs — historical, legacy artefacts
     "docs/deployment_upgrade/archive",
     "docs/design-docs/archive",
     # (F) Active backlog + tech-debt tracker reference literals as PRD-derived titles

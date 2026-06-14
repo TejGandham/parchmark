@@ -1,5 +1,3 @@
-@.keel/KEEL-CONTRACT.md
-
 Guidance for Claude Code working with the ParchMark codebase. This file is a table of contents — follow links for depth.
 
 ## Project at a Glance
@@ -14,43 +12,10 @@ Guidance for Claude Code working with the ParchMark codebase. This file is a tab
 
 Deeper references:
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — domain / layer maps, dependency rules
-- [`docs/north-star.md`](docs/north-star.md) — vision, four loops, growth stages
 - [`docs/design-docs/index.md`](docs/design-docs/index.md) — core beliefs, UI design, code patterns, design context
-- [`docs/process/THE-KEEL-PROCESS.md`](docs/process/THE-KEEL-PROCESS.md) — KEEL pipeline + agent roster
-- [`docs/process/PIPELINE-DOCTRINE.md`](docs/process/PIPELINE-DOCTRINE.md) — canonical: JSON Binders are the only pipeline input; autonomy ceiling
 - [`PRODUCTION_DEPLOYMENT.md`](PRODUCTION_DEPLOYMENT.md) — deployment runbook
 
-## KEEL Framework
-
-All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
-
-```bash
-/keel-refine <prose, markdown file, or bundle dir>        # draft JSON Binder(s) + backlog entries
-/keel-pipeline WI## docs/exec-plans/binders/<slug>.json   # run pre-check → tests → impl → reviews → landing
-/keel-safety-check                                        # quick invariant audit on current diff
-/keel-submit <binder>                                     # push built keel/WI##-* branches, open PRs bottom-up
-```
-
-The Karta lean lane (`/karta-refine` → `/karta-pipeline` / `/karta-drive`) runs lower-rigor builds on the same Binder shape — see [`docs/process/KARTA-LANE.md`](docs/process/KARTA-LANE.md).
-
-- **Specs** live in `docs/product-specs/` (template at `_TEMPLATE.md`)
-- **Binders** at `docs/exec-plans/binders/<slug>.json` (validated against `schemas/binder.schema.json`)
-- **Backlog** at `docs/exec-plans/active/backlog.md`
-- **Tech debt** at `docs/exec-plans/tech-debt-tracker.md`
-- **Active plans** in `docs/exec-plans/active/`, completed in `completed/`
-- **Domain invariants** (the seven rules the safety-auditor enforces) live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md)
-
-### Pipeline Preferences
-
-| Setting | Value | Notes |
-|-|-|-|
-| Review panel | `roundtable` | Multi-model review via the roundtable MCP server; falls back to the in-process persona panel when MCP is unavailable (review is never skipped — see `docs/process/REVIEW-PANEL.md`). Required for any change that amends the seven invariants or crosses an architectural layer boundary; optional for routine feature work. |
-| Branching policy | `halt` | Controls how `/keel-pipeline WI##` handles unmerged `Needs:`. `halt` (default — least-assuming) refuses to start WI## with unmerged Needs and emits a CTA. `stack` (opt-in, or per-invocation via `--stack`) branches WI## from the unmerged intra-Binder ancestor's tip and sets the PR base to that branch (use `tea pr create --base <parent>` for parchmark's Forgejo workflow — see Gotchas §"Git Remotes"). Cross-Binder Needs always halt regardless of policy. Stack-mode restack on re-invocation requires Git ≥ 2.38. See Step 0 of `.claude/skills/keel-pipeline/SKILL.md`. |
-| Prototype mode | `reference` | Default disposition when `/keel-refine` ingests a UI/UX prototype bundle. `reference` (default — least-assuming) treats prototype assets as visual context; `seed` permits agents to lift markup/styles from the prototype into the implementation. Per-prototype `prototype.json` overrides this; per-card edits during the refine walk override that. See Step 2a-bis in `.claude/skills/keel-refine/SKILL.md`. |
-| Safety-gate hook | PreToolUse on Edit/Write | Surfaces a reminder to run `/keel-safety-check` when editing files under `backend/app/{auth,routers,models,database}/` |
-| Formatter hook | PostToolUse on Edit/Write | Auto-runs `ruff format` + `ruff check --fix` on `.py` files and `prettier` on `.ts`/`.tsx` files |
-| Markdown parity hook | PostToolUse on Edit/Write | Reminds to run `/parchmark-markdown-sync` when editing either `markdown.ts` or `markdown.py` |
-| Doc-drift hook | PostToolUse on Bash | Reminds to invoke the `doc-gardener` agent after `git commit` |
+Domain invariants live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md). Tech debt is tracked in `docs/exec-plans/tech-debt-tracker.md`.
 
 ## Feature & Bug Workflow
 
@@ -140,15 +105,11 @@ parchmark/
 ├── makefiles/           # modular make targets
 ├── deploy/              # production scripts
 ├── docs/
-│   ├── north-star.md
-│   ├── process/         # KEEL reference guides
 │   ├── design-docs/     # core beliefs, UI design, code patterns, design context
-│   ├── exec-plans/      # active + completed plans, backlog, binders/, tech-debt
+│   ├── exec-plans/      # completed handoffs, tech-debt-tracker
 │   ├── product-specs/   # feature specs
 │   └── references/      # external docs, llms.txt
-├── schemas/             # binder, prototype, routing, resolved-work-item schemas
-├── .claude/             # agents, skills
-└── .keel/               # KEEL contract, hooks, install receipt, uninstaller
+└── .claude/             # skills
 ```
 
 ## API Surface
@@ -276,15 +237,7 @@ Before committing UI changes, use Chrome DevTools MCP:
 - **`parchmark-branch-setup`** — fresh branch (or optional worktree) before any code change
 - **`parchmark-land`** — session-end: commit, push, verify
 - **`parchmark-markdown-sync`** — run after editing markdown utils to verify FE/BE parity
-
-### KEEL (`.claude/skills/`)
-- **`keel-refine`** — draft JSON Binder(s) + backlog entries from prose/markdown/bundles (never auto-runs the pipeline)
-- **`keel-pipeline`** — orchestrate pre-check → test-writer → implementer → reviews → landing for one WI##
-- **`keel-submit`** — push built `keel/WI##-*` branches and open one PR per branch, bottom-up
-- **`keel-adopt`** — one-time brownfield setup (project guide, domain invariants, hook wiring)
-- **`keel-setup`** — greenfield interview-driven setup
-- **`keel-safety-check`** — scan current diff against domain invariants
-- **`karta-refine`** / **`karta-pipeline`** / **`karta-drive`** — lean lane: lower-rigor builds on the same Binder shape, declared-debt markers at every cut
+- **`migration-check`** — validate Alembic migrations before deploying
 
 ## Landing a PR (Session Completion)
 

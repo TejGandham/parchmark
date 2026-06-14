@@ -8,7 +8,7 @@
 
 FROM ubuntu:24.04
 
-# Install git (required for KEEL) + your stack's runtime
+# Install git + your stack's runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \

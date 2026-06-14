@@ -4,14 +4,13 @@ Non-negotiable principles that govern every decision in ParchMark.
 
 ## Domain Safety — The Seven Invariants
 
-Each rule below was derived from current code (Phase 4 of `/keel-adopt`),
-stress-tested by a multi-model roundtable (`challenge` + `hivemind`), and
-locked in. Every invariant is grep-detectable and evidence-backed — the
+Each rule below was derived from the current code and locked in. Every
+invariant is grep-detectable and evidence-backed — the
 codebase already honours it.
 
 A violation of any of these is a bug or a security issue, not a style
-preference. The safety-auditor scans every diff against these rules and
-refuses to pass work that violates them.
+preference. Every diff must be checked against these rules; work that
+violates them must not ship.
 
 ### 1. Tenant isolation on every Note ORM operation
 
@@ -46,8 +45,8 @@ transitively via a router-level `dependencies=[...]`), **OR**
 | `POST` | `/api/auth/refresh` |
 | `GET` | `/api/notes/health/check` |
 
-Any new public endpoint requires an explicit update to this list and the
-safety-auditor rule — public routes don't become public by accident.
+Any new public endpoint requires an explicit update to this list —
+public routes don't become public by accident.
 
 ### 3. No raw SQL outside the one whitelisted site
 
@@ -160,9 +159,6 @@ Drawn from [design-context.md](./design-context.md):
   maintenance.
 - The human steers. Claude executes.
 - Every decision must be traceable to a document in this repo.
-- The KEEL pipeline (`/keel-pipeline`) is the default path for any feature
-  or bug larger than a one-line typo; see
-  [docs/process/THE-KEEL-PROCESS.md](../process/THE-KEEL-PROCESS.md).
 
 ## Testing Strategy: Spec-Driven Testing
 
@@ -173,7 +169,6 @@ has a corresponding test. When specs change, tests change first.
 
 Docs must not contradict each other. Before writing tests, verify that
 product-specs, design-docs, exec-plans, and ARCHITECTURE.md agree.
-`spec-reviewer` agent runs this check.
 
 ### Layer 1: Safety Invariants (the seven)
 
