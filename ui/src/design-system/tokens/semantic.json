@@ -1,0 +1,59 @@
+{
+  "semantic": {
+    "$description": "Semantic tier — what components consume. Light (Parchment) theme values; dark (Desk lamp) overrides live in semantic.dark.json.",
+    "color": {
+      "$type": "color",
+      "accent":     { "$value": "{color.burgundy.800}", "$extensions": { "com.parchmark.cssName": "accent" } },
+      "accent-600": { "$value": "{color.burgundy.600}", "$extensions": { "com.parchmark.cssName": "accent-600" } },
+      "canvas":     { "$value": "#f6f4ef", "$description": "App background (parchment).", "$extensions": { "com.parchmark.cssName": "canvas" } },
+      "surface":    { "$value": "#ffffff", "$description": "Cards, panels, editor.", "$extensions": { "com.parchmark.cssName": "surface" } },
+      "surface-2":  { "$value": "#fbfaf7", "$description": "Subtle raised surface.", "$extensions": { "com.parchmark.cssName": "surface-2" } },
+      "text":       { "$value": "{color.neutral.900}", "$extensions": { "com.parchmark.cssName": "text" } },
+      "text-2":     { "$value": "{color.neutral.600}", "$extensions": { "com.parchmark.cssName": "text-2" } },
+      "muted":      { "$value": "{color.neutral.500}", "$extensions": { "com.parchmark.cssName": "muted" } },
+      "line":       { "$value": "#ece8e1", "$description": "Hairline borders.", "$extensions": { "com.parchmark.cssName": "line" } },
+      "line-2":     { "$value": "#e2ddd4", "$description": "Stronger borders.", "$extensions": { "com.parchmark.cssName": "line-2" } },
+      "topbar-bg":  { "$value": "rgba(246,244,239,.85)", "$description": "Topbar translucent backdrop.", "$extensions": { "com.parchmark.cssName": "topbar-bg" } },
+      "paper-grain": { "$value": "rgba(88,12,36,.025)", "$description": "Subtle app shell grain.", "$extensions": { "com.parchmark.cssName": "paper-grain" } },
+      "scrim":      { "$value": "rgba(43,40,37,.3)", "$description": "Mobile drawer scrim.", "$extensions": { "com.parchmark.cssName": "scrim" } },
+      "focus-ring": { "$value": "#F2E8EB", "$description": "Focus outline ring.", "$extensions": { "com.parchmark.cssName": "focus-ring" } },
+      "danger":     { "$value": "#b3261e", "$description": "Destructive action foreground.", "$extensions": { "com.parchmark.cssName": "danger" } },
+      "danger-surface": { "$value": "#fdecea", "$description": "Destructive action hover surface.", "$extensions": { "com.parchmark.cssName": "danger-surface" } }
+    },
+    "shadow": {
+      "$type": "shadow",
+      "sm": {
+        "$value": [
+          { "offsetX": "0", "offsetY": "1px", "blur": "2px", "spread": "0", "color": "rgba(43,40,37,.06)" },
+          { "offsetX": "0", "offsetY": "1px", "blur": "1px", "spread": "0", "color": "rgba(43,40,37,.04)" }
+        ],
+        "$extensions": { "com.parchmark.cssName": "shadow-sm" }
+      },
+      "md": {
+        "$value": [{ "offsetX": "0", "offsetY": "6px", "blur": "24px", "spread": "-10px", "color": "rgba(43,40,37,.20)" }],
+        "$description": "Default elevation. Legacy CSS name is plain --shadow.",
+        "$extensions": { "com.parchmark.cssName": "shadow" }
+      },
+      "lg": {
+        "$value": [{ "offsetX": "0", "offsetY": "24px", "blur": "60px", "spread": "-24px", "color": "rgba(43,40,37,.32)" }],
+        "$extensions": { "com.parchmark.cssName": "shadow-lg" }
+      }
+    },
+    "dimension": {
+      "$type": "dimension",
+      "topbar-padding-x": { "$value": "28px", "$extensions": { "com.parchmark.cssName": "topbar-padding-x" } },
+      "topbar-padding-y": { "$value": "12px", "$extensions": { "com.parchmark.cssName": "topbar-padding-y" } },
+      "topbar-gap": { "$value": "14px", "$extensions": { "com.parchmark.cssName": "topbar-gap" } },
+      "tool-size": { "$value": "34px", "$extensions": { "com.parchmark.cssName": "tool-size" } },
+      "tool-radius": { "$value": "9px", "$extensions": { "com.parchmark.cssName": "tool-radius" } },
+      "segment-radius": { "$value": "9px", "$extensions": { "com.parchmark.cssName": "segment-radius" } },
+      "segment-item-radius": { "$value": "7px", "$extensions": { "com.parchmark.cssName": "segment-item-radius" } },
+      "menu-radius": { "$value": "12px", "$extensions": { "com.parchmark.cssName": "menu-radius" } },
+      "drawer-width": { "$value": "300px", "$extensions": { "com.parchmark.cssName": "drawer-width" } }
+    },
+    "breakpoint": {
+      "$type": "dimension",
+      "sidebar-collapse": { "$value": "860px", "$extensions": { "com.parchmark.cssName": "sidebar-collapse" } }
+    }
+  }
+}
