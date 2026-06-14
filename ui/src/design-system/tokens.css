@@ -58,6 +58,8 @@
   --text: var(--n900);
   --text-2: var(--n600);
   --muted: var(--n500);
+  --tool-hover-border: var(--p300); /** Tool button hover border. */
+  --menu-hover-surface: var(--n100); /** Menu item hover surface. */
 }
 
 /**
@@ -95,4 +97,6 @@
   --n400: #6f675d;
   --n800: #e8e2da;
   --n900: #f5f1ea;
+  --tool-hover-border: var(--p300);
+  --menu-hover-surface: var(--n100);
 }

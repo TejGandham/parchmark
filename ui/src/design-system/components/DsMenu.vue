@@ -127,7 +127,7 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 .ds-menu__item:hover,
 .ds-menu__item:focus-visible {
   color: var(--text);
-  background: var(--surface-2);
+  background: var(--menu-hover-surface);
   outline: none;
 }
 

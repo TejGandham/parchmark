@@ -48,7 +48,7 @@ withDefaults(defineProps<DsToolButtonProps>(), {
 .ds-tool-button:hover:not(:disabled),
 .ds-tool-button.is-active {
   color: var(--accent);
-  border-color: var(--accent-600);
+  border-color: var(--tool-hover-border);
 }
 
 .ds-tool-button.is-active {
