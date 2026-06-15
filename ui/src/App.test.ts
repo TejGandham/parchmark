@@ -15,7 +15,8 @@ describe("App", () => {
     expect(wrapper.get(".wordmark").text()).toBe("ParchMark");
     expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
     expect(wrapper.find('[role="radiogroup"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain("Today");
+    expect(wrapper.get(".prose").text()).toContain("Today");
+    expect(wrapper.find(".prose blockquote").exists()).toBe(true);
   });
 
   it("filters notes by search and tag, then selects the remaining note", async () => {
