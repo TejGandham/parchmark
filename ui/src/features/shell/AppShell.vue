@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
+import MarkdownProse from "@/features/notes/MarkdownProse.vue";
 import { mockNotes, type NoteMock } from "@/features/notes/mockNotes";
 import {
   allTags,
   extractTitle,
-  plainPreview,
   readingTime,
   relTime,
   wordCount,
@@ -72,10 +72,6 @@ const activeNote = computed(
 
 const activeTitle = computed(() =>
   activeNote.value ? extractTitle(activeNote.value.content) : "Untitled",
-);
-
-const bodyPreview = computed(() =>
-  activeNote.value ? plainPreview(activeNote.value.content) : "",
 );
 
 function selectNote(id: string) {
@@ -235,7 +231,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
             </span>
           </div>
           <div class="rule" />
-          <p class="note-body">{{ bodyPreview }}</p>
+          <MarkdownProse :markdown="activeNote.content" />
         </div>
       </section>
 
@@ -344,13 +340,6 @@ function handleNoteMenuAction(id: NoteMenuAction) {
   height: 1px;
   margin: 26px 0;
   background: var(--line-2);
-}
-
-.note-body {
-  margin: 0;
-  color: var(--text);
-  font-size: 17px;
-  line-height: 1.72;
 }
 
 .settings-placeholder,

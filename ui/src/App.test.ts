@@ -18,7 +18,8 @@ describe("App", () => {
     expect(wrapper.find('[aria-label="Switch to edit mode"]').exists()).toBe(
       true,
     );
-    expect(wrapper.text()).toContain("Today");
+    expect(wrapper.get(".prose").text()).toContain("Today");
+    expect(wrapper.find(".prose blockquote").exists()).toBe(true);
   });
 
   it("filters notes by search and tag, then selects the remaining note", async () => {
