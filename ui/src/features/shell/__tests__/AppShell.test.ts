@@ -35,4 +35,37 @@ describe("AppShell", () => {
 
     expect(wrapper.find('[aria-checked="true"]').text()).toContain("Edit");
   });
+
+  it("renders the active note body as structured markdown", () => {
+    const wrapper = mount(AppShell);
+
+    expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
+    expect(wrapper.get(".prose h2").text()).toBe("What it's for");
+    expect(wrapper.find(".prose blockquote").exists()).toBe(true);
+    expect(wrapper.findAll(".prose li")).toHaveLength(3);
+    expect(wrapper.find(".note-body").exists()).toBe(false);
+  });
+
+  it("renders table and task-list markdown when selecting notes", async () => {
+    const wrapper = mount(AppShell);
+    const cards = wrapper.findAll(".note-card");
+
+    await cards
+      .find((card) => card.text().includes("Reading list"))
+      ?.trigger("click");
+    expect(wrapper.find(".prose table").exists()).toBe(true);
+    expect(wrapper.findAll(".prose th").map((cell) => cell.text())).toEqual([
+      "Title",
+      "Author",
+      "Why",
+    ]);
+
+    await cards
+      .find((card) => card.text().includes("Standup notes"))
+      ?.trigger("click");
+    const checkboxes = wrapper.findAll('.prose input[type="checkbox"]');
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes[0].attributes("checked")).toBeDefined();
+    expect(checkboxes[0].attributes("disabled")).toBeDefined();
+  });
 });
