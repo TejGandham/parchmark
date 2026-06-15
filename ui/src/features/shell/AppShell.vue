@@ -1,20 +1,6 @@
 <script setup lang="ts">
-import { computed, markRaw, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
-import DsMenu from "@/design-system/components/DsMenu.vue";
-import DsSegment from "@/design-system/components/DsSegment.vue";
-import DsToolButton from "@/design-system/components/DsToolButton.vue";
-import {
-  CopyIcon,
-  DownloadIcon,
-  EditIcon,
-  EyeIcon,
-  MenuIcon,
-  MoonIcon,
-  MoreIcon,
-  SunIcon,
-  TrashIcon,
-} from "@/design-system/icons";
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
 import { mockNotes, type NoteMock } from "@/features/notes/mockNotes";
 import {
@@ -25,6 +11,8 @@ import {
   wordCount,
 } from "@/features/notes/noteMockHelpers";
 
+import AppTopbar from "./AppTopbar.vue";
+import type { NoteMenuAction, NoteMode } from "./headerTypes";
 import SidebarDrawer from "./SidebarDrawer.vue";
 
 const notes = ref<NoteMock[]>(mockNotes.slice());
@@ -32,35 +20,15 @@ const activeId = ref(
   notes.value.slice().sort((left, right) => right.updatedAt - left.updatedAt)[0]
     ?.id ?? null,
 );
-const mode = ref("read");
+const mode = ref<NoteMode>("read");
 const search = ref("");
 const activeTags = ref<string[]>([]);
 const menuOpen = ref(false);
 const navOpen = ref(false);
 const settingsActive = ref(false);
-const theme = ref(
-  typeof localStorage === "undefined"
-    ? "light"
-    : localStorage.getItem("pm_theme") || "light",
-);
-
-const segmentOptions = [
-  { value: "read", label: "Read", icon: markRaw(EyeIcon) },
-  { value: "edit", label: "Edit", icon: markRaw(EditIcon) },
-];
-
-const menuItems = [
-  { id: "edit", label: "Edit note", icon: markRaw(EditIcon) },
-  { id: "copy", label: "Copy markdown", icon: markRaw(CopyIcon) },
-  { id: "export", label: "Export .md", icon: markRaw(DownloadIcon) },
-  {
-    id: "delete",
-    label: "Delete note",
-    icon: markRaw(TrashIcon),
-    danger: true,
-    separatorBefore: true,
-  },
-];
+const storedTheme =
+  typeof localStorage === "undefined" ? null : localStorage.getItem("pm_theme");
+const theme = ref<"light" | "dark">(storedTheme === "dark" ? "dark" : "light");
 
 watch(
   theme,
@@ -147,9 +115,52 @@ function toggleTheme() {
   theme.value = theme.value === "dark" ? "light" : "dark";
 }
 
-function handleMenuSelect(id: string) {
-  if (id === "edit") {
-    mode.value = "edit";
+function startEdit() {
+  mode.value = "edit";
+}
+
+async function copyActiveMarkdown() {
+  if (!activeNote.value || !navigator.clipboard) return;
+  await navigator.clipboard.writeText(activeNote.value.content);
+}
+
+function exportActiveMarkdown() {
+  if (!activeNote.value || typeof URL.createObjectURL !== "function") return;
+
+  const slug = activeTitle.value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const blob = new Blob([activeNote.value.content], {
+    type: "text/markdown;charset=utf-8",
+  });
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = href;
+  anchor.download = `${slug || "note"}.md`;
+  anchor.click();
+  URL.revokeObjectURL(href);
+}
+
+function deleteActiveNote() {
+  if (!activeNote.value) return;
+
+  const deletedId = activeNote.value.id;
+  notes.value = notes.value.filter((note) => note.id !== deletedId);
+  activeId.value = notes.value[0]?.id ?? null;
+  mode.value = "read";
+}
+
+function handleNoteMenuAction(id: NoteMenuAction) {
+  if (id === "copy") {
+    void copyActiveMarkdown();
+  }
+  if (id === "export") {
+    exportActiveMarkdown();
+  }
+  if (id === "delete") {
+    deleteActiveNote();
   }
   menuOpen.value = false;
 }
@@ -180,60 +191,18 @@ function handleMenuSelect(id: string) {
     />
 
     <main class="main-pane">
-      <header class="topbar" aria-label="Note toolbar">
-        <DsToolButton class="menu-toggle" label="Menu" @click="navOpen = true">
-          <MenuIcon :aria-hidden="true" />
-        </DsToolButton>
-
-        <div class="crumb">
-          <template v-if="activeTags.length">
-            <span>Filtered</span>
-            <strong v-for="tag in activeTags" :key="tag">#{{ tag }}</strong>
-          </template>
-          <span v-else>All notes</span>
-          <template v-if="activeNote">
-            <span class="crumb__slash" aria-hidden="true">/</span>
-            <strong>{{ activeTitle }}</strong>
-          </template>
-        </div>
-
-        <div class="spacer" />
-
-        <DsSegment
-          v-if="activeNote && !settingsActive"
-          v-model="mode"
-          ariaLabel="Note view mode"
-          :options="segmentOptions"
-        />
-
-        <DsToolButton
-          :label="
-            theme === 'dark' ? 'Switch to Parchment' : 'Switch to Desk lamp'
-          "
-          @click="toggleTheme"
-        >
-          <SunIcon v-if="theme === 'dark'" :aria-hidden="true" />
-          <MoonIcon v-else :aria-hidden="true" />
-        </DsToolButton>
-
-        <div v-if="activeNote && !settingsActive" class="menu-anchor">
-          <DsToolButton
-            id="overflow-trigger"
-            label="More"
-            :active="menuOpen"
-            @click.stop="menuOpen = !menuOpen"
-          >
-            <MoreIcon :aria-hidden="true" />
-          </DsToolButton>
-          <DsMenu
-            :open="menuOpen"
-            :items="menuItems"
-            labelledBy="overflow-trigger"
-            @close="menuOpen = false"
-            @select="handleMenuSelect"
-          />
-        </div>
-      </header>
+      <AppTopbar
+        v-model:mode="mode"
+        v-model:menuOpen="menuOpen"
+        :activeNote="settingsActive ? null : activeNote"
+        :activeTags="activeTags"
+        :title="activeTitle"
+        :theme="theme"
+        @openDrawer="navOpen = true"
+        @startEdit="startEdit"
+        @toggleTheme="toggleTheme"
+        @noteAction="handleNoteMenuAction"
+      />
 
       <section v-if="settingsActive" class="settings-placeholder">
         <h1>Settings</h1>
@@ -306,51 +275,6 @@ function handleMenuSelect(id: string) {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-}
-
-.topbar {
-  display: flex;
-  gap: var(--topbar-gap);
-  align-items: center;
-  padding: var(--topbar-padding-y) var(--topbar-padding-x);
-  background: var(--topbar-bg);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(8px);
-}
-
-.menu-toggle {
-  display: none;
-}
-
-.crumb {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  min-width: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.crumb strong {
-  color: var(--text-2);
-  font-weight: 600;
-}
-
-.crumb__slash {
-  color: var(--muted);
-}
-
-.spacer {
-  flex: 1;
-}
-
-.menu-anchor {
-  position: relative;
-}
-
-.menu-anchor :deep(.ds-menu) {
-  top: calc(var(--tool-size) + 8px);
-  right: 0;
 }
 
 .read-pane {
@@ -463,11 +387,6 @@ function handleMenuSelect(id: string) {
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .menu-toggle {
-    display: grid;
-  }
-
   .measure {
     padding: 40px 24px 100px;
   }

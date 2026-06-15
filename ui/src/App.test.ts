@@ -14,7 +14,10 @@ describe("App", () => {
 
     expect(wrapper.get(".wordmark").text()).toBe("ParchMark");
     expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
-    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(true);
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Reading");
+    expect(wrapper.find('[aria-label="Switch to edit mode"]').exists()).toBe(
+      true,
+    );
     expect(wrapper.get(".prose").text()).toContain("Today");
     expect(wrapper.find(".prose blockquote").exists()).toBe(true);
   });
