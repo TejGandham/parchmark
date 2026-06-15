@@ -24,11 +24,7 @@ function toggleMode() {
 </script>
 
 <template>
-  <div
-    class="mode-switch"
-    :class="{ 'is-editing': mode === 'edit' }"
-    aria-label="Note mode"
-  >
+  <div class="mode-switch" aria-label="Note mode">
     <span class="mode-switch__status" role="status">
       <span class="mode-switch__dot" aria-hidden="true" />
       {{ mode === "edit" ? "Editing" : "Reading" }}
@@ -76,14 +72,6 @@ function toggleMode() {
   height: var(--segment-item-radius);
   background: var(--line-2);
   border-radius: 50%;
-}
-
-.mode-switch.is-editing .mode-switch__status {
-  color: var(--accent);
-}
-
-.mode-switch.is-editing .mode-switch__dot {
-  background: var(--accent);
 }
 
 .mode-switch__action {
