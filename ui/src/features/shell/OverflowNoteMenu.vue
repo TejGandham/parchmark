@@ -6,7 +6,6 @@ import DsToolButton from "@/design-system/components/DsToolButton.vue";
 import {
   CopyIcon,
   DownloadIcon,
-  EditIcon,
   MoreIcon,
   TrashIcon,
 } from "@/design-system/icons";
@@ -28,7 +27,6 @@ const emit = defineEmits<{
 const menuRoot = ref<HTMLElement | null>(null);
 
 const menuItems = [
-  { id: "edit", label: "Edit note", icon: markRaw(EditIcon) },
   { id: "copy", label: "Copy markdown", icon: markRaw(CopyIcon) },
   { id: "export", label: "Export .md", icon: markRaw(DownloadIcon) },
   {

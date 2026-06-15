@@ -18,15 +18,13 @@ describe("OverflowNoteMenu", () => {
     const items = wrapper.findAll('[role="menuitem"]');
 
     expect(wrapper.find('[role="separator"]').exists()).toBe(true);
-    expect(items[3].classes()).toContain("is-danger");
+    expect(items[2].classes()).toContain("is-danger");
 
     await items[0].trigger("click");
     await items[1].trigger("click");
     await items[2].trigger("click");
-    await items[3].trigger("click");
 
     expect(wrapper.emitted("select")).toEqual([
-      ["edit"],
       ["copy"],
       ["export"],
       ["delete"],

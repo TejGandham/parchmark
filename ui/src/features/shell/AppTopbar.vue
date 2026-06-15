@@ -4,7 +4,6 @@ import { MenuIcon } from "@/design-system/icons";
 import type { NoteMock } from "@/features/notes/mockNotes";
 
 import BreadcrumbTrail from "./BreadcrumbTrail.vue";
-import EditingFlag from "./EditingFlag.vue";
 import type { NoteMenuAction, NoteMode } from "./headerTypes";
 import OverflowNoteMenu from "./OverflowNoteMenu.vue";
 import ReadEditSegment from "./ReadEditSegment.vue";
@@ -62,8 +61,6 @@ function startEdit() {
       @update:mode="updateMode"
       @startEdit="startEdit"
     />
-
-    <EditingFlag v-if="activeNote && mode === 'edit'" />
 
     <ThemeToggleButton :theme="theme" @toggle="emit('toggleTheme')" />
 

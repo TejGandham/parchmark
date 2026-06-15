@@ -15,7 +15,7 @@ describe("AppShell", () => {
     await wrapper.get(".new-note-button").trigger("click");
 
     expect(wrapper.get(".doc-title").text()).toBe("Untitled");
-    expect(wrapper.get(".editing-flag").text()).toContain("Editing");
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Editing");
   });
 
   it("opens settings from the user footer", async () => {
@@ -27,23 +27,23 @@ describe("AppShell", () => {
     expect(wrapper.get(".user-footer").classes()).toContain("is-active");
   });
 
-  it("uses the overflow edit item to switch modes", async () => {
+  it("uses the header edit action to switch modes", async () => {
     const wrapper = mount(AppShell);
 
-    await wrapper.get('[aria-label="More"]').trigger("click");
-    await wrapper.findAll('[role="menuitem"]')[0].trigger("click");
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
 
-    expect(wrapper.get(".editing-flag").text()).toContain("Editing");
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Editing");
   });
 
-  it("returns from edit mode to read mode from the header segment", async () => {
+  it("returns from edit mode to read mode from the header action", async () => {
     const wrapper = mount(AppShell);
 
-    await wrapper.get('[aria-label="More"]').trigger("click");
-    await wrapper.findAll('[role="menuitem"]')[0].trigger("click");
-    await wrapper.findAll('[role="radio"]')[0].trigger("click");
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper.get('[aria-label="Return to read mode"]').trigger("click");
 
-    expect(wrapper.find(".editing-flag").exists()).toBe(false);
-    expect(wrapper.find('[aria-checked="true"]').text()).toContain("Read");
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Reading");
+    expect(wrapper.find('[aria-label="Return to read mode"]').exists()).toBe(
+      false,
+    );
   });
 });

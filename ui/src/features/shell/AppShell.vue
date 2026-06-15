@@ -157,9 +157,6 @@ function deleteActiveNote() {
 }
 
 function handleNoteMenuAction(id: NoteMenuAction) {
-  if (id === "edit") {
-    startEdit();
-  }
   if (id === "copy") {
     void copyActiveMarkdown();
   }
