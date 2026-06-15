@@ -15,7 +15,7 @@ describe("AppShell", () => {
     await wrapper.get(".new-note-button").trigger("click");
 
     expect(wrapper.get(".doc-title").text()).toBe("Untitled");
-    expect(wrapper.find('[aria-checked="true"]').text()).toContain("Edit");
+    expect(wrapper.get(".editing-flag").text()).toContain("Editing");
   });
 
   it("opens settings from the user footer", async () => {
@@ -33,6 +33,6 @@ describe("AppShell", () => {
     await wrapper.get('[aria-label="More"]').trigger("click");
     await wrapper.findAll('[role="menuitem"]')[0].trigger("click");
 
-    expect(wrapper.find('[aria-checked="true"]').text()).toContain("Edit");
+    expect(wrapper.get(".editing-flag").text()).toContain("Editing");
   });
 });
