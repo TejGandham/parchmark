@@ -48,11 +48,12 @@ describe("AppTopbar", () => {
     expect(wrapper.emitted("noteAction")?.[0]).toEqual(["copy"]);
   });
 
-  it("shows the editing flag instead of note actions in edit mode", () => {
+  it("keeps note controls available in edit mode", () => {
     const wrapper = mountTopbar({ mode: "edit" });
 
     expect(wrapper.get(".editing-flag").text()).toContain("Editing");
-    expect(wrapper.find('[aria-label="More"]').exists()).toBe(false);
-    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="More"]').exists()).toBe(true);
+    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-checked="true"]').text()).toContain("Edit");
   });
 });

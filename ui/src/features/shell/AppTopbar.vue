@@ -57,7 +57,7 @@ function startEdit() {
     <div class="app-topbar__spacer" />
 
     <ReadEditSegment
-      v-if="activeNote && mode === 'read'"
+      v-if="activeNote"
       :mode="mode"
       @update:mode="updateMode"
       @startEdit="startEdit"
@@ -68,7 +68,7 @@ function startEdit() {
     <ThemeToggleButton :theme="theme" @toggle="emit('toggleTheme')" />
 
     <OverflowNoteMenu
-      v-if="activeNote && mode === 'read'"
+      v-if="activeNote"
       :open="menuOpen"
       :note="activeNote"
       @update:open="emit('update:menuOpen', $event)"

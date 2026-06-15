@@ -35,4 +35,15 @@ describe("AppShell", () => {
 
     expect(wrapper.get(".editing-flag").text()).toContain("Editing");
   });
+
+  it("returns from edit mode to read mode from the header segment", async () => {
+    const wrapper = mount(AppShell);
+
+    await wrapper.get('[aria-label="More"]').trigger("click");
+    await wrapper.findAll('[role="menuitem"]')[0].trigger("click");
+    await wrapper.findAll('[role="radio"]')[0].trigger("click");
+
+    expect(wrapper.find(".editing-flag").exists()).toBe(false);
+    expect(wrapper.find('[aria-checked="true"]').text()).toContain("Read");
+  });
 });
