@@ -6,7 +6,7 @@ Guidance for Claude Code working with the ParchMark codebase. This file is a tab
 
 | Layer | Stack |
 |-|-|
-| Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 (Data Router) |
+| Frontend | Vue 3 (`<script setup>` SFCs), TypeScript, Vite, custom DTCG design-token system, Vue composables (no Pinia, no router) |
 | Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT + OIDC auth, PostgreSQL |
 | Deploy | Docker, Nginx, k3s, Forgejo CI |
 
@@ -91,15 +91,13 @@ make deploy-logs      # container logs
 
 ```
 parchmark/
-├── ui/                  # Frontend (React)
+├── ui/                  # Frontend (Vue 3)
 │   └── src/
-│       ├── features/    # auth/, notes/, settings/, ui/ (feature-first)
-│       ├── router.tsx   # Data Router (loaders, actions, routes)
-│       ├── services/    # API client
-│       ├── utils/       # errorHandler, markdown, dateGrouping, mermaidInit
-│       ├── config/      # type-safe constants (api, storage)
-│       ├── types/       # shared types (Note)
-│       └── __tests__/   # Vitest
+│       ├── main.ts      # createApp(App).mount("#app"); imports tokens.css then base.css
+│       ├── App.vue      # top-level auth gate: loading → LoginView → AppShell
+│       ├── features/    # auth/, shell/, notes/ (feature-first; SFCs + .ts)
+│       ├── design-system/  # base.css, tokens.css (generated), tokens/ (DTCG JSON + build.mjs), components/ (Ds*.vue), icons/
+│       └── services/    # http.ts (ofetch) + auth.ts — auth API only (notes are mock)
 ├── backend/             # Backend (FastAPI)
 │   └── app/             # auth/, database/, models/, routers/, schemas/, services/
 ├── makefiles/           # modular make targets
@@ -125,11 +123,6 @@ Notable non-obvious endpoints: `GET /api/health` (DB + version info).
 ### Frontend (`ui/.env`)
 ```bash
 VITE_API_URL=/api
-VITE_TOKEN_WARNING_SECONDS=60       # optional
-VITE_OIDC_ISSUER_URL=https://auth.engen.tech
-VITE_OIDC_CLIENT_ID=parchmark
-VITE_OIDC_REDIRECT_URI=<origin>/oidc/callback
-VITE_OIDC_LOGOUT_REDIRECT_URI=<origin>/login
 ```
 
 ### Backend (`backend/.env`)
@@ -157,7 +150,7 @@ BUILD_DATE=                         # set at docker build for version info
 
 | Side | Tooling | Notes |
 |-|-|-|
-| Frontend | Vitest + RTL | Use `render` from `test-utils/render` (wraps providers); mock stores; form tests use `fireEvent.submit()` not button click |
+| Frontend | Vitest + `@vue/test-utils` | `mount()`/`shallowMount` Vue SFCs (NOT React Testing Library); `environment: "jsdom"`; tests under `src/` (mixed: beside source and in `__tests__/`), matched by `src/**/*.test.ts` |
 | Backend | Pytest + pytest-xdist | Each worker gets its own PostgreSQL (testcontainers); fixtures: `client`, `sample_user`, `auth_headers` |
 
 Coverage floor: **90% frontend, 90% backend** (enforced by config).
@@ -174,16 +167,27 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - `docker-compose.prod.yml` — production (GHCR images)
 - `docker-compose.oidc-test.yml` — PostgreSQL + Authelia (OIDC integration testing)
 
-### Markdown
-- `removeH1()` removes **only the first H1**, not all
-- Frontend (`ui/src/utils/markdown.ts`) and backend (`backend/app/utils/markdown.py`) must stay in sync — use the `parchmark-markdown-sync` skill after editing either
+### Design system (frontend)
+- **DTCG token JSON → CSS pipeline.** Sources in `ui/src/design-system/tokens/`: `primitives.json`, `semantic.json` (light "Parchment"), `semantic.dark.json` (dark "Desk lamp"). W3C DTCG format (`$type`/`$value`), with a custom `$extensions["com.parchmark.cssName"]` to emit short var names (`--accent`, `--surface`, …)
+- Built by `npm run build:tokens` (`node src/design-system/tokens/build.mjs`, via **style-dictionary**): light → `:root`, dark → `[data-theme="dark"]`, concatenated into the **generated** `design-system/tokens.css` (do not edit by hand)
+- Reusable SFCs in `design-system/components/`: `DsMenu.vue`, `DsSegment.vue`, `DsToolButton.vue`. Icons are a hand-authored SVG factory in `design-system/icons/index.ts` (`createIcon(...)` → 18 components like `PlusIcon`, `SearchIcon`, `LockIcon`) — **no icon library dependency**
 
-### Auth
-- Access tokens 30 min; refresh tokens 7 days
-- `useTokenExpirationMonitor()` auto-refreshes tokens ~1 min before expiry (logs the user out only if the refresh fails)
-- 10-second clock-skew buffer for client/server drift
-- Route protection is the `requireAuth()` loader in `router.tsx` — there is **no `ProtectedRoute` component**
-- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
+### Markdown
+- Frontend rendering lives in `ui/src/features/notes/markdownRender.ts`: `marked` (GFM) → rewrite `language-mermaid` fences into `<div class="mermaid">` → sanitize with `dompurify` (allows GFM task-list `input`s). `stripTitle()` (in `noteMockHelpers.ts`) drops the leading H1 before render; `MarkdownProse.vue` emits via `v-html`
+- Mermaid blocks are produced as markup only — **no mermaid runtime is wired** in this worktree
+- Backend (`backend/app/utils/markdown.py`) extracts the H1 title for note records; FE and BE title/H1 handling must stay in sync — use the `parchmark-markdown-sync` skill after editing either
+
+### Auth (frontend)
+- Access tokens 30 min; refresh tokens 7 days (backend defaults)
+- Frontend auth is a **composable singleton**, `features/auth/useAuth.ts` — module-level refs shared across every `useAuth()` call; **no Pinia/Vuex**. Session persisted via `@vueuse/core` `useStorage` under key `pm_auth` as `{ accessToken, refreshToken, user }`
+- The single refresh-and-retry policy lives in `services/http.ts` (an `ofetch` instance, `retry: false`): on a `401` for any non-`/auth/refresh` call it calls the refresh hook **once** and retries once. Auth hooks are injected via `setAuthHooks()` so `http.ts` never imports the store (avoids a cycle)
+- Route "protection" is the **auth gate in `App.vue`** — a `ready` ref gates first paint, then `v-if !ready` → `v-else-if !isAuthenticated` `<LoginView/>` → `v-else` `<AppShell/>`. There is **no router and no `requireAuth()` loader** in this worktree
+- `App.vue` calls `restoreSession()` on mount (validates the stored token via `GET /auth/me`, clears on any error) before revealing `LoginView` vs `AppShell`
+- Login (`POST /auth/login`) returns tokens only; `useAuth.login()` then fetches `/auth/me` for the user. Logout (`POST /auth/logout`) is best-effort
+
+### Auth (backend)
+- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). OIDC JWT path is **RS256** (JWKS); Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
+- Logout is **stateless** — no server-side invalidation/blacklist
 - OIDC validator (`app/auth/oidc_validator.py`) uses a shared httpx client with discovery/JWKS caching (double-checked locking)
 
 ### Migrations
@@ -196,10 +200,10 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - GitHub (`github.com/TejGandham/parchmark`) is a read-only offsite backup mirror, populated by automated sync — no local remote is configured and developers never push to it manually
 - Use `tea` for all Forgejo PR management
 
-### Command Palette
-- Primary navigation (replaced sidebar); triggered via the search button in the header
-- Shows search results; navigates to the date-grouped notes list in `NotesExplorer`
-- The virtualized note list (`react-window`) lives in `NotesExplorer`, not in the palette itself
+### Navigation & view switching
+- **No router.** Inside the app, "navigation" is ref toggles in `features/shell/AppShell.vue`: `mode` (`"read"|"edit"`), `activeId` (selected note), `settingsActive`, `navOpen` (mobile drawer). Views are `v-if`/`v-else-if` `<section>`s (settings placeholder vs read pane vs empty state)
+- Shell pieces live in `features/shell/`: `AppTopbar`, `SidebarDrawer`, `UserFooter`, `BreadcrumbTrail`, `SearchBox`, `TagFilter`, `ReadEditSegment`, `ThemeToggleButton`, `OverflowNoteMenu`
+- Notes are **in-memory mock data** (`features/notes/mockNotes.ts`); `AppShell` seeds local refs from it. There is **no notes API client** yet — `services/` covers auth only. Note ops (create/delete/select/toggle-tag, copy/export) are local ref mutations + clipboard/Blob
 
 ### Deployment
 - Tests must pass before images build (CI gate)

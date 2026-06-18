@@ -1,5 +1,7 @@
 # React Router Data Router Migration - Implementation Plan
 
+> **⚠️ Superseded — historical only. DO NOT EXECUTE.** This plan predates the ParchMark **v2** frontend rewrite, which removed React Router entirely (the v2 Vue 3 app has **no router**). It is kept for historical context only; the steps below no longer apply to the current codebase. See `AGENTS.md` for the current stack.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Migrate from React Router JSX routes to data router pattern for server state management.

@@ -17,11 +17,11 @@ Productive knowledge workers and personal researchers who want a fast, private, 
 ## Aesthetic Direction
 
 - **Visual tone**: Clean, typographic, writing-focused with subtle warmth from the burgundy palette
-- **Theme**: Light and dark mode supported via Chakra semantic tokens
+- **Theme**: Light ("Parchment") and dark ("Desk lamp") mode, driven by the DTCG design-token system (light `:root` / dark `[data-theme="dark"]` CSS variables)
 - **Typography**: Playfair Display (serif) for headings conveys permanence; Inter (sans-serif) for body conveys clarity
 - **Color**: Deep burgundy (#580c24) primary, neutral grays, minimal use of color — let content breathe
 - **Spacing**: Generous whitespace, never cramped
-- **Motion**: Subtle, purposeful transitions (0.3s ease) — never gratuitous animation
+- **Motion**: Subtle, purposeful transitions — fast easing in the ~0.12s–0.22s range (most interactive elements use 0.14s–0.15s ease), never gratuitous animation
 
 ## Anti-References
 

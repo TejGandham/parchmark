@@ -2,60 +2,115 @@
 
 Concrete conventions for parchmark's frontend and backend. Consult when writing new code so it matches existing shape.
 
-## Frontend (React + TypeScript)
+## Frontend (Vue 3 + TypeScript)
 
-### Error Handling
+The v2 `ui/` is a ground-up Vue 3 rewrite. Components are `.vue` SFCs using
+`<script setup lang="ts">`; logic helpers are plain `.ts`. There are **no
+`.tsx` files**. Build tool is Vite; the `@` path alias maps to `ui/src`.
+Feature-first layout under `ui/src`: `features/auth/`, `features/shell/`,
+`features/notes/`, plus `design-system/` and `services/`. `App.vue` and
+`main.ts` live at the `src/` root — there is no `src/config/`, `src/store/`,
+or `src/router/`.
+
+### HTTP Client & Error Handling
+
+The shared client is an `ofetch` instance in `ui/src/services/http.ts`
+(`ofetch.create({ retry: false })`). `request<T>()` owns the single
+refresh-and-retry policy: on a `401` for any non-`/auth/refresh` call it
+invokes the injected `onRefresh()` once and retries exactly once, otherwise
+throws an `ApiError` (custom class carrying `status` + `detail` parsed from
+the backend `{ detail }` body).
 
 ```typescript
-import { handleError } from '../utils/errorHandler';
-const appError = handleError(error);  // normalizes all error types
+import { request, ApiError } from '@/services/http';
+
+try {
+  const data = await request<T>('/some/path');
+} catch (e) {
+  if (e instanceof ApiError) { /* e.status, e.detail */ }
+}
 ```
 
-### Type-Safe Constants
+`http.ts` never imports the auth store. The auth layer wires itself in via
+`setAuthHooks({ getToken, onRefresh })` (DI, avoids an import cycle). Base URL
+is `import.meta.env.VITE_API_URL ?? "/api"`.
+
+### Auth (composable singleton, no store library)
+
+`ui/src/features/auth/useAuth.ts` is a composable singleton — module-level
+`session`/`user`/`error`/`pending` refs at file scope; `useAuth()` returns the
+same shared refs every call. The session is persisted as one JSON object via
+`@vueuse/core` `useStorage<AuthSession>("pm_auth", …)` (shape
+`{ accessToken, refreshToken, user }`).
 
 ```typescript
-import { API_ENDPOINTS } from '../config/api';
-import { STORAGE_KEYS } from '../config/storage';
+import { useAuth } from '@/features/auth/useAuth';
+
+const { user, error, pending, isAuthenticated, login, logout, restoreSession } = useAuth();
 ```
 
-Never hard-code endpoints or storage keys.
+`login()` posts to `/auth/login` then fetches `/auth/me` (the login response
+carries no user). `refresh()` dedupes concurrent 401s with a shared
+`refreshPromise` and clears the session on failure. The thin endpoint wrappers
+(`login`, `refreshToken`, `getCurrentUser`, `logout`) live in
+`ui/src/services/auth.ts`.
+
+### State management — Vue refs/composables, NO Pinia/Vuex
+
+There is no store library. Cross-cutting auth state is the `useAuth()`
+composable singleton (above); per-view UI state is plain `ref`/`computed`
+inside SFCs. For example `AppShell.vue` holds `notes`, `activeId`, `mode`,
+`search`, `activeTags`, `navOpen`, `settingsActive`, `theme` as local refs.
+
+### Routing — NO Vue Router; manual view switching
+
+There is no router. The top-level switch is an **auth gate in `App.vue`**: a
+`ready` ref gates first paint (set true after `restoreSession()` resolves in
+`onMounted`), then `v-if="!ready"` loading → `v-else-if="!isAuthenticated"`
+`<LoginView/>` → `v-else` `<AppShell/>`. Inside the app, "navigation" is ref
+toggles in `AppShell.vue` (`mode` is `"read"|"edit"`, `activeId` selects a
+note, `settingsActive` toggles a settings placeholder); views are
+`v-if`/`v-else-if`/`v-else` `<section>`s.
 
 ### Markdown Processing
 
-`ui/src/utils/markdown.ts` (frontend) and `backend/app/utils/markdown.py` (backend) must stay in sync — use the `parchmark-markdown-sync` skill after editing either.
+`ui/src/features/notes/markdownRender.ts` is the frontend renderer;
+`backend/app/utils/markdown.py` is the backend counterpart — keep title/H1
+handling in sync with the `parchmark-markdown-sync` skill after editing
+either. `renderMarkdownBody()` strips the leading H1 via `stripTitle`, parses
+with **`marked`** (`marked.parse(raw, { async: false })`, GFM enabled),
+rewrites `language-mermaid` fences into `<div class="mermaid">` blocks, then
+sanitizes with **`dompurify`** (allowing `input` + `checked`/`disabled`/`type`
+for GFM task lists). `MarkdownProse.vue` wraps the renderer in a `computed` and
+emits via `v-html` into a scoped `.prose` block. Note: mermaid markup is
+produced but no mermaid runtime is wired in this worktree.
 
-```typescript
-markdownService.extractTitle(content)   // get H1 title
-markdownService.removeH1(content)       // remove FIRST H1 only (not all)
-```
+Pure note helpers (`extractTitle`, `stripTitle`, `plainPreview`, `wordCount`,
+`readingTime`, `allTags`, `relTime`, `groupByTime`) live in
+`ui/src/features/notes/noteMockHelpers.ts`.
 
-### Zustand Stores
+### Notes data — MOCK, not yet wired to the backend
 
-```typescript
-useAuthStore      // auth state, login/logout
-useNotesUIStore   // editor draft content (ephemeral)
-useUIStore        // command palette state, preferences
-```
+Notes are in-memory mock data (`features/notes/mockNotes.ts`, seeded into
+`AppShell.vue`). All note operations (`createNote`, `deleteActiveNote`,
+`selectNote`, `toggleTag`, copy/export) are local ref mutations / clipboard +
+Blob. The `services/` layer **only covers auth** — there is no notes API client
+in this worktree.
 
-### React Router v7 (Data Router)
+### Design system (DTCG tokens + Ds* components)
 
-Loaders fetch before render; actions handle mutations via `useFetcher().submit()`.
+Design tokens are authored as W3C DTCG JSON under
+`ui/src/design-system/tokens/` (`primitives.json`, `semantic.json` light,
+`semantic.dark.json` dark overrides) and compiled to CSS via
+`npm run build:tokens` (`node src/design-system/tokens/build.mjs`, using
+**style-dictionary**). The build emits the generated
+`design-system/tokens.css` (`:root` light + `[data-theme="dark"]` dark) — do
+not edit that file by hand. `main.ts` imports `tokens.css` then `base.css`.
 
-```typescript
-// ui/src/router.tsx
-loader: async () => {
-  const notes = await api.getNotes();
-  return { notes };
-}
-
-// ui/src/features/notes/actions.ts
-action: createNoteAction
-
-// In components
-const { notes } = useRouteLoaderData('notes-layout');
-```
-
-Route protection uses `requireAuth()` loader in `router.tsx` — there is no `ProtectedRoute` component.
+Reusable primitives are the `Ds*` SFCs (`DsMenu.vue`, `DsSegment.vue`,
+`DsToolButton.vue`). Icons are hand-authored SVGs via a `createIcon()` factory
+in `design-system/icons/index.ts` (`defineComponent` + render-function
+`h("svg", …)`) — there is no icon library dependency.
 
 ## Backend (FastAPI + SQLAlchemy)
 
@@ -71,10 +126,11 @@ async def my_endpoint(db: AsyncSession = Depends(get_async_db)):
 
 ## Code Style
 
-### TypeScript
+### TypeScript / Vue
 - Strong typing — avoid `any`
-- Functional components with hooks
-- Chakra UI components; avoid inline styles
+- SFCs with `<script setup lang="ts">`; composables for shared logic
+- Style with design-system tokens / `Ds*` components and scoped SFC CSS
+- Lint/format is `vue-tsc --noEmit` + Prettier (no ESLint); tests use Vitest + `@vue/test-utils` (no React Testing Library)
 
 ### Python
 - Type hints where beneficial
