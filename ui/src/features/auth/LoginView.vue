@@ -37,19 +37,18 @@ async function onSubmit() {
         <div class="auth-feats">
           <div class="af">
             <span class="af-ic"><EyeIcon :aria-hidden="true" /></span>
-            Read &amp; edit, one tap apart
+            Read and write, one tap apart
           </div>
           <div class="af">
             <span class="af-ic"><FeatherIcon :aria-hidden="true" /></span>
-            Markdown, GFM &amp; Mermaid, rendered
+            Markdown, GFM, and Mermaid — rendered
           </div>
           <div class="af">
             <span class="af-ic"><LockIcon :aria-hidden="true" /></span>
-            Your notes, stored on your device
+            Private to your account, on every device
           </div>
         </div>
       </div>
-      <div class="auth-aside-foot">Pages, not files. ❧</div>
     </aside>
 
     <main class="auth-main">
@@ -115,7 +114,7 @@ async function onSubmit() {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   padding: 52px 54px;
   overflow: hidden;
   color: #f7ecef;
@@ -212,14 +211,6 @@ async function onSubmit() {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   place-items: center;
-}
-
-.auth-aside-foot {
-  position: relative;
-  color: #c79aa6;
-  font-family: var(--serif);
-  font-size: 15px;
-  font-style: italic;
 }
 
 .auth-main {
