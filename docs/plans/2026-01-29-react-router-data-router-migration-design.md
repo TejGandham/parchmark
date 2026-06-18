@@ -1,5 +1,7 @@
 # React Router Data Router Migration Design
 
+> **⚠️ Superseded — historical only.** This plan predates the ParchMark **v2** frontend rewrite, which removed React Router entirely: the v2 Vue 3 app has **no router** — auth and view switching happen in `App.vue` and `AppShell.vue`. Kept for historical context; it does **not** describe the current codebase. See `AGENTS.md` for the current stack.
+
 **Date:** 2026-01-29
 **Status:** Draft
 **Related Issue:** [#47 - TanStack Query for Server State Management](https://github.com/TejGandham/parchmark/issues/47)

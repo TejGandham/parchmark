@@ -21,3 +21,7 @@ Copy markdown, export `.md`, and delete note.
 ## 5. App Controls
 
 Theme toggle, mobile drawer, user/settings entry, topbar, and sidebar shell.
+
+## 6. Authenticate
+
+Username/password login screen, session restore on load, and sign-out. The app gates first paint on an auth check, then shows the login view or the app shell.

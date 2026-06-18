@@ -1,5 +1,7 @@
 # Plan: Strengthen Frontend ESLint Configuration
 
+> **⚠️ Superseded — historical only.** This plan targets the React app's ESLint config (`ui/.eslintrc.cjs`). The **v2** Vue 3 frontend has **no ESLint** — linting is `vue-tsc --noEmit` + Prettier (run via `npm run lint`). Kept for historical context; it does **not** describe the current toolchain. See `AGENTS.md`.
+
 ## Current State
 
 The frontend ESLint config (`ui/.eslintrc.cjs`) uses only "recommended" presets. While TypeScript is already strict (`strict: true`, `noUnusedLocals`, etc.), ESLint rules are **moderate**.
