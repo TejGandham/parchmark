@@ -9,7 +9,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["node", "vitest/globals"],
+    "types": ["node", "vitest/globals", "web-bluetooth"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

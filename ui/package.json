@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@vueuse/core": "^14.3.0",
     "dompurify": "^3.4.10",
     "marked": "^18.0.5",
     "ofetch": "^1.5.1",
