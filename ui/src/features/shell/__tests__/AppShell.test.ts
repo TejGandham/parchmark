@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AppShell from "../AppShell.vue";
 
@@ -21,7 +21,7 @@ describe("AppShell", () => {
   it("opens settings from the user footer", async () => {
     const wrapper = mount(AppShell);
 
-    await wrapper.get(".user-footer").trigger("click");
+    await wrapper.get(".user-footer__main").trigger("click");
 
     expect(wrapper.text()).toContain("Settings");
     expect(wrapper.get(".user-footer").classes()).toContain("is-active");
@@ -78,5 +78,80 @@ describe("AppShell", () => {
     expect(checkboxes).toHaveLength(3);
     expect(checkboxes[0].attributes("checked")).toBeDefined();
     expect(checkboxes[0].attributes("disabled")).toBeDefined();
+  });
+
+  it("filters notes by search and tag, then selects the remaining note", async () => {
+    const wrapper = mount(AppShell);
+
+    await wrapper.get('input[type="search"]').setValue("standup");
+    const noteList = wrapper.get(".note-list");
+    expect(noteList.text()).toContain("Standup notes");
+    expect(noteList.text()).not.toContain("Morning Pages");
+
+    const logTag = wrapper
+      .findAll(".tag-filter__tag")
+      .find((button) => button.text().includes("log"));
+    expect(logTag).toBeTruthy();
+    await logTag?.trigger("click");
+    expect(wrapper.text()).toContain("#log");
+
+    await wrapper.get(".note-card").trigger("click");
+    expect(wrapper.get(".doc-title").text()).toBe("Standup notes");
+  });
+
+  it("toggles a tag filter from the active note's meta row", async () => {
+    const wrapper = mount(AppShell);
+
+    const metaTag = wrapper.get(".doc-tags .mini-tag-button");
+    const tagLabel = metaTag.text();
+    await metaTag.trigger("click");
+
+    expect(wrapper.get(".tag-filter").text()).toContain(tagLabel.slice(1));
+  });
+
+  it("opens the mobile drawer state and toggles the theme", async () => {
+    const wrapper = mount(AppShell);
+
+    await wrapper.get('[aria-label="Menu"]').trigger("click");
+    expect(wrapper.get(".sidebar-drawer").classes()).toContain("is-open");
+
+    await wrapper.get('[aria-label="Close navigation"]').trigger("click");
+    expect(wrapper.get(".sidebar-drawer").classes()).not.toContain("is-open");
+
+    await wrapper.get('[aria-label="Switch to Desk lamp"]').trigger("click");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+
+  it("runs copy, export, and delete actions from the note overflow menu", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+
+    const createObjectURL = vi.fn().mockReturnValue("blob:note");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+
+    const wrapper = mount(AppShell);
+
+    const openMenu = async () => {
+      await wrapper.get('[aria-label="More"]').trigger("click");
+    };
+    const menuItem = (label: string) =>
+      wrapper
+        .findAll('[role="menuitem"]')
+        .find((item) => item.text().includes(label));
+
+    await openMenu();
+    await menuItem("Copy")?.trigger("click");
+    expect(writeText).toHaveBeenCalledOnce();
+
+    await openMenu();
+    await menuItem("Export")?.trigger("click");
+    expect(createObjectURL).toHaveBeenCalledOnce();
+
+    await openMenu();
+    await menuItem("Delete")?.trigger("click");
+    expect(wrapper.get(".doc-title").text()).not.toBe("Morning Pages");
+
+    vi.unstubAllGlobals();
   });
 });

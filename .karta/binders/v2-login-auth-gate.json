@@ -1,0 +1,246 @@
+{
+  "slug": "v2-login-auth-gate",
+  "motivation": "Add a username/password login screen that authenticates against the existing backend and gates the entire v2 Vue app behind that auth.",
+  "scope": {
+    "included": [
+      "ui/src/services — the app's first HTTP client (built on ofetch) plus auth API functions (login, refresh, me, logout) against the existing /api/auth/* endpoints",
+      "ui/src/features/auth — reactive auth store (useAuth composable) with @vueuse/core useStorage session persistence and session-restore-on-reload",
+      "ui/src/features/auth/LoginView.vue — the mock's two-column signin screen (burgundy brand panel + username/password form with show/hide toggle), consuming existing DTCG semantic tokens; adds eyeoff/alert/feather/lock icons to the design-system icon set",
+      "ui/src/App.vue — auth gate that renders LoginView when unauthenticated and AppShell when authenticated",
+      "ui/src/features/shell/UserFooter.vue — show the real authenticated username and wire a logout control",
+      "ui/.env.example — document VITE_API_URL",
+      "ui/package.json + ui/package-lock.json — add ofetch (HTTP client) and @vueuse/core (reactive persistence); the lockfile is committed (CI runs npm ci)"
+    ],
+    "excluded": [
+      "OIDC / SSO login via Authelia — username/password only this binder (the mock's SSO button is dropped)",
+      "Forgot-password / reset flow and its 'sent' confirmation screen — present in the mock, excluded here",
+      "Signup / account registration ('Create an account') — the backend has no public registration endpoint (users via `make user-create`); login only",
+      "Real notes API integration — the notes list stays on mock data (mockNotes); only auth hits the real backend",
+      "Vue Router — the app stays a single gated shell; no route restructuring or router-based guards",
+      "Backend changes — /api/auth/login, /refresh, /me, /logout already exist and are unchanged",
+      "Server-side session / token revocation — logout is client-side token discard (backend JWT is stateless)",
+      "Pinia, VeeValidate/FormKit, and axios — evaluated in research and rejected for this scope: auth state stays a composable singleton, the 2-field login form stays plain controlled inputs, and ofetch covers the HTTP client more lightly than axios",
+      "jwt-decode / proactive exp-based refresh — session validation is 401- and /me-driven, not client-side-exp-driven; no JWT decoding this binder",
+      "Refactoring the existing pm_theme localStorage to useStorage — a clean follow-up, not required for login"
+    ]
+  },
+  "design_facts": {
+    "source": "ParchMark-standalone.html (Login / signin view of the ParchMark design prototype)",
+    "stack": "Vue 3 + TypeScript + Vite frontend; custom DTCG design-token system (Style Dictionary JSON -> CSS custom properties in ui/src/design-system/tokens.css); ofetch HTTP client + @vueuse/core utilities; Vitest + @vue/test-utils; targets the existing FastAPI / JWT (HS256) backend"
+  },
+  "token_manifest": {
+    "source": "ui/src/design-system/tokens (DTCG JSON) -> ui/src/design-system/tokens.css",
+    "consumption_rule": "semantic tier only; primitive tokens are deny-listed for new code",
+    "theme_selector": "[data-theme=\"dark\"] on <html>; light is the default :root",
+    "tokens": {
+      "page-background": "--canvas",
+      "card-surface": "--surface",
+      "subtle-surface": "--surface-2",
+      "primary-text": "--text",
+      "secondary-text": "--text-2",
+      "muted-text": "--muted",
+      "accent-action": "--accent",
+      "accent-quiet": "--accent-600",
+      "border-hairline": "--line",
+      "border-strong": "--line-2",
+      "focus-ring": "--focus-ring",
+      "error-text": "--danger",
+      "error-surface": "--danger-surface",
+      "card-shadow": "--shadow-sm",
+      "wordmark-font": "--serif",
+      "body-font": "--sans"
+    },
+    "additions": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "node", "version": "24" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "auth-api-client",
+      "title": "HTTP client + auth API functions",
+      "estimate": "M",
+      "depends_on": [],
+      "contract": {
+        "exposes": "ui/src/services/http.ts: a configured ofetch instance (ofetch.create) with baseURL from import.meta.env.VITE_API_URL (default '/api') and JSON defaults, plus setAuthHooks({ getToken, onRefresh }) for dependency injection (avoids an http<->auth import cycle). onRequest attaches 'Authorization: Bearer <token>' from getToken() when present. onResponseError: on a 401 — excluding the /auth/refresh call itself and any already-retried request — it awaits onRefresh() once and retries the original request a single time; a still-failing response throws a typed ApiError { status:number, detail:string } with detail read from the backend {detail}. ui/src/services/auth.ts (thin calls through the ofetch instance): login(username,password): Promise<{access_token,refresh_token,token_type}> -> POST /api/auth/login JSON {username,password}; refreshToken(refresh_token): Promise<TokenPair> -> POST /api/auth/refresh JSON {refresh_token}; getCurrentUser(): Promise<{username}> -> GET /api/auth/me (Bearer); logout(): Promise<void> -> POST /api/auth/logout (Bearer, best-effort).",
+        "consumes": "ofetch (new dependency); existing, unchanged backend endpoints under /api/auth/* (Vite already proxies /api -> http://localhost:8000)."
+      },
+      "touches": [
+        "ui/src/services/http.ts",
+        "ui/src/services/auth.ts",
+        "ui/src/services/http.test.ts",
+        "ui/src/services/auth.test.ts",
+        "ui/.env.example",
+        "ui/package.json",
+        "ui/package-lock.json"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability-escalation: introduces the app's first real network IO (the services/ HTTP layer)",
+          "capability-escalation: new dependency 'ofetch' (HTTP client) — updates package.json + package-lock.json",
+          "architectural-novelty: new services/ HTTP-client pattern entering the v2 codebase",
+          "not-computed:blast-radius (no diff yet)"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "cwd": "ui",
+        "command": "npm run lint && npm run test:coverage",
+        "assertions": [
+          "login() POSTs JSON {username,password} to /api/auth/login and returns {access_token,refresh_token,token_type}",
+          "the ofetch instance attaches 'Authorization: Bearer <token>' from the injected getToken() when a token is present, and omits it when none",
+          "a 401 triggers the injected onRefresh() once and retries the original request a single time; a still-failing retry throws ApiError with the backend {detail} and HTTP status (the /auth/refresh call itself is never retried)",
+          "baseURL comes from VITE_API_URL (default '/api'); getCurrentUser() GETs /api/auth/me with the bearer header",
+          "lint (vue-tsc + prettier) and the vitest suite pass at the >=90% coverage floor"
+        ]
+      }
+    },
+    {
+      "id": "auth-store",
+      "title": "Auth state store (useAuth composable) + session persistence",
+      "estimate": "M",
+      "depends_on": ["auth-api-client"],
+      "contract": {
+        "exposes": "ui/src/features/auth/useAuth.ts: a module-singleton composable. Session state (access token, refresh token, user) is persisted with @vueuse/core useStorage under key 'pm_auth'. Exposes reactive user: Ref<{username}|null>, isAuthenticated: ComputedRef<boolean>, error: Ref<string|null>, pending: Ref<boolean>. On module init it registers http.ts setAuthHooks({ getToken: () => the stored access token, onRefresh: the deduped refresh below }). Actions: login(username,password): Promise<boolean> (services/auth.login, store tokens + user; set error from ApiError.detail on failure), logout(): Promise<void> (best-effort services/auth.logout, then clear state + storage), restoreSession(): Promise<void> (on load: if a stored token exists, validate via services/auth.getCurrentUser — set user on 200, clear session on 401), refresh(): Promise<boolean> (services/auth.refreshToken, stores the new pair; concurrent callers share one in-flight request via a module-level refreshPromise).",
+        "consumes": "ui/src/services/auth.ts (login, getCurrentUser, logout, refreshToken); ui/src/services/http.ts (setAuthHooks); @vueuse/core useStorage (new dependency)."
+      },
+      "touches": [
+        "ui/src/features/auth/useAuth.ts",
+        "ui/src/features/auth/useAuth.test.ts",
+        "ui/package.json",
+        "ui/package-lock.json"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive-zone: holds auth tokens and session state, persisted in localStorage",
+          "capability-escalation: token/session persistence via @vueuse/core useStorage (new dependency '@vueuse/core' — updates package.json + package-lock.json)",
+          "architectural-novelty: first app-wide shared-state store (useAuth composable singleton) in v2"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "cwd": "ui",
+        "command": "npm run lint && npm run test:coverage",
+        "assertions": [
+          "login() success sets isAuthenticated true and persists user + tokens via @vueuse/core useStorage under key 'pm_auth'",
+          "logout() clears user, isAuthenticated, and the 'pm_auth' storage entry",
+          "restoreSession() with a valid stored token sets user via /api/auth/me; a 401 clears the stored session",
+          "concurrent refresh() callers share a single in-flight /api/auth/refresh request (no duplicate refresh calls)",
+          "a failed login leaves isAuthenticated false and sets error from the backend detail",
+          "lint and the vitest suite pass at the >=90% coverage floor"
+        ]
+      }
+    },
+    {
+      "id": "login-view",
+      "title": "Login screen (LoginView.vue) — ports the ParchMark mock signin view",
+      "estimate": "L",
+      "depends_on": ["auth-store"],
+      "design_reference": "ParchMark-standalone.html :: Login (signin mode)",
+      "component_map": [
+        { "component": "LoginView / auth-shell", "approach": "Custom", "note": "two-column grid (1.05fr brand aside / 1fr form), full-height; collapses to one column (form only) below the mobile breakpoint" },
+        { "component": "brand aside (auth-aside)", "approach": "Custom", "note": "burgundy-gradient panel with paper-grain dot texture; serif 'ParchMark' wordmark ('Mark' tinted), italic tagline 'A calm home for your markdown.', a serif pull-quote, and 3 feature rows (eye / feather / lock icons); hidden on mobile" },
+        { "component": "form card (auth-main / auth-card)", "approach": "Custom", "note": "centered card (max 400px) on --canvas; serif h1 'Welcome back', sub 'Sign in to pick up where you left off.'" },
+        { "component": "username field (fld)", "approach": "Custom (SearchBox.vue input idiom)", "note": "controlled <input> v-model, label 'Username', placeholder 'jamie', autocomplete username; focus-ring box-shadow 0 0 0 3px var(--focus-ring)" },
+        { "component": "password field (fld + pw-wrap + pw-toggle)", "approach": "Custom", "note": "controlled <input> whose type toggles password/text via a show/hide button (eye / eyeoff icons), label 'Password', autocomplete current-password" },
+        { "component": "submit button (auth-submit)", "approach": "Custom", "note": "full-width, filled --accent, label 'Sign in'; shows an inline spinner and disables while a login request is in flight" },
+        { "component": "error region (auth-err)", "approach": "Custom", "note": "--danger text on --danger-surface with an alert icon; bound to useAuth().error" }
+      ],
+      "icon_map": [
+        { "icon": "eye", "usage": "password show-state + brand feature row", "source": "existing @/design-system/icons (EyeIcon)", "status": "present" },
+        { "icon": "eyeoff", "usage": "password hide-state toggle", "source": "new — port the mock's eye-off SVG via the createIcon factory in ui/src/design-system/icons/index.ts", "status": "add" },
+        { "icon": "alert", "usage": "inline error region", "source": "new — port the mock's alert/triangle SVG via createIcon", "status": "add" },
+        { "icon": "feather", "usage": "brand-panel feature row", "source": "new — port the mock's feather SVG via createIcon", "status": "add" },
+        { "icon": "lock", "usage": "brand-panel feature row", "source": "new — port the mock's lock SVG via createIcon", "status": "add" }
+      ],
+      "token_changes": [
+        { "token": "(brand-panel gradient)", "tier": "component-local (no semantic-tier match)", "value": "radial-gradient(120% 90% at 15% 0%, rgba(141,69,91,.45) 0%, transparent 55%), linear-gradient(155deg, #5b172e 0%, #42061a 60%, #2e0512 100%)", "resolution": "inlined in LoginView scoped CSS, mirroring the mock's .auth-aside — no semantic match exists and the brand panel is the only consumer; build may instead promote it to an additive --auth-brand-* semantic token if preferred", "auth": "same in light + dark (brand panel is dark in both themes)" },
+        { "token": "focus ring", "tier": "existing", "value": "box-shadow 0 0 0 3px var(--focus-ring)", "resolution": "uses the existing --focus-ring (= #F2E8EB); no addition" },
+        { "token": "error colors", "tier": "existing", "value": "--danger / --danger-surface", "resolution": "the mock's #b3261e / #fdecea map exactly to the existing semantic tokens; no addition" }
+      ],
+      "contract": {
+        "exposes": "ui/src/features/auth/LoginView.vue — ports the mock's signin view: a two-column auth-shell with a burgundy-gradient brand aside (wordmark + tagline + pull-quote + 3 feature rows; auto-hidden on mobile) and a form card. The form: serif 'Welcome back' h1, sub copy, a Username field (placeholder 'jamie'), a Password field with a show/hide toggle, an inline error region bound to useAuth().error, and a full-width 'Sign in' submit that shows a spinner and disables while pending. On submit it calls useAuth().login(username,password). Controlled inputs follow the SearchBox.vue idiom; structural color/shape come from existing semantic tokens, with the brand-panel gradient inlined as a documented one-off. Explicitly excludes the mock's SSO button, 'or' divider, 'Forgot?' link, and 'Create an account' switch.",
+        "consumes": "ui/src/features/auth/useAuth.ts (login action, error + pending refs); existing semantic tokens from ui/src/design-system/tokens.css; ui/src/design-system/icons (eye, plus new eyeoff/alert/feather/lock)."
+      },
+      "touches": [
+        "ui/src/features/auth/LoginView.vue",
+        "ui/src/features/auth/LoginView.test.ts",
+        "ui/src/design-system/icons/index.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive-zone: credential-entry form (username + password input)",
+          "primary user-facing deliverable of this binder",
+          "blast-radius: adds 4 icons (eyeoff, alert, feather, lock) to the shared design-system icon set (ui/src/design-system/icons/index.ts)"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "cwd": "ui",
+        "command": "npm run lint && npm run test:coverage",
+        "assertions": [
+          "renders the brand aside (wordmark + feature rows) and a form card with a username input, a password input, and a 'Sign in' submit",
+          "the password show/hide toggle flips the input between type=password and type=text",
+          "submitting the form calls useAuth().login with the entered username and password",
+          "when login rejects, the backend error detail is rendered in the error region",
+          "inputs and submit button are disabled while a login request is in flight",
+          "no SSO button, 'Forgot?' link, or 'Create an account' switch is rendered (out of scope)",
+          "structural colors use semantic tokens; the only literal colors are the brand-panel gradient stops, mirroring the mock's .auth-aside (reviewer-checked against the diff)",
+          "lint and the vitest suite pass at the >=90% coverage floor"
+        ]
+      }
+    },
+    {
+      "id": "app-auth-gate",
+      "title": "Gate the app shell behind auth + wire logout",
+      "estimate": "M",
+      "depends_on": ["login-view"],
+      "design_reference": "none",
+      "component_map": [
+        { "component": "App.vue (gate)", "approach": "Custom (modify existing)", "note": "calls useAuth().restoreSession() on mount with a minimal loading state, then renders <LoginView/> when !isAuthenticated else <AppShell/>" },
+        { "component": "UserFooter.vue", "approach": "Custom (modify existing)", "note": "bind useAuth().user.username in place of the hardcoded 'Jamie Doe'; add a logout control that calls useAuth().logout()" }
+      ],
+      "icon_map": [],
+      "token_changes": [],
+      "contract": {
+        "exposes": "ui/src/App.vue gates the whole app: on mount it awaits useAuth().restoreSession() (showing a minimal loading state until it resolves), then renders <LoginView/> when !isAuthenticated and <AppShell/> when authenticated. ui/src/features/shell/UserFooter.vue replaces the hardcoded 'Jamie Doe' identity with useAuth().user.username and exposes a logout control that calls useAuth().logout(), returning the user to LoginView via the gate.",
+        "consumes": "ui/src/features/auth/useAuth.ts (isAuthenticated, user, restoreSession, logout); ui/src/features/auth/LoginView.vue; ui/src/features/shell/AppShell.vue (unchanged in behavior)."
+      },
+      "touches": [
+        "ui/src/App.vue",
+        "ui/src/App.test.ts",
+        "ui/src/features/shell/UserFooter.vue",
+        "ui/src/features/shell/UserFooter.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "blast-radius: rewires App.vue (the app entrypoint) so the entire app renders behind the auth gate",
+          "contract-mutation: changes existing App.vue + UserFooter render behavior and must update the existing App.test.ts to the gated behavior"
+        ]
+      },
+      "oracle": {
+        "type": "smoke",
+        "cwd": "ui",
+        "command": "npm run lint && npm run test:coverage",
+        "assertions": [
+          "App renders LoginView when useAuth reports unauthenticated",
+          "App renders AppShell when authenticated",
+          "App calls restoreSession() on mount",
+          "UserFooter shows the authenticated user's username and its logout control calls useAuth().logout()",
+          "the pre-existing App shell test is updated to the gated behavior and the full vitest suite stays green at the >=90% coverage floor"
+        ]
+      }
+    }
+  ]
+}

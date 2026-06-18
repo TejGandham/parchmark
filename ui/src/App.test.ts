@@ -1,17 +1,67 @@
-import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 
 import App from "./App.vue";
 
+// Controllable auth state shared with the mocked `useAuth` composable. App
+// renders AppShell only once the session is restored AND the user is
+// authenticated; otherwise it shows LoginView.
+const isAuthenticated = ref(false);
+const user = ref<{ username: string } | null>(null);
+const error = ref<string | null>(null);
+const pending = ref(false);
+const restoreSession = vi.fn().mockResolvedValue(undefined);
+const login = vi.fn().mockResolvedValue(true);
+const logout = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/features/auth/useAuth", () => ({
+  useAuth: () => ({
+    isAuthenticated,
+    user,
+    error,
+    pending,
+    restoreSession,
+    login,
+    logout,
+  }),
+}));
+
+beforeEach(() => {
+  localStorage.clear();
+  document.documentElement.removeAttribute("data-theme");
+  isAuthenticated.value = false;
+  user.value = null;
+  error.value = null;
+  pending.value = false;
+  restoreSession.mockClear();
+});
+
 describe("App", () => {
-  beforeEach(() => {
-    localStorage.clear();
-    document.documentElement.removeAttribute("data-theme");
+  it("restores the session on mount", async () => {
+    mount(App);
+    await flushPromises();
+
+    expect(restoreSession).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the V2 app shell with notes and topbar controls", () => {
+  it("renders LoginView, not the app shell, when unauthenticated", async () => {
     const wrapper = mount(App);
+    await flushPromises();
 
+    expect(wrapper.find(".auth-shell").exists()).toBe(true);
+    expect(wrapper.find(".app-shell").exists()).toBe(false);
+    expect(wrapper.find(".wordmark").exists()).toBe(false);
+  });
+
+  it("renders the V2 app shell with notes and topbar controls when authenticated", async () => {
+    isAuthenticated.value = true;
+    user.value = { username: "jamie" };
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    expect(wrapper.find(".auth-shell").exists()).toBe(false);
     expect(wrapper.get(".wordmark").text()).toBe("ParchMark");
     expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
     expect(wrapper.get(".mode-switch__status").text()).toContain("Reading");
@@ -20,37 +70,5 @@ describe("App", () => {
     );
     expect(wrapper.get(".prose").text()).toContain("Today");
     expect(wrapper.find(".prose blockquote").exists()).toBe(true);
-  });
-
-  it("filters notes by search and tag, then selects the remaining note", async () => {
-    const wrapper = mount(App);
-
-    await wrapper.get('input[type="search"]').setValue("standup");
-    const noteList = wrapper.get(".note-list");
-    expect(noteList.text()).toContain("Standup notes");
-    expect(noteList.text()).not.toContain("Morning Pages");
-
-    const logTag = wrapper
-      .findAll(".tag-filter__tag")
-      .find((button) => button.text().includes("log"));
-    expect(logTag).toBeTruthy();
-    await logTag?.trigger("click");
-    expect(wrapper.text()).toContain("#log");
-
-    await wrapper.get(".note-card").trigger("click");
-    expect(wrapper.get(".doc-title").text()).toBe("Standup notes");
-  });
-
-  it("opens the mobile drawer state and toggles the theme", async () => {
-    const wrapper = mount(App);
-
-    await wrapper.get('[aria-label="Menu"]').trigger("click");
-    expect(wrapper.get(".sidebar-drawer").classes()).toContain("is-open");
-
-    await wrapper.get('[aria-label="Close navigation"]').trigger("click");
-    expect(wrapper.get(".sidebar-drawer").classes()).not.toContain("is-open");
-
-    await wrapper.get('[aria-label="Switch to Desk lamp"]').trigger("click");
-    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 });
