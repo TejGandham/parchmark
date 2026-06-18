@@ -280,3 +280,15 @@ export const LockIcon = createIcon(
     { tag: "path", attrs: { d: "M7 11V7a5 5 0 0 1 10 0v4" } },
   ],
 );
+
+export const LogOutIcon = createIcon(
+  "LogOutIcon",
+  16,
+  16,
+  { ...strokeRoundJoin, "stroke-width": "1.9" },
+  [
+    { tag: "path", attrs: { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" } },
+    { tag: "path", attrs: { d: "M16 17l5-5-5-5" } },
+    { tag: "path", attrs: { d: "M21 12H9" } },
+  ],
+);

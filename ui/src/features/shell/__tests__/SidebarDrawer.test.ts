@@ -37,7 +37,7 @@ describe("SidebarDrawer", () => {
     await wrapper.findAll(".tag-filter__tag")[0].trigger("click");
     await wrapper.findAll(".note-card")[1].trigger("click");
     await wrapper.get(".new-note-button").trigger("click");
-    await wrapper.get(".user-footer").trigger("click");
+    await wrapper.get(".user-footer__main").trigger("click");
 
     expect(wrapper.emitted("update:search")?.[0]).toEqual(["reading"]);
     expect(wrapper.emitted("toggleTag")).toBeTruthy();
