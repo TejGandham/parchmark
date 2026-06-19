@@ -6,16 +6,20 @@ import { allTags } from "@/features/notes/noteMockHelpers";
 
 import SidebarDrawer from "../SidebarDrawer.vue";
 
+function mountDrawerProps() {
+  return {
+    notes: mockNotes.slice(0, 3),
+    activeId: "n1",
+    search: "",
+    tags: allTags(mockNotes),
+    activeTags: [],
+    open: true,
+  };
+}
+
 function mountDrawer() {
   return mount(SidebarDrawer, {
-    props: {
-      notes: mockNotes.slice(0, 3),
-      activeId: "n1",
-      search: "",
-      tags: allTags(mockNotes),
-      activeTags: [],
-      open: true,
-    },
+    props: mountDrawerProps(),
   });
 }
 
@@ -44,5 +48,61 @@ describe("SidebarDrawer", () => {
     expect(wrapper.emitted("select")?.[0]).toEqual(["n2"]);
     expect(wrapper.emitted("newNote")).toBeTruthy();
     expect(wrapper.emitted("openSettings")).toBeTruthy();
+  });
+
+  it("shows a loading indicator when loading=true", () => {
+    const wrapper = mount(SidebarDrawer, {
+      props: {
+        ...mountDrawerProps(),
+        loading: true,
+      },
+    });
+
+    expect(wrapper.find(".note-list__loading").exists()).toBe(true);
+    expect(wrapper.find(".note-card").exists()).toBe(false);
+  });
+
+  it("shows an error line with retry when error is set and loading=false", () => {
+    const wrapper = mount(SidebarDrawer, {
+      props: {
+        ...mountDrawerProps(),
+        loading: false,
+        error: "Failed to load notes",
+      },
+    });
+
+    expect(wrapper.find(".note-list__error").exists()).toBe(true);
+    expect(wrapper.text()).toContain("Failed to load notes");
+    expect(wrapper.find(".note-list__retry").exists()).toBe(true);
+    expect(wrapper.find(".note-card").exists()).toBe(false);
+  });
+
+  it("shows the normal note list when loading=false and error is null", () => {
+    const wrapper = mount(SidebarDrawer, {
+      props: {
+        ...mountDrawerProps(),
+        loading: false,
+        error: null,
+      },
+    });
+
+    expect(wrapper.find(".note-list__loading").exists()).toBe(false);
+    expect(wrapper.find(".note-list__error").exists()).toBe(false);
+    expect(wrapper.find(".note-card").exists()).toBe(true);
+  });
+
+  it("emits retry when the retry button is clicked", async () => {
+    const wrapper = mount(SidebarDrawer, {
+      props: {
+        ...mountDrawerProps(),
+        loading: false,
+        error: "Failed to load notes",
+      },
+    });
+
+    await wrapper.get(".note-list__retry").trigger("click");
+
+    expect(wrapper.emitted("retry")).toBeTruthy();
+    expect(wrapper.emitted("retry")?.length).toBe(1);
   });
 });

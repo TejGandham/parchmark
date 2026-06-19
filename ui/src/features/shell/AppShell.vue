@@ -188,6 +188,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
       @newNote="createNote"
       @toggleTag="toggleTag"
       @openSettings="openSettings"
+      @retry="fetchNotes"
     />
 
     <button
