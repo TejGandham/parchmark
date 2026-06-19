@@ -1,8 +1,33 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
+import { mockNotes } from "@/features/notes/mockNotes";
+import { extractTitle } from "@/features/notes/noteMockHelpers";
+
 import App from "./App.vue";
+
+// NoteResponse[] shape — ISO timestamps, no tags (matches backend contract).
+const noteDtos = mockNotes.map((note) => ({
+  id: note.id,
+  title: extractTitle(note.content),
+  content: note.content,
+  createdAt: new Date(note.createdAt).toISOString(),
+  updatedAt: new Date(note.updatedAt).toISOString(),
+}));
+
+function fetchStub(url: string | URL | Request, init?: RequestInit) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET" && String(url).includes("/notes/")) {
+    return Promise.resolve(
+      new Response(JSON.stringify(noteDtos), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  }
+  return Promise.resolve(new Response("{}", { status: 200 }));
+}
 
 // Controllable auth state shared with the mocked `useAuth` composable. App
 // renders AppShell only once the session is restored AND the user is
@@ -35,6 +60,11 @@ beforeEach(() => {
   error.value = null;
   pending.value = false;
   restoreSession.mockClear();
+  vi.stubGlobal("fetch", fetchStub);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("App", () => {
