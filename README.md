@@ -16,7 +16,7 @@ A modern, full-stack markdown note-taking application built with Vue 3 and FastA
 - **Mermaid Diagrams**: Mermaid code fences are rendered into `<div class="mermaid">` markup blocks
 - **Design-Token System**: DTCG (W3C) token JSON compiled to CSS via Style Dictionary
 
-> **Note:** In this v2 worktree the frontend notes data is still in-memory mock data; the notes UI is not yet wired to the backend notes API.
+> **Note:** In this v2 worktree the notes list is fetched from the backend (`GET /api/notes/`), but note mutations (create/delete/edit/tag) remain local-only and are not yet persisted; the backend `NoteResponse` also has no `tags` field, so tag chips render empty until a separate change closes that gap.
 
 ## 🚀 Quick Start
 
@@ -193,7 +193,7 @@ parchmark/
 │   │   │   ├── shell/       # AppShell, AppTopbar, SidebarDrawer, UserFooter, etc.
 │   │   │   └── notes/       # MarkdownProse, markdownRender, mock notes data
 │   │   ├── design-system/   # base.css, generated tokens.css, tokens/, Ds* components, icons/
-│   │   └── services/        # http.ts (ofetch) + auth.ts (auth API client)
+│   │   └── services/        # http.ts (ofetch) + auth.ts (auth) + notes.ts (notes list)
 │   ├── package.json
 │   └── vite.config.ts       # Vite + Vitest config (jsdom, v8 coverage)
 │

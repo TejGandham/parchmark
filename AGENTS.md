@@ -97,7 +97,7 @@ parchmark/
 │       ├── App.vue      # top-level auth gate: loading → LoginView → AppShell
 │       ├── features/    # auth/, shell/, notes/ (feature-first; SFCs + .ts)
 │       ├── design-system/  # base.css, tokens.css (generated), tokens/ (DTCG JSON + build.mjs), components/ (Ds*.vue), icons/
-│       └── services/    # http.ts (ofetch) + auth.ts — auth API only (notes are mock)
+│       └── services/    # http.ts (ofetch) + auth.ts + notes.ts (notes API client)
 ├── backend/             # Backend (FastAPI)
 │   └── app/             # auth/, database/, models/, routers/, schemas/, services/
 ├── makefiles/           # modular make targets
@@ -203,7 +203,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 ### Navigation & view switching
 - **No router.** Inside the app, "navigation" is ref toggles in `features/shell/AppShell.vue`: `mode` (`"read"|"edit"`), `activeId` (selected note), `settingsActive`, `navOpen` (mobile drawer). Views are `v-if`/`v-else-if` `<section>`s (settings placeholder vs read pane vs empty state)
 - Shell pieces live in `features/shell/`: `AppTopbar`, `SidebarDrawer`, `UserFooter`, `BreadcrumbTrail`, `SearchBox`, `TagFilter`, `ReadEditSegment`, `ThemeToggleButton`, `OverflowNoteMenu`
-- Notes are **in-memory mock data** (`features/notes/mockNotes.ts`); `AppShell` seeds local refs from it. There is **no notes API client** yet — `services/` covers auth only. Note ops (create/delete/select/toggle-tag, copy/export) are local ref mutations + clipboard/Blob
+- The notes list is fetched from the backend `GET /notes/` endpoint via the `useNotes` composable (`features/notes/useNotes.ts`, a module-singleton mirroring `useAuth`); `AppShell.vue` calls `useNotes()` and `fetchNotes()` on mount. `services/notes.ts` (`listNotes()`, `NoteDTO`) is the notes API client. Note ops other than listing (create/delete/select/toggle-tag, copy/export) are still local ref mutations + clipboard/Blob. `NoteDTO` has no `tags` field — the backend exposes none yet — so `useNotes` maps each note with `tags: []`, and the `TagFilter`/`NoteCard` tag chips render empty until a separate binder closes the backend gap. `SidebarDrawer.vue` accepts `loading`/`error` props and emits a `retry` event to refetch.
 
 ### Deployment
 - Tests must pass before images build (CI gate)

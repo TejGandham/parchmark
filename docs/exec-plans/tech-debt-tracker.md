@@ -113,29 +113,32 @@ Known shortcuts, deferred improvements, and open questions.
 - [ ] **Automated browser E2E for the Vue frontend.** The backend
       live-update flow still has integration coverage and Forgejo-gated
       cross-user SSE isolation coverage, but the v2 Vue frontend has no
-      automated browser E2E suite — and notes in this worktree are still
-      **in-memory mock data** (`ui/src/features/notes/mockNotes.ts`, seeded
-      into `AppShell.vue`), not wired to the backend notes API or its SSE
-      stream. Add Playwright coverage once the frontend is connected to the
-      real notes API and manual browser verification becomes recurring
+      automated browser E2E suite. The notes list is now fetched from the
+      backend (`useNotes`/`GET /notes/`), but note mutations remain
+      local-only and the SSE stream is unconsumed. Add Playwright coverage
+      once manual browser verification of the live list becomes recurring
       merge-gate work.
 
-- [ ] **v2 notes are mock-only — no notes API client or SSE stream.**
-      The v2 `ui/src/services/` layer covers **auth only** (`http.ts`,
-      `auth.ts`); there is no notes service. `AppShell.vue` seeds from
-      `mockNotes.ts` and all CRUD/copy/export are local `ref` mutations
-      against that mock, so create/delete/edit do not persist and the
-      backend `GET /api/notes/events` SSE stream is unconsumed. Wiring the
-      Vue app to the real notes API (and the SSE live-update channel) is
-      the outstanding integration work for this rewrite.
+- [ ] **v2 note mutations are local-only; SSE stream unconsumed; no tags.**
+      The v2 `ui/src/services/` layer covers auth + the notes list
+      (`http.ts`, `auth.ts`, `notes.ts`); `useNotes` fetches `GET /notes/`
+      on mount and `AppShell.vue` renders the result with `loading`/`error`
+      states. But note mutations (create/delete/edit/tag/copy/export) are
+      still local `ref` mutations — they do not POST/PUT/DELETE to the
+      backend and do not persist — and the backend `GET /api/notes/events`
+      SSE stream is unconsumed. The backend `NoteResponse` also has no
+      `tags` field, so `TagFilter`/`NoteCard` tag chips render empty until
+      a separate change closes that gap. Wiring the remaining CRUD and the
+      SSE live-update channel is the outstanding integration work.
 
 - [ ] **No virtualization for the rendered notes list (Vue rewrite).**
       The legacy React `NotesExplorer` used `react-window` to virtualize
       large lists; the v2 Vue shell renders notes directly in `AppShell.vue`
-      with no windowing. With only 6 seeded mock notes this is harmless,
-      but it must be revisited before the app is wired to real per-user
-      note volumes. Threshold to act: re-evaluate when avg user note count
-      exceeds ~200, or when a slow-render report comes in.
+      with no windowing. With the list now sourced from the backend this is
+      only harmless at low per-user note counts; it must be revisited before
+      the app is wired to real per-user note volumes. Threshold to act:
+      re-evaluate when avg user note count exceeds ~200, or when a
+      slow-render report comes in.
 
 - [ ] **Superseded React frontend tech debt (`remove-for-you` / F16–F17).**
       The earlier `NotesExplorer.tsx` / `CommandPalette` deletion-fence

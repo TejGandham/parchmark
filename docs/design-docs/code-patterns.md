@@ -89,13 +89,20 @@ Pure note helpers (`extractTitle`, `stripTitle`, `plainPreview`, `wordCount`,
 `readingTime`, `allTags`, `relTime`, `groupByTime`) live in
 `ui/src/features/notes/noteMockHelpers.ts`.
 
-### Notes data — MOCK, not yet wired to the backend
+### Notes data — list fetched from backend, mutations local
 
-Notes are in-memory mock data (`features/notes/mockNotes.ts`, seeded into
-`AppShell.vue`). All note operations (`createNote`, `deleteActiveNote`,
-`selectNote`, `toggleTag`, copy/export) are local ref mutations / clipboard +
-Blob. The `services/` layer **only covers auth** — there is no notes API client
-in this worktree.
+The notes list is fetched from the backend via `GET /notes/`: the
+`useNotes` composable (`features/notes/useNotes.ts`, a module-singleton
+mirroring `useAuth`) calls `services/notes.ts` `listNotes()` on
+`fetchNotes()` and maps each `NoteDTO` into `NoteMock` (ISO timestamps →
+epoch ms; `tags: []` because the backend `NoteResponse` has no tags
+field yet). `AppShell.vue` calls `useNotes()` and `fetchNotes()` on
+mount and passes `loading`/`error` to `SidebarDrawer.vue`, which emits
+`retry` to refetch. Other note operations (`createNote`,
+`deleteActiveNote`, `selectNote`, `toggleTag`, copy/export) are still
+local ref mutations / clipboard + Blob — not persisted. The
+`features/notes/mockNotes.ts` module now only provides the `NoteMock`
+type and an in-memory seed used outside the live list path.
 
 ### Design system (DTCG tokens + Ds* components)
 
