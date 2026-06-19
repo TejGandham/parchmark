@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
-import { mockNotes, type NoteMock } from "@/features/notes/mockNotes";
+import type { NoteMock } from "@/features/notes/mockNotes";
 import {
   allTags,
   extractTitle,
@@ -10,16 +10,14 @@ import {
   relTime,
   wordCount,
 } from "@/features/notes/noteMockHelpers";
+import { useNotes } from "@/features/notes/useNotes";
 
 import AppTopbar from "./AppTopbar.vue";
 import type { NoteMenuAction, NoteMode } from "./headerTypes";
 import SidebarDrawer from "./SidebarDrawer.vue";
 
-const notes = ref<NoteMock[]>(mockNotes.slice());
-const activeId = ref(
-  notes.value.slice().sort((left, right) => right.updatedAt - left.updatedAt)[0]
-    ?.id ?? null,
-);
+const { notes, loading, error, fetchNotes } = useNotes();
+const activeId = ref<string | null>(null);
 const mode = ref<NoteMode>("read");
 const search = ref("");
 const activeTags = ref<string[]>([]);
@@ -42,6 +40,14 @@ watch(
   },
   { immediate: true },
 );
+
+onMounted(async () => {
+  await fetchNotes();
+  const newest = notes.value
+    .slice()
+    .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  activeId.value = newest?.id ?? null;
+});
 
 const tags = computed(() => allTags(notes.value));
 
@@ -176,6 +182,8 @@ function handleNoteMenuAction(id: NoteMenuAction) {
       :activeTags="activeTags"
       :settingsActive="settingsActive"
       :open="navOpen"
+      :loading="loading"
+      :error="error"
       @select="selectNote"
       @newNote="createNote"
       @toggleTag="toggleTag"
