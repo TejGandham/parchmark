@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, resetAuthHooks, setAuthHooks } from "./http";
-import { createNote, listNotes, type NoteDTO } from "./notes";
+import { createNote, listNotes, updateNote, type NoteDTO } from "./notes";
 
 /** Build a `fetch`-compatible `Response` carrying a JSON body. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -148,6 +148,55 @@ describe("createNote", () => {
     await expect(createNote({ content: "" })).rejects.toMatchObject({
       status: 422,
       detail: "content too short",
+    });
+  });
+});
+
+describe("updateNote", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    resetAuthHooks();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("PUTs to /api/notes/{note_id} with the supplied body and bearer token", async () => {
+    const updated = {
+      ...sampleNotes[0],
+      content: "# Updated\n\nSaved.",
+      updatedAt: "2026-06-21T10:30:00.000Z",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, updated));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = { content: "# Updated\n\nSaved." };
+    const result = await updateNote("note-1", payload);
+
+    expect(calledUrl(fetchMock)).toContain("/api/notes/note-1");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("PUT");
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(JSON.parse(String(init.body))).toEqual(payload);
+    expect(result).toEqual(updated);
+  });
+
+  it("rejects with ApiError carrying backend { detail } on update failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { detail: "Note not found" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      updateNote("missing", { content: "# Lost" }),
+    ).rejects.toMatchObject({
+      status: 404,
+      detail: "Note not found",
     });
   });
 });

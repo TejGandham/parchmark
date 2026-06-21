@@ -42,6 +42,25 @@ function fetchStub(url: string | URL | Request, init?: RequestInit) {
       }),
     );
   }
+  if (method === "PUT" && String(url).includes("/notes/")) {
+    const body = JSON.parse(String(init?.body ?? "{}")) as { content?: string };
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          id: "n1",
+          title: "Updated",
+          content: body.content ?? "# Updated\n\nSaved.",
+          tags: ["draft", "journal"],
+          createdAt: new Date(mockNotes[0].createdAt).toISOString(),
+          updatedAt: "2026-06-21T10:30:00.000Z",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+  }
   return Promise.resolve(new Response("{}", { status: 200 }));
 }
 
@@ -126,6 +145,12 @@ describe("AppShell", () => {
     await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
 
     expect(wrapper.get(".mode-switch__status").text()).toContain("Editing");
+    expect(
+      (
+        wrapper.get('textarea[aria-label="Markdown content"]')
+          .element as HTMLTextAreaElement
+      ).value,
+    ).toBe(mockNotes[0].content);
   });
 
   it("returns from edit mode to read mode from the header action", async () => {
@@ -139,6 +164,89 @@ describe("AppShell", () => {
     expect(wrapper.find('[aria-label="Return to read mode"]').exists()).toBe(
       false,
     );
+    expect(wrapper.find("textarea").exists()).toBe(false);
+  });
+
+  it("saves edited markdown through the backend and returns to read mode", async () => {
+    const fetchMock = vi.fn(fetchStub);
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper
+      .get('textarea[aria-label="Markdown content"]')
+      .setValue("# Updated\n\nSaved body.");
+    await wrapper.get(".note-editor").trigger("submit");
+    await flushPromises();
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/notes/n1") &&
+        (init?.method ?? "GET").toUpperCase() === "PUT",
+    );
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
+      content: "# Updated\n\nSaved body.",
+    });
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Reading");
+    expect(wrapper.get(".doc-title").text()).toBe("Updated");
+    expect(wrapper.find("textarea").exists()).toBe(false);
+  });
+
+  it("discards draft edits when canceling", async () => {
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper
+      .get('textarea[aria-label="Markdown content"]')
+      .setValue("# Unsaved\n\nDraft.");
+    const cancelButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Cancel");
+    expect(cancelButton).toBeTruthy();
+    await cancelButton!.trigger("click");
+
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Reading");
+    expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
+    expect(wrapper.text()).not.toContain("Unsaved");
+  });
+
+  it("keeps the draft visible and saved note unchanged when save fails", async () => {
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "PUT" && String(url).includes("/notes/")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ detail: "save failed" }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper
+      .get('textarea[aria-label="Markdown content"]')
+      .setValue("# Failed save\n\nDraft.");
+    await wrapper.get(".note-editor").trigger("submit");
+    await flushPromises();
+
+    expect(wrapper.get(".mode-switch__status").text()).toContain("Editing");
+    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe(
+      "# Failed save\n\nDraft.",
+    );
+    expect(wrapper.get(".action-error").text()).toBe("save failed");
+
+    await wrapper.get('[aria-label="Return to read mode"]').trigger("click");
+    expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
   });
 
   it("renders the active note body as structured markdown", async () => {

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
+import NoteEditor from "@/features/notes/NoteEditor.vue";
 import {
   allTags,
   extractTitle,
@@ -20,9 +21,12 @@ const {
   loading,
   error,
   creating,
+  updating,
   mutationError,
+  clearMutationError,
   fetchNotes,
   createNote: persistNote,
+  updateNote: persistNoteUpdate,
 } = useNotes();
 const activeId = ref<string | null>(null);
 const mode = ref<NoteMode>("read");
@@ -31,6 +35,7 @@ const activeTags = ref<string[]>([]);
 const menuOpen = ref(false);
 const navOpen = ref(false);
 const settingsActive = ref(false);
+const draftContent = ref("");
 const storedTheme =
   typeof localStorage === "undefined" ? null : localStorage.getItem("pm_theme");
 const theme = ref<"light" | "dark">(storedTheme === "dark" ? "dark" : "light");
@@ -87,9 +92,21 @@ const activeTitle = computed(() =>
   activeNote.value ? extractTitle(activeNote.value.content) : "Untitled",
 );
 
+const draftDirty = computed(
+  () =>
+    activeNote.value !== null &&
+    draftContent.value !== activeNote.value.content,
+);
+const draftValid = computed(() => draftContent.value.trim().length >= 4);
+const canSaveDraft = computed(
+  () => draftDirty.value && draftValid.value && !updating.value,
+);
+
 function selectNote(id: string) {
   activeId.value = id;
   mode.value = "read";
+  draftContent.value = "";
+  clearMutationError();
   menuOpen.value = false;
   navOpen.value = false;
   settingsActive.value = false;
@@ -102,6 +119,7 @@ async function createNote() {
     const note = await persistNote({ content: "# Untitled\n\n", tags: [] });
 
     activeId.value = note.id;
+    draftContent.value = note.content;
     mode.value = "edit";
     navOpen.value = false;
     settingsActive.value = false;
@@ -118,6 +136,8 @@ function toggleTag(tag: string) {
 
 function openSettings() {
   settingsActive.value = true;
+  draftContent.value = "";
+  clearMutationError();
   navOpen.value = false;
   menuOpen.value = false;
 }
@@ -127,7 +147,40 @@ function toggleTheme() {
 }
 
 function startEdit() {
+  if (!activeNote.value) return;
+  draftContent.value = activeNote.value.content;
+  clearMutationError();
   mode.value = "edit";
+}
+
+function cancelEdit() {
+  draftContent.value = activeNote.value?.content ?? "";
+  clearMutationError();
+  mode.value = "read";
+}
+
+function handleModeUpdate(nextMode: NoteMode) {
+  if (nextMode === "edit") {
+    startEdit();
+  } else {
+    cancelEdit();
+  }
+}
+
+async function saveDraft() {
+  if (!activeNote.value || !canSaveDraft.value) return;
+
+  const noteId = activeNote.value.id;
+  try {
+    const updated = await persistNoteUpdate(noteId, {
+      content: draftContent.value,
+    });
+    activeId.value = updated.id;
+    draftContent.value = updated.content;
+    mode.value = "read";
+  } catch {
+    // The notes store owns the visible mutation error and leaves state intact.
+  }
 }
 
 async function copyActiveMarkdown() {
@@ -206,14 +259,14 @@ function handleNoteMenuAction(id: NoteMenuAction) {
 
     <main class="main-pane">
       <AppTopbar
-        v-model:mode="mode"
         v-model:menuOpen="menuOpen"
+        :mode="mode"
         :activeNote="settingsActive ? null : activeNote"
         :activeTags="activeTags"
         :title="activeTitle"
         :theme="theme"
         @openDrawer="navOpen = true"
-        @startEdit="startEdit"
+        @update:mode="handleModeUpdate"
         @toggleTheme="toggleTheme"
         @noteAction="handleNoteMenuAction"
       />
@@ -249,7 +302,16 @@ function handleNoteMenuAction(id: NoteMenuAction) {
             </span>
           </div>
           <div class="rule" />
-          <MarkdownProse :markdown="activeNote.content" />
+          <NoteEditor
+            v-if="mode === 'edit'"
+            v-model="draftContent"
+            :canSave="canSaveDraft"
+            :saving="updating"
+            :error="mutationError"
+            @save="saveDraft"
+            @cancel="cancelEdit"
+          />
+          <MarkdownProse v-else :markdown="activeNote.content" />
         </div>
       </section>
 

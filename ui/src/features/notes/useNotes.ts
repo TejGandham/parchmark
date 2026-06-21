@@ -4,8 +4,10 @@ import type { NoteMock } from "./mockNotes";
 import {
   createNote as createNoteRequest,
   listNotes,
+  updateNote as updateNoteRequest,
   type CreateNoteRequest,
   type NoteDTO,
+  type UpdateNoteRequest,
 } from "../../services/notes";
 import { ApiError } from "../../services/http";
 
@@ -27,6 +29,9 @@ const error = ref<string | null>(null);
 
 /** `true` while a note create call is in flight. */
 const creating = ref(false);
+
+/** `true` while a note update call is in flight. */
+const updating = ref(false);
 
 /** Last user-action mutation error, separate from the note-list load error. */
 const mutationError = ref<string | null>(null);
@@ -92,6 +97,31 @@ export async function createNote(
   }
 }
 
+export async function updateNote(
+  noteId: string,
+  payload: UpdateNoteRequest,
+): Promise<NoteMock> {
+  updating.value = true;
+  mutationError.value = null;
+
+  try {
+    const updated = mapDtoToNote(await updateNoteRequest(noteId, payload));
+    notes.value = notes.value.map((note) =>
+      note.id === noteId ? updated : note,
+    );
+    return updated;
+  } catch (caught) {
+    mutationError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    updating.value = false;
+  }
+}
+
+export function clearMutationError(): void {
+  mutationError.value = null;
+}
+
 /**
  * Reactive notes store as a composable singleton. All consumers share one set
  * of module-level refs; calling this multiple times returns the same refs.
@@ -102,8 +132,11 @@ export function useNotes() {
     loading,
     error,
     creating,
+    updating,
     mutationError,
     fetchNotes,
     createNote,
+    updateNote,
+    clearMutationError,
   };
 }

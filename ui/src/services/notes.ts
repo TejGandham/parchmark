@@ -25,6 +25,12 @@ export interface CreateNoteRequest {
   tags?: string[] | null;
 }
 
+export interface UpdateNoteRequest {
+  content?: string;
+  title?: string | null;
+  tags?: string[] | null;
+}
+
 /** Fetch the current user's notes from `GET /notes/`. */
 export function listNotes(): Promise<NoteDTO[]> {
   return request<NoteDTO[]>("/notes/", { method: "GET" });
@@ -33,4 +39,15 @@ export function listNotes(): Promise<NoteDTO[]> {
 /** Create a note for the current user through `POST /notes/`. */
 export function createNote(payload: CreateNoteRequest): Promise<NoteDTO> {
   return request<NoteDTO>("/notes/", { method: "POST", body: payload });
+}
+
+/** Update a note for the current user through `PUT /notes/{note_id}`. */
+export function updateNote(
+  noteId: string,
+  payload: UpdateNoteRequest,
+): Promise<NoteDTO> {
+  return request<NoteDTO>(`/notes/${noteId}`, {
+    method: "PUT",
+    body: payload,
+  });
 }

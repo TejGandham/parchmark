@@ -3,16 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../services/notes", () => ({
   createNote: vi.fn(),
   listNotes: vi.fn(),
+  updateNote: vi.fn(),
 }));
 
 import { ApiError } from "../../services/http";
 import type { NoteDTO } from "../../services/notes";
-import { createNote, listNotes } from "../../services/notes";
+import { createNote, listNotes, updateNote } from "../../services/notes";
 
 import { useNotes } from "./useNotes";
 
 const listNotesMock = vi.mocked(listNotes);
 const createNoteMock = vi.mocked(createNote);
+const updateNoteMock = vi.mocked(updateNote);
 
 function dto(overrides: Partial<NoteDTO> = {}): NoteDTO {
   return {
@@ -28,14 +30,17 @@ function dto(overrides: Partial<NoteDTO> = {}): NoteDTO {
 
 describe("useNotes", () => {
   beforeEach(() => {
-    const { notes, loading, error, creating, mutationError } = useNotes();
+    const { notes, loading, error, creating, updating, mutationError } =
+      useNotes();
     notes.value = [];
     loading.value = false;
     error.value = null;
     creating.value = false;
+    updating.value = false;
     mutationError.value = null;
     listNotesMock.mockReset();
     createNoteMock.mockReset();
+    updateNoteMock.mockReset();
   });
 
   it("fetchNotes maps NoteDTO[] to NoteMock[]: ISO strings to epoch ms, backend tags preserved", async () => {
@@ -138,9 +143,12 @@ describe("useNotes", () => {
     expect(a.loading).toBe(b.loading);
     expect(a.error).toBe(b.error);
     expect(a.creating).toBe(b.creating);
+    expect(a.updating).toBe(b.updating);
     expect(a.mutationError).toBe(b.mutationError);
     expect(a.fetchNotes).toBe(b.fetchNotes);
     expect(a.createNote).toBe(b.createNote);
+    expect(a.updateNote).toBe(b.updateNote);
+    expect(a.clearMutationError).toBe(b.clearMutationError);
   });
 
   it("createNote maps the returned NoteDTO, prepends it, and preserves backend fields", async () => {
@@ -220,5 +228,83 @@ describe("useNotes", () => {
 
     expect(mutationError.value).toBe("create failed");
     expect(notes.value).toEqual(before);
+  });
+
+  it("updateNote replaces only the matching note with the returned backend fields", async () => {
+    const { notes } = useNotes();
+    notes.value = [
+      {
+        id: "target",
+        content: "# Old",
+        tags: ["keep"],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+      {
+        id: "other",
+        content: "# Other",
+        tags: [],
+        createdAt: 3,
+        updatedAt: 4,
+      },
+    ];
+    updateNoteMock.mockResolvedValue(
+      dto({
+        id: "target",
+        content: "# Updated\n\nSaved.",
+        tags: ["keep"],
+        createdAt: "2026-06-21T10:00:00Z",
+        updatedAt: "2026-06-21T10:30:00Z",
+      }),
+    );
+
+    const updated = await useNotes().updateNote("target", {
+      content: "# Updated\n\nSaved.",
+    });
+
+    expect(updateNoteMock).toHaveBeenCalledWith("target", {
+      content: "# Updated\n\nSaved.",
+    });
+    expect(notes.value).toEqual([
+      updated,
+      {
+        id: "other",
+        content: "# Other",
+        tags: [],
+        createdAt: 3,
+        updatedAt: 4,
+      },
+    ]);
+  });
+
+  it("on updateNote rejection, mutationError is set and notes are left unchanged", async () => {
+    const { notes, mutationError } = useNotes();
+    notes.value = [
+      {
+        id: "target",
+        content: "# Old",
+        tags: [],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ];
+    const before = [...notes.value];
+    updateNoteMock.mockRejectedValue(new ApiError(500, "save failed"));
+
+    await expect(
+      useNotes().updateNote("target", { content: "# Updated" }),
+    ).rejects.toBeInstanceOf(ApiError);
+
+    expect(mutationError.value).toBe("save failed");
+    expect(notes.value).toEqual(before);
+  });
+
+  it("clearMutationError resets mutationError", () => {
+    const { mutationError, clearMutationError } = useNotes();
+    mutationError.value = "boom";
+
+    clearMutationError();
+
+    expect(mutationError.value).toBeNull();
   });
 });
