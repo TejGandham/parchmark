@@ -55,11 +55,11 @@ class TestCreateNoteTransactionError:
         mock_db_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_create_note_refresh_failure_returns_500(self, mock_user, mock_db_session):
-        """Test that refresh failure after commit returns 500 and triggers rollback."""
+    async def test_create_note_requery_failure_returns_500(self, mock_user, mock_db_session):
+        """Test that post-commit re-query failure returns 500 and triggers rollback."""
         # Arrange
         note_data = NoteCreate(title="Test Note", content="# Test Note\n\nContent here.")
-        mock_db_session.refresh.side_effect = SQLAlchemyError("Database refresh failed")
+        mock_db_session.execute.side_effect = SQLAlchemyError("Database re-query failed")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -81,6 +81,7 @@ class TestUpdateNoteTransactionError:
         note.user_id = 1
         note.title = "Original Title"
         note.content = "# Original Title\n\nOriginal content."
+        note.tags = []
         note.created_at = MagicMock()
         note.created_at.isoformat.return_value = "2024-01-01T00:00:00"
         note.updated_at = MagicMock()
@@ -109,17 +110,15 @@ class TestUpdateNoteTransactionError:
         mock_db_session.rollback.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_update_note_refresh_failure_returns_500(self, mock_user, mock_db_session, mock_existing_note):
-        """Test that refresh failure after commit returns 500 and triggers rollback."""
+    async def test_update_note_requery_failure_returns_500(self, mock_user, mock_db_session, mock_existing_note):
+        """Test that post-commit re-query failure returns 500 and triggers rollback."""
         # Arrange
         note_data = NoteUpdate(content="# Updated Title\n\nUpdated content.")
 
-        # Mock execute to return the existing note
+        # Mock first execute to return the note, then fail the post-commit re-query.
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_existing_note
-        mock_db_session.execute.return_value = mock_result
-
-        mock_db_session.refresh.side_effect = SQLAlchemyError("Database refresh failed")
+        mock_db_session.execute.side_effect = [mock_result, SQLAlchemyError("Database re-query failed")]
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:

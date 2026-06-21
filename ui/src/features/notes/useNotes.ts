@@ -25,8 +25,7 @@ const error = ref<string | null>(null);
  * mapped result. Each {@link NoteDTO} is adapted to {@link NoteMock}:
  * - `createdAt`/`updatedAt` ISO-8601 strings are converted to epoch ms via
  *   `Date.parse`.
- * - `tags` is forced to `[]` because the backend exposes no tags field yet
- *   (a known backend gap, not a silent drop).
+ * - `tags` is copied from the backend's normalized note tag contract.
  * - The backend `title` field is intentionally unused: the frontend derives
  *   titles client-side via `extractTitle(content)`. Carrying it on the DTO
  *   preserves the option to consume it later without another client change;
@@ -46,7 +45,7 @@ export async function fetchNotes(): Promise<void> {
       (dto): NoteMock => ({
         id: dto.id,
         content: dto.content,
-        tags: [],
+        tags: dto.tags,
         createdAt: Date.parse(dto.createdAt),
         updatedAt: Date.parse(dto.updatedAt),
       }),

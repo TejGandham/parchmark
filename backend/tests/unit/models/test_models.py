@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, SAWarning
 from sqlalchemy.orm import Session
 
 from app.auth.auth import get_password_hash
-from app.models.models import Note, User
+from app.models.models import Note, NoteTag, User
 
 
 class TestUserModel:
@@ -344,6 +344,46 @@ class TestNoteModel:
 
             with pytest.raises(IntegrityError):
                 test_db_session.commit()
+
+
+class TestNoteTagModel:
+    """Test persisted note tag model and constraints."""
+
+    def test_note_tags_relationship_orders_tags(self, test_db_session: Session, sample_user: User):
+        """Test notes expose their tags in stable alphabetical order."""
+        note = Note(id="tagged-note", user_id=sample_user.id, title="Tagged Note", content="Tagged content")
+        note.tags = [NoteTag(tag="work"), NoteTag(tag="draft")]
+        test_db_session.add(note)
+        test_db_session.commit()
+        test_db_session.refresh(note)
+
+        assert [tag.tag for tag in note.tags] == ["draft", "work"]
+        assert note.tags[0].note == note
+
+    def test_note_tag_unique_per_note(self, test_db_session: Session, sample_user: User):
+        """Test a note cannot store the same normalized tag twice."""
+        note = Note(id="duplicate-tag-note", user_id=sample_user.id, title="Tagged Note", content="Tagged content")
+        note.tags = [NoteTag(tag="work"), NoteTag(tag="work")]
+        test_db_session.add(note)
+
+        with pytest.raises(IntegrityError):
+            test_db_session.commit()
+
+        test_db_session.rollback()
+
+    def test_note_tag_cascade_delete_with_note(self, test_db_session: Session, sample_user: User):
+        """Test deleting a note deletes its tags."""
+        note = Note(id="cascade-tag-note", user_id=sample_user.id, title="Tagged Note", content="Tagged content")
+        note.tags = [NoteTag(tag="work")]
+        test_db_session.add(note)
+        test_db_session.commit()
+
+        assert test_db_session.query(NoteTag).filter(NoteTag.note_id == note.id).count() == 1
+
+        test_db_session.delete(note)
+        test_db_session.commit()
+
+        assert test_db_session.query(NoteTag).filter(NoteTag.note_id == note.id).count() == 0
 
 
 class TestUserNoteRelationship:

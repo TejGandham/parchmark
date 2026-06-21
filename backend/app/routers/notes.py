@@ -15,11 +15,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.auth import credentials_exception
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
-from app.models.models import Note, User
+from app.models.models import Note, NoteTag, User
 from app.schemas.schemas import (
     DeleteResponse,
     NoteCreate,
@@ -48,10 +49,23 @@ def _note_to_response(note: Note) -> NoteResponse:
             "id": note.id,
             "title": note.title,
             "content": note.content,
+            "tags": sorted(tag.tag for tag in note.tags),
             "createdAt": note.created_at.isoformat(),
             "updatedAt": note.updated_at.isoformat(),
         }
     )
+
+
+def _replace_note_tags(note: Note, tags: list[str]) -> None:
+    """Replace a note's complete normalized tag set."""
+    note.tags = [NoteTag(tag=tag) for tag in tags]
+
+
+async def _get_owned_note(db: AsyncSession, user_id: int, note_id: str) -> Note | None:
+    result = await db.execute(
+        select(Note).options(selectinload(Note.tags)).filter(Note.id == note_id, Note.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_current_user_for_note_events(
@@ -125,7 +139,7 @@ async def get_notes(current_user: User = Depends(get_current_user), db: AsyncSes
         List[NoteResponse]: List of user's notes
     """
     # Query notes for the current user
-    result = await db.execute(select(Note).filter(Note.user_id == current_user.id))
+    result = await db.execute(select(Note).options(selectinload(Note.tags)).filter(Note.user_id == current_user.id))
     notes = result.scalars().all()
 
     return [_note_to_response(note) for note in notes]
@@ -188,17 +202,26 @@ async def create_note(
         title=title,
         content=formatted_content,
     )
+    if note_data.tags is not None:
+        _replace_note_tags(db_note, note_data.tags)
 
     try:
         db.add(db_note)
         await db.commit()
-        await db.refresh(db_note)
     except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"Failed to create note: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
-    return _note_to_response(db_note)
+    try:
+        created_note = await _get_owned_note(db, current_user.id, note_id)  # type: ignore[arg-type]
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Failed to load created note {note_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
+    if created_note is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error")
+    return _note_to_response(created_note)
 
 
 @router.put("/{note_id}", response_model=NoteResponse)
@@ -229,8 +252,7 @@ async def update_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
-    db_note = result.scalar_one_or_none()
+    db_note = await _get_owned_note(db, current_user.id, note_id)  # type: ignore[arg-type]
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
@@ -246,15 +268,25 @@ async def update_note(
         # If only title is provided, update it directly
         db_note.title = note_data.title  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
 
+    if "tags" in note_data.model_fields_set and note_data.tags is not None:
+        _replace_note_tags(db_note, note_data.tags)
+
     try:
         await db.commit()
-        await db.refresh(db_note)
     except SQLAlchemyError as e:
         await db.rollback()
         logger.error(f"Failed to update note {note_id}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
 
-    return _note_to_response(db_note)
+    try:
+        updated_note = await _get_owned_note(db, current_user.id, note_id)  # type: ignore[arg-type]
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logger.error(f"Failed to load updated note {note_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error") from None
+    if updated_note is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    return _note_to_response(updated_note)
 
 
 @router.delete("/{note_id}", response_model=DeleteResponse)
@@ -282,8 +314,7 @@ async def delete_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
-    db_note = result.scalar_one_or_none()
+    db_note = await _get_owned_note(db, current_user.id, note_id)  # type: ignore[arg-type]
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
@@ -321,8 +352,7 @@ async def get_note(
         HTTPException: 404 if note not found or not owned by user
     """
     # Get the note and verify ownership
-    result = await db.execute(select(Note).filter(Note.id == note_id, Note.user_id == current_user.id))
-    db_note = result.scalar_one_or_none()
+    db_note = await _get_owned_note(db, current_user.id, note_id)  # type: ignore[arg-type]
 
     if not db_note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")

@@ -28,7 +28,7 @@ if config.config_file_name is not None:
 
 # Import models for autogenerate support
 from app.database.database import Base  # noqa: E402
-from app.models.models import Note, User  # noqa: E402, F401
+from app.models.models import Note, NoteTag, User  # noqa: E402, F401
 
 target_metadata = Base.metadata
 

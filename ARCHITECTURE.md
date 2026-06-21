@@ -259,7 +259,7 @@ User action (login / app mount)
     → reactive refs update; gate reveals LoginView or AppShell
 ```
 
-The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` → `services/notes.ts` `listNotes()` → `GET /api/notes/` → `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps → epoch ms, `tags: []` because the backend `NoteResponse` has no tags field). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. Other note operations (create/delete/select/tag/copy/export) remain local ref mutations plus clipboard/Blob — no server round-trip and not persisted.
+The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` → `services/notes.ts` `listNotes()` → `GET /api/notes/` → `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps → epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. Other note operations (create/delete/select/tag/copy/export) remain local ref mutations plus clipboard/Blob — no server round-trip and not persisted.
 
 ### State Management
 

@@ -10,6 +10,7 @@ const noteDtos = mockNotes.map((note) => ({
   id: note.id,
   title: extractTitle(note.content),
   content: note.content,
+  tags: note.tags,
   createdAt: new Date(note.createdAt).toISOString(),
   updatedAt: new Date(note.updatedAt).toISOString(),
 }));
@@ -115,38 +116,36 @@ describe("AppShell", () => {
     expect(checkboxes[0].attributes("disabled")).toBeDefined();
   });
 
-  // KARTA-DEFER(appshell-tests-backend-shape): re-enable when NoteResponse has a tags field (backend gap)
-  // it("filters notes by search and tag, then selects the remaining note", async () => {
-  //   const wrapper = mount(AppShell);
-  //   await flushPromises();
-  //
-  //   await wrapper.get('input[type="search"]').setValue("standup");
-  //   const noteList = wrapper.get(".note-list");
-  //   expect(noteList.text()).toContain("Standup notes");
-  //   expect(noteList.text()).not.toContain("Morning Pages");
-  //
-  //   const logTag = wrapper
-  //     .findAll(".tag-filter__tag")
-  //     .find((button) => button.text().includes("log"));
-  //   expect(logTag).toBeTruthy();
-  //   await logTag?.trigger("click");
-  //   expect(wrapper.text()).toContain("#log");
-  //
-  //   await wrapper.get(".note-card").trigger("click");
-  //   expect(wrapper.get(".doc-title").text()).toBe("Standup notes");
-  // });
+  it("filters notes by search and tag, then selects the remaining note", async () => {
+    const wrapper = mount(AppShell);
+    await flushPromises();
 
-  // KARTA-DEFER(appshell-tests-backend-shape): re-enable when NoteResponse has a tags field (backend gap)
-  // it("toggles a tag filter from the active note's meta row", async () => {
-  //   const wrapper = mount(AppShell);
-  //   await flushPromises();
-  //
-  //   const metaTag = wrapper.get(".doc-tags .mini-tag-button");
-  //   const tagLabel = metaTag.text();
-  //   await metaTag.trigger("click");
-  //
-  //   expect(wrapper.get(".tag-filter").text()).toContain(tagLabel.slice(1));
-  // });
+    await wrapper.get('input[type="search"]').setValue("standup");
+    const noteList = wrapper.get(".note-list");
+    expect(noteList.text()).toContain("Standup notes");
+    expect(noteList.text()).not.toContain("Morning Pages");
+
+    const logTag = wrapper
+      .findAll(".tag-filter__tag")
+      .find((button) => button.text().includes("log"));
+    expect(logTag).toBeTruthy();
+    await logTag?.trigger("click");
+    expect(wrapper.text()).toContain("#log");
+
+    await wrapper.get(".note-card").trigger("click");
+    expect(wrapper.get(".doc-title").text()).toBe("Standup notes");
+  });
+
+  it("toggles a tag filter from the active note's meta row", async () => {
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    const metaTag = wrapper.get(".doc-tags .mini-tag-button");
+    const tagLabel = metaTag.text();
+    await metaTag.trigger("click");
+
+    expect(wrapper.get(".tag-filter").text()).toContain(tagLabel.slice(1));
+  });
 
   it("opens the mobile drawer state and toggles the theme", async () => {
     const wrapper = mount(AppShell);
