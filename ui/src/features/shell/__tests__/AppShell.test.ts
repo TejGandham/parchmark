@@ -15,11 +15,28 @@ const noteDtos = mockNotes.map((note) => ({
   updatedAt: new Date(note.updatedAt).toISOString(),
 }));
 
+const createdNoteDto = {
+  id: "note-created-by-backend",
+  title: "Backend Created",
+  content: "# Backend Created\n\nFrom the server.",
+  tags: [],
+  createdAt: "2026-06-21T10:00:00.000Z",
+  updatedAt: "2026-06-21T10:00:01.000Z",
+};
+
 function fetchStub(url: string | URL | Request, init?: RequestInit) {
   const method = (init?.method ?? "GET").toUpperCase();
   if (method === "GET" && String(url).includes("/notes/")) {
     return Promise.resolve(
       new Response(JSON.stringify(noteDtos), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  }
+  if (method === "POST" && String(url).includes("/notes/")) {
+    return Promise.resolve(
+      new Response(JSON.stringify(createdNoteDto), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -39,14 +56,57 @@ describe("AppShell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("creates a new mock note and switches to edit mode", async () => {
+  it("creates a backend note and switches to edit mode", async () => {
+    const fetchMock = vi.fn(fetchStub);
+    vi.stubGlobal("fetch", fetchMock);
     const wrapper = mount(AppShell);
     await flushPromises();
 
     await wrapper.get(".new-note-button").trigger("click");
+    await flushPromises();
 
-    expect(wrapper.get(".doc-title").text()).toBe("Untitled");
+    expect(wrapper.get(".doc-title").text()).toBe("Backend Created");
     expect(wrapper.get(".mode-switch__status").text()).toContain("Editing");
+    expect(wrapper.get(".note-card.is-active").text()).toContain(
+      "Backend Created",
+    );
+    const postCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/notes/") &&
+        (init?.method ?? "GET").toUpperCase() === "POST",
+    );
+    expect(postCall).toBeTruthy();
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
+      content: "# Untitled\n\n",
+      tags: [],
+    });
+  });
+
+  it("leaves the active note unchanged and shows an error when create fails", async () => {
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "POST" && String(url).includes("/notes/")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ detail: "create failed" }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    const beforeTitle = wrapper.get(".doc-title").text();
+    await wrapper.get(".new-note-button").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get(".doc-title").text()).toBe(beforeTitle);
+    expect(wrapper.get(".action-error").text()).toBe("create failed");
   });
 
   it("opens settings from the user footer", async () => {

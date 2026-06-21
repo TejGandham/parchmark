@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, resetAuthHooks, setAuthHooks } from "./http";
-import { listNotes, type NoteDTO } from "./notes";
+import { createNote, listNotes, type NoteDTO } from "./notes";
 
 /** Build a `fetch`-compatible `Response` carrying a JSON body. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -106,5 +106,48 @@ describe("listNotes", () => {
       detail: "boom",
     });
     await expect(listNotes()).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("createNote", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    resetAuthHooks();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs to /api/notes/ with the supplied body and bearer token", async () => {
+    const created = sampleNotes[0];
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, created));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = { content: "# Untitled\n\n", tags: ["draft"] };
+    const result = await createNote(payload);
+
+    expect(calledUrl(fetchMock)).toContain("/api/notes/");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("POST");
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(JSON.parse(String(init.body))).toEqual(payload);
+    expect(result).toEqual(created);
+  });
+
+  it("rejects with ApiError carrying backend { detail } on create failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(422, { detail: "content too short" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(createNote({ content: "" })).rejects.toMatchObject({
+      status: 422,
+      detail: "content too short",
+    });
   });
 });

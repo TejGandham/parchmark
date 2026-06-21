@@ -19,7 +19,18 @@ export interface NoteDTO {
   updatedAt: string;
 }
 
+export interface CreateNoteRequest {
+  content: string;
+  title?: string | null;
+  tags?: string[] | null;
+}
+
 /** Fetch the current user's notes from `GET /notes/`. */
 export function listNotes(): Promise<NoteDTO[]> {
   return request<NoteDTO[]>("/notes/", { method: "GET" });
+}
+
+/** Create a note for the current user through `POST /notes/`. */
+export function createNote(payload: CreateNoteRequest): Promise<NoteDTO> {
+  return request<NoteDTO>("/notes/", { method: "POST", body: payload });
 }

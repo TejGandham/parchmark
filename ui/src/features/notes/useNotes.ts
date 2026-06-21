@@ -1,7 +1,12 @@
 import { ref } from "vue";
 
 import type { NoteMock } from "./mockNotes";
-import { listNotes, type NoteDTO } from "../../services/notes";
+import {
+  createNote as createNoteRequest,
+  listNotes,
+  type CreateNoteRequest,
+  type NoteDTO,
+} from "../../services/notes";
 import { ApiError } from "../../services/http";
 
 /**
@@ -19,6 +24,26 @@ const loading = ref(false);
 
 /** Last error detail from a failed {@link fetchNotes}, or `null` when clean. */
 const error = ref<string | null>(null);
+
+/** `true` while a note create call is in flight. */
+const creating = ref(false);
+
+/** Last user-action mutation error, separate from the note-list load error. */
+const mutationError = ref<string | null>(null);
+
+function errorDetail(caught: unknown): string {
+  return caught instanceof ApiError ? caught.detail : String(caught);
+}
+
+function mapDtoToNote(dto: NoteDTO): NoteMock {
+  return {
+    id: dto.id,
+    content: dto.content,
+    tags: dto.tags,
+    createdAt: Date.parse(dto.createdAt),
+    updatedAt: Date.parse(dto.updatedAt),
+  };
+}
 
 /**
  * Load the user's notes from `GET /notes/` and replace {@link notes} with the
@@ -41,19 +66,29 @@ export async function fetchNotes(): Promise<void> {
 
   try {
     const dtos: NoteDTO[] = await listNotes();
-    notes.value = dtos.map(
-      (dto): NoteMock => ({
-        id: dto.id,
-        content: dto.content,
-        tags: dto.tags,
-        createdAt: Date.parse(dto.createdAt),
-        updatedAt: Date.parse(dto.updatedAt),
-      }),
-    );
+    notes.value = dtos.map(mapDtoToNote);
   } catch (caught) {
-    error.value = caught instanceof ApiError ? caught.detail : String(caught);
+    error.value = errorDetail(caught);
   } finally {
     loading.value = false;
+  }
+}
+
+export async function createNote(
+  payload: CreateNoteRequest = { content: "# Untitled\n\n", tags: [] },
+): Promise<NoteMock> {
+  creating.value = true;
+  mutationError.value = null;
+
+  try {
+    const created = mapDtoToNote(await createNoteRequest(payload));
+    notes.value = [created, ...notes.value];
+    return created;
+  } catch (caught) {
+    mutationError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    creating.value = false;
   }
 }
 
@@ -66,6 +101,9 @@ export function useNotes() {
     notes,
     loading,
     error,
+    creating,
+    mutationError,
     fetchNotes,
+    createNote,
   };
 }

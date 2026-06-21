@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from "vue";
 
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
-import type { NoteMock } from "@/features/notes/mockNotes";
 import {
   allTags,
   extractTitle,
@@ -16,7 +15,15 @@ import AppTopbar from "./AppTopbar.vue";
 import type { NoteMenuAction, NoteMode } from "./headerTypes";
 import SidebarDrawer from "./SidebarDrawer.vue";
 
-const { notes, loading, error, fetchNotes } = useNotes();
+const {
+  notes,
+  loading,
+  error,
+  creating,
+  mutationError,
+  fetchNotes,
+  createNote: persistNote,
+} = useNotes();
 const activeId = ref<string | null>(null);
 const mode = ref<NoteMode>("read");
 const search = ref("");
@@ -88,21 +95,19 @@ function selectNote(id: string) {
   settingsActive.value = false;
 }
 
-function createNote() {
-  const timestamp = Date.now();
-  const note: NoteMock = {
-    id: `n${timestamp.toString(36)}`,
-    tags: [],
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    content: "# Untitled\n\n",
-  };
+async function createNote() {
+  if (creating.value) return;
 
-  notes.value = [note, ...notes.value];
-  activeId.value = note.id;
-  mode.value = "edit";
-  navOpen.value = false;
-  settingsActive.value = false;
+  try {
+    const note = await persistNote({ content: "# Untitled\n\n", tags: [] });
+
+    activeId.value = note.id;
+    mode.value = "edit";
+    navOpen.value = false;
+    settingsActive.value = false;
+  } catch {
+    // The notes store owns the visible mutation error and leaves state intact.
+  }
 }
 
 function toggleTag(tag: string) {
@@ -213,6 +218,10 @@ function handleNoteMenuAction(id: NoteMenuAction) {
         @noteAction="handleNoteMenuAction"
       />
 
+      <div v-if="mutationError" class="action-error" role="alert">
+        {{ mutationError }}
+      </div>
+
       <section v-if="settingsActive" class="settings-placeholder">
         <h1>Settings</h1>
         <p>Profile and workspace controls are queued for a later slice.</p>
@@ -284,6 +293,16 @@ function handleNoteMenuAction(id: NoteMenuAction) {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.action-error {
+  margin: 14px 28px 0;
+  padding: 10px 12px;
+  color: var(--danger);
+  font-size: 13px;
+  background: var(--danger-surface);
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, transparent);
+  border-radius: var(--r);
 }
 
 .read-pane {
