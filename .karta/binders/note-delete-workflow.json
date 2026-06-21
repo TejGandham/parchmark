@@ -1,0 +1,117 @@
+{
+  "slug": "note-delete-workflow",
+  "motivation": "Persist the existing Delete note menu action through the backend delete endpoint so removed notes stay removed after refresh.",
+  "scope": {
+    "included": [
+      "ui/src/services/notes.ts: add a typed DELETE /notes/{note_id} deleteNote client using the existing request() helper",
+      "ui/src/features/notes/useNotes.ts: expose a deleteNote operation that removes a note from the shared notes ref after backend success",
+      "ui/src/features/shell/AppShell.vue: wire the existing overflow Delete note menu action to the persisted delete operation and choose the next active note after success",
+      "focused tests for the service client, useNotes delete behavior, successful menu deletion, and failed deletion"
+    ],
+    "excluded": [
+      "creating notes; planned in note-create-workflow",
+      "editing/saving notes; planned in note-edit-save-workflow",
+      "custom confirmation modal, undo/trash, soft delete, bulk delete, account deletion, and retention policy",
+      "backend API changes; DELETE /api/notes/{note_id} already exists",
+      "SSE/live refresh integration for deletes"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Vue 3 (<script setup> SFCs) + TypeScript + Vite frontend with ofetch services and module-singleton composables; FastAPI backend already exposes DELETE /api/notes/{note_id} returning DeleteResponse."
+  },
+  "token_manifest": null,
+  "env_contract": {
+    "command": "npm run dev",
+    "supports_isolation": true,
+    "isolation_params": [
+      "PORT"
+    ],
+    "cwd": "ui"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "wire-note-delete",
+      "title": "Persist Delete note action",
+      "estimate": "S",
+      "depends_on": [],
+      "design_reference": "app shell overflow note menu",
+      "component_map": [
+        {
+          "component": "OverflowNoteMenu Delete note item",
+          "mapping": "Existing DsMenu item",
+          "notes": "Keep the existing destructive menu item; wire its select handler to the backend delete operation."
+        },
+        {
+          "component": "AppShell active note selection",
+          "mapping": "Existing custom view controller",
+          "notes": "After delete success, select the first remaining note in the current notes array or clear activeId when none remain."
+        }
+      ],
+      "icon_map": [
+        {
+          "design_icon": "trash",
+          "source": "existing local icon factory",
+          "import": "TrashIcon from @/design-system/icons",
+          "notes": "Already used by OverflowNoteMenu; no icon change."
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "endpoint": "DELETE /api/notes/{note_id}",
+          "response": "DeleteResponse with message: string and deleted_id: string."
+        },
+        "exposes": {
+          "service": "deleteNote(noteId): Promise<DeleteResponse> in ui/src/services/notes.ts. It uses request<DeleteResponse>(`/notes/${noteId}`, { method: \"DELETE\" }).",
+          "composable": "useNotes() returns deleteNote(noteId): Promise<void>. It removes the note from notes only after the backend call succeeds and verifies the response deleted_id matches the requested id.",
+          "ui": "Selecting Delete note from the existing overflow menu calls the persisted delete operation, closes the menu, removes the deleted note on success, sets mode to 'read', and selects the first remaining note or null."
+        },
+        "states": {
+          "pending": "Prevent duplicate delete calls for the same active note while a delete is pending. A simple deletingId flag is enough.",
+          "error": "On delete failure, keep the note visible and selected, keep mode unchanged or return to read without data loss, and surface the backend ApiError.detail or a narrow fallback message.",
+          "empty": "If the deleted note was the only note, activeId becomes null and the existing empty state renders."
+        }
+      },
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "destructive-op:persistent note deletion",
+          "contract-mutation:new frontend service/composable delete operation over an existing backend endpoint",
+          "capability-escalation:new persisted write/delete IO from the overflow menu",
+          "blast-radius:AppShell active note selection and empty state change after destructive action"
+        ]
+      },
+      "touches": [
+        "ui/src/services/notes.ts",
+        "ui/src/services/notes.test.ts",
+        "ui/src/features/notes/useNotes.ts",
+        "ui/src/features/notes/useNotes.test.ts",
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts"
+      ],
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "deleteNote() in services/notes.ts DELETEs /api/notes/{note_id} and returns the DeleteResponse body.",
+          "useNotes().deleteNote() removes the note from notes only after backend success and does not remove anything when the backend fails.",
+          "The AppShell overflow Delete note menu action calls the backend delete operation instead of filtering the note locally before the response.",
+          "After successful delete, the active note becomes the first remaining note or null when no notes remain, and mode is read.",
+          "A failed delete keeps the active note visible and surfaces an error.",
+          "Existing create/list/tag/read/edit-state/copy/export tests still pass."
+        ],
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/notes.test.ts src/features/notes/useNotes.test.ts src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": "."
+      }
+    }
+  ]
+}

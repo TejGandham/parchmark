@@ -1,0 +1,116 @@
+{
+  "slug": "note-create-workflow",
+  "motivation": "Persist the New note action through the existing backend create endpoint so newly created notes survive refresh before edit/save work lands.",
+  "scope": {
+    "included": [
+      "ui/src/services/notes.ts: add a typed POST /notes/ createNote client using the existing request() helper",
+      "ui/src/features/notes/useNotes.ts: expose a createNote operation that maps the returned NoteDTO into NoteMock and prepends it to the shared notes ref",
+      "ui/src/features/shell/AppShell.vue: wire the sidebar New button to the persisted create operation, select the returned note, and keep the existing transition into edit mode",
+      "tests for the service client, useNotes create behavior, and AppShell New button behavior"
+    ],
+    "excluded": [
+      "real edit/save UI and PUT /notes/{note_id}; planned in note-edit-save-workflow",
+      "DELETE /notes/{note_id}; planned in note-delete-workflow",
+      "visible tag editing, tag creation controls, bulk tag management, tag colors, or tag ordering",
+      "autosave, offline draft recovery, conflict resolution, and SSE/live refresh integration",
+      "backend API changes; POST /api/notes/ already exists"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Vue 3 (<script setup> SFCs) + TypeScript + Vite frontend with ofetch services and module-singleton composables; FastAPI backend already exposes POST /api/notes/ returning NoteResponse."
+  },
+  "token_manifest": null,
+  "env_contract": {
+    "command": "npm run dev",
+    "supports_isolation": true,
+    "isolation_params": [
+      "PORT"
+    ],
+    "cwd": "ui"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "wire-new-note-create",
+      "title": "Persist New note action",
+      "estimate": "S",
+      "depends_on": [],
+      "design_reference": "app shell sidebar New button and active note pane",
+      "component_map": [
+        {
+          "component": "SidebarDrawer new-note-button",
+          "mapping": "Existing custom component",
+          "notes": "Keep the current New button and PlusIcon; change the AppShell handler behind the existing newNote event."
+        },
+        {
+          "component": "AppShell active note pane",
+          "mapping": "Existing custom view controller",
+          "notes": "Use the returned NoteResponse to select the newly persisted note and keep the current mode transition."
+        }
+      ],
+      "icon_map": [
+        {
+          "design_icon": "plus",
+          "source": "existing local icon factory",
+          "import": "PlusIcon from @/design-system/icons",
+          "notes": "Already used by SidebarDrawer; no icon change."
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "endpoint": "POST /api/notes/",
+          "request": "CreateNoteRequest with content: string, optional title?: string | null, optional tags?: string[] | null.",
+          "response": "NoteDTO matching backend NoteResponse: id, title, content, tags, createdAt, updatedAt."
+        },
+        "exposes": {
+          "service": "createNote(payload): Promise<NoteDTO> in ui/src/services/notes.ts. It uses request<NoteDTO>(\"/notes/\", { method: \"POST\", body: payload }) and relies on http.ts for auth and one refresh retry.",
+          "composable": "useNotes() returns createNote(payload?: Partial<CreateNoteRequest>): Promise<NoteMock>. The default payload creates '# Untitled\\n\\n' with no tags. The returned DTO is mapped through the same DTO-to-NoteMock adapter used by fetchNotes().",
+          "ui": "Clicking SidebarDrawer's New button calls the persisted create operation, prepends/selects the returned note, clears settings/nav state, closes the mobile drawer, and sets mode to 'edit' to preserve the current entry flow for the later edit binder."
+        },
+        "states": {
+          "pending": "The New action should not create duplicate notes while a create request is already pending. A simple creating flag is enough; no spinner redesign is required.",
+          "error": "On create failure, leave notes and activeId unchanged and expose a visible error in the shell/sidebar using the existing error styling pattern or a narrowly scoped action error. Do not add a toast system.",
+          "success": "The selected note is the backend-returned note. Timestamps and tags come from the response, not from Date.now() local fabrication."
+        }
+      },
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:new frontend service/composable write operation over an existing backend endpoint",
+          "capability-escalation:new persisted write IO from the New button",
+          "blast-radius:AppShell owns activeId, mode, sidebar state, notes list, and settings state"
+        ]
+      },
+      "touches": [
+        "ui/src/services/notes.ts",
+        "ui/src/services/notes.test.ts",
+        "ui/src/features/notes/useNotes.ts",
+        "ui/src/features/notes/useNotes.test.ts",
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts"
+      ],
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "createNote() in services/notes.ts POSTs to /api/notes/ with the supplied body and returns the NoteDTO response unchanged.",
+          "useNotes().createNote() maps the returned NoteDTO to NoteMock, prepends it to notes, and preserves backend id, timestamps, content, and tags.",
+          "The AppShell New button does not fabricate a local id or Date.now timestamps; it selects the backend-created note after the POST resolves.",
+          "A failed create request leaves the current note list and active selection unchanged and surfaces an error.",
+          "Existing note listing, tag filtering, markdown rendering, copy/export, settings, theme, and read/edit mode tests still pass."
+        ],
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/notes.test.ts src/features/notes/useNotes.test.ts src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": "."
+      }
+    }
+  ]
+}
