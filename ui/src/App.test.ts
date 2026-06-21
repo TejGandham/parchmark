@@ -7,11 +7,12 @@ import { extractTitle } from "@/features/notes/noteMockHelpers";
 
 import App from "./App.vue";
 
-// NoteResponse[] shape — ISO timestamps, no tags (matches backend contract).
+// NoteResponse[] shape — ISO timestamps plus normalized backend tags.
 const noteDtos = mockNotes.map((note) => ({
   id: note.id,
   title: extractTitle(note.content),
   content: note.content,
+  tags: note.tags,
   createdAt: new Date(note.createdAt).toISOString(),
   updatedAt: new Date(note.updatedAt).toISOString(),
 }));

@@ -3,7 +3,7 @@ SQLAlchemy models for ParchMark backend.
 Defines User and Note models matching the frontend data structures.
 """
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -63,3 +63,28 @@ class Note(Base):
 
     # Relationship to user
     owner = relationship("User", back_populates="notes")
+    tags = relationship(
+        "NoteTag",
+        back_populates="note",
+        cascade="all, delete-orphan",
+        order_by="NoteTag.tag",
+        passive_deletes=True,
+    )
+
+
+class NoteTag(Base):
+    """
+    Persisted normalized tag attached to a note.
+    """
+
+    __tablename__ = "note_tags"
+    __table_args__ = (
+        UniqueConstraint("note_id", "tag", name="uq_note_tags_note_id_tag"),
+        CheckConstraint("length(tag) > 0", name="note_tags_tag_not_empty"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    note_id = Column(String(50), ForeignKey("notes.id", ondelete="CASCADE"), nullable=False, index=True)
+    tag = Column(String(64), nullable=False, index=True)
+
+    note = relationship("Note", back_populates="tags")

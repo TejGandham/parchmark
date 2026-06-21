@@ -3,8 +3,7 @@ import { request } from "./http";
 /**
  * Shape of a note as returned by the backend `NoteResponse` schema
  * (`backend/app/schemas/schemas.py:73`). All timestamp fields are ISO-8601
- * strings. There is intentionally no `tags` field — the backend does not
- * expose one yet (a known backend gap).
+ * strings. Tags are already normalized and deduplicated by the backend.
  *
  * The `title` field is kept on the wire contract even though the frontend
  * currently derives titles client-side via `extractTitle`. Carrying it
@@ -15,6 +14,7 @@ export interface NoteDTO {
   id: string;
   title: string;
   content: string;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -119,17 +119,16 @@ Known shortcuts, deferred improvements, and open questions.
       once manual browser verification of the live list becomes recurring
       merge-gate work.
 
-- [ ] **v2 note mutations are local-only; SSE stream unconsumed; no tags.**
+- [ ] **v2 note mutations are local-only; SSE stream unconsumed.**
       The v2 `ui/src/services/` layer covers auth + the notes list
       (`http.ts`, `auth.ts`, `notes.ts`); `useNotes` fetches `GET /notes/`
-      on mount and `AppShell.vue` renders the result with `loading`/`error`
-      states. But note mutations (create/delete/edit/tag/copy/export) are
-      still local `ref` mutations — they do not POST/PUT/DELETE to the
-      backend and do not persist — and the backend `GET /api/notes/events`
-      SSE stream is unconsumed. The backend `NoteResponse` also has no
-      `tags` field, so `TagFilter`/`NoteCard` tag chips render empty until
-      a separate change closes that gap. Wiring the remaining CRUD and the
-      SSE live-update channel is the outstanding integration work.
+      on mount and `AppShell.vue` renders the result with backend-provided
+      tags plus `loading`/`error` states. But note mutations
+      (create/delete/edit/tag/copy/export) are still local `ref` mutations —
+      they do not POST/PUT/DELETE to the backend and do not persist — and the
+      backend `GET /api/notes/events` SSE stream is unconsumed. Wiring the
+      remaining CRUD/tag mutations and the SSE live-update channel is the
+      outstanding integration work.
 
 - [ ] **No virtualization for the rendered notes list (Vue rewrite).**
       The legacy React `NotesExplorer` used `react-window` to virtualize

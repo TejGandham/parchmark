@@ -32,12 +32,13 @@ function authHeader(init: RequestInit): string | null {
   );
 }
 
-/** A representative NoteResponse[] body with all five fields populated. */
+/** A representative NoteResponse[] body with all fields populated. */
 const sampleNotes: NoteDTO[] = [
   {
     id: "note-1",
     title: "First note",
     content: "# First note\n\nHello.",
+    tags: ["draft", "work"],
     createdAt: "2025-01-01T00:00:00.000Z",
     updatedAt: "2025-01-02T00:00:00.000Z",
   },
@@ -45,6 +46,7 @@ const sampleNotes: NoteDTO[] = [
     id: "note-2",
     title: "Second note",
     content: "# Second note\n\nWorld.",
+    tags: [],
     createdAt: "2025-01-03T00:00:00.000Z",
     updatedAt: "2025-01-04T00:00:00.000Z",
   },
@@ -84,9 +86,11 @@ describe("listNotes", () => {
 
     expect(result).toEqual(sampleNotes);
     expect(result).toHaveLength(2);
-    // Every field, including title, is passed through verbatim.
+    // Every field, including title and tags, is passed through verbatim.
     expect(result[0]).toHaveProperty("title");
+    expect(result[0]).toHaveProperty("tags");
     expect(result[0].title).toBe("First note");
+    expect(result[0].tags).toEqual(["draft", "work"]);
   });
 
   it("rejects with ApiError carrying backend { detail } on non-2xx", async () => {

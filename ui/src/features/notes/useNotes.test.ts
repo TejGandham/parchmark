@@ -17,6 +17,7 @@ function dto(overrides: Partial<NoteDTO> = {}): NoteDTO {
     id: "n1",
     title: "Unused by adapter",
     content: "# Hello",
+    tags: [],
     createdAt: "2024-01-15T10:30:00Z",
     updatedAt: "2024-02-20T08:00:00Z",
     ...overrides,
@@ -32,16 +33,18 @@ describe("useNotes", () => {
     listNotesMock.mockReset();
   });
 
-  it("fetchNotes maps NoteDTO[] to NoteMock[]: ISO strings to epoch ms, tags forced to []", async () => {
+  it("fetchNotes maps NoteDTO[] to NoteMock[]: ISO strings to epoch ms, backend tags preserved", async () => {
     listNotesMock.mockResolvedValue([
       dto({
         id: "a",
+        tags: ["draft", "work"],
         createdAt: "2024-01-15T10:30:00Z",
         updatedAt: "2024-02-20T08:00:00Z",
       }),
       dto({
         id: "b",
         content: "# Two",
+        tags: ["ideas"],
         createdAt: "2023-12-01T00:00:00Z",
         updatedAt: "2023-12-02T12:00:00Z",
       }),
@@ -54,14 +57,14 @@ describe("useNotes", () => {
       {
         id: "a",
         content: "# Hello",
-        tags: [],
+        tags: ["draft", "work"],
         createdAt: Date.parse("2024-01-15T10:30:00Z"),
         updatedAt: Date.parse("2024-02-20T08:00:00Z"),
       },
       {
         id: "b",
         content: "# Two",
-        tags: [],
+        tags: ["ideas"],
         createdAt: Date.parse("2023-12-01T00:00:00Z"),
         updatedAt: Date.parse("2023-12-02T12:00:00Z"),
       },
@@ -69,7 +72,7 @@ describe("useNotes", () => {
     // Explicit epoch-ms equality assertions for the oracle.
     expect(notes.value[0].createdAt).toBe(Date.parse("2024-01-15T10:30:00Z"));
     expect(notes.value[0].updatedAt).toBe(Date.parse("2024-02-20T08:00:00Z"));
-    expect(notes.value[0].tags).toEqual([]);
+    expect(notes.value[0].tags).toEqual(["draft", "work"]);
   });
 
   it("fetchNotes toggles loading true during the call and false after success", async () => {
