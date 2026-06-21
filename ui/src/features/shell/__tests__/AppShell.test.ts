@@ -61,6 +61,20 @@ function fetchStub(url: string | URL | Request, init?: RequestInit) {
       ),
     );
   }
+  if (method === "DELETE" && String(url).includes("/notes/")) {
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          message: "Note deleted successfully",
+          deleted_id: String(url).split("/").pop(),
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+  }
   return Promise.resolve(new Response("{}", { status: 200 }));
 }
 
@@ -358,8 +372,39 @@ describe("AppShell", () => {
 
     await openMenu();
     await menuItem("Delete")?.trigger("click");
+    await flushPromises();
     expect(wrapper.get(".doc-title").text()).not.toBe("Morning Pages");
 
     vi.unstubAllGlobals();
+  });
+
+  it("keeps the active note visible and shows an error when delete fails", async () => {
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "DELETE" && String(url).includes("/notes/")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ detail: "delete failed" }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    await wrapper.get('[aria-label="More"]').trigger("click");
+    await wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text().includes("Delete"))
+      ?.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
+    expect(wrapper.get(".action-error").text()).toBe("delete failed");
   });
 });

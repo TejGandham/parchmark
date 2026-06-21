@@ -31,6 +31,11 @@ export interface UpdateNoteRequest {
   tags?: string[] | null;
 }
 
+export interface DeleteNoteResponse {
+  message: string;
+  deleted_id: string;
+}
+
 /** Fetch the current user's notes from `GET /notes/`. */
 export function listNotes(): Promise<NoteDTO[]> {
   return request<NoteDTO[]>("/notes/", { method: "GET" });
@@ -50,4 +55,9 @@ export function updateNote(
     method: "PUT",
     body: payload,
   });
+}
+
+/** Delete a note for the current user through `DELETE /notes/{note_id}`. */
+export function deleteNote(noteId: string): Promise<DeleteNoteResponse> {
+  return request<DeleteNoteResponse>(`/notes/${noteId}`, { method: "DELETE" });
 }

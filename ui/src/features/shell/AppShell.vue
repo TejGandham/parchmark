@@ -22,11 +22,13 @@ const {
   error,
   creating,
   updating,
+  deletingId,
   mutationError,
   clearMutationError,
   fetchNotes,
   createNote: persistNote,
   updateNote: persistNoteUpdate,
+  deleteNote: persistDeleteNote,
 } = useNotes();
 const activeId = ref<string | null>(null);
 const mode = ref<NoteMode>("read");
@@ -207,13 +209,22 @@ function exportActiveMarkdown() {
   URL.revokeObjectURL(href);
 }
 
-function deleteActiveNote() {
-  if (!activeNote.value) return;
+async function deleteActiveNote() {
+  if (!activeNote.value || deletingId.value === activeNote.value.id) return;
 
   const deletedId = activeNote.value.id;
-  notes.value = notes.value.filter((note) => note.id !== deletedId);
-  activeId.value = notes.value[0]?.id ?? null;
-  mode.value = "read";
+  const deletedIndex = notes.value.findIndex((note) => note.id === deletedId);
+
+  try {
+    await persistDeleteNote(deletedId);
+    const nextIndex = Math.min(deletedIndex, notes.value.length - 1);
+    activeId.value =
+      nextIndex >= 0 ? (notes.value[nextIndex]?.id ?? null) : null;
+    draftContent.value = "";
+    mode.value = "read";
+  } catch {
+    // The notes store owns the visible mutation error and leaves state intact.
+  }
 }
 
 function handleNoteMenuAction(id: NoteMenuAction) {
@@ -224,7 +235,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
     exportActiveMarkdown();
   }
   if (id === "delete") {
-    deleteActiveNote();
+    void deleteActiveNote();
   }
   menuOpen.value = false;
 }

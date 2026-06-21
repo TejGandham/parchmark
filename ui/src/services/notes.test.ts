@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, resetAuthHooks, setAuthHooks } from "./http";
-import { createNote, listNotes, updateNote, type NoteDTO } from "./notes";
+import {
+  createNote,
+  deleteNote,
+  listNotes,
+  updateNote,
+  type NoteDTO,
+} from "./notes";
 
 /** Build a `fetch`-compatible `Response` carrying a JSON body. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -195,6 +201,47 @@ describe("updateNote", () => {
     await expect(
       updateNote("missing", { content: "# Lost" }),
     ).rejects.toMatchObject({
+      status: 404,
+      detail: "Note not found",
+    });
+  });
+});
+
+describe("deleteNote", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    resetAuthHooks();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("DELETEs /api/notes/{note_id} with the bearer token", async () => {
+    const body = { message: "Note deleted successfully", deleted_id: "note-1" };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deleteNote("note-1");
+
+    expect(calledUrl(fetchMock)).toContain("/api/notes/note-1");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("DELETE");
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(result).toEqual(body);
+  });
+
+  it("rejects with ApiError carrying backend { detail } on delete failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { detail: "Note not found" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteNote("missing")).rejects.toMatchObject({
       status: 404,
       detail: "Note not found",
     });

@@ -3,6 +3,7 @@ import { ref } from "vue";
 import type { NoteMock } from "./mockNotes";
 import {
   createNote as createNoteRequest,
+  deleteNote as deleteNoteRequest,
   listNotes,
   updateNote as updateNoteRequest,
   type CreateNoteRequest,
@@ -32,6 +33,9 @@ const creating = ref(false);
 
 /** `true` while a note update call is in flight. */
 const updating = ref(false);
+
+/** The note id currently being deleted, or `null` when no delete is pending. */
+const deletingId = ref<string | null>(null);
 
 /** Last user-action mutation error, separate from the note-list load error. */
 const mutationError = ref<string | null>(null);
@@ -118,6 +122,24 @@ export async function updateNote(
   }
 }
 
+export async function deleteNote(noteId: string): Promise<void> {
+  deletingId.value = noteId;
+  mutationError.value = null;
+
+  try {
+    const response = await deleteNoteRequest(noteId);
+    if (response.deleted_id !== noteId) {
+      throw new ApiError(500, "Delete response did not match requested note");
+    }
+    notes.value = notes.value.filter((note) => note.id !== noteId);
+  } catch (caught) {
+    mutationError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    deletingId.value = null;
+  }
+}
+
 export function clearMutationError(): void {
   mutationError.value = null;
 }
@@ -133,10 +155,12 @@ export function useNotes() {
     error,
     creating,
     updating,
+    deletingId,
     mutationError,
     fetchNotes,
     createNote,
     updateNote,
+    deleteNote,
     clearMutationError,
   };
 }
