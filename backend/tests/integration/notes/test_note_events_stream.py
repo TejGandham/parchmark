@@ -73,7 +73,9 @@ def _build_client(monkeypatch, broker: _RecordingBroker, current_user):
             raise current_user
         return current_user
 
+    stream_manager = NoteEventStreamManager()
     monkeypatch.setattr(notes_router, "note_event_broker", broker)
+    monkeypatch.setattr(notes_router, "note_event_stream_manager", stream_manager)
     monkeypatch.setattr(notes_router, "get_current_user", fake_get_current_user)
 
     app = FastAPI()
