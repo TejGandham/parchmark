@@ -1,0 +1,121 @@
+{
+  "slug": "note-edit-save-workflow",
+  "motivation": "Add a lean edit surface and persist Save through the existing backend update endpoint so note content changes survive refresh.",
+  "scope": {
+    "included": [
+      "ui/src/services/notes.ts: add a typed PUT /notes/{note_id} updateNote client using the existing request() helper",
+      "ui/src/features/notes/useNotes.ts: expose an updateNote operation that replaces the saved note with the returned backend response",
+      "ui/src/features/shell/AppShell.vue: render an editable markdown draft when mode is edit, save it to the backend, and return to read mode on success",
+      "focused tests for the service client, useNotes update behavior, edit draft behavior, save success, save failure, and cancel/discard behavior"
+    ],
+    "excluded": [
+      "creating notes; planned and built first in note-create-workflow",
+      "deleting notes; planned separately in note-delete-workflow",
+      "tag editing UI, title-only editing UI, rich markdown toolbar, keyboard shortcut system, autosave, offline drafts, conflict resolution, and version history",
+      "backend API changes; PUT /api/notes/{note_id} already exists",
+      "changing markdown rendering behavior or FE/BE title extraction rules beyond using the backend response after save"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Vue 3 (<script setup> SFCs) + TypeScript + Vite frontend with ofetch services and module-singleton composables; FastAPI backend already exposes PUT /api/notes/{note_id} returning NoteResponse."
+  },
+  "token_manifest": null,
+  "env_contract": {
+    "command": "npm run dev",
+    "supports_isolation": true,
+    "isolation_params": [
+      "PORT"
+    ],
+    "cwd": "ui"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "wire-edit-save",
+      "title": "Persist edit and save workflow",
+      "estimate": "M",
+      "depends_on": [],
+      "design_reference": "app shell read/edit pane",
+      "component_map": [
+        {
+          "component": "Markdown editor pane",
+          "mapping": "Custom, lean textarea-based editor",
+          "notes": "A simple markdown textarea is sufficient for this binder; no toolbar, split preview, or rich editor."
+        },
+        {
+          "component": "Save and cancel controls",
+          "mapping": "Existing button styling or narrow local buttons using current design tokens",
+          "notes": "Controls can live in the edit pane; no topbar redesign is required."
+        },
+        {
+          "component": "ReadEditSegment",
+          "mapping": "Existing custom component",
+          "notes": "Continue to toggle between read and edit modes; entering edit seeds the draft from activeNote.content."
+        }
+      ],
+      "icon_map": [],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "endpoint": "PUT /api/notes/{note_id}",
+          "request": "UpdateNoteRequest with content?: string, title?: string | null, tags?: string[] | null. This binder sends content only; tags are omitted so the backend leaves tags unchanged.",
+          "response": "NoteDTO matching backend NoteResponse: id, title, content, tags, createdAt, updatedAt."
+        },
+        "exposes": {
+          "service": "updateNote(noteId, payload): Promise<NoteDTO> in ui/src/services/notes.ts. It uses request<NoteDTO>(`/notes/${noteId}`, { method: \"PUT\", body: payload }).",
+          "composable": "useNotes() returns updateNote(noteId, payload): Promise<NoteMock>. It maps the returned DTO and replaces the matching note in the shared notes ref without disturbing other notes.",
+          "ui": "When mode is 'edit' and activeNote exists, AppShell shows a markdown draft editor instead of MarkdownProse. Save sends the current draft as content, patches the active note from the backend response, clears draft error state, and returns mode to 'read'. Cancel/Read discards unsaved draft changes and returns to the rendered note."
+        },
+        "states": {
+          "draft": "Entering edit copies activeNote.content into a draft string. Editing the draft must not mutate notes.value until Save succeeds.",
+          "dirty": "Save is enabled only when the draft differs from activeNote.content, the trimmed draft satisfies the backend minimum content length, and no save is pending.",
+          "pending": "While saving, prevent duplicate saves and keep the current draft visible.",
+          "error": "On save failure, keep mode='edit', keep the draft intact, leave the saved note unchanged, and show the backend ApiError.detail or a narrow fallback message.",
+          "selection_change": "Selecting another note or opening settings discards any unsaved draft for the previous note rather than carrying it across notes."
+        }
+      },
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:new frontend service/composable update operation over an existing backend endpoint",
+          "capability-escalation:new persisted write IO from edit mode",
+          "blast-radius:AppShell read/edit pane changes from a status-only mode switch to real editable state",
+          "explicit-open-question:autosave/conflict handling intentionally excluded for this lean binder"
+        ]
+      },
+      "touches": [
+        "ui/src/services/notes.ts",
+        "ui/src/services/notes.test.ts",
+        "ui/src/features/notes/useNotes.ts",
+        "ui/src/features/notes/useNotes.test.ts",
+        "ui/src/features/notes/NoteEditor.vue",
+        "ui/src/features/notes/NoteEditor.test.ts",
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts"
+      ],
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "updateNote() in services/notes.ts PUTs to /api/notes/{note_id} with the supplied body and returns the NoteDTO response unchanged.",
+          "useNotes().updateNote() maps the returned NoteDTO to NoteMock and replaces only the matching note in notes.",
+          "Entering edit mode seeds a draft from the active note and editing the textarea does not change the rendered/saved note until Save succeeds.",
+          "Save sends the draft content to the backend, updates the active note from the returned response, preserves returned tags, and returns to read mode.",
+          "Cancel or returning to read mode without saving discards draft edits.",
+          "A failed save leaves the user in edit mode, keeps the draft intact, leaves notes unchanged, and shows an error.",
+          "Existing create/list/tag/read/copy/export tests still pass."
+        ],
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/notes.test.ts src/features/notes/useNotes.test.ts src/features/notes/NoteEditor.test.ts src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": "."
+      }
+    }
+  ]
+}

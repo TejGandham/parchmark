@@ -2,114 +2,94 @@
 
 > Domain map, layer dependencies, and cross-cutting concerns for ParchMark.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a React frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate exclusively over a JSON REST API (`/api/*`). For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
+ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over a JSON REST API (`/api/*`); in this `parchmark-v2` worktree the auth surface and the notes list (`GET /api/notes/`) are wired to the backend — note mutations (create/delete/edit/tag/copy/export) remain local ref mutations and are not yet persisted. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
 
 ```
-┌──────────────────────┐         ┌──────────────────────┐
-│       Frontend       │  HTTP   │       Backend        │
-│   React / Vite / TS  │ ──────► │  FastAPI / SQLAlchemy │
-│   localhost:5173     │ ◄────── │  localhost:8000       │
-└──────────────────────┘  JSON   └──────────────────────┘
-                                          │
-                                          ▼
-                                 ┌────────────────┐
-                                 │   PostgreSQL    │
-                                 └────────────────┘
++----------------------+         +-----------------------+
+|       Frontend       |  HTTP   |       Backend         |
+|    Vue 3 / Vite / TS  | ------> |  FastAPI / SQLAlchemy |
+|    localhost:5173     | <------ |  localhost:8000       |
++----------------------+  JSON   +-----------------------+
+                                           |
+                                           v
+                                  +-----------------+
+                                  |   PostgreSQL    |
+                                  +-----------------+
 ```
 
 ---
 
 ## Frontend (`ui/src/`)
 
+The frontend is a ground-up **Vue 3** rewrite (`<script setup lang="ts">` SFCs, Vite, TypeScript). There is **no Pinia/Vuex and no Vue Router** — state lives in composables and plain `ref`/`computed`, and view switching is done by an auth gate plus `v-if` toggles. A DTCG design-token system generates the CSS variables the UI is built on.
+
 ### Layer Map
 
 Layers are listed bottom-up. Code may only import from layers **below** it—never above.
 
 ```
- ┌─────────────────────────────────────┐
- │  Router                             │  Route definitions, loaders, lazy imports
- │  router.tsx                         │
- ├─────────────────────────────────────┤
- │  Features                           │  Feature modules (components, actions, hooks)
- │  features/{auth,notes,settings,ui}/ │
- ├─────────────────────────────────────┤
- │  Stores                             │  Zustand state (one per feature)
- │  features/*/store/                  │
- ├─────────────────────────────────────┤
- │  Services                           │  HTTP client, markdown service wrapper
- │  services/                          │
- ├─────────────────────────────────────┤
- │  Utils                              │  Error handling, date formatting
- │  utils/                             │
- ├─────────────────────────────────────┤
- │  Config                             │  API endpoints, env constants, storage keys
- │  config/                            │
- ├─────────────────────────────────────┤
- │  Types                              │  Note, User interfaces
- │  types/                             │
- └─────────────────────────────────────┘
+ +-------------------------------------+
+ |  App shell / gate                   |  App.vue auth gate -> LoginView | AppShell
+ |  src/App.vue, src/main.ts           |
+ +-------------------------------------+
+ |  Features                           |  Feature modules (SFCs + composables)
+ |  features/{auth,shell,notes}/       |
+ +-------------------------------------+
+ |  Design system                      |  Ds* components, icons, generated tokens
+ |  design-system/                     |
+ +-------------------------------------+
+ |  Services                           |  HTTP client + auth/notes API wrappers
+ |  services/{http.ts,auth.ts,notes.ts}  |
+ +-------------------------------------+
 ```
+
+There is **no `types/`, `config/`, `utils/`, `store/`, or `router/` directory** in this tree. Pure helpers live inside their feature (e.g. `features/notes/noteMockHelpers.ts`); types are declared alongside the code that uses them (e.g. `features/shell/headerTypes.ts`).
 
 ### Dependency Rules
 
 | Layer | May Import From |
-|-------|----------------|
-| Types | Nothing (leaf) |
-| Config | Nothing (environment only) |
-| Utils | Types, Config |
-| Services | Utils, Config, Types, Stores* |
-| Stores | Services, Utils, Config, Types, feature-local utils** |
-| Features | Stores, Services, Utils, Config, Types |
-| Router | Features, Stores, Services, Config |
+|-|-|
+| Services | Nothing from app (external libs only) |
+| Design system | Services-free; self-contained tokens/components/icons |
+| Features | Design system, Services |
+| App shell / gate | Features, Services |
 
-\* **Circular dependency: `api.ts` ↔ `useAuthStore`**. The API service imports `useAuthStore` to attach auth tokens to requests; the auth store imports the API service for login/refresh calls. This cycle works because Zustand defers store access—`useAuthStore.getState()` is called inside functions, not at module load time. This pattern is fragile and must not be replicated elsewhere.
-
-\*\* Stores may import from their own feature's `utils/` directory (e.g., `useAuthStore` imports `tokenUtils.ts` and `oidcUtils.ts`). Cross-feature store imports should be avoided.
+\* **No service↔store cycle.** `services/http.ts` never imports the auth composable. Instead, the auth composable injects token/refresh callbacks via `setAuthHooks({ getToken, onRefresh })`, so `http.ts` stays dependency-free and the 401 refresh-and-retry policy is wired without an import cycle.
 
 ### Directory Reference
 
 ```
 ui/src/
-├── types/index.ts              # Note, User
-├── config/
-│   ├── api.ts                  # API_ENDPOINTS constant
-│   ├── constants.ts            # Vite env vars (API_BASE_URL, etc.)
-│   ├── storage.ts              # STORAGE_KEYS for localStorage
-│   └── oidc.ts                 # OIDC_CONFIG, OIDC_ENDPOINTS
-├── utils/
-│   ├── errorHandler.ts         # AppError class, handleError()
-│   ├── markdown.ts             # MarkdownService (synced with backend)
-│   ├── dateFormatting.ts       # Relative/short/full date display
-│   ├── dateGrouping.ts         # Group & sort notes by date
-│   ├── compactTime.ts          # Compact relative time ("5m", "2h")
-│   ├── markdownStrip.ts        # Plain text extraction from markdown
-│   └── mermaidInit.ts          # Lazy mermaid diagram loader
+├── main.ts                     # createApp(App).mount("#app"); imports tokens.css + base.css
+├── App.vue                     # Auth gate: ready -> LoginView | AppShell
+├── vite-env.d.ts
 ├── services/
-│   ├── api.ts                  # HTTP client (fetch + auth token injection)
-│   └── markdownService.ts      # Thin wrapper over utils/markdown.ts
+│   ├── http.ts                 # ofetch instance, ApiError, setAuthHooks(), 401 retry
+│   ├── auth.ts                 # login/refresh/getCurrentUser/logout wrappers
+│   └── notes.ts                # listNotes() + NoteDTO (GET /notes/ API client)
 ├── features/
 │   ├── auth/
-│   │   ├── store/auth.ts       # useAuthStore (Zustand + Immer + Persist)
-│   │   ├── components/         # LoginForm, OIDCCallback, UserLoginStatus
-│   │   ├── hooks/              # useTokenExpirationMonitor
-│   │   └── utils/              # tokenUtils, oidcUtils
-│   ├── notes/
-│   │   ├── store/notesUI.ts    # useNotesUIStore (edit state)
-│   │   ├── actions.ts          # Route actions (create/update/delete)
-│   │   ├── components/         # NotesLayout, NoteContent, NotesExplorer
-│   │   └── styles/             # notes.css, markdown.css
-│   ├── ui/
-│   │   ├── store/ui.ts         # useUIStore (palette, sort/filter prefs)
-│   │   ├── components/         # Header, CommandPalette, NotFoundPage
-│   │   └── styles/             # layout.css
-│   └── settings/
-│       └── components/         # Settings page
-├── components/                 # Shared components (Mermaid, PageTransition)
-├── store/index.ts              # Barrel re-export of all feature stores
-├── styles/                     # Chakra theme, design tokens, global CSS
-├── router.tsx                  # React Router Data Router config
-├── App.tsx                     # ChakraProvider + RouterProvider
-└── main.tsx                    # Entry point
+│   │   ├── useAuth.ts          # Composable singleton (session via useStorage "pm_auth")
+│   │   └── LoginView.vue       # Two-pane username/password login
+│   ├── shell/
+│   │   ├── AppShell.vue        # In-app view switching (mode/activeId/settings via refs)
+│   │   ├── AppTopbar.vue, SidebarDrawer.vue, UserFooter.vue
+│   │   ├── BreadcrumbTrail.vue, OverflowNoteMenu.vue, ReadEditSegment.vue
+│   │   ├── SearchBox.vue, TagFilter.vue, ThemeToggleButton.vue
+│   │   └── headerTypes.ts
+│   └── notes/
+│       ├── MarkdownProse.vue   # v-html prose pane with scoped typography
+│       ├── markdownRender.ts   # marked + DOMPurify rendering
+│       ├── NoteCard.vue
+│       ├── useNotes.ts         # Notes store composable singleton (fetchNotes, loading, error)
+│       ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
+│       └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
+├── design-system/
+│   ├── base.css                # Static base styles
+│   ├── tokens.css              # GENERATED — do not edit by hand
+│   ├── tokens/                 # primitives.json, semantic.json, semantic.dark.json, build.mjs
+│   ├── components/             # DsMenu.vue, DsSegment.vue, DsToolButton.vue
+│   └── icons/index.ts          # createIcon() factory + 18 hand-authored SVG icons
 ```
 
 ---
@@ -121,34 +101,25 @@ ui/src/
 Layers are listed bottom-up. Code may only import from layers **below** it. The backend is not a strict linear stack—several justified cross-layer edges exist (documented below).
 
 ```
- ┌─────────────────────────────────────┐
- │  Main                               │  App bootstrap, lifespan, CORS, routers
- │  main.py                            │
- ├─────────────────────────────────────┤
- │  Routers                            │  API endpoint handlers
- │  routers/{auth,notes,settings,health}│
- ├─────────────────────────────────────┤
- │  Services                           │  Health checks
- │  services/                          │
- ├─────────────────────────────────────┤
- │  Auth                               │  JWT, OIDC, dependencies
- │  auth/                              │
- ├─────────────────────────────────────┤
- │  Schemas                            │  Pydantic request/response models
- │  schemas/                           │
- ├─────────────────────────────────────┤
- │  Models                             │  SQLAlchemy ORM (User, Note)
- │  models/                            │
- ├─────────────────────────────────────┤
- │  Database                           │  Engine, sessions, init, seed
- │  database/                          │
- └─────────────────────────────────────┘
+Main         main.py                          App bootstrap, lifespan, CORS, routers
+  ^
+Routers      routers/{auth,notes,settings,health}   API endpoint handlers
+  ^
+Services     services/                        Health checks + note-event broker/streams
+  ^
+Auth         auth/                            JWT, OIDC, dependencies
+  ^
+Schemas      schemas/                         Pydantic request/response models
+  ^
+Models       models/                          SQLAlchemy ORM (User, Note)
+  ^
+Database     database/                        Engine, sessions, init, seed
 ```
 
 ### Dependency Rules
 
 | Layer | May Import From |
-|-------|----------------|
+|-|-|
 | Database | Nothing (foundation) |
 | Models | Database (Base class only) |
 | Schemas | Nothing from app (standalone Pydantic models) |
@@ -160,19 +131,20 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
 ### Known Cross-Layer Edges
 
 | Edge | Reason |
-|------|--------|
+|-|-|
 | `models/models.py` → `database` | Models import `Base` for declarative ORM—unavoidable SQLAlchemy pattern |
 | `database/seed.py` → `auth` | Seed needs `get_password_hash` for default user passwords; runs on startup |
 | `main.py` → `auth/oidc_validator` | Lifespan imports the OIDC validator singleton for `close()` on shutdown |
+| `main.py` → `services/note_events`, `services/note_event_streams` | Lifespan starts a per-worker Postgres `LISTEN` consumer (`create_note_event_listener`) on startup and closes active SSE streams (`note_event_stream_manager.close_all()`) before stopping the consumer on shutdown |
 
 ### Fat Routers, Thin Services
 
 Business logic currently lives in routers, not in a services layer:
 
-- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing
+- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, and the SSE stream — `GET /api/notes/events` (`stream_note_events`) returns a `StreamingResponse` of Server-Sent Events, backed by the note-event broker and stream manager in `services/`
 - **`routers/settings.py`**: filename sanitization, batched streaming export, password change with auth provider checks, cascading account deletion
 
-The `services/` package holds only health checks—not general business logic.
+The `services/` package holds health checks plus the note-event broker: `health_service.py` (DB connectivity), `note_events.py` (an in-process note-event broker + per-worker Postgres `LISTEN` consumer on channel `notes_events`), and `note_event_streams.py` (`NoteEventStreamManager`, coordinating active SSE streams). It is not a general business-logic layer.
 
 ### Directory Reference
 
@@ -191,15 +163,17 @@ backend/app/
 │   ├── dependencies.py         # get_current_user (hybrid JWT + OIDC)
 │   └── oidc_validator.py       # OIDC token validation, discovery caching
 ├── services/
-│   └── health_service.py       # DB connectivity check
+│   ├── health_service.py       # DB connectivity check
+│   ├── note_events.py          # Note-event broker + Postgres LISTEN consumer (notes_events)
+│   └── note_event_streams.py   # NoteEventStreamManager: coordinates active SSE streams
 ├── routers/
 │   ├── auth.py                 # /api/auth/* endpoints
-│   ├── notes.py                # /api/notes/* endpoints
+│   ├── notes.py                # /api/notes/* endpoints (incl. GET /events SSE stream)
 │   ├── settings.py             # /api/settings/* endpoints (streaming ZIP export)
 │   └── health.py               # /api/health endpoint
 ├── utils/
 │   └── markdown.py             # Title extraction, H1 removal (synced with frontend)
-├── main.py                     # FastAPI app, lifespan, CORS, exception handlers
+├── main.py                     # FastAPI app, lifespan (starts per-worker note-event LISTEN consumer, closes SSE streams on shutdown), CORS, exception handlers
 ├── __main__.py                 # uvicorn entry point
 └── version.py                  # CalVer version info
 
@@ -232,35 +206,26 @@ Two auth providers unified behind a single dependency:
 - **Local JWT**: HS256 tokens (30min access, 7-day refresh), passwords hashed with bcrypt
 - **OIDC (Authelia)**: Opaque tokens validated via userinfo endpoint, JWT tokens validated via JWKS
 
-Frontend: `useAuthStore` manages token state with Zustand persistence. `useTokenExpirationMonitor` hook auto-refreshes before expiry.
+Frontend: the `useAuth()` composable is a module-level singleton holding the session (`accessToken`, `refreshToken`, `user`), persisted to `localStorage` under `pm_auth` via `@vueuse/core`'s `useStorage`. `App.vue` calls `restoreSession()` on mount (validating via `GET /auth/me`) before revealing `LoginView` or `AppShell`. `services/http.ts` performs a single refresh-and-retry on a `401`, deduping concurrent refreshes via a shared promise.
 
 Backend: `get_current_user` dependency tries local JWT first, then OIDC. All endpoints enforce user ownership (`Note.user_id == current_user.id`).
 
 ### Error Handling
 
-**Frontend** has two error types:
-
-| Type | Location | Purpose |
-|------|----------|---------|
-| `AppError` | `utils/errorHandler.ts` | General error normalization via `handleError()` |
-| `ApiError` | `services/api.ts` | API-specific errors with HTTP `status` and `data` |
-
-These are separate hierarchies—`ApiError` is not converted to `AppError`.
+**Frontend**: a single `ApiError` class in `services/http.ts` carries the HTTP `status` plus a `detail` string parsed from the backend's `{ detail }` body. Non-API failures surface as plain reactive `error` state on the relevant composable/SFC (e.g. `useAuth`'s `error` ref).
 
 **Backend**: `HTTPException` for expected errors. Custom handlers in `main.py` return structured JSON for unhandled exceptions.
 
 ### Markdown Processing
 
-Both domains implement the same operations and must stay in sync:
+The backend owns title/H1 handling in `utils/markdown.py` (`extract_title`, `remove_h1`), applied when notes are created or updated.
 
-| Operation | Frontend (`utils/markdown.ts`) | Backend (`utils/markdown.py`) |
-|-----------|-------------------------------|-------------------------------|
-| Extract title | `extractTitle(content)` | `extract_title(content)` |
-| Remove first H1 | `removeH1(content)` | `remove_h1(content)` |
-| Format content | `formatContent(content)` | `format_content(content)` |
-| Create empty note | `createEmptyNote(title)` | `create_empty_note(title)` |
+In this `parchmark-v2` worktree the frontend processes markdown for **display only**, against notes fetched from the backend:
 
-The frontend includes shared test cases (`markdownTestCases`) to verify parity.
+- `features/notes/noteMockHelpers.ts` — pure helpers including `extractTitle` and `stripTitle` (strips the leading H1 before rendering).
+- `features/notes/markdownRender.ts` — `renderMarkdownBody()` parses with `marked` (GFM), rewrites `language-mermaid` fences into `<div class="mermaid">`, then sanitizes with `dompurify` (allowing GFM task-list `input` elements). No mermaid runtime is wired in this worktree — mermaid blocks are emitted as markup only.
+
+The notes list is fetched from the backend (`GET /api/notes/` via `useNotes`), so the frontend and backend title/H1 handling round-trip through `extract_title`/`remove_h1` and `stripTitle`/`extractTitle` must stay in sync — use the `parchmark-markdown-sync` skill after editing either side.
 
 ---
 
@@ -268,9 +233,9 @@ The frontend includes shared test cases (`markdownTestCases`) to verify parity.
 
 1. **Import downward only.** Higher layers may import from any lower layer. Lower layers must not import from higher layers.
 2. **Minimize cross-feature imports.** Frontend features may import from sibling features, but keep these unidirectional.
-3. **Keep schemas/types pure.** Backend `schemas/` and frontend `types/` have zero internal dependencies.
-4. **Utils are leaf nodes.** Utility modules depend only on standard library, config constants, or external packages—never on services, stores, or features.
-5. **Stores may import feature-local utils.** A store within `features/X/store/` may import from `features/X/utils/`, but not from other features' internals.
+3. **Keep schemas pure.** Backend `schemas/` has zero internal dependencies; frontend types are declared alongside their feature.
+4. **Helpers are leaf nodes.** Pure helper modules (e.g. `noteMockHelpers.ts`) depend only on the standard library or external packages—never on services or other features.
+5. **`http.ts` stays import-free of the app.** The auth composable injects token/refresh hooks via `setAuthHooks()` rather than `http.ts` importing the store, so the HTTP client has no inbound feature dependency.
 
 New cross-layer dependencies require explicit justification and must be documented in this file.
 
@@ -278,33 +243,36 @@ New cross-layer dependencies require explicit justification and must be document
 
 ## Data Flow
 
-### Request Lifecycle
+### Request Lifecycle (auth + notes list)
+
+The paths that reach the backend in this worktree are authentication (above) and the notes list fetch:
 
 ```
-User action (keyboard/click)
-    → React component
-    → Route action (useFetcher.submit) or store action
-    → services/api.ts (attaches Bearer token, auto-refresh on 401)
+User action (login / app mount)
+    → Vue SFC or App.vue gate
+    → useAuth() composable (login / restoreSession / refresh)
+    → services/auth.ts wrapper
+    → services/http.ts (attaches Bearer token, single refresh-and-retry on 401)
     → FastAPI router
     → Depends(get_current_user) + Depends(get_async_db)
-    → SQLAlchemy async query
     → JSON response
-    → Component re-renders via loader revalidation or store update
+    → reactive refs update; gate reveals LoginView or AppShell
 ```
 
-Route loaders fetch data before render. Components access data via `useLoaderData()`. Mutations use route actions via `useFetcher().submit()`, which automatically revalidate affected loaders.
+The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` → `services/notes.ts` `listNotes()` → `GET /api/notes/` → `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps → epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. Other note operations (create/delete/select/tag/copy/export) remain local ref mutations plus clipboard/Blob — no server round-trip and not persisted.
 
 ### State Management
 
-Three Zustand stores, each persisted to localStorage:
+No store library. State is held in Vue reactivity:
 
-| Store | Persisted | Ephemeral |
-|-------|-----------|-----------|
-| `useAuthStore` | `isAuthenticated`, `user`, `token`, `refreshToken`, `tokenSource` | `error`, `oidcLogoutWarning` |
-| `useUIStore` | `notesSortBy`, `notesSortDirection`, `notesGroupByDate` | `isPaletteOpen`, `paletteSearchQuery`, `notesSearchQuery` |
-| `useNotesUIStore` | Nothing | `editedContent` |
+| Holder | Persisted | Ephemeral |
+|-|-|-|
+| `useAuth()` (composable singleton) | `pm_auth` = `{ accessToken, refreshToken, user }` (localStorage via `useStorage`) | `error`, `pending`, `refreshPromise` |
+| `useNotes()` (composable singleton) | Nothing | `notes`, `loading`, `error` (reset on reload; `fetchNotes()` populates from `GET /notes/`) |
+| `AppShell.vue` (local refs) | Nothing | `activeId`, `mode` (read/edit), `search`, `activeTags`, `menuOpen`, `navOpen`, `settingsActive` |
+| Theme (`AppShell.vue`) | `pm_theme` = `"light"` \| `"dark"` (localStorage; read on init, written on change, mirrored to the `data-theme` attribute) | `theme` ref |
 
-Route loaders fetch server data; stores hold client-side UI state. This separation avoids duplicating server state in client stores.
+`useAuth()` returns the same shared module-level refs on every call. Per-view UI state stays local to the SFC that owns it.
 
 ---
 

@@ -1,30 +1,28 @@
 # ParchMark 📝
 
-A modern, full-stack markdown note-taking application built with React and FastAPI. ParchMark provides a clean, intuitive interface for creating, organizing, and managing your markdown notes with real-time preview and syntax highlighting.
-
-![ParchMark Logo](ui/assets/images/parchmark.svg)
+A modern, full-stack markdown note-taking application built with Vue 3 and FastAPI. ParchMark provides a clean, intuitive interface for creating, organizing, and managing your markdown notes with real-time preview and syntax highlighting.
 
 [![codecov](https://codecov.io/gh/TejGandham/parchmark/graph/badge.svg?token=HKRRJA432X)](https://codecov.io/gh/TejGandham/parchmark)
 
 ## ✨ Features
 
-- **Markdown Editor**: Full-featured markdown editor with live preview
-- **GitHub Flavored Markdown**: Support for tables, task lists, strikethrough, and more
-- **Secure Authentication**: JWT + OIDC hybrid auth (local accounts and Authelia SSO)
-- **User Isolation**: Each user has their own private note collection
-- **Command Palette**: Quick navigation and note switching via the header search button
-- **Notes Explorer**: Visual exploration of notes at `/notes/explore`
-- **Responsive Design**: Works seamlessly on desktop and mobile devices
-- **Dark Mode Support**: Toggle between light and dark themes
-- **Mermaid Diagrams**: Render flowcharts and diagrams in your notes
-- **Auto-save**: Changes are automatically saved as you type
-- **Settings & Export**: Account management, password changes, and bulk note export
+- **Markdown Rendering**: GitHub Flavored Markdown rendered with `marked` and sanitized with `dompurify` (tables, task lists, strikethrough, and more)
+- **Username/Password Login**: Token-based auth gate with `/auth/login`, `/auth/refresh`, and `/auth/me`, persisted via `@vueuse/core` storage
+- **Backend OIDC Support**: The FastAPI backend also supports OIDC hybrid auth (local accounts and Authelia SSO)
+- **User Isolation**: Each user has their own private note collection (backend, owner-scoped)
+- **App Shell Navigation**: Topbar, sidebar drawer, breadcrumb trail, search box, and tag filter with read/edit segment toggle
+- **Responsive Design**: Works on desktop and mobile devices
+- **Dark Mode Support**: Toggle between light ("Parchment") and dark ("Desk lamp") themes via the design-token system
+- **Mermaid Diagrams**: Mermaid code fences are rendered into `<div class="mermaid">` markup blocks
+- **Design-Token System**: DTCG (W3C) token JSON compiled to CSS via Style Dictionary
+
+> **Note:** In this v2 worktree the notes list is fetched from the backend (`GET /api/notes/`), but note mutations (create/delete/edit/tag) remain local-only and are not yet persisted; the backend `NoteResponse` also has no `tags` field, so tag chips render empty until a separate change closes that gap.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Node.js** 18+ and npm
+- **Node.js** 24 (CI pin) and npm
 - **Python** 3.13+
 - **Docker** and Docker Compose (REQUIRED for PostgreSQL and testing)
 - **Git**
@@ -186,21 +184,18 @@ Access the application at `http://localhost:8080`
 
 ```
 parchmark/
-├── ui/                      # Frontend React application
+├── ui/                      # Frontend Vue 3 application
 │   ├── src/
+│   │   ├── App.vue          # Root SFC — auth gate (login vs app shell)
+│   │   ├── main.ts          # createApp(App).mount("#app"); imports tokens.css + base.css
 │   │   ├── features/        # Feature-based modules
-│   │   │   ├── auth/        # Authentication (local + OIDC)
-│   │   │   ├── notes/       # Notes management + Explorer
-│   │   │   ├── settings/    # User settings & export
-│   │   │   └── ui/          # UI components (command palette, theme)
-│   │   ├── config/          # Type-safe constants (api, storage)
-│   │   ├── types/           # Shared TypeScript types
-│   │   ├── utils/           # Utilities (errorHandler, markdown)
-│   │   ├── services/        # API client
-│   │   ├── router.tsx       # Data Router config (loaders, actions)
-│   │   └── __tests__/       # Vitest tests
+│   │   │   ├── auth/        # useAuth composable, LoginView.vue
+│   │   │   ├── shell/       # AppShell, AppTopbar, SidebarDrawer, UserFooter, etc.
+│   │   │   └── notes/       # MarkdownProse, markdownRender, mock notes data
+│   │   ├── design-system/   # base.css, generated tokens.css, tokens/, Ds* components, icons/
+│   │   └── services/        # http.ts (ofetch) + auth.ts (auth) + notes.ts (notes list)
 │   ├── package.json
-│   └── vite.config.ts
+│   └── vite.config.ts       # Vite + Vitest config (jsdom, v8 coverage)
 │
 ├── backend/                 # Backend FastAPI application
 │   ├── app/
@@ -210,8 +205,7 @@ parchmark/
 │   │   ├── routers/         # API endpoints (auth, notes, settings, health)
 │   │   ├── schemas/         # Pydantic schemas
 │   │   ├── services/        # health
-│   │   ├── utils/           # Markdown processing
-│   │   └── middleware/       # Request middleware
+│   │   └── utils/           # Markdown processing
 │   ├── tests/               # unit/, integration/
 │   ├── migrations/          # Alembic migrations
 │   └── pyproject.toml
@@ -229,17 +223,18 @@ parchmark/
 cd ui
 
 # Development
-npm run dev              # Start dev server with hot reload
-npm run build            # Build for production
+npm run dev              # Start Vite dev server (vite --host 0.0.0.0)
+npm run build            # build:tokens → vue-tsc --noEmit → vite build
+npm run build:tokens     # Build DTCG design tokens (Style Dictionary)
 npm run preview          # Preview production build
 
 # Testing
-npm test                 # Run tests
-npm run test:watch       # Run tests in watch mode
-npm run test:coverage    # Generate coverage report
+npm test                 # Run tests (vitest run)
+npm run test:watch       # Run tests in watch mode (vitest)
+npm run test:coverage    # Run tests with v8 coverage (threshold-gated)
 
 # Code Quality
-npm run lint             # Run ESLint
+npm run lint             # Typecheck (vue-tsc --noEmit) + prettier --check
 npm run format           # Format code with Prettier
 ```
 
@@ -273,7 +268,7 @@ cd ui
 npm test                    # Run all tests
 npm run test:watch          # Watch mode
 npm run test:coverage       # Coverage report
-npm test -- --testNamePattern="NoteContent"  # Run specific test
+npm test -- -t "MarkdownProse"  # Run tests matching a name
 ```
 
 #### Backend Tests
@@ -282,7 +277,7 @@ npm test -- --testNamePattern="NoteContent"  # Run specific test
 cd backend
 uv run pytest                           # Run all tests
 uv run pytest -v                        # Verbose output
-uv run pytest tests/unit/test_auth.py  # Specific file
+uv run pytest tests/unit/auth/test_auth.py  # Specific file
 uv run pytest -k "test_login"           # Match test names
 uv run pytest -m "auth"                 # Run marked tests
 ```
@@ -377,30 +372,32 @@ uv run python -m app.database.init_db  # Recreate
 
 ### Frontend Architecture
 
-- **React 18** with TypeScript for type safety
-- **Vite** for fast development and optimized builds
-- **Chakra UI v2** for consistent, accessible components
-- **Zustand** for state management with persistence
-- **React Router v7 (Data Router)** with loaders and actions
-- **React Markdown** with GFM for rendering
-- **Vitest** + React Testing Library for testing
+- **Vue 3** (SFCs with `<script setup lang="ts">`) and TypeScript for type safety
+- **Vite** for fast development and optimized builds (`@vitejs/plugin-vue`)
+- **Custom design-token system** (DTCG JSON → CSS via Style Dictionary) plus a small set of `Ds*` SFC components and a hand-authored SVG icon factory — no UI component library
+- **Vue composables** for state (no Pinia/Vuex); the auth store is a composable singleton (`useAuth`) persisted via `@vueuse/core`
+- **No Vue Router** — top-level routing is an auth gate in `App.vue` (login vs app shell); in-app navigation is `ref` toggles in `AppShell.vue`
+- **`marked`** (GFM) for markdown parsing + **`dompurify`** for sanitization
+- **`ofetch`** HTTP client with a single refresh-and-retry policy in `services/http.ts`
+- **Vitest** + **`@vue/test-utils`** (jsdom) for testing
 
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy 2.0** (async) with PostgreSQL
+- **SQLAlchemy 2.0** (async via asyncpg; a deprecated sync engine + `init_db` `create_all` remain for schema bootstrap) with PostgreSQL
 - **Pydantic** for data validation
-- **JWT + OIDC** hybrid authentication (local + Authelia SSO)
+- **JWT + OIDC** hybrid authentication: local JWT is HS256, the OIDC JWT path is RS256 (JWKS); Authelia opaque tokens validated via the userinfo endpoint (local + Authelia SSO)
 - **Bcrypt** for password hashing
+- **Postgres LISTEN/NOTIFY → SSE** note-change events (`GET /api/notes/events`)
 - **CalVer** versioning (`YYYYMMDD.HHMM.sha`)
 - **uvicorn** ASGI server
 
 ### Key Design Patterns
 
 1. **Feature-First Organization**: Code organized by features rather than file types
-2. **Store Pattern**: Centralized state management with Zustand
+2. **Composable Singleton State**: Shared state via Vue composables with module-level refs (`useAuth`)
 3. **Repository Pattern**: Database operations abstracted in models
-4. **Dependency Injection**: FastAPI's dependency system for clean code
+4. **Dependency Injection**: FastAPI's dependency system for clean code; the frontend injects auth hooks into `http.ts` (`setAuthHooks`) to avoid an import cycle
 5. **Type Safety**: Full TypeScript and Python type hints
 
 ## 📦 API Documentation
@@ -408,7 +405,7 @@ uv run python -m app.database.init_db  # Recreate
 ### Authentication Endpoints
 
 | Method | Endpoint            | Description                                 |
-| ------ | ------------------- | ------------------------------------------- |
+|-|-|-|
 | POST   | `/api/auth/login`   | User login, returns access & refresh tokens |
 | POST   | `/api/auth/refresh` | Refresh access token using refresh token    |
 | POST   | `/api/auth/logout`  | User logout                                 |
@@ -417,17 +414,18 @@ uv run python -m app.database.init_db  # Recreate
 ### Notes Endpoints
 
 | Method | Endpoint                  | Description                                       |
-| ------ | ------------------------- | ------------------------------------------------- |
+|-|-|-|
 | GET    | `/api/notes/`             | List all user's notes                             |
 | POST   | `/api/notes/`             | Create a new note                                 |
 | GET    | `/api/notes/{id}`         | Get specific note                                 |
 | PUT    | `/api/notes/{id}`         | Update a note                                     |
 | DELETE | `/api/notes/{id}`         | Delete a note                                     |
+| GET    | `/api/notes/events`       | SSE stream of per-user note-change events         |
 
 ### Settings Endpoints
 
 | Method | Endpoint                         | Description                        |
-| ------ | -------------------------------- | ---------------------------------- |
+|-|-|-|
 | GET    | `/api/settings/user-info`        | Account info + note count          |
 | POST   | `/api/settings/change-password`  | Change password (local users only) |
 | GET    | `/api/settings/export-notes`     | Streaming ZIP export of all notes  |
@@ -548,7 +546,7 @@ USE_HTTPS=true
 #### Frontend Environment Variables
 
 | Variable                       | Description                | Default |
-| ------------------------------ | -------------------------- | ------- |
+|-|-|-|
 | `VITE_API_URL`                 | Backend API URL            | `/api`  |
 | `VITE_TOKEN_WARNING_SECONDS`   | Token expiry warning (sec) | `60`    |
 | `VITE_OIDC_ISSUER_URL`        | OIDC provider URL          | —       |
@@ -559,7 +557,7 @@ USE_HTTPS=true
 #### Backend Environment Variables
 
 | Variable                      | Description                          | Default                                                   |
-| ----------------------------- | ------------------------------------ | --------------------------------------------------------- |
+|-|-|-|
 | `DATABASE_URL`                | Database connection string           | `postgresql://username:password@localhost:5432/parchmark` |
 | `SECRET_KEY`                  | JWT signing key (128-bit hex string) | (must be set - see generation instructions)               |
 | `ALGORITHM`                   | JWT algorithm                        | `HS256`                                                   |
@@ -686,11 +684,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built with React and FastAPI
-- UI components from Chakra UI
-- Markdown rendering by react-markdown
-- Icons from FontAwesome
-- Package management by uv
+- Built with Vue 3 and FastAPI
+- Custom design-token system compiled with Style Dictionary
+- Markdown rendering by `marked` + `dompurify`
+- Hand-authored SVG icons (no icon library)
+- Package management by uv (backend) and npm (frontend)
 
 ## 📞 Support
 

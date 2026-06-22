@@ -215,3 +215,80 @@ export const MoonIcon = createIcon(
     },
   ],
 );
+
+export const EyeOffIcon = createIcon(
+  "EyeOffIcon",
+  15,
+  15,
+  { ...strokeRoundJoin, "stroke-width": "2" },
+  [
+    {
+      tag: "path",
+      attrs: {
+        d: "M10.7 5.1A10.5 10.5 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2M6.6 6.6A18 18 0 0 0 2 12s3.5 7 10 7a10.5 10.5 0 0 0 5.4-1.6",
+      },
+    },
+    { tag: "path", attrs: { d: "M9.9 9.9a2.7 2.7 0 0 0 3.8 3.8" } },
+    { tag: "path", attrs: { d: "M3 3l18 18" } },
+  ],
+);
+
+export const AlertIcon = createIcon(
+  "AlertIcon",
+  15,
+  15,
+  { ...strokeRoundJoin, "stroke-width": "2" },
+  [
+    {
+      tag: "path",
+      attrs: {
+        d: "M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z",
+      },
+    },
+    { tag: "path", attrs: { d: "M12 9v4" } },
+    { tag: "path", attrs: { d: "M12 17h.01" } },
+  ],
+);
+
+export const FeatherIcon = createIcon(
+  "FeatherIcon",
+  15,
+  15,
+  { ...strokeRoundJoin, "stroke-width": "2" },
+  [
+    {
+      tag: "path",
+      attrs: {
+        d: "M20.2 13.3A6 6 0 0 0 12 5l-8.5 8.5L4 20l6.5-.5L19 11",
+      },
+    },
+    { tag: "path", attrs: { d: "M16 8 2 22" } },
+    { tag: "path", attrs: { d: "M17.5 15H9" } },
+  ],
+);
+
+export const LockIcon = createIcon(
+  "LockIcon",
+  15,
+  15,
+  { ...strokeRoundJoin, "stroke-width": "2" },
+  [
+    {
+      tag: "rect",
+      attrs: { x: "3", y: "11", width: "18", height: "11", rx: "2" },
+    },
+    { tag: "path", attrs: { d: "M7 11V7a5 5 0 0 1 10 0v4" } },
+  ],
+);
+
+export const LogOutIcon = createIcon(
+  "LogOutIcon",
+  16,
+  16,
+  { ...strokeRoundJoin, "stroke-width": "1.9" },
+  [
+    { tag: "path", attrs: { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" } },
+    { tag: "path", attrs: { d: "M16 17l5-5-5-5" } },
+    { tag: "path", attrs: { d: "M21 12H9" } },
+  ],
+);

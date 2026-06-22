@@ -1,5 +1,3 @@
-@.keel/KEEL-CONTRACT.md
-
 Guidance for Claude Code working with the ParchMark codebase. This file is a table of contents — follow links for depth.
 
 ## Project at a Glance
@@ -8,49 +6,16 @@ Guidance for Claude Code working with the ParchMark codebase. This file is a tab
 
 | Layer | Stack |
 |-|-|
-| Frontend | React 18, TypeScript, Vite, Chakra UI v2, Zustand, React Router v7 (Data Router) |
+| Frontend | Vue 3 (`<script setup>` SFCs), TypeScript, Vite, custom DTCG design-token system, Vue composables (no Pinia, no router) |
 | Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT + OIDC auth, PostgreSQL |
 | Deploy | Docker, Nginx, k3s, Forgejo CI |
 
 Deeper references:
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — domain / layer maps, dependency rules
-- [`docs/north-star.md`](docs/north-star.md) — vision, four loops, growth stages
 - [`docs/design-docs/index.md`](docs/design-docs/index.md) — core beliefs, UI design, code patterns, design context
-- [`docs/process/THE-KEEL-PROCESS.md`](docs/process/THE-KEEL-PROCESS.md) — KEEL pipeline + agent roster
-- [`docs/process/PIPELINE-DOCTRINE.md`](docs/process/PIPELINE-DOCTRINE.md) — canonical: JSON Binders are the only pipeline input; autonomy ceiling
 - [`PRODUCTION_DEPLOYMENT.md`](PRODUCTION_DEPLOYMENT.md) — deployment runbook
 
-## KEEL Framework
-
-All feature work flows through KEEL (Knowledge-Encoded Engineering Lifecycle).
-
-```bash
-/keel-refine <prose, markdown file, or bundle dir>        # draft JSON Binder(s) + backlog entries
-/keel-pipeline WI## docs/exec-plans/binders/<slug>.json   # run pre-check → tests → impl → reviews → landing
-/keel-safety-check                                        # quick invariant audit on current diff
-/keel-submit <binder>                                     # push built keel/WI##-* branches, open PRs bottom-up
-```
-
-The Karta lean lane (`/karta-refine` → `/karta-pipeline` / `/karta-drive`) runs lower-rigor builds on the same Binder shape — see [`docs/process/KARTA-LANE.md`](docs/process/KARTA-LANE.md).
-
-- **Specs** live in `docs/product-specs/` (template at `_TEMPLATE.md`)
-- **Binders** at `docs/exec-plans/binders/<slug>.json` (validated against `schemas/binder.schema.json`)
-- **Backlog** at `docs/exec-plans/active/backlog.md`
-- **Tech debt** at `docs/exec-plans/tech-debt-tracker.md`
-- **Active plans** in `docs/exec-plans/active/`, completed in `completed/`
-- **Domain invariants** (the seven rules the safety-auditor enforces) live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md)
-
-### Pipeline Preferences
-
-| Setting | Value | Notes |
-|-|-|-|
-| Review panel | `roundtable` | Multi-model review via the roundtable MCP server; falls back to the in-process persona panel when MCP is unavailable (review is never skipped — see `docs/process/REVIEW-PANEL.md`). Required for any change that amends the seven invariants or crosses an architectural layer boundary; optional for routine feature work. |
-| Branching policy | `halt` | Controls how `/keel-pipeline WI##` handles unmerged `Needs:`. `halt` (default — least-assuming) refuses to start WI## with unmerged Needs and emits a CTA. `stack` (opt-in, or per-invocation via `--stack`) branches WI## from the unmerged intra-Binder ancestor's tip and sets the PR base to that branch (use `tea pr create --base <parent>` for parchmark's Forgejo workflow — see Gotchas §"Git Remotes"). Cross-Binder Needs always halt regardless of policy. Stack-mode restack on re-invocation requires Git ≥ 2.38. See Step 0 of `.claude/skills/keel-pipeline/SKILL.md`. |
-| Prototype mode | `reference` | Default disposition when `/keel-refine` ingests a UI/UX prototype bundle. `reference` (default — least-assuming) treats prototype assets as visual context; `seed` permits agents to lift markup/styles from the prototype into the implementation. Per-prototype `prototype.json` overrides this; per-card edits during the refine walk override that. See Step 2a-bis in `.claude/skills/keel-refine/SKILL.md`. |
-| Safety-gate hook | PreToolUse on Edit/Write | Surfaces a reminder to run `/keel-safety-check` when editing files under `backend/app/{auth,routers,models,database}/` |
-| Formatter hook | PostToolUse on Edit/Write | Auto-runs `ruff format` + `ruff check --fix` on `.py` files and `prettier` on `.ts`/`.tsx` files |
-| Markdown parity hook | PostToolUse on Edit/Write | Reminds to run `/parchmark-markdown-sync` when editing either `markdown.ts` or `markdown.py` |
-| Doc-drift hook | PostToolUse on Bash | Reminds to invoke the `doc-gardener` agent after `git commit` |
+Domain invariants live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md). Tech debt is tracked in `docs/exec-plans/tech-debt-tracker.md`.
 
 ## Feature & Bug Workflow
 
@@ -126,29 +91,23 @@ make deploy-logs      # container logs
 
 ```
 parchmark/
-├── ui/                  # Frontend (React)
+├── ui/                  # Frontend (Vue 3)
 │   └── src/
-│       ├── features/    # auth/, notes/, settings/, ui/ (feature-first)
-│       ├── router.tsx   # Data Router (loaders, actions, routes)
-│       ├── services/    # API client
-│       ├── utils/       # errorHandler, markdown, dateGrouping, mermaidInit
-│       ├── config/      # type-safe constants (api, storage)
-│       ├── types/       # shared types (Note)
-│       └── __tests__/   # Vitest
+│       ├── main.ts      # createApp(App).mount("#app"); imports tokens.css then base.css
+│       ├── App.vue      # top-level auth gate: loading → LoginView → AppShell
+│       ├── features/    # auth/, shell/, notes/ (feature-first; SFCs + .ts)
+│       ├── design-system/  # base.css, tokens.css (generated), tokens/ (DTCG JSON + build.mjs), components/ (Ds*.vue), icons/
+│       └── services/    # http.ts (ofetch) + auth.ts + notes.ts (notes API client)
 ├── backend/             # Backend (FastAPI)
 │   └── app/             # auth/, database/, models/, routers/, schemas/, services/
 ├── makefiles/           # modular make targets
 ├── deploy/              # production scripts
 ├── docs/
-│   ├── north-star.md
-│   ├── process/         # KEEL reference guides
 │   ├── design-docs/     # core beliefs, UI design, code patterns, design context
-│   ├── exec-plans/      # active + completed plans, backlog, binders/, tech-debt
+│   ├── exec-plans/      # completed handoffs, tech-debt-tracker
 │   ├── product-specs/   # feature specs
 │   └── references/      # external docs, llms.txt
-├── schemas/             # binder, prototype, routing, resolved-work-item schemas
-├── .claude/             # agents, skills
-└── .keel/               # KEEL contract, hooks, install receipt, uninstaller
+└── .claude/             # skills
 ```
 
 ## API Surface
@@ -164,11 +123,6 @@ Notable non-obvious endpoints: `GET /api/health` (DB + version info).
 ### Frontend (`ui/.env`)
 ```bash
 VITE_API_URL=/api
-VITE_TOKEN_WARNING_SECONDS=60       # optional
-VITE_OIDC_ISSUER_URL=https://auth.engen.tech
-VITE_OIDC_CLIENT_ID=parchmark
-VITE_OIDC_REDIRECT_URI=<origin>/oidc/callback
-VITE_OIDC_LOGOUT_REDIRECT_URI=<origin>/login
 ```
 
 ### Backend (`backend/.env`)
@@ -196,7 +150,7 @@ BUILD_DATE=                         # set at docker build for version info
 
 | Side | Tooling | Notes |
 |-|-|-|
-| Frontend | Vitest + RTL | Use `render` from `test-utils/render` (wraps providers); mock stores; form tests use `fireEvent.submit()` not button click |
+| Frontend | Vitest + `@vue/test-utils` | `mount()`/`shallowMount` Vue SFCs (NOT React Testing Library); `environment: "jsdom"`; tests under `src/` (mixed: beside source and in `__tests__/`), matched by `src/**/*.test.ts` |
 | Backend | Pytest + pytest-xdist | Each worker gets its own PostgreSQL (testcontainers); fixtures: `client`, `sample_user`, `auth_headers` |
 
 Coverage floor: **90% frontend, 90% backend** (enforced by config).
@@ -213,16 +167,27 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - `docker-compose.prod.yml` — production (GHCR images)
 - `docker-compose.oidc-test.yml` — PostgreSQL + Authelia (OIDC integration testing)
 
-### Markdown
-- `removeH1()` removes **only the first H1**, not all
-- Frontend (`ui/src/utils/markdown.ts`) and backend (`backend/app/utils/markdown.py`) must stay in sync — use the `parchmark-markdown-sync` skill after editing either
+### Design system (frontend)
+- **DTCG token JSON → CSS pipeline.** Sources in `ui/src/design-system/tokens/`: `primitives.json`, `semantic.json` (light "Parchment"), `semantic.dark.json` (dark "Desk lamp"). W3C DTCG format (`$type`/`$value`), with a custom `$extensions["com.parchmark.cssName"]` to emit short var names (`--accent`, `--surface`, …)
+- Built by `npm run build:tokens` (`node src/design-system/tokens/build.mjs`, via **style-dictionary**): light → `:root`, dark → `[data-theme="dark"]`, concatenated into the **generated** `design-system/tokens.css` (do not edit by hand)
+- Reusable SFCs in `design-system/components/`: `DsMenu.vue`, `DsSegment.vue`, `DsToolButton.vue`. Icons are a hand-authored SVG factory in `design-system/icons/index.ts` (`createIcon(...)` → 18 components like `PlusIcon`, `SearchIcon`, `LockIcon`) — **no icon library dependency**
 
-### Auth
-- Access tokens 30 min; refresh tokens 7 days
-- `useTokenExpirationMonitor()` auto-refreshes tokens ~1 min before expiry (logs the user out only if the refresh fails)
-- 10-second clock-skew buffer for client/server drift
-- Route protection is the `requireAuth()` loader in `router.tsx` — there is **no `ProtectedRoute` component**
-- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
+### Markdown
+- Frontend rendering lives in `ui/src/features/notes/markdownRender.ts`: `marked` (GFM) → rewrite `language-mermaid` fences into `<div class="mermaid">` → sanitize with `dompurify` (allows GFM task-list `input`s). `stripTitle()` (in `noteMockHelpers.ts`) drops the leading H1 before render; `MarkdownProse.vue` emits via `v-html`
+- Mermaid blocks are produced as markup only — **no mermaid runtime is wired** in this worktree
+- Backend (`backend/app/utils/markdown.py`) extracts the H1 title for note records; FE and BE title/H1 handling must stay in sync — use the `parchmark-markdown-sync` skill after editing either
+
+### Auth (frontend)
+- Access tokens 30 min; refresh tokens 7 days (backend defaults)
+- Frontend auth is a **composable singleton**, `features/auth/useAuth.ts` — module-level refs shared across every `useAuth()` call; **no Pinia/Vuex**. Session persisted via `@vueuse/core` `useStorage` under key `pm_auth` as `{ accessToken, refreshToken, user }`
+- The single refresh-and-retry policy lives in `services/http.ts` (an `ofetch` instance, `retry: false`): on a `401` for any non-`/auth/refresh` call it calls the refresh hook **once** and retries once. Auth hooks are injected via `setAuthHooks()` so `http.ts` never imports the store (avoids a cycle)
+- Route "protection" is the **auth gate in `App.vue`** — a `ready` ref gates first paint, then `v-if !ready` → `v-else-if !isAuthenticated` `<LoginView/>` → `v-else` `<AppShell/>`. There is **no router and no `requireAuth()` loader** in this worktree
+- `App.vue` calls `restoreSession()` on mount (validates the stored token via `GET /auth/me`, clears on any error) before revealing `LoginView` vs `AppShell`
+- Login (`POST /auth/login`) returns tokens only; `useAuth.login()` then fetches `/auth/me` for the user. Logout (`POST /auth/logout`) is best-effort
+
+### Auth (backend)
+- Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). OIDC JWT path is **RS256** (JWKS); Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
+- Logout is **stateless** — no server-side invalidation/blacklist
 - OIDC validator (`app/auth/oidc_validator.py`) uses a shared httpx client with discovery/JWKS caching (double-checked locking)
 
 ### Migrations
@@ -235,10 +200,10 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - GitHub (`github.com/TejGandham/parchmark`) is a read-only offsite backup mirror, populated by automated sync — no local remote is configured and developers never push to it manually
 - Use `tea` for all Forgejo PR management
 
-### Command Palette
-- Primary navigation (replaced sidebar); triggered via the search button in the header
-- Shows search results; navigates to the date-grouped notes list in `NotesExplorer`
-- The virtualized note list (`react-window`) lives in `NotesExplorer`, not in the palette itself
+### Navigation & view switching
+- **No router.** Inside the app, "navigation" is ref toggles in `features/shell/AppShell.vue`: `mode` (`"read"|"edit"`), `activeId` (selected note), `settingsActive`, `navOpen` (mobile drawer). Views are `v-if`/`v-else-if` `<section>`s (settings placeholder vs read pane vs empty state)
+- Shell pieces live in `features/shell/`: `AppTopbar`, `SidebarDrawer`, `UserFooter`, `BreadcrumbTrail`, `SearchBox`, `TagFilter`, `ReadEditSegment`, `ThemeToggleButton`, `OverflowNoteMenu`
+- The notes list is fetched from the backend `GET /notes/` endpoint via the `useNotes` composable (`features/notes/useNotes.ts`, a module-singleton mirroring `useAuth`); `AppShell.vue` calls `useNotes()` and `fetchNotes()` on mount. `services/notes.ts` (`listNotes()`, `NoteDTO`) is the notes API client. `NoteDTO.tags` comes from the backend `NoteResponse` contract and is copied into `NoteMock` for `TagFilter`/`NoteCard`. Note ops other than listing (create/delete/select/toggle-tag, copy/export) are still local ref mutations + clipboard/Blob, so UI tag toggles are not persisted until the mutation wiring work lands. `SidebarDrawer.vue` accepts `loading`/`error` props and emits a `retry` event to refetch.
 
 ### Deployment
 - Tests must pass before images build (CI gate)
@@ -276,15 +241,7 @@ Before committing UI changes, use Chrome DevTools MCP:
 - **`parchmark-branch-setup`** — fresh branch (or optional worktree) before any code change
 - **`parchmark-land`** — session-end: commit, push, verify
 - **`parchmark-markdown-sync`** — run after editing markdown utils to verify FE/BE parity
-
-### KEEL (`.claude/skills/`)
-- **`keel-refine`** — draft JSON Binder(s) + backlog entries from prose/markdown/bundles (never auto-runs the pipeline)
-- **`keel-pipeline`** — orchestrate pre-check → test-writer → implementer → reviews → landing for one WI##
-- **`keel-submit`** — push built `keel/WI##-*` branches and open one PR per branch, bottom-up
-- **`keel-adopt`** — one-time brownfield setup (project guide, domain invariants, hook wiring)
-- **`keel-setup`** — greenfield interview-driven setup
-- **`keel-safety-check`** — scan current diff against domain invariants
-- **`karta-refine`** / **`karta-pipeline`** / **`karta-drive`** — lean lane: lower-rigor builds on the same Binder shape, declared-debt markers at every cut
+- **`migration-check`** — validate Alembic migrations before deploying
 
 ## Landing a PR (Session Completion)
 

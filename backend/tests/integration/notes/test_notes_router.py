@@ -37,8 +37,10 @@ class TestGetNotesEndpoint:
             assert "id" in note_data
             assert "title" in note_data
             assert "content" in note_data
+            assert "tags" in note_data
             assert "createdAt" in note_data
             assert "updatedAt" in note_data
+            assert note_data["tags"] == []
 
     def test_get_notes_no_auth(self, client: TestClient):
         """Test getting notes without authentication."""
@@ -105,10 +107,11 @@ class TestGetNotesEndpoint:
 
         note = data[0]
         # F19: accessCount and lastAccessedAt are removed from the Note response schema.
-        required_fields = {"id", "title", "content", "createdAt", "updatedAt"}
+        required_fields = {"id", "title", "content", "tags", "createdAt", "updatedAt"}
         assert required_fields.issubset(
             set(note.keys())
         ), f"Missing required fields. Expected {required_fields}, got {set(note.keys())}"
+        assert note["tags"] == []
         assert "accessCount" not in note, "accessCount must not appear in note payload after F19"
         assert "lastAccessedAt" not in note, "lastAccessedAt must not appear in note payload after F19"
 
@@ -130,6 +133,7 @@ class TestCreateNoteEndpoint:
         assert "id" in data
         assert data["title"] == sample_note_data["title"]
         assert data["content"] == sample_note_data["content"]
+        assert data["tags"] == []
         assert "createdAt" in data
         assert "updatedAt" in data
 
@@ -290,6 +294,7 @@ class TestUpdateNoteEndpoint:
         assert data["id"] == sample_note.id
         assert data["title"] == "Updated Title"
         assert data["content"] == "# Updated Title\n\nUpdated content."
+        assert data["tags"] == []
         # Just verify updatedAt exists, timestamps might be same in fast test
         assert "updatedAt" in data
         assert "createdAt" in data
@@ -389,6 +394,7 @@ class TestUpdateNoteEndpoint:
         # Note should remain unchanged
         assert data["title"] == sample_note.title
         assert data["content"] == sample_note.content
+        assert data["tags"] == []
 
 
 class TestDeleteNoteEndpoint:
@@ -488,6 +494,7 @@ class TestGetSingleNoteEndpoint:
         assert data["id"] == sample_note.id
         assert data["title"] == sample_note.title
         assert data["content"] == sample_note.content
+        assert data["tags"] == []
         assert "createdAt" in data
         assert "updatedAt" in data
 
@@ -568,9 +575,10 @@ class TestNotesRouterIntegration:
     def test_full_notes_crud_flow(self, client: TestClient, auth_headers):
         """Test complete CRUD flow: create -> read -> update -> delete."""
         # Step 1: Create note
-        create_data = {"title": "Test Note", "content": "# Test Note\n\nOriginal content."}
+        create_data = {"title": "Test Note", "content": "# Test Note\n\nOriginal content.", "tags": ["Work"]}
         create_response = client.post("/api/notes/", headers=auth_headers, json=create_data)
         assert create_response.status_code == status.HTTP_200_OK
+        assert create_response.json()["tags"] == ["work"]
 
         note_id = create_response.json()["id"]
 
@@ -578,12 +586,14 @@ class TestNotesRouterIntegration:
         get_response = client.get(f"/api/notes/{note_id}", headers=auth_headers)
         assert get_response.status_code == status.HTTP_200_OK
         assert get_response.json()["title"] == "Test Note"
+        assert get_response.json()["tags"] == ["work"]
 
         # Step 3: Update note
-        update_data = {"content": "# Updated Note\n\nUpdated content."}
+        update_data = {"content": "# Updated Note\n\nUpdated content.", "tags": ["Ideas"]}
         update_response = client.put(f"/api/notes/{note_id}", headers=auth_headers, json=update_data)
         assert update_response.status_code == status.HTTP_200_OK
         assert update_response.json()["title"] == "Updated Note"
+        assert update_response.json()["tags"] == ["ideas"]
 
         # Step 4: Delete note
         delete_response = client.delete(f"/api/notes/{note_id}", headers=auth_headers)

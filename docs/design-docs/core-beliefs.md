@@ -4,14 +4,13 @@ Non-negotiable principles that govern every decision in ParchMark.
 
 ## Domain Safety — The Seven Invariants
 
-Each rule below was derived from current code (Phase 4 of `/keel-adopt`),
-stress-tested by a multi-model roundtable (`challenge` + `hivemind`), and
-locked in. Every invariant is grep-detectable and evidence-backed — the
+Each rule below was derived from the current code and locked in. Every
+invariant is grep-detectable and evidence-backed — the
 codebase already honours it.
 
 A violation of any of these is a bug or a security issue, not a style
-preference. The safety-auditor scans every diff against these rules and
-refuses to pass work that violates them.
+preference. Every diff must be checked against these rules; work that
+violates them must not ship.
 
 ### 1. Tenant isolation on every Note ORM operation
 
@@ -46,8 +45,8 @@ transitively via a router-level `dependencies=[...]`), **OR**
 | `POST` | `/api/auth/refresh` |
 | `GET` | `/api/notes/health/check` |
 
-Any new public endpoint requires an explicit update to this list and the
-safety-auditor rule — public routes don't become public by accident.
+Any new public endpoint requires an explicit update to this list —
+public routes don't become public by accident.
 
 ### 3. No raw SQL outside the one whitelisted site
 
@@ -121,12 +120,20 @@ Keying on a mutable attribute is an account-linking vulnerability.
   tacit knowledge — all must be encoded here as markdown, code, config, or
   committed test output.
 - **Two authoritative data stores:** PostgreSQL for persistent state
-  (users, notes), browser `localStorage` for ephemeral client
-  state (auth tokens, UI preferences, sort order). No other stores.
+  (users, notes), browser `localStorage` for ephemeral client state — the
+  auth session is persisted under the `pm_auth` key via `@vueuse/core`
+  `useStorage` (access token, refresh token, current user). Per-view UI
+  state (selected note, read/edit mode, search, tag filter) lives as plain
+  Vue `ref`s and is not persisted. No other stores.
 - **Server owns markdown rendering decisions.** When frontend and backend
   disagree about note metadata (e.g. extracted title), the backend's
-  interpretation wins and the frontend re-fetches. See the shared
-  `markdownTestCases` fixture for the common contract.
+  interpretation is authoritative. Title extraction / H1 stripping must
+  stay in lockstep between `backend/app/utils/markdown.py` and the v2 UI's
+  `ui/src/features/notes/` helpers (`stripTitle`/`extractTitle`); the v2 UI
+  renders note bodies client-side with `marked` (GFM) sanitised through
+  `dompurify`. (The notes list is fetched from the backend in this worktree
+  via `useNotes`/`GET /notes/`; note mutations and tags are not yet
+  persisted — the backend `NoteResponse` exposes no `tags` field.)
 
 ## Design Philosophy
 
@@ -139,8 +146,8 @@ Drawn from [design-context.md](./design-context.md):
 3. **Quiet confidence.** Design choices should feel deliberate but not
    showy. The burgundy accent, the serif headings — each detail earns its place.
 4. **Click-first, scan-friendly.** Design for visual scanning and direct
-   manipulation. The notes list is home base; the Command Palette is a
-   quick-jump tool, not the front door.
+   manipulation. The notes list (reached via the sidebar drawer) is home
+   base; the header search box is a quick-jump tool, not the front door.
 5. **Reduce, don't add.** When in doubt, remove. Fewer elements, fewer
    colors, fewer borders. Let whitespace do the work.
 
@@ -160,9 +167,6 @@ Drawn from [design-context.md](./design-context.md):
   maintenance.
 - The human steers. Claude executes.
 - Every decision must be traceable to a document in this repo.
-- The KEEL pipeline (`/keel-pipeline`) is the default path for any feature
-  or bug larger than a one-line typo; see
-  [docs/process/THE-KEEL-PROCESS.md](../process/THE-KEEL-PROCESS.md).
 
 ## Testing Strategy: Spec-Driven Testing
 
@@ -173,7 +177,6 @@ has a corresponding test. When specs change, tests change first.
 
 Docs must not contradict each other. Before writing tests, verify that
 product-specs, design-docs, exec-plans, and ARCHITECTURE.md agree.
-`spec-reviewer` agent runs this check.
 
 ### Layer 1: Safety Invariants (the seven)
 
@@ -185,7 +188,7 @@ mocking safety means testing your mock.
 | #1 Tenant isolation | Integration test in `backend/tests/integration/` that creates two users, posts notes as A, and verifies B's `GET /notes/` returns only B's data. |
 | #2 Auth allowlist | Integration test that hits every router endpoint unauthenticated and asserts `401` for non-allowlisted paths. |
 | #3 Raw SQL | Grep-based audit in CI. |
-| #4 Typed body | Integration test posts `{"extra": "field"}` to a mutation endpoint and asserts rejection (enforced by Pydantic `extra="forbid"` where configured). |
+| #4 Typed body | Integration test posts a malformed body (missing/wrong-typed required field) to a mutation endpoint and asserts a `422` from Pydantic. Note: schemas do **not** set `extra="forbid"`, so unknown extra fields are silently ignored, not rejected — only type/required-field validation is enforced at the boundary. |
 | #5 Secrets in logs | Unit test captures `caplog` during a login/password-change flow and asserts no log record contains the plaintext. |
 | #8 Password-hash write | Unit test against `User.set_password`/equivalents — rejects non-hashed input. |
 | #9 OIDC sub | Unit test in `test_oidc_validator.py` verifies lookup uses `oidc_sub`, not `preferred_username`. |
@@ -200,7 +203,8 @@ Tagged slow — skipped from the fast loop. Lives in
 
 No I/O. Tests for derived fields (e.g. `extractTitle`), pure functions
 (date grouping), business rules. Lives in
-`backend/tests/unit/` (Python) and `ui/src/**/__tests__/` (TypeScript).
+`backend/tests/unit/` (Python) and co-located `ui/src/**/*.test.ts`
+(TypeScript).
 
 ### Layer 3: Service / Process Behavior
 
@@ -209,9 +213,19 @@ Python uses `unittest.mock`; TypeScript uses Vitest's `vi.mock`.
 
 ### Layer 4: UI / Component Behavior
 
-UI behavior with mocked service layer. Uses `render` from
-`ui/test-utils/render.tsx` (wraps Chakra, Router, Zustand providers).
-Form tests use `fireEvent.submit()`, not button clicks.
+SFCs are mounted with `@vue/test-utils` (`mount`/`shallowMount`) under
+jsdom. Component tests mock the composable they depend on — e.g.
+`LoginView.test.ts` does `vi.mock("./useAuth")` and drives the view via
+controllable `ref`s — so no HTTP layer is touched.
+
+This is distinct from the lower layers exercising the same auth stack:
+
+- **Service tests** (`ui/src/services/http.test.ts`, `auth.test.ts`) stub
+  global `fetch` via `vi.stubGlobal("fetch", ...)` and assert on the
+  request `ofetch` produces (URL, headers, body).
+- **Store test** (`ui/src/features/auth/useAuth.test.ts`) mocks the
+  `services/auth` + `services/http` modules and calls `vi.resetModules()`
+  between tests so the `useAuth` module singleton starts fresh each run.
 
 ### Layer 5: Acceptance + Container Smoke
 
@@ -226,7 +240,7 @@ Validates the full stack boots correctly inside the container:
 
 | Concern | Parchmark choice |
 |-|-|
-| Fixture helper | `backend/tests/conftest.py` provides `client`, `sample_user`, `auth_headers`. UI side uses `test-utils/render.tsx`. |
-| Mock framework | Python `unittest.mock`; TypeScript Vitest `vi.mock`; MSW intercepts fetch in UI tests. |
-| Test tags | Pytest markers: `slow`, `integration`, `oidc`; Vitest tags by file convention (`.integration.test.ts`). |
-| Coverage floor | **90%** both sides, enforced by config (`pyproject.toml` `--cov-fail-under=90`, `vitest.config.ts` threshold). |
+| Fixture helper | `backend/tests/conftest.py` provides `client`, `sample_user`, `auth_headers`. UI side mounts SFCs directly with `@vue/test-utils`. |
+| Mock framework | Python `unittest.mock`; TypeScript Vitest `vi.mock` (stubs `ofetch`/the `services/` layer). |
+| Test tags | Pytest markers: `slow`, `integration`, `oidc`; Vitest co-locates `*.test.ts` next to source. |
+| Coverage floor | **90%** both sides, enforced by config (`pyproject.toml` `--cov-fail-under=90`, `ui/vite.config.ts` v8 thresholds — branches/functions/lines/statements all 90). |

@@ -293,6 +293,31 @@ class TestNoteSchemas:
 
             assert note.title == "Test Note"
             assert note.content == "# Test Note\n\nThis is test content."
+            assert note.tags is None
+
+        def test_note_create_tags_normalized_deduplicated_and_sorted(self):
+            """Test NoteCreate normalizes, deduplicates, and sorts tags."""
+            note = NoteCreate(
+                content="# Test Note\n\nThis is test content.",
+                tags=[" Work ", "#work", "Daily Log", "daily_log"],
+            )
+
+            assert note.tags == ["daily-log", "daily_log", "work"]
+
+        @pytest.mark.parametrize(
+            "tags",
+            [
+                [""],
+                ["#"],
+                ["bad/tag"],
+                ["has.dot"],
+                ["a" * 65],
+            ],
+        )
+        def test_note_create_invalid_tags(self, tags):
+            """Test NoteCreate rejects unsupported tag values."""
+            with pytest.raises(ValidationError):
+                NoteCreate(content="# Test Note\n\nThis is test content.", tags=tags)
 
         def test_note_create_missing_title_succeeds(self):
             """Test NoteCreate with missing title succeeds (title is optional)."""
@@ -392,6 +417,7 @@ class TestNoteSchemas:
 
             assert update.title == "Updated Title"
             assert update.content is None
+            assert update.tags is None
 
         def test_note_update_content_only(self):
             """Test NoteUpdate with only content."""
@@ -413,6 +439,13 @@ class TestNoteSchemas:
 
             assert update.title is None
             assert update.content is None
+            assert update.tags is None
+
+        def test_note_update_tags_normalized(self):
+            """Test NoteUpdate accepts a full replacement tag set."""
+            update = NoteUpdate(tags=[" Ideas ", "#Work", "ideas"])
+
+            assert update.tags == ["ideas", "work"]
 
         def test_note_update_empty_values(self):
             """Test NoteUpdate with empty string values (should fail due to min length)."""
@@ -473,6 +506,7 @@ class TestNoteSchemas:
             assert response.id == "note-123"
             assert response.title == "Test Note"
             assert response.content == "# Test Note\n\nContent"
+            assert response.tags == []
             assert response.createdAt == "2023-01-01T12:00:00"
             assert response.updatedAt == "2023-01-01T12:30:00"
             # F19: accessCount and lastAccessedAt fields have been removed from the schema.
@@ -506,8 +540,22 @@ class TestNoteSchemas:
             assert response.id == sample_note.id
             assert response.title == sample_note.title
             assert response.content == sample_note.content
+            assert response.tags == []
             assert isinstance(response.createdAt, str)
             assert isinstance(response.updatedAt, str)
+
+        def test_note_response_with_tags(self):
+            """Test NoteResponse preserves backend-normalized tags."""
+            response = NoteResponse(
+                id="note-123",
+                title="Test Note",
+                content="# Test Note\n\nContent",
+                tags=["ideas", "work"],
+                createdAt="2023-01-01T12:00:00",
+                updatedAt="2023-01-01T12:30:00",
+            )
+
+            assert response.tags == ["ideas", "work"]
 
         def test_note_response_datetime_formatting(self):
             """Test NoteResponse with various datetime formats."""
@@ -587,6 +635,7 @@ class TestSchemaIntegration:
 
         assert note_response.title == note_create.title
         assert note_response.content == note_create.content
+        assert note_response.tags == []
         assert note_response.id == "note-123"
 
     def test_note_update_partial_application(self):

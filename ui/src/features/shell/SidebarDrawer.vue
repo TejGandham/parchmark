@@ -16,11 +16,15 @@ interface SidebarDrawerProps {
   activeTags: string[];
   settingsActive?: boolean;
   open?: boolean;
+  loading?: boolean;
+  error?: string | null;
 }
 
 const props = withDefaults(defineProps<SidebarDrawerProps>(), {
   settingsActive: false,
   open: false,
+  loading: false,
+  error: null,
 });
 
 const emit = defineEmits<{
@@ -30,6 +34,7 @@ const emit = defineEmits<{
   clearSearch: [];
   toggleTag: [tag: string];
   openSettings: [];
+  retry: [];
 }>();
 </script>
 
@@ -64,21 +69,30 @@ const emit = defineEmits<{
     />
 
     <div class="note-list" aria-live="polite">
-      <div v-if="notes.length === 0" class="note-list__empty">
-        No notes match.
+      <div v-if="loading" class="note-list__loading">Loading…</div>
+      <div v-else-if="error" class="note-list__error">
+        <span class="note-list__error-text">{{ error }}</span>
+        <button type="button" class="note-list__retry" @click="emit('retry')">
+          Retry
+        </button>
       </div>
-      <template v-for="group in groupByTime(notes)" :key="group.key">
-        <div class="group-label">
-          {{ group.label }}
-          <span>{{ group.notes.length }}</span>
+      <template v-else>
+        <div v-if="notes.length === 0" class="note-list__empty">
+          No notes match.
         </div>
-        <NoteCard
-          v-for="note in group.notes"
-          :key="note.id"
-          :note="note"
-          :active="note.id === activeId"
-          @click="emit('select', note.id)"
-        />
+        <template v-for="group in groupByTime(notes)" :key="group.key">
+          <div class="group-label">
+            {{ group.label }}
+            <span>{{ group.notes.length }}</span>
+          </div>
+          <NoteCard
+            v-for="note in group.notes"
+            :key="note.id"
+            :note="note"
+            :active="note.id === activeId"
+            @click="emit('select', note.id)"
+          />
+        </template>
       </template>
     </div>
 
@@ -172,6 +186,44 @@ const emit = defineEmits<{
   color: var(--muted);
   font-size: 13.5px;
   text-align: center;
+}
+
+.note-list__loading {
+  padding: 28px 12px;
+  color: var(--muted);
+  font-size: 13.5px;
+  text-align: center;
+}
+
+.note-list__error {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.note-list__error-text {
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+
+.note-list__retry {
+  padding: 6px 14px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.note-list__retry:hover {
+  background: var(--accent);
+  color: var(--surface);
 }
 
 .group-label {

@@ -1,0 +1,172 @@
+{
+  "slug": "notes-list-from-backend",
+  "motivation": "Source the sidebar notes list from the backend GET /notes/ listing API instead of in-memory mock data, so the left rail shows the user's real notes. Frontend-only; backend gaps (tags field, query params) are addressed in separate binders.",
+  "scope": {
+    "included": [
+      "ui/src/services/notes.ts — notes API client (GET /notes/)",
+      "ui/src/features/notes/useNotes.ts — module-singleton composable: fetch, DTO→NoteMock adapter (ISO→epoch ms, tags=[]), loading/error refs",
+      "ui/src/features/shell/AppShell.vue — replace mockNotes seed with useNotes(), fetch on mount, seed activeId post-fetch",
+      "ui/src/features/shell/SidebarDrawer.vue — loading + error states in the note-list region (props + retry event)",
+      "tests: services/notes.test.ts, features/notes/useNotes.test.ts",
+      "update features/shell/__tests__/AppShell.test.ts and SidebarDrawer.test.ts to stub fetch with NoteResponse payloads"
+    ],
+    "excluded": [
+      "backend changes — no tags field on NoteResponse, no pagination, no search/filter query params (separate binder)",
+      "note create/update/delete wired to backend — list-only scope; createNote/deleteActiveNote keep mutating the local notes ref",
+      "pin-to-top feature from the mock — not in the stated scope; mock's NoteCard has a .card-pin button the current NoteCard.vue lacks, intentionally not added here",
+      "tag derivation client-side from content — filter UI stays in place but lights up empty until backend ships tags",
+      "consuming backend title field — frontend keeps deriving title via extractTitle(content) for parity with existing noteMockHelpers; backend title is ignored (flagged as a reconciliation note, not a bug)",
+      "SearchBox and TagFilter removal — they stay, operating client-side over fetched notes",
+      "adding the backend events SSE stream to the frontend — the /notes/events endpoint exists but wiring live updates is out of scope for a list-only slice"
+    ]
+  },
+  "design_facts": {
+    "source": "ParchMark-standalone.html",
+    "stack": "Vue 3 (<script setup> SFCs) + TypeScript + Vite; ofetch HTTP client; custom DTCG design-token system (Style Dictionary build); no router, no Pinia — module-singleton composables; auth gate in App.vue, navigation via ref toggles in AppShell.vue"
+  },
+  "token_manifest": null,
+  "env_contract": {
+    "command": "npm run dev",
+    "supports_isolation": true,
+    "isolation_params": ["PORT"],
+    "cwd": "ui"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "node", "version": ">=22.10.2", "manager": "nvm" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "notes-api-client",
+      "title": "Notes API client (services/notes.ts)",
+      "estimate": "S",
+      "depends_on": [],
+      "contract": "Exports NoteDTO mirroring backend NoteResponse (backend/app/schemas/schemas.py:73): { id: string; title: string; content: string; createdAt: string; updatedAt: string } — ISO-8601 strings, NO tags field (backend gap). Exports listNotes(): Promise<NoteDTO[]> -> request<NoteDTO[]>(\"/notes/\", { method: \"GET\" }). Reuses services/http.ts request() (bearer attach + single refresh-and-retry on 401); adds no HTTP machinery. Pattern mirrors services/auth.ts:16-21. The DTO intentionally keeps the backend's title field even though the frontend currently derives title via extractTitle — keeping it on the wire contract preserves the option to consume it later without another client change.",
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:new-additive (first non-auth API client in services/ — establishes the notes API surface; every later notes feature builds on this)",
+          "capability-escalation:new-IO (first backend integration for notes; introduces network fetch where notes were previously in-memory mock data — a different failure mode than the existing auth fetches)"
+        ]
+      },
+      "touches": ["ui/src/services/notes.ts", "ui/src/services/notes.test.ts"],
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "listNotes() issues GET to /api/notes/ with the bearer token from auth hooks",
+          "listNotes() resolves to the NoteResponse[] body unchanged (no field stripping, no renaming)",
+          "listNotes() rejects with ApiError carrying backend { detail } on non-2xx (delegates to http.ts error handling)"
+        ],
+        "command": "cd ui && npm run lint && npm run test -- src/services/notes.test.ts",
+        "cwd": "."
+      }
+    },
+    {
+      "id": "use-notes-composable",
+      "title": "useNotes composable + DTO adapter (features/notes/useNotes.ts)",
+      "estimate": "S",
+      "depends_on": ["notes-api-client"],
+      "contract": "Module-singleton composable mirroring features/auth/useAuth.ts pattern (module-level refs, useStorage optional, returned via useNotes()). Exposes: notes: Ref<NoteMock[]> (writable — AppShell keeps local create/delete mutations until a write-API binder lands), loading: Ref<boolean>, error: Ref<string|null>, fetchNotes(): Promise<void>. fetchNotes() calls listNotes(), maps each NoteDTO to NoteMock via an adapter: { id: dto.id, content: dto.content, tags: [], createdAt: Date.parse(dto.createdAt), updatedAt: Date.parse(dto.updatedAt) } — the adapter owns the ISO-string→epoch-ms conversion (backend ISO, frontend epoch) and the tags=[] placeholder (backend has no tags field; backend gap flagged in scope.excluded). On rejection, sets error to ApiError.detail and leaves notes unchanged. Does NOT discard the backend title field silently — it is unused by the adapter only because the frontend derives title via extractTitle(content); this is a recorded reconciliation decision, not a missing field.",
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "architectural-novelty:new-pattern-in-domain (first notes-domain module-singleton composable; mirrors useAuth but is new for notes — establishes the reactive-notes-store pattern every future notes feature will follow)",
+          "contract-mutation:new-additive (exposes the notes/loading/error refs AppShell and SidebarDrawer consume; the adapter is a new cross-shape boundary)"
+        ]
+      },
+      "touches": ["ui/src/features/notes/useNotes.ts", "ui/src/features/notes/useNotes.test.ts"],
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "fetchNotes() populates notes with NoteMock[] mapped from NoteDTO: ISO strings → epoch ms via Date.parse, tags forced to []",
+          "fetchNotes() sets loading=true during the call, false after (both success and error paths)",
+          "on listNotes() rejection, error is set to the ApiError detail string and the notes ref is left unchanged",
+          "useNotes() returns the same refs across calls (module-singleton, not factory)"
+        ],
+        "command": "cd ui && npm run lint && npm run test -- src/features/notes/useNotes.test.ts",
+        "cwd": "."
+      }
+    },
+    {
+      "id": "appshell-wire-fetch",
+      "title": "Wire AppShell.vue to useNotes + onMounted fetch",
+      "estimate": "M",
+      "depends_on": ["use-notes-composable"],
+      "contract": "Replace `const notes = ref(mockNotes.slice())` (AppShell.vue:18) with `const { notes, loading, error, fetchNotes } = useNotes()`. Call fetchNotes() in onMounted; after resolve, seed activeId from the most-recently-updated fetched note (move the existing sort at AppShell.vue:20-22 into the post-fetch path — a watchEffect or a post-await assignment). Pass loading and error down to SidebarDrawer via new props. filteredNotes computed (AppShell.vue:48-67) stays unchanged — still client-side over the notes ref; SearchBox + TagFilter stay. createNote (AppShell.vue:85) and deleteActiveNote (AppShell.vue:146) keep mutating the local notes ref (write APIs are out of scope; they will be wired in a separate binder). Do NOT remove the mockNotes import if still used by tests — leave it for the test stub. The initial activeId must not be set synchronously from mockNotes anymore; it becomes null until fetchNotes resolves, then seeds.",
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "blast-radius:AppShell.vue owns many concerns (activeId, mode, search, tags, theme, create/delete, drawer); swapping the notes data source touches the core state wiring and the initial-activeId seeding logic",
+          "explicit-open-question:backend has no tags field — TagFilter renders empty and NoteCard tag chips are empty after this change; flagged as a backend gap in scope.excluded, to be addressed in a separate binder"
+        ]
+      },
+      "touches": ["ui/src/features/shell/AppShell.vue"],
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "AppShell mounts and renders notes fetched from GET /notes/ (no longer reads mockNotes at mount — mockNotes may still be imported only if tests use it as the stub source)",
+          "activeId is seeded to the most-recently-updated fetched note after fetchNotes resolves (not synchronously at construction)",
+          "SearchBox and TagFilter remain present in the rendered sidebar and operate client-side over fetched notes",
+          "createNote still adds a local note to the notes ref without a backend call (write API deferred)"
+        ],
+        "command": "cd ui && npm run lint && npm run test -- src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": "."
+      }
+    },
+    {
+      "id": "sidebar-loading-error-states",
+      "title": "Sidebar loading + error states in note-list region",
+      "estimate": "S",
+      "depends_on": ["appshell-wire-fetch"],
+      "contract": "SidebarDrawer.vue renders, inside .note-list (SidebarDrawer.vue:66), one of: (a) while loading — a non-blocking loading indicator (text like 'Loading…' or a small spinner, styled with var(--muted)); (b) on error with loading=false — an error line showing error plus a retry affordance (button calling a new retry event that AppShell wires to fetchNotes); (c) loaded, zero notes — the existing 'No notes match.' empty state (SidebarDrawer.vue:67-69) stays. Add props to SidebarDrawerProps (SidebarDrawer.vue:11-19): loading?: boolean (default false), error?: string|null (default null). Add emit: retry: []. Wire the retry button to emit('retry'). Loading indicator must not flash on fast fetches only if trivial — a simple conditional render is fine; no debouncing required. Styling uses existing design tokens (var(--muted), var(--accent), var(--surface-2)); no new tokens. The error retry path is the only way to recover from a failed fetch short of reloading the page.",
+      "surface": {
+        "flagged": false,
+        "signals": [
+          "not-computed:contract (the loading/error prop shape and retry event are agreed in this item's contract and consumed by appshell-wire-fetch; no independent contract to evaluate)"
+        ]
+      },
+      "touches": ["ui/src/features/shell/SidebarDrawer.vue"],
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "SidebarDrawer shows a loading indicator inside .note-list when loading=true",
+          "SidebarDrawer shows an error line with a retry button when error is a non-empty string and loading=false",
+          "SidebarDrawer shows the normal note list (group-labels + NoteCards) when loading=false and error is null",
+          "clicking the retry button emits a retry event"
+        ],
+        "command": "cd ui && npm run lint && npm run test -- src/features/shell/__tests__/SidebarDrawer.test.ts",
+        "cwd": "."
+      }
+    },
+    {
+      "id": "appshell-tests-backend-shape",
+      "title": "Update AppShell + SidebarDrawer tests to stub fetch with NoteResponse payloads",
+      "estimate": "S",
+      "depends_on": ["appshell-wire-fetch", "sidebar-loading-error-states"],
+      "serialize": true,
+      "shared_resources": [
+        "ui/src/features/shell/__tests__/AppShell.test.ts",
+        "ui/src/features/shell/__tests__/SidebarDrawer.test.ts"
+      ],
+      "contract": "AppShell.test.ts: add a beforeEach that stubs global fetch to resolve GET /api/notes/ with mockNotes reshaped as NoteResponse[] — same id/content, add title (use extractTitle(content) or the literal H1), convert createdAt/updatedAt from epoch ms to ISO strings, drop tags. The two existing tag-filter assertions in AppShell.test.ts (the 'filters notes by search and tag' test at line 83 and the 'toggles a tag filter from the active note's meta row' test at line 102) cannot pass against backend-sourced notes because tags is forced to [] — remove those two tests with a TODO comment citing the backend tags gap (re-add when the tags field lands on NoteResponse). All other existing assertions (new note, edit mode, settings, markdown render, table/checkbox, copy/export/delete, drawer open/close, theme toggle) stay and must pass against the stubbed fetch. SidebarDrawer.test.ts: add cases for the loading and error props and the retry event. Do not weaken any assertion; the stubbed fetch is the only test seam.",
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "touches": ["ui/src/features/shell/__tests__/AppShell.test.ts", "ui/src/features/shell/__tests__/SidebarDrawer.test.ts"],
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "beforeEach stubs fetch to resolve GET /api/notes/ with NoteResponse[] (id, title, content, ISO createdAt/updatedAt, no tags)",
+          "all existing non-tag assertions pass against the stubbed fetch (new note, edit/read, settings, markdown render, table/checkbox, copy/export/delete, drawer, theme)",
+          "the two tag-filter assertions are removed with a TODO comment citing the backend tags gap",
+          "SidebarDrawer.test.ts covers loading=true, error+retry, and loaded-empty states"
+        ],
+        "command": "cd ui && npm run lint && npm run test -- src/features/shell/__tests__/AppShell.test.ts src/features/shell/__tests__/SidebarDrawer.test.ts",
+        "cwd": "."
+      }
+    }
+  ]
+}
