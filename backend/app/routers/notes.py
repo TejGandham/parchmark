@@ -58,7 +58,8 @@ def _note_to_response(note: Note) -> NoteResponse:
 
 def _replace_note_tags(note: Note, tags: list[str]) -> None:
     """Replace a note's complete normalized tag set."""
-    note.tags = [NoteTag(tag=tag) for tag in tags]
+    current_tags = {note_tag.tag: note_tag for note_tag in note.tags}
+    note.tags = [current_tags.get(tag) or NoteTag(tag=tag) for tag in tags]
 
 
 async def _get_owned_note(db: AsyncSession, user_id: int, note_id: str) -> Note | None:
