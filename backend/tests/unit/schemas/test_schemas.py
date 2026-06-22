@@ -443,9 +443,24 @@ class TestNoteSchemas:
 
         def test_note_update_tags_normalized(self):
             """Test NoteUpdate accepts a full replacement tag set."""
-            update = NoteUpdate(tags=[" Ideas ", "#Work", "ideas"])
+            update = NoteUpdate(tags=[" Work ", "#work", "Daily Log", "daily_log"])
 
-            assert update.tags == ["ideas", "work"]
+            assert update.tags == ["daily-log", "daily_log", "work"]
+
+        @pytest.mark.parametrize(
+            "tags",
+            [
+                [""],
+                ["#"],
+                ["bad/tag"],
+                ["has.dot"],
+                ["a" * 65],
+            ],
+        )
+        def test_note_update_invalid_tags(self, tags):
+            """Test NoteUpdate rejects unsupported tag values."""
+            with pytest.raises(ValidationError):
+                NoteUpdate(tags=tags)
 
         def test_note_update_empty_values(self):
             """Test NoteUpdate with empty string values (should fail due to min length)."""

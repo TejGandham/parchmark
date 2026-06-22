@@ -82,6 +82,22 @@ def test_update_note_replaces_clears_and_preserves_tags(client: TestClient, auth
     assert clear_response.json()["tags"] == []
 
 
+def test_update_note_normalizes_deduplicates_and_sorts_tags(
+    client: TestClient, auth_headers, sample_note, test_db_session
+):
+    sample_note.tags = [NoteTag(tag="draft")]
+    test_db_session.commit()
+
+    response = client.put(
+        f"/api/notes/{sample_note.id}",
+        headers=auth_headers,
+        json={"tags": [" Work ", "#work", "Daily Log", "daily_log"]},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["tags"] == ["daily-log", "daily_log", "work"]
+
+
 def test_invalid_tag_values_fail_validation(client: TestClient, auth_headers):
     response = client.post(
         "/api/notes/",
@@ -90,6 +106,25 @@ def test_invalid_tag_values_fail_validation(client: TestClient, auth_headers):
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def test_update_note_with_invalid_tags_keeps_existing_tags(
+    client: TestClient, auth_headers, sample_note, test_db_session
+):
+    sample_note.tags = [NoteTag(tag="draft"), NoteTag(tag="work")]
+    test_db_session.commit()
+
+    response = client.put(
+        f"/api/notes/{sample_note.id}",
+        headers=auth_headers,
+        json={"tags": ["valid", "bad/tag"]},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    check_response = client.get(f"/api/notes/{sample_note.id}", headers=auth_headers)
+    assert check_response.status_code == status.HTTP_200_OK
+    assert check_response.json()["tags"] == ["draft", "work"]
 
 
 def test_user_cannot_see_another_users_tags(client: TestClient, test_db_session):
