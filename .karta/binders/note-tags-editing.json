@@ -1,0 +1,298 @@
+{
+  "slug": "note-tags-editing",
+  "motivation": "Let users add and remove note tags in the v2 UI and persist the full tag set through the existing note update API.",
+  "scope": {
+    "included": [
+      "a compact Vue tag editor for the active note in edit mode",
+      "frontend tests that pin the existing UpdateNoteRequest.tags contract in services and useNotes",
+      "AppShell draft, save, cancel, and failure handling for note tag changes",
+      "full UI/backend regression verification after the frontend tag editing flow lands"
+    ],
+    "excluded": [
+      "backend production code, schemas, models, routes, migrations, or new tag endpoints; PUT /api/notes/{id} already supports full tag replacement",
+      "partial tag add/remove endpoints, a global tag-list endpoint, server-side tag filtering, tag colors, tag ordering, and bulk tag administration",
+      "new dependencies, router or Pinia adoption, or third-party icon libraries",
+      "design-token additions or hand edits to generated ui/src/design-system/tokens.css",
+      "unrelated documentation drift cleanup for previously-landed note create/edit/delete/tag persistence work"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Mixed Vue 3/TypeScript/Vite frontend plus FastAPI/Python 3.13/SQLAlchemy async/PostgreSQL backend; DTCG design tokens; no router or Pinia."
+  },
+  "sme": [
+    "minimalism",
+    "vue",
+    "python-fastapi"
+  ],
+  "token_manifest": {
+    "system": "W3C DTCG JSON built with Style Dictionary into CSS custom properties.",
+    "source_dir": "ui/src/design-system/tokens",
+    "sources": [
+      "ui/src/design-system/tokens/primitives.json",
+      "ui/src/design-system/tokens/semantic.json",
+      "ui/src/design-system/tokens/semantic.dark.json"
+    ],
+    "build_command": "npm --prefix ui run build:tokens",
+    "generated_artifacts": [
+      "ui/src/design-system/tokens.css"
+    ],
+    "generated_artifacts_read_only": true,
+    "consumption_rule": "New component CSS consumes semantic custom properties only; primitives are not used in new code.",
+    "name_resolution_rule": "$extensions[\"com.parchmark.cssName\"] emits short CSS variable names.",
+    "theme_context_selector": {
+      "light": ":root",
+      "dark": "[data-theme=\"dark\"]"
+    },
+    "expected_changes": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      },
+      {
+        "name": "python",
+        "version": "3.13.2",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "note-tag-editor-component",
+      "title": "Build compact note tag editor",
+      "estimate": "M",
+      "depends_on": [],
+      "design_reference": "app shell edit pane tag editor",
+      "component_map": [
+        {
+          "component": "NoteTagEditor",
+          "mapping": "Custom presentational Vue SFC under ui/src/features/notes",
+          "notes": "Typed props and emits; no HTTP calls; props down and update event up."
+        },
+        {
+          "component": "native form controls",
+          "mapping": "Native input plus buttons",
+          "notes": "No new dependency and no new design-system abstraction unless existing DsToolButton is useful for the icon-sized controls."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "add tag",
+          "source": "local design system",
+          "import": "PlusIcon from @/design-system/icons"
+        },
+        {
+          "purpose": "remove tag",
+          "source": "local design system",
+          "import": "XIcon from @/design-system/icons"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "exposes": {
+          "component": "ui/src/features/notes/NoteTagEditor.vue"
+        },
+        "props": {
+          "tags": "string[]",
+          "disabled": "optional boolean"
+        },
+        "emits": {
+          "update:tags": "complete string[] replacement list"
+        },
+        "behavior": [
+          "renders current tags as stable-keyed chips with accessible remove buttons labelled with each tag",
+          "adds a tag from a text input on Enter or an add-button click",
+          "normalizes user input before emitting with backend-compatible rules: trim, remove one optional leading #, lowercase, collapse internal whitespace to hyphen, reject empty, reject values longer than 64 characters, and reject characters outside lowercase letters, numbers, hyphen, and underscore",
+          "deduplicates by normalized value without emitting a duplicate change",
+          "does not mutate props and does not call HTTP APIs",
+          "uses scoped styles and existing semantic CSS variables only"
+        ]
+      },
+      "touches": [
+        "ui/src/features/notes/NoteTagEditor.vue",
+        "ui/src/features/notes/NoteTagEditor.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:additive Vue component interface for NoteTagEditor props and update:tags emit",
+          "architectural-novelty:new user-facing frontend normalization path mirrors the backend tag contract",
+          "not-computed:accessibility beyond DOM-level unit assertions"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/features/notes/NoteTagEditor.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "NoteTagEditor emits update:tags with the normalized added tag when Enter or the add control is used.",
+          "NoteTagEditor emits update:tags without the removed tag when a chip remove button is used.",
+          "Blank input, invalid characters, over-64-character values, and duplicate normalized tags show a validation state without emitting a replacement list.",
+          "The component uses typed props/emits, stable v-for keys, scoped styles, PlusIcon, and XIcon."
+        ]
+      }
+    },
+    {
+      "id": "frontend-tag-update-contract-tests",
+      "title": "Pin frontend tag update contract",
+      "estimate": "S",
+      "depends_on": [],
+      "contract": {
+        "consumes": {
+          "service": "ui/src/services/notes.ts updateNote(noteId, payload) and UpdateNoteRequest.tags?: string[] | null",
+          "composable": "ui/src/features/notes/useNotes.ts updateNote(noteId, payload) maps the returned NoteDTO into the matching NoteMock"
+        },
+        "behavior": [
+          "updateNote(noteId, { tags: [...] }) sends a PUT body with the tags array unchanged",
+          "updateNote(noteId, { tags: [] }) sends an empty array so the backend clears tags",
+          "content-only updates keep tags omitted from the PUT body",
+          "useNotes.updateNote replaces the matching local NoteMock.tags with backend-returned NoteDTO.tags, including the empty-array clear case"
+        ]
+      },
+      "touches": [
+        "ui/src/services/notes.test.ts",
+        "ui/src/features/notes/useNotes.test.ts"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/notes.test.ts src/features/notes/useNotes.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "services/notes.test covers updateNote with a non-empty tags array and with tags: [].",
+          "services/notes.test keeps the existing content-only update payload assertion without tags.",
+          "useNotes.test covers updateNote mapping returned DTO tags back into the local notes ref, including clearing tags to []."
+        ]
+      }
+    },
+    {
+      "id": "app-shell-tag-editing",
+      "title": "Wire tag editing into AppShell save flow",
+      "estimate": "M",
+      "depends_on": [
+        "note-tag-editor-component",
+        "frontend-tag-update-contract-tests"
+      ],
+      "design_reference": "app shell read/edit pane",
+      "component_map": [
+        {
+          "component": "AppShell",
+          "mapping": "Container",
+          "notes": "Owns draftTags and persistence through useNotes.updateNote; no router or global store added."
+        },
+        {
+          "component": "NoteTagEditor",
+          "mapping": "Custom presentational child",
+          "notes": "Rendered in edit mode near the existing NoteEditor markdown form."
+        },
+        {
+          "component": "TagFilter and read-mode mini-tag buttons",
+          "mapping": "Existing custom controls",
+          "notes": "Remain filter-only; tag mutation happens in edit mode."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "tag add/remove controls",
+          "source": "local design system",
+          "import": "NoteTagEditor uses PlusIcon and XIcon"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "component": "NoteTagEditor update:tags replacement arrays",
+          "composable": "useNotes.updateNote(noteId, UpdateNoteRequest)",
+          "backend": "existing PUT /api/notes/{note_id} full-replacement tag semantics: omitted/null preserves, [] clears, array replaces"
+        },
+        "state": [
+          "AppShell owns draftTags alongside draftContent",
+          "startEdit seeds draftContent and draftTags from activeNote",
+          "cancelEdit, selectNote, openSettings, delete success, and create success reset draft tag state consistently with draftContent"
+        ],
+        "save_behavior": [
+          "tag edits are draft changes in edit mode; Save persists them and Cancel discards them",
+          "canSaveDraft is true when content changes or draftTags differs from activeNote.tags, while draftContent still satisfies the existing minimum length rule",
+          "saveDraft builds a PUT payload with content only when content changed and tags only when tags changed; an empty draftTags array is sent as tags: [] to clear all tags",
+          "successful saves use the returned NoteDTO through useNotes mapping, exit to read mode, and refresh visible tag chips/filter counts from notes",
+          "failed saves keep draftContent and draftTags visible and surface mutationError through the existing action-error",
+          "read-mode active-note tag buttons and SidebarDrawer TagFilter remain filter-only"
+        ]
+      },
+      "touches": [
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:existing AppShell save flow now conditionally sends UpdateNoteRequest.tags",
+          "blast-radius:touches the top-level shell state machine and its integration-style test file",
+          "capability-escalation:user-visible persisted tag writes through the existing notes update network path"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "AppShell edit mode displays the tag editor seeded from the active note tags.",
+          "Tag-only saves issue PUT /notes/{id} with tags and no content when content is unchanged.",
+          "Clearing all draft tags issues PUT /notes/{id} with tags: [].",
+          "Content-only saves preserve the existing content-only payload behavior when tags are unchanged.",
+          "Combined content and tag edits send both changed fields in one PUT payload.",
+          "Canceling edit mode or switching notes discards unsaved draft tag changes.",
+          "A failed tag save leaves the draft tags visible and shows the existing mutation error alert.",
+          "Read-mode tag filter interactions covered by existing tests still pass."
+        ]
+      }
+    },
+    {
+      "id": "tag-editing-regression-gate",
+      "title": "Run full tag editing regression gate",
+      "estimate": "S",
+      "depends_on": [
+        "app-shell-tag-editing"
+      ],
+      "contract": {
+        "verifies": [
+          "the merged binder result clears the repo full gate",
+          "backend tag persistence tests remain green without backend production changes",
+          "no new dependency is required for add/remove tag editing"
+        ],
+        "source_changes": "No feature changes expected; only small test fixture or assertion corrections are allowed if the full gate exposes drift."
+      },
+      "touches": [
+        "ui/src/**/*.test.ts",
+        "backend/tests/**/*.py"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test",
+        "cwd": ".",
+        "assertions": [
+          "Full UI and backend gate passes after tag editing changes are merged.",
+          "Existing backend note tag persistence coverage remains green.",
+          "The final diff adds no third-party dependency for this feature."
+        ]
+      }
+    }
+  ]
+}
