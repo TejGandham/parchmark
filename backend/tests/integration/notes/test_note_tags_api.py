@@ -98,6 +98,29 @@ def test_update_note_normalizes_deduplicates_and_sorts_tags(
     assert response.json()["tags"] == ["daily-log", "daily_log", "work"]
 
 
+def test_update_note_adds_and_removes_tags_without_reinserting_kept_tags(
+    client: TestClient, auth_headers, sample_note, test_db_session
+):
+    sample_note.tags = [NoteTag(tag="draft"), NoteTag(tag="journal")]
+    test_db_session.commit()
+
+    add_response = client.put(
+        f"/api/notes/{sample_note.id}",
+        headers=auth_headers,
+        json={"tags": ["draft", "journal", "morning"]},
+    )
+    assert add_response.status_code == status.HTTP_200_OK
+    assert add_response.json()["tags"] == ["draft", "journal", "morning"]
+
+    remove_response = client.put(
+        f"/api/notes/{sample_note.id}",
+        headers=auth_headers,
+        json={"tags": ["draft", "morning"]},
+    )
+    assert remove_response.status_code == status.HTTP_200_OK
+    assert remove_response.json()["tags"] == ["draft", "morning"]
+
+
 def test_invalid_tag_values_fail_validation(client: TestClient, auth_headers):
     response = client.post(
         "/api/notes/",
