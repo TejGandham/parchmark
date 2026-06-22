@@ -192,6 +192,24 @@ describe("updateNote", () => {
     expect(result).toEqual(updated);
   });
 
+  it("passes raw tag replacement payloads through unchanged", async () => {
+    const updated = {
+      ...sampleNotes[0],
+      tags: ["daily-log", "draft", "work"],
+      updatedAt: "2026-06-21T10:30:00.000Z",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, updated));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = { tags: ["draft", "  #Daily Log  ", "Work"] };
+    const result = await updateNote("note-1", payload);
+
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(String(init.body))).toEqual(payload);
+    expect(result).toEqual(updated);
+  });
+
   it("rejects with ApiError carrying backend { detail } on update failure", async () => {
     const fetchMock = vi
       .fn()

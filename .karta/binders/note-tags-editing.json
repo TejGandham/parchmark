@@ -1,0 +1,341 @@
+{
+  "slug": "note-tags-editing",
+  "motivation": "Let users add and remove note tags in the v2 UI while keeping backend/Pydantic as the single normalization and validation authority.",
+  "scope": {
+    "included": [
+      "a compact Vue tag editor for the active note that emits raw add/remove intent",
+      "backend test coverage that pins update-time tag normalization, deduplication, sorting, and invalid-tag rejection",
+      "frontend tests that pin raw UpdateNoteRequest.tags pass-through in services and useNotes",
+      "AppShell wiring that persists add/remove tag actions through the existing note update API and trusts the returned NoteDTO",
+      "full UI/backend regression verification after the tag editing flow lands"
+    ],
+    "excluded": [
+      "frontend normalization, lowercasing, sorting, regex validation, or deduplication of tag values before save",
+      "backend production code, schemas, models, routes, migrations, or new tag endpoints; PUT /api/notes/{id} already supports full tag replacement",
+      "partial tag add/remove endpoints, a global tag-list endpoint, server-side tag filtering, tag colors, tag ordering, and bulk tag administration",
+      "new dependencies, router or Pinia adoption, or third-party icon libraries",
+      "design-token additions or hand edits to generated ui/src/design-system/tokens.css",
+      "unrelated documentation drift cleanup for previously-landed note create/edit/delete/tag persistence work"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Mixed Vue 3/TypeScript/Vite frontend plus FastAPI/Python 3.13/SQLAlchemy async/PostgreSQL backend; DTCG design tokens; no router or Pinia."
+  },
+  "sme": [
+    "minimalism",
+    "vue",
+    "python-fastapi"
+  ],
+  "token_manifest": {
+    "system": "W3C DTCG JSON built with Style Dictionary into CSS custom properties.",
+    "source_dir": "ui/src/design-system/tokens",
+    "sources": [
+      "ui/src/design-system/tokens/primitives.json",
+      "ui/src/design-system/tokens/semantic.json",
+      "ui/src/design-system/tokens/semantic.dark.json"
+    ],
+    "build_command": "npm --prefix ui run build:tokens",
+    "generated_artifacts": [
+      "ui/src/design-system/tokens.css"
+    ],
+    "generated_artifacts_read_only": true,
+    "consumption_rule": "New component CSS consumes semantic custom properties only; primitives are not used in new code.",
+    "name_resolution_rule": "$extensions[\"com.parchmark.cssName\"] emits short CSS variable names.",
+    "theme_context_selector": {
+      "light": ":root",
+      "dark": "[data-theme=\"dark\"]"
+    },
+    "expected_changes": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      },
+      {
+        "name": "python",
+        "version": "3.13.2",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "note-tag-editor-component",
+      "title": "Build compact raw-intent note tag editor",
+      "estimate": "M",
+      "depends_on": [],
+      "design_reference": "app shell edit pane tag editor",
+      "component_map": [
+        {
+          "component": "NoteTagEditor",
+          "mapping": "Custom presentational Vue SFC under ui/src/features/notes",
+          "notes": "Typed props and emits; no HTTP calls; props down and raw add/remove events up."
+        },
+        {
+          "component": "native form controls",
+          "mapping": "Native input plus buttons",
+          "notes": "No new dependency and no new design-system abstraction unless existing DsToolButton is useful for icon-sized controls."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "add tag",
+          "source": "local design system",
+          "import": "PlusIcon from @/design-system/icons"
+        },
+        {
+          "purpose": "remove tag",
+          "source": "local design system",
+          "import": "XIcon from @/design-system/icons"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "exposes": {
+          "component": "ui/src/features/notes/NoteTagEditor.vue"
+        },
+        "props": {
+          "tags": "string[]",
+          "disabled": "optional boolean",
+          "error": "optional string | null for backend mutation errors"
+        },
+        "emits": {
+          "add-tag": "raw string exactly as entered by the user",
+          "remove-tag": "existing backend-normalized chip value selected for removal"
+        },
+        "behavior": [
+          "renders current backend-returned tags as stable-keyed chips with accessible remove buttons labelled with each tag",
+          "keeps the tag input as local UI state and emits add-tag with the raw entered string on Enter or add-button click",
+          "blocks only an obviously blank add action by checking trimmed length for UI affordance; it does not trim the emitted value",
+          "does not lowercase, remove leading #, collapse whitespace, sort, deduplicate, regex-validate, or otherwise normalize tag values",
+          "does not mutate props and does not call HTTP APIs",
+          "disables input and buttons while disabled is true and can display backend mutation errors passed by the parent",
+          "uses scoped styles and existing semantic CSS variables only"
+        ]
+      },
+      "touches": [
+        "ui/src/features/notes/NoteTagEditor.vue",
+        "ui/src/features/notes/NoteTagEditor.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:additive Vue component interface for NoteTagEditor props and add-tag/remove-tag emits",
+          "explicit-open-question:frontend intentionally does not normalize or validate tags beyond blank-submit UI affordance",
+          "not-computed:accessibility beyond DOM-level unit assertions"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/features/notes/NoteTagEditor.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "NoteTagEditor emits add-tag with the raw string, including case, spaces, and a leading # when present.",
+          "NoteTagEditor emits remove-tag with the selected existing chip value.",
+          "Obviously blank input does not emit add-tag, but nonblank values are not lowercased, deduplicated, sorted, regex-checked, or otherwise normalized in the component.",
+          "The component uses typed props/emits, stable v-for keys, scoped styles, PlusIcon, and XIcon."
+        ]
+      }
+    },
+    {
+      "id": "backend-update-normalization-coverage",
+      "title": "Pin backend update-time tag normalization",
+      "estimate": "S",
+      "depends_on": [],
+      "contract": {
+        "consumes": {
+          "schemas": "backend/app/schemas/schemas.py NoteUpdate.tags uses the backend normalize_tags validator",
+          "router": "backend/app/routers/notes.py PUT /api/notes/{note_id} replaces tags only after Pydantic validation"
+        },
+        "behavior": [
+          "PUT /api/notes/{id} with raw duplicate tags such as ' Work ', '#work', and 'Daily Log' returns normalized, deduplicated, sorted tags from the backend",
+          "PUT /api/notes/{id} with invalid tag values returns 422 and does not change the existing tag set",
+          "PUT /api/notes/{id} with omitted tags still preserves the previous tag set and tags: [] still clears it"
+        ]
+      },
+      "touches": [
+        "backend/tests/integration/notes/test_note_tags_api.py",
+        "backend/tests/unit/schemas/test_schemas.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:test coverage pins backend as the sole normalization and validation boundary",
+          "sensitive-zone:backend API contract tests"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/notes/test_note_tags_api.py tests/unit/schemas/test_schemas.py -v",
+        "cwd": ".",
+        "assertions": [
+          "Backend update tests prove raw duplicate tag inputs are normalized, deduplicated, and sorted by the backend.",
+          "Backend update tests prove invalid tag values return 422 and preserve the stored tag set.",
+          "Existing preserve-on-omit and clear-with-empty-array tests still pass."
+        ]
+      }
+    },
+    {
+      "id": "frontend-tag-update-contract-tests",
+      "title": "Pin frontend raw tag update pass-through",
+      "estimate": "S",
+      "depends_on": [],
+      "contract": {
+        "consumes": {
+          "service": "ui/src/services/notes.ts updateNote(noteId, payload) and UpdateNoteRequest.tags?: string[] | null",
+          "composable": "ui/src/features/notes/useNotes.ts updateNote(noteId, payload) maps the returned NoteDTO into the matching NoteMock"
+        },
+        "behavior": [
+          "updateNote(noteId, { tags: [...] }) sends the tags array unchanged, including raw case, spaces, and leading # characters",
+          "updateNote(noteId, { tags: [] }) sends an empty array so the backend clears tags",
+          "content-only updates keep tags omitted from the PUT body",
+          "useNotes.updateNote replaces the matching local NoteMock.tags with backend-returned NoteDTO.tags, including normalized tags and the empty-array clear case"
+        ]
+      },
+      "touches": [
+        "ui/src/services/notes.test.ts",
+        "ui/src/features/notes/useNotes.test.ts"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/notes.test.ts src/features/notes/useNotes.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "services/notes.test covers updateNote with a raw non-empty tags array and verifies the JSON body is unchanged.",
+          "services/notes.test covers updateNote with tags: [] and keeps the existing content-only update payload assertion without tags.",
+          "useNotes.test covers updateNote mapping backend-normalized returned DTO tags back into the local notes ref, including clearing tags to []."
+        ]
+      }
+    },
+    {
+      "id": "app-shell-tag-editing",
+      "title": "Wire raw tag add/remove actions into AppShell",
+      "estimate": "M",
+      "depends_on": [
+        "note-tag-editor-component",
+        "backend-update-normalization-coverage",
+        "frontend-tag-update-contract-tests"
+      ],
+      "design_reference": "app shell edit pane",
+      "component_map": [
+        {
+          "component": "AppShell",
+          "mapping": "Container",
+          "notes": "Owns persistence through useNotes.updateNote; no router or global store added."
+        },
+        {
+          "component": "NoteTagEditor",
+          "mapping": "Custom presentational child",
+          "notes": "Rendered in edit mode near the existing NoteEditor markdown form."
+        },
+        {
+          "component": "TagFilter and read-mode mini-tag buttons",
+          "mapping": "Existing custom controls",
+          "notes": "Remain filter-only; tag mutation happens through the edit-mode tag editor."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "tag add/remove controls",
+          "source": "local design system",
+          "import": "NoteTagEditor uses PlusIcon and XIcon"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "component": "NoteTagEditor add-tag raw strings and remove-tag existing chip values",
+          "composable": "useNotes.updateNote(noteId, UpdateNoteRequest)",
+          "backend": "existing PUT /api/notes/{note_id} full-replacement tag semantics: omitted/null preserves, [] clears, array replaces and backend normalizes"
+        },
+        "behavior": [
+          "AppShell renders NoteTagEditor in edit mode using activeNote.tags from the backend-returned note",
+          "handleAddTag(rawTag) sends persistNoteUpdate(activeNote.id, { tags: [...activeNote.tags, rawTag] }) without frontend normalization or deduplication",
+          "handleRemoveTag(tag) sends persistNoteUpdate(activeNote.id, { tags: activeNote.tags.filter((existingTag) => existingTag !== tag) }); removing the last tag sends tags: []",
+          "successful tag add/remove uses the returned NoteDTO through useNotes mapping, so visible chips, sidebar cards, and tag filter counts reflect backend-normalized tags",
+          "failed tag add/remove leaves the saved note unchanged and surfaces mutationError through the existing action-error/tag-editor error path",
+          "content save remains content-focused: markdown Save keeps omitting tags when tag actions are not part of the payload",
+          "after a successful removal, AppShell prunes activeTags values that no longer exist in allTags(notes) so stale invisible filters cannot hide the current note",
+          "read-mode active-note tag buttons and SidebarDrawer TagFilter remain filter-only"
+        ]
+      },
+      "touches": [
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:AppShell adds raw tag add/remove update actions using UpdateNoteRequest.tags",
+          "blast-radius:touches the top-level shell state machine and its integration-style test file",
+          "capability-escalation:user-visible persisted tag writes through the existing notes update network path",
+          "explicit-open-question:tag add/remove persists immediately through the editor and is not part of markdown draft save/cancel semantics"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "AppShell edit mode displays the tag editor seeded from activeNote.tags.",
+          "Adding a raw tag such as ' Daily Log ' sends a PUT body containing the raw value unchanged and no content field.",
+          "The mocked backend response can return normalized tags such as ['daily-log', ...], and AppShell renders the returned normalized tags in the read pane, sidebar card, and tag filter.",
+          "Removing a tag sends the remaining complete tag set; removing the last tag sends tags: [].",
+          "Content-only markdown saves preserve the existing content-only payload behavior and omit tags.",
+          "A failed backend tag add/remove keeps the saved note unchanged and shows the existing mutation error alert.",
+          "After a successful removal, stale active tag filters are pruned when no remaining note has that tag.",
+          "Read-mode tag filter interactions covered by existing tests still pass."
+        ]
+      }
+    },
+    {
+      "id": "tag-editing-regression-gate",
+      "title": "Run full tag editing regression gate",
+      "estimate": "S",
+      "depends_on": [
+        "backend-update-normalization-coverage",
+        "app-shell-tag-editing"
+      ],
+      "contract": {
+        "verifies": [
+          "the merged binder result clears the repo full gate",
+          "backend tag persistence tests remain green without backend production changes",
+          "no new dependency is required for add/remove tag editing"
+        ],
+        "source_changes": "No feature changes expected; only small test fixture or assertion corrections are allowed if the full gate exposes drift."
+      },
+      "touches": [
+        "ui/src/**/*.test.ts",
+        "backend/tests/**/*.py"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test",
+        "cwd": ".",
+        "assertions": [
+          "Full UI and backend gate passes after tag editing changes are merged.",
+          "Existing backend note tag persistence coverage remains green.",
+          "The final diff adds no third-party dependency for this feature."
+        ]
+      }
+    }
+  ]
+}

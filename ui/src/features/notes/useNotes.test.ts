@@ -295,6 +295,35 @@ describe("useNotes", () => {
     ]);
   });
 
+  it("updateNote passes raw tags through and stores backend-normalized returned tags", async () => {
+    const { notes } = useNotes();
+    notes.value = [
+      {
+        id: "target",
+        content: "# Old",
+        tags: ["draft"],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ];
+    updateNoteMock.mockResolvedValue(
+      dto({
+        id: "target",
+        content: "# Old",
+        tags: ["daily-log", "draft"],
+        createdAt: "2026-06-21T10:00:00Z",
+        updatedAt: "2026-06-21T10:30:00Z",
+      }),
+    );
+
+    const payload = { tags: ["draft", "  #Daily Log  "] };
+    const updated = await useNotes().updateNote("target", payload);
+
+    expect(updateNoteMock).toHaveBeenCalledWith("target", payload);
+    expect(updated.tags).toEqual(["daily-log", "draft"]);
+    expect(notes.value[0].tags).toEqual(["daily-log", "draft"]);
+  });
+
   it("on updateNote rejection, mutationError is set and notes are left unchanged", async () => {
     const { notes, mutationError } = useNotes();
     notes.value = [

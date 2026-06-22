@@ -43,7 +43,10 @@ function fetchStub(url: string | URL | Request, init?: RequestInit) {
     );
   }
   if (method === "PUT" && String(url).includes("/notes/")) {
-    const body = JSON.parse(String(init?.body ?? "{}")) as { content?: string };
+    const body = JSON.parse(String(init?.body ?? "{}")) as {
+      content?: string;
+      tags?: string[];
+    };
     return Promise.resolve(
       new Response(
         JSON.stringify({
@@ -327,6 +330,136 @@ describe("AppShell", () => {
     await metaTag.trigger("click");
 
     expect(wrapper.get(".tag-filter").text()).toContain(tagLabel.slice(1));
+  });
+
+  it("adds a raw tag from edit mode and trusts backend-normalized returned tags", async () => {
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "PUT" && String(url).includes("/notes/n1")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: "n1",
+                title: "Morning Pages",
+                content: mockNotes[0].content,
+                tags: ["daily-log", "draft", "journal"],
+                createdAt: new Date(mockNotes[0].createdAt).toISOString(),
+                updatedAt: "2026-06-21T10:30:00.000Z",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper.get(".note-tag-editor input").setValue("  #Daily Log  ");
+    await wrapper.get(".note-tag-editor__form").trigger("submit");
+    await flushPromises();
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/notes/n1") &&
+        (init?.method ?? "GET").toUpperCase() === "PUT",
+    );
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
+      tags: ["draft", "journal", "  #Daily Log  "],
+    });
+    expect(wrapper.get(".note-tag-editor").text()).toContain("#daily-log");
+  });
+
+  it("removes a tag from edit mode and prunes stale active filters", async () => {
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "PUT" && String(url).includes("/notes/n1")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: "n1",
+                title: "Morning Pages",
+                content: mockNotes[0].content,
+                tags: ["draft"],
+                createdAt: new Date(mockNotes[0].createdAt).toISOString(),
+                updatedAt: "2026-06-21T10:30:00.000Z",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    const journalTag = wrapper
+      .findAll(".doc-tags .mini-tag-button")
+      .find((button) => button.text() === "#journal");
+    expect(journalTag).toBeTruthy();
+    await journalTag!.trigger("click");
+    expect(wrapper.get(".tag-filter__tag.is-active").text()).toContain(
+      "journal",
+    );
+
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper.get('[aria-label="Remove #journal"]').trigger("click");
+    await flushPromises();
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/notes/n1") &&
+        (init?.method ?? "GET").toUpperCase() === "PUT",
+    );
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
+      tags: ["draft"],
+    });
+    expect(wrapper.get(".note-tag-editor").text()).not.toContain("#journal");
+    expect(wrapper.find(".tag-filter__tag.is-active").exists()).toBe(false);
+  });
+
+  it("leaves tags unchanged and shows an error when tag update fails", async () => {
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "PUT" && String(url).includes("/notes/n1")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ detail: "tag update failed" }), {
+              status: 422,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    await wrapper.get('[aria-label="Switch to edit mode"]').trigger("click");
+    await wrapper.get(".note-tag-editor input").setValue("bad/tag");
+    await wrapper.get(".note-tag-editor__form").trigger("submit");
+    await flushPromises();
+
+    expect(wrapper.get(".action-error").text()).toBe("tag update failed");
+    expect(wrapper.get(".note-tag-editor").text()).toContain("#draft");
+    expect(wrapper.get(".note-tag-editor").text()).toContain("#journal");
   });
 
   it("opens the mobile drawer state and toggles the theme", async () => {

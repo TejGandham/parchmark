@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
 import NoteEditor from "@/features/notes/NoteEditor.vue";
+import NoteTagEditor from "@/features/notes/NoteTagEditor.vue";
 import {
   allTags,
   extractTitle,
@@ -136,6 +137,11 @@ function toggleTag(tag: string) {
     : [...activeTags.value, tag];
 }
 
+function pruneUnavailableActiveTags() {
+  const availableTags = new Set(tags.value.map(({ tag }) => tag));
+  activeTags.value = activeTags.value.filter((tag) => availableTags.has(tag));
+}
+
 function openSettings() {
   settingsActive.value = true;
   draftContent.value = "";
@@ -180,6 +186,36 @@ async function saveDraft() {
     activeId.value = updated.id;
     draftContent.value = updated.content;
     mode.value = "read";
+  } catch {
+    // The notes store owns the visible mutation error and leaves state intact.
+  }
+}
+
+async function addTagToActiveNote(rawTag: string) {
+  if (!activeNote.value || updating.value || rawTag.trim().length === 0) return;
+
+  const note = activeNote.value;
+  try {
+    const updated = await persistNoteUpdate(note.id, {
+      tags: [...note.tags, rawTag],
+    });
+    activeId.value = updated.id;
+    pruneUnavailableActiveTags();
+  } catch {
+    // The notes store owns the visible mutation error and leaves state intact.
+  }
+}
+
+async function removeTagFromActiveNote(tag: string) {
+  if (!activeNote.value || updating.value) return;
+
+  const note = activeNote.value;
+  try {
+    const updated = await persistNoteUpdate(note.id, {
+      tags: note.tags.filter((noteTag) => noteTag !== tag),
+    });
+    activeId.value = updated.id;
+    pruneUnavailableActiveTags();
   } catch {
     // The notes store owns the visible mutation error and leaves state intact.
   }
@@ -300,7 +336,10 @@ function handleNoteMenuAction(id: NoteMenuAction) {
             <span>{{ wordCount(activeNote.content) }} words</span>
             <span aria-hidden="true" class="dot" />
             <span>Edited {{ relTime(activeNote.updatedAt) }}</span>
-            <span v-if="activeNote.tags.length" class="doc-tags">
+            <span
+              v-if="mode === 'read' && activeNote.tags.length"
+              class="doc-tags"
+            >
               <button
                 v-for="tag in activeNote.tags"
                 :key="tag"
@@ -313,6 +352,13 @@ function handleNoteMenuAction(id: NoteMenuAction) {
             </span>
           </div>
           <div class="rule" />
+          <NoteTagEditor
+            v-if="mode === 'edit'"
+            :tags="activeNote.tags"
+            :saving="updating"
+            @addTag="addTagToActiveNote"
+            @removeTag="removeTagFromActiveNote"
+          />
           <NoteEditor
             v-if="mode === 'edit'"
             v-model="draftContent"
