@@ -458,6 +458,9 @@ describe("AppShell", () => {
     await flushPromises();
 
     expect(wrapper.get(".action-error").text()).toBe("tag update failed");
+    expect(wrapper.get(".note-tag-editor [role='alert']").text()).toBe(
+      "tag update failed",
+    );
     expect(wrapper.get(".note-tag-editor").text()).toContain("#draft");
     expect(wrapper.get(".note-tag-editor").text()).toContain("#journal");
   });
