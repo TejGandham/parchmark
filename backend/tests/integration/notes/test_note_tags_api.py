@@ -73,6 +73,14 @@ def test_update_note_replaces_clears_and_preserves_tags(client: TestClient, auth
     assert keep_response.status_code == status.HTTP_200_OK
     assert keep_response.json()["tags"] == ["ideas", "work"]
 
+    content_keep_response = client.put(
+        f"/api/notes/{sample_note.id}",
+        headers=auth_headers,
+        json={"content": "# Content Only\n\nTags stay put."},
+    )
+    assert content_keep_response.status_code == status.HTTP_200_OK
+    assert content_keep_response.json()["tags"] == ["ideas", "work"]
+
     clear_response = client.put(
         f"/api/notes/{sample_note.id}",
         headers=auth_headers,
