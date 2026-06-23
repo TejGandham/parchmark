@@ -447,6 +447,12 @@ class TestNoteSchemas:
 
             assert update.tags == ["daily-log", "daily_log", "work"]
 
+        def test_note_update_empty_tags_remain_empty_replacement_set(self):
+            """Test NoteUpdate preserves an explicit empty replacement tag set."""
+            update = NoteUpdate(tags=[])
+
+            assert update.tags == []
+
         @pytest.mark.parametrize(
             "tags",
             [
