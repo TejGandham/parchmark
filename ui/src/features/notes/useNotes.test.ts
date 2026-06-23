@@ -324,6 +324,34 @@ describe("useNotes", () => {
     expect(notes.value[0].tags).toEqual(["daily-log", "draft"]);
   });
 
+  it("updateNote sends tags: [] and stores backend-cleared tags", async () => {
+    const { notes } = useNotes();
+    notes.value = [
+      {
+        id: "target",
+        content: "# Old",
+        tags: ["daily-log", "draft"],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ];
+    updateNoteMock.mockResolvedValue(
+      dto({
+        id: "target",
+        content: "# Old",
+        tags: [],
+        createdAt: "2026-06-21T10:00:00Z",
+        updatedAt: "2026-06-21T10:30:00Z",
+      }),
+    );
+
+    const updated = await useNotes().updateNote("target", { tags: [] });
+
+    expect(updateNoteMock).toHaveBeenCalledWith("target", { tags: [] });
+    expect(updated.tags).toEqual([]);
+    expect(notes.value[0].tags).toEqual([]);
+  });
+
   it("on updateNote rejection, mutationError is set and notes are left unchanged", async () => {
     const { notes, mutationError } = useNotes();
     notes.value = [
