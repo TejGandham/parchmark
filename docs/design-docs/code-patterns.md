@@ -89,20 +89,22 @@ Pure note helpers (`extractTitle`, `stripTitle`, `plainPreview`, `wordCount`,
 `readingTime`, `allTags`, `relTime`, `groupByTime`) live in
 `ui/src/features/notes/noteMockHelpers.ts`.
 
-### Notes data — list fetched from backend, mutations local
+### Notes data — backend API for list and mutations
 
 The notes list is fetched from the backend via `GET /notes/`: the
 `useNotes` composable (`features/notes/useNotes.ts`, a module-singleton
 mirroring `useAuth`) calls `services/notes.ts` `listNotes()` on
-`fetchNotes()` and maps each `NoteDTO` into `NoteMock` (ISO timestamps →
-epoch ms; `tags: []` because the backend `NoteResponse` has no tags
-field yet). `AppShell.vue` calls `useNotes()` and `fetchNotes()` on
-mount and passes `loading`/`error` to `SidebarDrawer.vue`, which emits
-`retry` to refetch. Other note operations (`createNote`,
-`deleteActiveNote`, `selectNote`, `toggleTag`, copy/export) are still
-local ref mutations / clipboard + Blob — not persisted. The
-`features/notes/mockNotes.ts` module now only provides the `NoteMock`
-type and an in-memory seed used outside the live list path.
+`fetchNotes()` and maps each `NoteDTO` into `NoteMock` (ISO timestamps ->
+epoch ms; backend-normalized `tags` copied from `NoteResponse`).
+`AppShell.vue` calls `useNotes()` and `fetchNotes()` on mount and passes
+`loading`/`error` to `SidebarDrawer.vue`, which emits `retry` to refetch.
+Create, content update, delete, and tag add/remove use the `createNote()`,
+`updateNote()`, and `deleteNote()` wrappers in `useNotes`; tag edits send the
+full replacement tag set through `PUT /notes/{note_id}`. Selection,
+search/tag filters, copy, and single-note export remain local browser state
+or clipboard/Blob actions. The `features/notes/mockNotes.ts` module now only
+provides the `NoteMock` type and an in-memory seed used outside the live list
+path.
 
 ### Design system (DTCG tokens + Ds* components)
 
