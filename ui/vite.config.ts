@@ -27,6 +27,12 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     css: true,
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",
