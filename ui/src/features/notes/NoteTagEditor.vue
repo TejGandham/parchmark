@@ -1,28 +1,44 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
+import { PlusIcon, XIcon } from "@/design-system/icons";
+
 interface NoteTagEditorProps {
   tags: string[];
+  disabled?: boolean;
+  error?: string | null;
+  /** Compatibility for the existing AppShell consumer until it moves to disabled. */
   saving?: boolean;
 }
 
-withDefaults(defineProps<NoteTagEditorProps>(), {
+const props = withDefaults(defineProps<NoteTagEditorProps>(), {
+  disabled: false,
+  error: null,
   saving: false,
 });
 
 const emit = defineEmits<{
+  "add-tag": [value: string];
+  "remove-tag": [tag: string];
   addTag: [value: string];
   removeTag: [tag: string];
 }>();
 
 const tagDraft = ref("");
 const canAddTag = computed(() => tagDraft.value.trim().length > 0);
+const isDisabled = computed(() => props.disabled || props.saving);
 
 function addTag() {
   if (!canAddTag.value) return;
 
+  emit("add-tag", tagDraft.value);
   emit("addTag", tagDraft.value);
   tagDraft.value = "";
+}
+
+function removeTag(tag: string) {
+  emit("remove-tag", tag);
+  emit("removeTag", tag);
 }
 </script>
 
@@ -39,15 +55,18 @@ function addTag() {
         :key="tag"
         class="note-tag-editor__chip"
         type="button"
-        :disabled="saving"
+        :disabled="isDisabled"
         :aria-label="`Remove #${tag}`"
-        @click="emit('removeTag', tag)"
+        @click="removeTag(tag)"
       >
         <span>#{{ tag }}</span>
-        <span aria-hidden="true">x</span>
+        <XIcon :ariaHidden="true" />
       </button>
     </div>
     <p v-else class="note-tag-editor__empty">No tags yet.</p>
+    <p v-if="error" class="note-tag-editor__error" role="alert">
+      {{ error }}
+    </p>
 
     <form class="note-tag-editor__form" @submit.prevent="addTag">
       <label class="sr-only" for="note-tag-editor-input">Add tag</label>
@@ -57,9 +76,12 @@ function addTag() {
         type="text"
         autocomplete="off"
         placeholder="Add tag"
-        :disabled="saving"
+        :disabled="isDisabled"
       />
-      <button type="submit" :disabled="saving || !canAddTag">Add</button>
+      <button type="submit" :disabled="isDisabled || !canAddTag">
+        <PlusIcon :ariaHidden="true" />
+        <span>Add</span>
+      </button>
     </form>
   </section>
 </template>
@@ -91,13 +113,19 @@ function addTag() {
 }
 
 .note-tag-editor__head span,
+.note-tag-editor__error,
 .note-tag-editor__empty {
   color: var(--muted);
   font-size: 12px;
 }
 
+.note-tag-editor__error,
 .note-tag-editor__empty {
   margin: 0;
+}
+
+.note-tag-editor__error {
+  color: var(--danger);
 }
 
 .note-tag-editor__chips {
@@ -167,6 +195,10 @@ function addTag() {
 }
 
 .note-tag-editor__form button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
   min-height: var(--tool-size);
   padding: 0 14px;
   color: var(--surface);

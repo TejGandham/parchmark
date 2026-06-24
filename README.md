@@ -16,7 +16,7 @@ A modern, full-stack markdown note-taking application built with Vue 3 and FastA
 - **Mermaid Diagrams**: Mermaid code fences are rendered into `<div class="mermaid">` markup blocks
 - **Design-Token System**: DTCG (W3C) token JSON compiled to CSS via Style Dictionary
 
-> **Note:** In this v2 worktree the notes list is fetched from the backend (`GET /api/notes/`), but note mutations (create/delete/edit/tag) remain local-only and are not yet persisted; the backend `NoteResponse` also has no `tags` field, so tag chips render empty until a separate change closes that gap.
+> **Note:** In this v2 worktree the notes list and note mutations (create, edit, delete, and tag edits) use the backend notes API. `NoteResponse.tags` returns normalized persisted tags for tag chips and filters.
 
 ## 🚀 Quick Start
 
@@ -193,7 +193,7 @@ parchmark/
 │   │   │   ├── shell/       # AppShell, AppTopbar, SidebarDrawer, UserFooter, etc.
 │   │   │   └── notes/       # MarkdownProse, markdownRender, mock notes data
 │   │   ├── design-system/   # base.css, generated tokens.css, tokens/, Ds* components, icons/
-│   │   └── services/        # http.ts (ofetch) + auth.ts (auth) + notes.ts (notes list)
+│   │   └── services/        # http.ts (ofetch) + auth.ts (auth) + notes.ts (notes API)
 │   ├── package.json
 │   └── vite.config.ts       # Vite + Vitest config (jsdom, v8 coverage)
 │
@@ -201,7 +201,7 @@ parchmark/
 │   ├── app/
 │   │   ├── auth/            # JWT + OIDC authentication
 │   │   ├── database/        # Async SQLAlchemy + PostgreSQL
-│   │   ├── models/          # SQLAlchemy models (User, Note)
+│   │   ├── models/          # SQLAlchemy models (User, Note, NoteTag)
 │   │   ├── routers/         # API endpoints (auth, notes, settings, health)
 │   │   ├── schemas/         # Pydantic schemas
 │   │   ├── services/        # health

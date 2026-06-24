@@ -89,6 +89,7 @@ describe("AppShell", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -458,6 +459,9 @@ describe("AppShell", () => {
     await flushPromises();
 
     expect(wrapper.get(".action-error").text()).toBe("tag update failed");
+    expect(wrapper.get(".note-tag-editor [role='alert']").text()).toBe(
+      "tag update failed",
+    );
     expect(wrapper.get(".note-tag-editor").text()).toContain("#draft");
     expect(wrapper.get(".note-tag-editor").text()).toContain("#journal");
   });
@@ -483,6 +487,9 @@ describe("AppShell", () => {
     const createObjectURL = vi.fn().mockReturnValue("blob:note");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
 
     const wrapper = mount(AppShell);
     await flushPromises();
@@ -502,6 +509,7 @@ describe("AppShell", () => {
     await openMenu();
     await menuItem("Export")?.trigger("click");
     expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(anchorClick).toHaveBeenCalledOnce();
 
     await openMenu();
     await menuItem("Delete")?.trigger("click");

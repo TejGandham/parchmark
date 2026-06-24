@@ -2,7 +2,7 @@
 
 > Domain map, layer dependencies, and cross-cutting concerns for ParchMark.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over a JSON REST API (`/api/*`); in this `parchmark-v2` worktree the auth surface and the notes list (`GET /api/notes/`) are wired to the backend — note mutations (create/delete/edit/tag/copy/export) remain local ref mutations and are not yet persisted. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
+ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over a JSON REST API (`/api/*`); in this `parchmark-v2` worktree auth and note CRUD, including tag edits, are wired to the backend. Copy/export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
 
 ```
 +----------------------+         +-----------------------+
@@ -66,7 +66,7 @@ ui/src/
 ├── services/
 │   ├── http.ts                 # ofetch instance, ApiError, setAuthHooks(), 401 retry
 │   ├── auth.ts                 # login/refresh/getCurrentUser/logout wrappers
-│   └── notes.ts                # listNotes() + NoteDTO (GET /notes/ API client)
+│   └── notes.ts                # list/create/update/delete wrappers + NoteDTO
 ├── features/
 │   ├── auth/
 │   │   ├── useAuth.ts          # Composable singleton (session via useStorage "pm_auth")
@@ -81,7 +81,7 @@ ui/src/
 │       ├── MarkdownProse.vue   # v-html prose pane with scoped typography
 │       ├── markdownRender.ts   # marked + DOMPurify rendering
 │       ├── NoteCard.vue
-│       ├── useNotes.ts         # Notes store composable singleton (fetchNotes, loading, error)
+│       ├── useNotes.ts         # Notes store composable singleton (fetch/create/update/delete + status refs)
 │       ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
 │       └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
 ├── design-system/
@@ -243,9 +243,9 @@ New cross-layer dependencies require explicit justification and must be document
 
 ## Data Flow
 
-### Request Lifecycle (auth + notes list)
+### Request Lifecycle (auth + notes CRUD)
 
-The paths that reach the backend in this worktree are authentication (above) and the notes list fetch:
+The paths that reach the backend in this worktree are authentication (above) and note list/create/update/delete calls:
 
 ```
 User action (login / app mount)
@@ -259,7 +259,7 @@ User action (login / app mount)
     → reactive refs update; gate reveals LoginView or AppShell
 ```
 
-The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` → `services/notes.ts` `listNotes()` → `GET /api/notes/` → `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps → epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. Other note operations (create/delete/select/tag/copy/export) remain local ref mutations plus clipboard/Blob — no server round-trip and not persisted.
+The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` -> `services/notes.ts` `listNotes()` -> `GET /api/notes/` -> `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps -> epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. `AppShell.vue` also persists note create, content save, delete, and tag add/remove through `useNotes()` mutation wrappers; tag edits send the full replacement tag set through `PUT /api/notes/{note_id}`. Note selection, search/tag filters, copy, and single-note export stay local to the browser.
 
 ### State Management
 
@@ -268,7 +268,7 @@ No store library. State is held in Vue reactivity:
 | Holder | Persisted | Ephemeral |
 |-|-|-|
 | `useAuth()` (composable singleton) | `pm_auth` = `{ accessToken, refreshToken, user }` (localStorage via `useStorage`) | `error`, `pending`, `refreshPromise` |
-| `useNotes()` (composable singleton) | Nothing | `notes`, `loading`, `error` (reset on reload; `fetchNotes()` populates from `GET /notes/`) |
+| `useNotes()` (composable singleton) | Nothing | `notes`, `loading`, `error`, `creating`, `updating`, `deletingId`, `mutationError` (reset on reload; `fetchNotes()` populates from `GET /notes/`) |
 | `AppShell.vue` (local refs) | Nothing | `activeId`, `mode` (read/edit), `search`, `activeTags`, `menuOpen`, `navOpen`, `settingsActive` |
 | Theme (`AppShell.vue`) | `pm_theme` = `"light"` \| `"dark"` (localStorage; read on init, written on change, mirrored to the `data-theme` attribute) | `theme` ref |
 

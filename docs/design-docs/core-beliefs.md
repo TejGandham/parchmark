@@ -131,9 +131,9 @@ Keying on a mutable attribute is an account-linking vulnerability.
   stay in lockstep between `backend/app/utils/markdown.py` and the v2 UI's
   `ui/src/features/notes/` helpers (`stripTitle`/`extractTitle`); the v2 UI
   renders note bodies client-side with `marked` (GFM) sanitised through
-  `dompurify`. (The notes list is fetched from the backend in this worktree
-  via `useNotes`/`GET /notes/`; note mutations and tags are not yet
-  persisted — the backend `NoteResponse` exposes no `tags` field.)
+  `dompurify`. (The notes list and persisted note mutations flow through
+  `useNotes` and the backend notes API; `NoteResponse.tags` is copied into
+  the frontend `NoteMock` shape.)
 
 ## Design Philosophy
 

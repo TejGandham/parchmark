@@ -113,22 +113,19 @@ Known shortcuts, deferred improvements, and open questions.
 - [ ] **Automated browser E2E for the Vue frontend.** The backend
       live-update flow still has integration coverage and Forgejo-gated
       cross-user SSE isolation coverage, but the v2 Vue frontend has no
-      automated browser E2E suite. The notes list is now fetched from the
-      backend (`useNotes`/`GET /notes/`), but note mutations remain
-      local-only and the SSE stream is unconsumed. Add Playwright coverage
-      once manual browser verification of the live list becomes recurring
-      merge-gate work.
+      automated browser E2E suite. The notes list and persisted note
+      mutations now flow through the backend notes API, but the SSE stream is
+      unconsumed. Add Playwright coverage once manual browser verification of
+      the live notes flow becomes recurring merge-gate work.
 
-- [ ] **v2 note mutations are local-only; SSE stream unconsumed.**
-      The v2 `ui/src/services/` layer covers auth + the notes list
+- [ ] **SSE stream unconsumed.**
+      The v2 `ui/src/services/` layer covers auth and notes CRUD
       (`http.ts`, `auth.ts`, `notes.ts`); `useNotes` fetches `GET /notes/`
-      on mount and `AppShell.vue` renders the result with backend-provided
-      tags plus `loading`/`error` states. But note mutations
-      (create/delete/edit/tag/copy/export) are still local `ref` mutations —
-      they do not POST/PUT/DELETE to the backend and do not persist — and the
-      backend `GET /api/notes/events` SSE stream is unconsumed. Wiring the
-      remaining CRUD/tag mutations and the SSE live-update channel is the
-      outstanding integration work.
+      on mount and wraps `POST`, `PUT`, and `DELETE` mutations with
+      `creating`/`updating`/`deletingId`/`mutationError` state. `AppShell.vue`
+      persists create, edit, delete, and tag add/remove. The backend
+      `GET /api/notes/events` SSE stream is still unconsumed, so live-update
+      reconciliation is the outstanding integration work.
 
 - [ ] **No virtualization for the rendered notes list (Vue rewrite).**
       The legacy React `NotesExplorer` used `react-window` to virtualize

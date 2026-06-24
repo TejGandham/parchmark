@@ -355,9 +355,10 @@ function handleNoteMenuAction(id: NoteMenuAction) {
           <NoteTagEditor
             v-if="mode === 'edit'"
             :tags="activeNote.tags"
-            :saving="updating"
-            @addTag="addTagToActiveNote"
-            @removeTag="removeTagFromActiveNote"
+            :disabled="updating"
+            :error="mutationError"
+            @add-tag="addTagToActiveNote"
+            @remove-tag="removeTagFromActiveNote"
           />
           <NoteEditor
             v-if="mode === 'edit'"
