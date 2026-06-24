@@ -11,7 +11,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from stream_zip import ZIP_32, stream_zip
 
@@ -25,6 +25,7 @@ from app.schemas.schemas import (
     PasswordChangeRequest,
     UserInfoResponse,
 )
+from app.services import settings_service
 
 # Batch size for streaming notes from database
 EXPORT_BATCH_SIZE = 100
@@ -51,16 +52,7 @@ async def get_user_info(
     Returns:
         UserInfoResponse: User information with statistics and auth provider
     """
-    result = await db.execute(select(func.count()).select_from(Note).filter(Note.user_id == current_user.id))
-    notes_count = result.scalar() or 0
-
-    return UserInfoResponse(
-        username=current_user.username,  # type: ignore[arg-type]
-        email=current_user.email,  # type: ignore[arg-type]
-        created_at=current_user.created_at.isoformat(),
-        notes_count=notes_count,
-        auth_provider=current_user.auth_provider,  # type: ignore[arg-type]
-    )
+    return await settings_service.get_user_info(db, current_user)
 
 
 @router.post("/change-password", response_model=MessageResponse)
