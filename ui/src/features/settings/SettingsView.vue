@@ -1,11 +1,26 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 
-import { GearIcon } from "@/design-system/icons";
+import { GearIcon, LockIcon } from "@/design-system/icons";
 
 import { useSettings } from "./useSettings";
 
-const { userInfo, loading, error, fetchUserInfo } = useSettings();
+const {
+  userInfo,
+  loading,
+  error,
+  changingPassword,
+  passwordError,
+  passwordSuccess,
+  fetchUserInfo,
+  changePassword,
+  clearPasswordStatus,
+} = useSettings();
+
+const currentPassword = ref("");
+const newPassword = ref("");
+const confirmPassword = ref("");
+const clientPasswordError = ref<string | null>(null);
 
 onMounted(() => {
   void fetchUserInfo();
@@ -48,6 +63,39 @@ const accountRows = computed(() => {
 
   return rows;
 });
+
+const canChangePassword = computed(
+  () => userInfo.value?.auth_provider === "local",
+);
+
+const passwordProviderLabel = computed(() => {
+  if (userInfo.value?.auth_provider === "oidc") return "OIDC";
+  return authProviderLabel.value || "your identity provider";
+});
+
+async function submitPasswordChange() {
+  clientPasswordError.value = null;
+  clearPasswordStatus();
+
+  if (newPassword.value.length < 4) {
+    clientPasswordError.value = "New password must be at least 4 characters.";
+    return;
+  }
+
+  if (newPassword.value !== confirmPassword.value) {
+    clientPasswordError.value = "New password and confirmation must match.";
+    return;
+  }
+
+  try {
+    await changePassword(currentPassword.value, newPassword.value);
+    currentPassword.value = "";
+    newPassword.value = "";
+    confirmPassword.value = "";
+  } catch {
+    // The settings store owns the visible password error.
+  }
+}
 </script>
 
 <template>
@@ -82,6 +130,90 @@ const accountRows = computed(() => {
           <dd>{{ row.value }}</dd>
         </div>
       </dl>
+
+      <section
+        v-if="userInfo"
+        class="settings-view__security"
+        aria-labelledby="settings-security-title"
+      >
+        <div class="settings-view__section-heading">
+          <div class="settings-view__section-icon" aria-hidden="true">
+            <LockIcon />
+          </div>
+          <div>
+            <h2 id="settings-security-title">Password</h2>
+            <p>
+              Update the password used to sign in with this ParchMark account.
+            </p>
+          </div>
+        </div>
+
+        <form
+          v-if="canChangePassword"
+          class="settings-view__password-form"
+          @submit.prevent="submitPasswordChange"
+        >
+          <label>
+            Current password
+            <input
+              v-model="currentPassword"
+              autocomplete="current-password"
+              name="current-password"
+              required
+              type="password"
+            />
+          </label>
+
+          <label>
+            New password
+            <input
+              v-model="newPassword"
+              autocomplete="new-password"
+              minlength="4"
+              name="new-password"
+              required
+              type="password"
+            />
+          </label>
+
+          <label>
+            Confirm new password
+            <input
+              v-model="confirmPassword"
+              autocomplete="new-password"
+              minlength="4"
+              name="confirm-new-password"
+              required
+              type="password"
+            />
+          </label>
+
+          <p
+            v-if="clientPasswordError || passwordError"
+            class="settings-view__inline-message is-error"
+            role="alert"
+          >
+            {{ clientPasswordError || passwordError }}
+          </p>
+
+          <p
+            v-if="passwordSuccess"
+            class="settings-view__inline-message is-success"
+            role="status"
+          >
+            {{ passwordSuccess }}
+          </p>
+
+          <button type="submit" :disabled="changingPassword">
+            {{ changingPassword ? "Changing..." : "Change password" }}
+          </button>
+        </form>
+
+        <p v-else class="settings-view__provider-note">
+          This account signs in through {{ passwordProviderLabel }}. Manage your
+          password with that identity provider.
+        </p>
+      </section>
     </div>
   </section>
 </template>
@@ -166,6 +298,131 @@ const accountRows = computed(() => {
   font-size: 15px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.settings-view__security {
+  padding-top: 30px;
+  margin-top: 30px;
+  border-top: 1px solid var(--line-2);
+}
+
+.settings-view__section-heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.settings-view__section-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--accent);
+  background: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+.settings-view__section-icon :deep(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-view h2 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.settings-view__password-form {
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.settings-view__password-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-view__password-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+}
+
+.settings-view__password-form input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+.settings-view__password-form button {
+  justify-self: start;
+  padding: 9px 13px;
+  color: var(--button-primary-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-sm);
+}
+
+.settings-view__password-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.settings-view__password-form button:not(:disabled):hover,
+.settings-view__password-form button:not(:disabled):focus-visible {
+  background: var(--accent-600);
+  outline: none;
+}
+
+.settings-view__inline-message {
+  max-width: 420px;
+  padding: 10px 12px;
+  font-size: 13px;
+  border-radius: var(--r-sm);
+}
+
+.settings-view__inline-message.is-error {
+  color: var(--danger);
+  background: var(--danger-surface);
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+.settings-view__inline-message.is-success {
+  color: var(--accent);
+  background: var(--focus-ring);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.settings-view__provider-note {
+  max-width: 520px;
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
 }
 
 .settings-view__state {
