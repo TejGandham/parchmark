@@ -1,0 +1,195 @@
+{
+  "slug": "settings-account-summary",
+  "title": "See your account details in settings",
+  "summary": "Replaces the empty settings screen with a real account summary that shows people their username, email, sign-in method, note count, and join date. It gives the settings area a working foundation that later settings features can build on.",
+  "motivation": "Replace the settings placeholder with a backend-backed account summary and establish the settings feature seam.",
+  "scope": {
+    "included": [
+      "GET /api/settings/user-info remains the backend account-summary contract",
+      "a minimal backend settings service module extracts user-info business logic out of the router",
+      "a typed frontend settings API client and composable fetch user info",
+      "the AppShell settings placeholder is replaced with a SettingsView account summary",
+      "tests cover local and OIDC user-info rendering, loading, error, and retry states"
+    ],
+    "excluded": [
+      "password changes, note export, and account deletion UI; those are separate settings binders",
+      "OIDC browser sign-in flow; this binder only renders account metadata for users who are already authenticated",
+      "new routing, Pinia, Vue Router, or third-party UI dependencies",
+      "new design tokens or hand edits to generated ui/src/design-system/tokens.css"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Mixed Vue 3/TypeScript/Vite frontend plus FastAPI/Python 3.13/SQLAlchemy async/PostgreSQL backend; DTCG design tokens; no router or Pinia."
+  },
+  "sme": [
+    "minimalism",
+    "vue",
+    "python-fastapi"
+  ],
+  "token_manifest": {
+    "system": "W3C DTCG JSON built with Style Dictionary into CSS custom properties.",
+    "source_dir": "ui/src/design-system/tokens",
+    "sources": [
+      "ui/src/design-system/tokens/primitives.json",
+      "ui/src/design-system/tokens/semantic.json",
+      "ui/src/design-system/tokens/semantic.dark.json"
+    ],
+    "build_command": "npm --prefix ui run build:tokens",
+    "generated_artifacts": [
+      "ui/src/design-system/tokens.css"
+    ],
+    "generated_artifacts_read_only": true,
+    "consumption_rule": "New component CSS consumes semantic custom properties only; primitives are not used in new code.",
+    "name_resolution_rule": "$extensions[\"com.parchmark.cssName\"] emits short CSS variable names.",
+    "theme_context_selector": {
+      "light": ":root",
+      "dark": "[data-theme=\"dark\"]"
+    },
+    "expected_changes": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      },
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "backend-user-info-service",
+      "title": "Gather a person's account details",
+      "summary": "Moves the work of gathering a person's account details out of the web route and into a dedicated service so the route stays simple.",
+      "estimate": "S",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "module": "backend/app/services/settings_service.py",
+          "function": "async get_user_info(db: AsyncSession, current_user: User) -> UserInfoResponse"
+        },
+        "behavior": [
+          "queries Note with Note.user_id == current_user.id in the same statement",
+          "returns username, email, created_at ISO string, notes_count, and auth_provider through UserInfoResponse",
+          "keeps routers/settings.py declarative: dependency wiring plus one service call",
+          "uses module-level functions, not a class or factory with one implementation"
+        ]
+      },
+      "touches": [
+        "backend/app/services/settings_service.py",
+        "backend/app/routers/settings.py",
+        "backend/tests/integration/test_settings.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:additive backend service function consumed by settings router",
+          "sensitive-zone:settings route uses auth and tenant-scoped note counts",
+          "blast-radius:router business logic moves into services"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/test_settings.py::TestGetUserInfo tests/unit/test_settings_schemas.py::TestUserInfoResponse -v",
+        "cwd": ".",
+        "assertions": [
+          "GET /api/settings/user-info still returns the same UserInfoResponse shape for local and OIDC users.",
+          "The note count query remains tenant-scoped with Note.user_id == current_user.id.",
+          "routers/settings.py delegates user-info assembly to backend/app/services/settings_service.py."
+        ]
+      }
+    },
+    {
+      "id": "frontend-settings-account-view",
+      "title": "Show your account details in settings",
+      "summary": "Builds the settings screen people actually see, which loads their account facts and shows clear loading, error, and retry states.",
+      "estimate": "M",
+      "depends_on": [
+        "backend-user-info-service"
+      ],
+      "design_reference": "AppShell settings pane",
+      "component_map": [
+        {
+          "component": "SettingsView",
+          "mapping": "Custom Vue SFC under ui/src/features/settings",
+          "notes": "Container component owns settings fetch state and renders compact account facts."
+        },
+        {
+          "component": "Settings account summary rows",
+          "mapping": "Custom semantic markup",
+          "notes": "Use native buttons for retry; no new design-system abstraction."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "settings entry",
+          "source": "local design system",
+          "import": "GearIcon from @/design-system/icons"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "exposes": {
+          "service": "ui/src/services/settings.ts",
+          "composable": "ui/src/features/settings/useSettings.ts",
+          "component": "ui/src/features/settings/SettingsView.vue"
+        },
+        "types": {
+          "UserInfoDTO": {
+            "username": "string",
+            "email": "string | null",
+            "created_at": "string",
+            "notes_count": "number",
+            "auth_provider": "\"local\" | \"oidc\" | string"
+          }
+        },
+        "behavior": [
+          "SettingsView fetches account info when opened and shows username, email when present, note count, auth provider, and account creation date",
+          "loading and error states are visible and retryable",
+          "AppShell keeps the existing no-router settingsActive toggle and renders SettingsView instead of the placeholder",
+          "all state uses Vue refs/composables; no Pinia, router, or localStorage settings cache is introduced"
+        ]
+      },
+      "touches": [
+        "ui/src/services/settings.ts",
+        "ui/src/services/settings.test.ts",
+        "ui/src/features/settings/useSettings.ts",
+        "ui/src/features/settings/useSettings.test.ts",
+        "ui/src/features/settings/SettingsView.vue",
+        "ui/src/features/settings/SettingsView.test.ts",
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:additive frontend settings service/composable/component interfaces",
+          "sensitive-zone:settings surface displays account/auth-provider metadata",
+          "blast-radius:AppShell settings pane changes from placeholder to fetched view"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/settings.test.ts src/features/settings/useSettings.test.ts src/features/settings/SettingsView.test.ts src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "Opening settings calls GET /api/settings/user-info with the bearer token and renders the returned account facts.",
+          "Loading, API-error, and retry states are covered without mutating AppShell navigation state.",
+          "The settings view uses typed props/emits or composable returns, stable v-for keys where lists are rendered, and semantic CSS variables only."
+        ]
+      }
+    }
+  ]
+}

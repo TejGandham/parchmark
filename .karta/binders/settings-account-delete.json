@@ -1,0 +1,188 @@
+{
+  "slug": "settings-account-delete",
+  "after": [
+    "settings-notes-export"
+  ],
+  "title": "Delete your account",
+  "summary": "Let people permanently close their own account from a clearly marked danger zone in settings, after they confirm they really mean it. Once the account is gone, all of their notes go with it and they are signed out and returned to the login screen.",
+  "motivation": "Expose the backend account-deletion endpoint behind a deliberate settings danger-zone flow.",
+  "scope": {
+    "included": [
+      "DELETE /api/settings/delete-account remains the backend destructive account deletion contract",
+      "delete-account business rules move from routers/settings.py into the settings service module",
+      "SettingsView gains a danger-zone confirmation flow for local and OIDC users",
+      "successful deletion clears the frontend auth session and returns the user to the login gate"
+    ],
+    "excluded": [
+      "soft delete, undo, account recovery, or delayed deletion",
+      "bulk data export prompts beyond the existing export section",
+      "server-side token blacklist or session revocation",
+      "changing backend semantics where OIDC users without local passwords use a non-empty confirmation string"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Mixed Vue 3/TypeScript/Vite frontend plus FastAPI/Python 3.13/SQLAlchemy async/PostgreSQL backend; DTCG design tokens; no router or Pinia."
+  },
+  "sme": [
+    "minimalism",
+    "vue",
+    "python-fastapi"
+  ],
+  "token_manifest": {
+    "system": "W3C DTCG JSON built with Style Dictionary into CSS custom properties.",
+    "source_dir": "ui/src/design-system/tokens",
+    "sources": [
+      "ui/src/design-system/tokens/primitives.json",
+      "ui/src/design-system/tokens/semantic.json",
+      "ui/src/design-system/tokens/semantic.dark.json"
+    ],
+    "build_command": "npm --prefix ui run build:tokens",
+    "generated_artifacts": [
+      "ui/src/design-system/tokens.css"
+    ],
+    "generated_artifacts_read_only": true,
+    "consumption_rule": "New component CSS consumes semantic custom properties only; primitives are not used in new code.",
+    "name_resolution_rule": "$extensions[\"com.parchmark.cssName\"] emits short CSS variable names.",
+    "theme_context_selector": {
+      "light": ":root",
+      "dark": "[data-theme=\"dark\"]"
+    },
+    "expected_changes": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      },
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "backend-delete-account-service",
+      "title": "Permanently close your account",
+      "summary": "Move the account-deletion rules into a single settings service that checks the person's password (or the confirmation step for accounts that sign in through an outside provider) before erasing the account and everything it owns.",
+      "estimate": "S",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "function": "async delete_account(db: AsyncSession, current_user: User, request: AccountDeleteRequest) -> MessageResponse"
+        },
+        "behavior": [
+          "users with password_hash must provide a password that verifies",
+          "OIDC users without password_hash keep the existing non-empty confirmation behavior enforced by AccountDeleteRequest",
+          "deleting the User cascades notes through the ORM relationship",
+          "routers/settings.py remains dependency wiring plus one service call",
+          "the response message keeps the deleted username and success wording"
+        ]
+      },
+      "touches": [
+        "backend/app/services/settings_service.py",
+        "backend/app/routers/settings.py",
+        "backend/tests/integration/test_settings.py",
+        "backend/tests/unit/test_settings_schemas.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "destructive-op:deletes account and cascades notes",
+          "sensitive-zone:auth/account settings path",
+          "contract-mutation:additive settings service function"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/test_settings.py::TestDeleteAccount tests/integration/test_settings.py::TestDeleteAccountOIDC tests/unit/test_settings_schemas.py::TestAccountDeleteRequest -v",
+        "cwd": ".",
+        "assertions": [
+          "Local account deletion succeeds only with the correct password and cascades notes.",
+          "Wrong password and unauthenticated deletion still fail with the existing statuses.",
+          "OIDC account deletion without a local password still accepts the confirmation path."
+        ]
+      }
+    },
+    {
+      "id": "frontend-delete-account-danger-zone",
+      "title": "Confirm and delete your account",
+      "summary": "Give the settings page a danger zone where someone confirms their password or types a confirmation, deletes their account, and is signed out and sent back to the login screen, while any error keeps them signed in.",
+      "estimate": "M",
+      "depends_on": [
+        "backend-delete-account-service"
+      ],
+      "design_reference": "SettingsView danger zone",
+      "component_map": [
+        {
+          "component": "DeleteAccountSection",
+          "mapping": "Custom SettingsView subsection",
+          "notes": "Use native password/input confirmation and explicit destructive button; no modal required unless existing view structure needs it."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "delete account",
+          "source": "local design system",
+          "import": "TrashIcon from @/design-system/icons"
+        },
+        {
+          "purpose": "warning",
+          "source": "local design system",
+          "import": "AlertIcon from @/design-system/icons"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "endpoint": "DELETE /api/settings/delete-account",
+          "auth": "useAuth().logout clears the local pm_auth session even if the server-side logout call fails after deletion"
+        },
+        "behavior": [
+          "local users enter their current password plus a visible typed confirmation before the delete button enables",
+          "OIDC users without a local password use the existing confirmation text path and are not asked to manage an IdP password in ParchMark",
+          "submit sends { password } to the backend exactly as entered for the selected account type",
+          "success calls the auth logout path so App.vue returns to LoginView",
+          "API errors render inline and do not clear the session"
+        ]
+      },
+      "touches": [
+        "ui/src/services/settings.ts",
+        "ui/src/services/settings.test.ts",
+        "ui/src/features/settings/useSettings.ts",
+        "ui/src/features/settings/useSettings.test.ts",
+        "ui/src/features/settings/SettingsView.vue",
+        "ui/src/features/settings/SettingsView.test.ts",
+        "ui/src/App.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "destructive-op:frontend exposes account deletion",
+          "sensitive-zone:auth session clearing after deletion",
+          "contract-mutation:additive settings delete mutation"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/settings.test.ts src/features/settings/useSettings.test.ts src/features/settings/SettingsView.test.ts src/App.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "The danger-zone form stays disabled until the user supplies the required password/confirmation inputs.",
+          "Successful deletion calls DELETE /api/settings/delete-account, clears auth through logout, and returns the app to the login gate.",
+          "Backend errors keep the session and show an inline error without deleting local state."
+        ]
+      }
+    }
+  ]
+}
