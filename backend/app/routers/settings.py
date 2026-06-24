@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from stream_zip import ZIP_32, stream_zip
 
-from app.auth.auth import get_password_hash, verify_password
+from app.auth.auth import verify_password
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
 from app.models.models import Note, User
@@ -80,32 +80,7 @@ async def change_password(
         HTTPException: 401 if current password is incorrect
         HTTPException: 400 if new password is same as current
     """
-    # Check if user can change password (local auth only)
-    if current_user.auth_provider != "local" or current_user.password_hash is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password change is not available for OIDC accounts. Please change your password through your identity provider.",
-        )
-
-    # Verify current password
-    if not verify_password(request.current_password, current_user.password_hash):  # type: ignore[arg-type]
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Current password is incorrect",
-        )
-
-    # Check if new password is different
-    if verify_password(request.new_password, current_user.password_hash):  # type: ignore[arg-type]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be different from current password",
-        )
-
-    # Update password
-    current_user.password_hash = get_password_hash(request.new_password)  # type: ignore[assignment]
-    await db.commit()
-
-    return MessageResponse(message="Password changed successfully")
+    return await settings_service.change_password(db, current_user, request)
 
 
 def _sanitize_filename(title: str, used_filenames: set[str]) -> str:
