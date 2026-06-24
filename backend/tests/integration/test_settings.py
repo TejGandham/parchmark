@@ -4,6 +4,7 @@ Tests user info, password change, note export, and account deletion.
 Includes tests for both local and OIDC authentication users.
 """
 
+import inspect
 import io
 import json
 import zipfile
@@ -14,6 +15,7 @@ from fastapi import status
 
 from app.auth.auth import create_access_token, verify_password
 from app.models.models import Note, User
+from app.routers import settings
 
 
 class TestGetUserInfo:
@@ -41,11 +43,53 @@ class TestGetUserInfo:
         data = response.json()
         assert data["notes_count"] == 0
 
+    def test_get_user_info_oidc_user(self, client, test_db_session):
+        """Test getting OIDC user info with tenant-scoped note count."""
+        oidc_user = User(
+            username="oidc_settings_user",
+            password_hash=None,
+            email="oidc-settings@example.com",
+            oidc_sub="oidc|settings-summary",
+            auth_provider="oidc",
+        )
+        other_user = User(username="other_settings_user", password_hash="hashed_password")
+        test_db_session.add_all([oidc_user, other_user])
+        test_db_session.commit()
+        test_db_session.refresh(oidc_user)
+        test_db_session.refresh(other_user)
+
+        test_db_session.add_all(
+            [
+                Note(id="oidc-note-1", user_id=oidc_user.id, title="OIDC Note", content="# OIDC Note\n\nOwned."),
+                Note(id="other-note-1", user_id=other_user.id, title="Other Note", content="# Other\n\nIgnored."),
+            ]
+        )
+        test_db_session.commit()
+
+        token = create_access_token(
+            data={"sub": oidc_user.username},
+            expires_delta=timedelta(minutes=30),
+        )
+        response = client.get("/api/settings/user-info", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["username"] == "oidc_settings_user"
+        assert data["email"] == "oidc-settings@example.com"
+        assert data["notes_count"] == 1
+        assert data["auth_provider"] == "oidc"
+
     def test_get_user_info_unauthorized(self, client):
         """Test that user info endpoint requires authentication."""
         response = client.get("/api/settings/user-info")
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_user_info_route_delegates_to_service(self):
+        """Test that account-summary assembly stays in the settings service."""
+        route_source = inspect.getsource(settings.get_user_info)
+
+        assert "settings_service.get_user_info" in route_source
 
 
 class TestChangePassword:

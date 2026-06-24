@@ -12,6 +12,7 @@ import {
   wordCount,
 } from "@/features/notes/noteMockHelpers";
 import { useNotes } from "@/features/notes/useNotes";
+import SettingsView from "@/features/settings/SettingsView.vue";
 
 import AppTopbar from "./AppTopbar.vue";
 import type { NoteMenuAction, NoteMode } from "./headerTypes";
@@ -322,10 +323,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
         {{ mutationError }}
       </div>
 
-      <section v-if="settingsActive" class="settings-placeholder">
-        <h1>Settings</h1>
-        <p>Profile and workspace controls are queued for a later slice.</p>
-      </section>
+      <SettingsView v-if="settingsActive" />
 
       <section v-else-if="activeNote" class="read-pane" aria-live="polite">
         <div class="measure">
@@ -490,7 +488,6 @@ function handleNoteMenuAction(id: NoteMenuAction) {
   background: var(--line-2);
 }
 
-.settings-placeholder,
 .empty-state {
   display: grid;
   flex: 1;
@@ -499,7 +496,6 @@ function handleNoteMenuAction(id: NoteMenuAction) {
   text-align: center;
 }
 
-.settings-placeholder h1,
 .empty-state h1 {
   margin: 0 0 8px;
   color: var(--text);
@@ -507,7 +503,6 @@ function handleNoteMenuAction(id: NoteMenuAction) {
   font-size: 34px;
 }
 
-.settings-placeholder p,
 .empty-state p {
   max-width: 340px;
   margin: 0;
