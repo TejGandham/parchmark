@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, resetAuthHooks, setAuthHooks } from "./http";
-import { getUserInfo, type UserInfoDTO } from "./settings";
+import { changePassword, getUserInfo, type UserInfoDTO } from "./settings";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -80,5 +80,59 @@ describe("getUserInfo", () => {
       detail: "settings failed",
     });
     await expect(getUserInfo()).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("changePassword", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    resetAuthHooks();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs to /api/settings/change-password with the supplied passwords and bearer token", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { message: "Password changed" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload = {
+      current_password: "old pass typed",
+      new_password: "new pass typed",
+    };
+    const result = await changePassword(payload);
+
+    expect(calledUrl(fetchMock)).toContain("/api/settings/change-password");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("POST");
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(JSON.parse(String(init.body))).toEqual(payload);
+    expect(result).toEqual({ message: "Password changed" });
+  });
+
+  it("rejects with ApiError carrying backend { detail } on password-change failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(400, { detail: "Password change is not available" }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      changePassword({
+        current_password: "wrong",
+        new_password: "newSecurePassword123",
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      detail: "Password change is not available",
+    });
   });
 });
