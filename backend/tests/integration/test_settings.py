@@ -154,6 +154,12 @@ class TestChangePassword:
         # Should fail validation (422 Unprocessable Entity)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    def test_change_password_route_delegates_to_service(self):
+        """Test that password-change rules stay in the settings service."""
+        route_source = inspect.getsource(settings.change_password)
+
+        assert "settings_service.change_password" in route_source
+
 
 class TestChangePasswordOIDC:
     """Tests for password change with OIDC users."""
