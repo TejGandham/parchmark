@@ -1,5 +1,7 @@
 {
   "slug": "note-tags-editing",
+  "title": "Tag editing for notes",
+  "summary": "Let people add and remove tags on a note right from the editor, while the server stays in charge of cleaning up and checking those tags. This makes notes easier to organize and find without letting messy tags slip in.",
   "motivation": "Let users add and remove note tags in the v2 UI while keeping backend/Pydantic as the single normalization and validation authority.",
   "scope": {
     "included": [
@@ -71,7 +73,8 @@
   "work_items": [
     {
       "id": "note-tag-editor-component",
-      "title": "Build compact raw-intent note tag editor",
+      "title": "Add and remove tags on a note",
+      "summary": "Build a small tag editor that shows a note's current tags as removable chips and lets the reader type a new tag to add, passing what they typed straight through to be saved.",
       "estimate": "M",
       "depends_on": [],
       "design_reference": "app shell edit pane tag editor",
@@ -149,7 +152,8 @@
     },
     {
       "id": "backend-update-normalization-coverage",
-      "title": "Pin backend update-time tag normalization",
+      "title": "Make sure the server tidies tags when you save",
+      "summary": "Add tests that prove the server tidies up tags when a note is saved, by trimming and lowercasing them, dropping duplicates, sorting them, and rejecting bad ones.",
       "estimate": "S",
       "depends_on": [],
       "contract": {
@@ -187,7 +191,8 @@
     },
     {
       "id": "frontend-tag-update-contract-tests",
-      "title": "Pin frontend raw tag update pass-through",
+      "title": "Send tags as typed and show what comes back",
+      "summary": "Add tests that prove the app sends tags to the server exactly as typed and then shows back whatever cleaned-up tags the server returns.",
       "estimate": "S",
       "depends_on": [],
       "contract": {
@@ -223,7 +228,8 @@
     },
     {
       "id": "app-shell-tag-editing",
-      "title": "Wire raw tag add/remove actions into AppShell",
+      "title": "Save tag changes right away",
+      "summary": "Connect the tag editor to the rest of the app so adding or removing a tag is saved right away, the note and its tag filters update to match, and any save error is shown.",
       "estimate": "M",
       "depends_on": [
         "note-tag-editor-component",
@@ -304,7 +310,8 @@
     },
     {
       "id": "tag-editing-regression-gate",
-      "title": "Run full tag editing regression gate",
+      "title": "Check that nothing else broke",
+      "summary": "Run the whole test suite one last time to confirm tag editing works end to end and nothing else broke, without adding any new outside software.",
       "estimate": "S",
       "depends_on": [
         "backend-update-normalization-coverage",

@@ -1,5 +1,7 @@
 {
   "slug": "notes-list-from-backend",
+  "title": "Show your real notes in the sidebar",
+  "summary": "The list of notes in the left sidebar comes from sample data hard-coded into the app. This work makes the sidebar load each person's actual saved notes from the server, so they see their own writing the moment they open the app.",
   "motivation": "Source the sidebar notes list from the backend GET /notes/ listing API instead of in-memory mock data, so the left rail shows the user's real notes. Frontend-only; backend gaps (tags field, query params) are addressed in separate binders.",
   "scope": {
     "included": [
@@ -40,7 +42,8 @@
   "work_items": [
     {
       "id": "notes-api-client",
-      "title": "Notes API client (services/notes.ts)",
+      "title": "Ask the server for your notes",
+      "summary": "Add the small piece of code that asks the server for the list of a person's notes.",
       "estimate": "S",
       "depends_on": [],
       "contract": "Exports NoteDTO mirroring backend NoteResponse (backend/app/schemas/schemas.py:73): { id: string; title: string; content: string; createdAt: string; updatedAt: string } — ISO-8601 strings, NO tags field (backend gap). Exports listNotes(): Promise<NoteDTO[]> -> request<NoteDTO[]>(\"/notes/\", { method: \"GET\" }). Reuses services/http.ts request() (bearer attach + single refresh-and-retry on 401); adds no HTTP machinery. Pattern mirrors services/auth.ts:16-21. The DTO intentionally keeps the backend's title field even though the frontend currently derives title via extractTitle — keeping it on the wire contract preserves the option to consume it later without another client change.",
@@ -65,7 +68,8 @@
     },
     {
       "id": "use-notes-composable",
-      "title": "useNotes composable + DTO adapter (features/notes/useNotes.ts)",
+      "title": "Reshape server notes for the app",
+      "summary": "Fetch the notes from the server and reshape them into the form the app already knows how to show, while tracking whether they are still loading or failed to load.",
       "estimate": "S",
       "depends_on": ["notes-api-client"],
       "contract": "Module-singleton composable mirroring features/auth/useAuth.ts pattern (module-level refs, useStorage optional, returned via useNotes()). Exposes: notes: Ref<NoteMock[]> (writable — AppShell keeps local create/delete mutations until a write-API binder lands), loading: Ref<boolean>, error: Ref<string|null>, fetchNotes(): Promise<void>. fetchNotes() calls listNotes(), maps each NoteDTO to NoteMock via an adapter: { id: dto.id, content: dto.content, tags: [], createdAt: Date.parse(dto.createdAt), updatedAt: Date.parse(dto.updatedAt) } — the adapter owns the ISO-string→epoch-ms conversion (backend ISO, frontend epoch) and the tags=[] placeholder (backend has no tags field; backend gap flagged in scope.excluded). On rejection, sets error to ApiError.detail and leaves notes unchanged. Does NOT discard the backend title field silently — it is unused by the adapter only because the frontend derives title via extractTitle(content); this is a recorded reconciliation decision, not a missing field.",
@@ -91,7 +95,8 @@
     },
     {
       "id": "appshell-wire-fetch",
-      "title": "Wire AppShell.vue to useNotes + onMounted fetch",
+      "title": "Load your notes when the app opens",
+      "summary": "Make the app load the real notes when it opens and automatically select the most recently changed one.",
       "estimate": "M",
       "depends_on": ["use-notes-composable"],
       "contract": "Replace `const notes = ref(mockNotes.slice())` (AppShell.vue:18) with `const { notes, loading, error, fetchNotes } = useNotes()`. Call fetchNotes() in onMounted; after resolve, seed activeId from the most-recently-updated fetched note (move the existing sort at AppShell.vue:20-22 into the post-fetch path — a watchEffect or a post-await assignment). Pass loading and error down to SidebarDrawer via new props. filteredNotes computed (AppShell.vue:48-67) stays unchanged — still client-side over the notes ref; SearchBox + TagFilter stay. createNote (AppShell.vue:85) and deleteActiveNote (AppShell.vue:146) keep mutating the local notes ref (write APIs are out of scope; they will be wired in a separate binder). Do NOT remove the mockNotes import if still used by tests — leave it for the test stub. The initial activeId must not be set synchronously from mockNotes anymore; it becomes null until fetchNotes resolves, then seeds.",
@@ -117,7 +122,8 @@
     },
     {
       "id": "sidebar-loading-error-states",
-      "title": "Sidebar loading + error states in note-list region",
+      "title": "Show loading and error in the sidebar",
+      "summary": "Show a gentle 'loading' message while notes are on their way, and if they fail to arrive, show what went wrong with a button to try again.",
       "estimate": "S",
       "depends_on": ["appshell-wire-fetch"],
       "contract": "SidebarDrawer.vue renders, inside .note-list (SidebarDrawer.vue:66), one of: (a) while loading — a non-blocking loading indicator (text like 'Loading…' or a small spinner, styled with var(--muted)); (b) on error with loading=false — an error line showing error plus a retry affordance (button calling a new retry event that AppShell wires to fetchNotes); (c) loaded, zero notes — the existing 'No notes match.' empty state (SidebarDrawer.vue:67-69) stays. Add props to SidebarDrawerProps (SidebarDrawer.vue:11-19): loading?: boolean (default false), error?: string|null (default null). Add emit: retry: []. Wire the retry button to emit('retry'). Loading indicator must not flash on fast fetches only if trivial — a simple conditional render is fine; no debouncing required. Styling uses existing design tokens (var(--muted), var(--accent), var(--surface-2)); no new tokens. The error retry path is the only way to recover from a failed fetch short of reloading the page.",
@@ -142,7 +148,8 @@
     },
     {
       "id": "appshell-tests-backend-shape",
-      "title": "Update AppShell + SidebarDrawer tests to stub fetch with NoteResponse payloads",
+      "title": "Feed tests notes shaped like the server's",
+      "summary": "Update the automated tests so they pretend to be the server and feed in notes shaped the way the real server sends them.",
       "estimate": "S",
       "depends_on": ["appshell-wire-fetch", "sidebar-loading-error-states"],
       "serialize": true,
