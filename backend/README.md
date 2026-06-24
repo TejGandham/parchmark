@@ -78,7 +78,7 @@ backend/
 │   │   ├── init_db.py       # Database initialization
 │   │   └── seed.py          # Database seeding utilities
 │   ├── models/
-│   │   └── models.py        # SQLAlchemy models (User, Note)
+│   │   └── models.py        # SQLAlchemy models (User, Note, NoteTag)
 │   ├── routers/
 │   │   ├── auth.py          # Authentication endpoints
 │   │   ├── notes.py         # Notes CRUD
@@ -87,7 +87,9 @@ backend/
 │   ├── schemas/
 │   │   └── schemas.py       # Pydantic schemas
 │   ├── services/
-│   │   └── health_service.py # Health check logic
+│   │   ├── health_service.py # Health check logic
+│   │   ├── note_events.py    # Note-event broker + Postgres LISTEN
+│   │   └── note_event_streams.py # Active SSE stream manager
 │   ├── utils/
 │   │   └── markdown.py      # Markdown processing (mirrors frontend)
 │   └── middleware/           # Request middleware
@@ -134,10 +136,11 @@ All endpoints are prefixed with `/api`.
 | Method | Endpoint                    | Description                              |
 | ------ | --------------------------- | ---------------------------------------- |
 | GET    | `/api/notes/`               | List user's notes                        |
-| POST   | `/api/notes/`               | Create note                              |
+| POST   | `/api/notes/`               | Create note, with optional tags          |
 | GET    | `/api/notes/{id}`           | Get note                                 |
-| PUT    | `/api/notes/{id}`           | Update note                              |
+| PUT    | `/api/notes/{id}`           | Update note, including tag replacement   |
 | DELETE | `/api/notes/{id}`           | Delete note                              |
+| GET    | `/api/notes/events`         | Stream note-change events as SSE         |
 
 ### Settings (`/api/settings`)
 
@@ -201,20 +204,20 @@ The API is configured to accept requests from common frontend development server
 4. **Token Refresh:** When access token expires (30 min), use refresh token to get new tokens via `/auth/refresh`
 5. **Re-authentication:** If refresh token expires (7 days), user must log in again
 
-### Frontend Store Integration
+### Frontend Composable Integration
 
-The API endpoints are designed to match the existing frontend store operations:
+The API endpoints are designed to match the current frontend composable and service operations:
 
-**Auth Store (`src/features/auth/store/auth.ts`):**
-- `login()` → POST `/api/auth/login`
-- `logout()` → POST `/api/auth/logout` + client-side token removal
-- `getCurrentUser()` → GET `/api/auth/me`
+**Auth composable (`ui/src/features/auth/useAuth.ts`):**
+- `login()` -> POST `/api/auth/login`
+- `logout()` -> POST `/api/auth/logout` + client-side token removal
+- `getCurrentUser()` -> GET `/api/auth/me`
 
-**Notes Store (`src/features/notes/store/notes.ts`):**
-- `fetchNotes()` → GET `/api/notes`
-- `createNote()` → POST `/api/notes`
-- `updateNote()` → PUT `/api/notes/{id}`
-- `deleteNote()` → DELETE `/api/notes/{id}`
+**Notes composable and service (`ui/src/features/notes/useNotes.ts`, `ui/src/services/notes.ts`):**
+- `fetchNotes()` -> GET `/api/notes/`
+- `createNote()` -> POST `/api/notes/`
+- `updateNote()` -> PUT `/api/notes/{id}`
+- `deleteNote()` -> DELETE `/api/notes/{id}`
 
 ### Error Handling
 

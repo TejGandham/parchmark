@@ -1,6 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
+import { PlusIcon, XIcon } from "@/design-system/icons";
+
 import NoteTagEditor from "./NoteTagEditor.vue";
 
 describe("NoteTagEditor", () => {
@@ -14,7 +16,7 @@ describe("NoteTagEditor", () => {
     await wrapper.get("input").setValue("  #Daily Log  ");
     await wrapper.get("form").trigger("submit");
 
-    expect(wrapper.emitted("addTag")?.[0]).toEqual(["  #Daily Log  "]);
+    expect(wrapper.emitted("add-tag")?.[0]).toEqual(["  #Daily Log  "]);
     expect((wrapper.get("input").element as HTMLInputElement).value).toBe("");
   });
 
@@ -28,7 +30,7 @@ describe("NoteTagEditor", () => {
     await wrapper.get("input").setValue("   ");
     await wrapper.get("form").trigger("submit");
 
-    expect(wrapper.emitted("addTag")).toBeUndefined();
+    expect(wrapper.emitted("add-tag")).toBeUndefined();
     expect(
       wrapper.get('button[type="submit"]').attributes("disabled"),
     ).toBeDefined();
@@ -43,14 +45,14 @@ describe("NoteTagEditor", () => {
 
     await wrapper.get('[aria-label="Remove #work"]').trigger("click");
 
-    expect(wrapper.emitted("removeTag")?.[0]).toEqual(["work"]);
+    expect(wrapper.emitted("remove-tag")?.[0]).toEqual(["work"]);
   });
 
-  it("disables add and remove controls while saving", () => {
+  it("disables add and remove controls when disabled", () => {
     const wrapper = mount(NoteTagEditor, {
       props: {
         tags: ["draft"],
-        saving: true,
+        disabled: true,
       },
     });
 
@@ -61,5 +63,20 @@ describe("NoteTagEditor", () => {
     expect(
       wrapper.get('button[type="submit"]').attributes("disabled"),
     ).toBeDefined();
+  });
+
+  it("renders backend mutation errors and local add/remove icons", () => {
+    const wrapper = mount(NoteTagEditor, {
+      props: {
+        tags: ["draft"],
+        error: "Tag may contain only lowercase letters",
+      },
+    });
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "Tag may contain only lowercase letters",
+    );
+    expect(wrapper.findComponent(PlusIcon).exists()).toBe(true);
+    expect(wrapper.findComponent(XIcon).exists()).toBe(true);
   });
 });

@@ -16,8 +16,8 @@ Docker-backed migration/API verification still needs CI or a local Docker socket
 
 Originally needed because the v2 UI already had tag chips, tag filters, and
 active-note tag metadata, while backend `NoteResponse` did not expose tags.
-This branch adds the backend contract and frontend list consumption; visible
-tag-edit mutation UI remains part of the separate note mutation wiring work.
+This branch adds the backend contract, frontend list consumption, and
+persisted tag-edit UI.
 
 Backend work completed in this branch:
 - Add tag storage for notes.
@@ -28,6 +28,7 @@ Backend work completed in this branch:
 
 Frontend work completed in this branch:
 - Update `NoteDTO` and `useNotes()` to consume backend tags.
+- Persist tag add/remove through the note update API.
 - Re-enable tag filter tests that were deferred while backend tags were absent.
 
 ### 2. Profile Settings Contract
@@ -88,20 +89,23 @@ Frontend work:
 
 ## Frontend Wiring Against Existing Backend
 
-### 5. Note Create, Update, And Delete
+### 5. Note Create, Update, Delete, And Tag Edits
 
-Status: backend exists; frontend still local-only.
+Status: implemented for create, markdown update, delete, and tag add/remove.
 
 Backend already has:
 - `POST /api/notes/`
 - `PUT /api/notes/{note_id}`
 - `DELETE /api/notes/{note_id}`
 
-Frontend work:
-- Wire the new-note action to backend create.
-- Add a real markdown editor for edit mode.
-- Persist note edits through update.
-- Wire delete to backend delete with appropriate confirmation/error states.
+Frontend now:
+- Wires the new-note action to backend create.
+- Persists markdown edits through backend update.
+- Persists tag add/remove through backend update.
+- Wires delete to backend delete and surfaces mutation errors.
+
+Remaining product decision:
+- Add delete confirmation if product scope requires it.
 
 ### 6. Existing Settings Routes
 
