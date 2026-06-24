@@ -1,5 +1,7 @@
 {
   "slug": "note-edit-save-workflow",
+  "title": "Edit a note and save your changes",
+  "summary": "Let people open a note, change its text, and save it so the new version sticks after they refresh or come back later. This turns notes from read-only into something you can actually update.",
   "motivation": "Add a lean edit surface and persist Save through the existing backend update endpoint so note content changes survive refresh.",
   "scope": {
     "included": [
@@ -41,7 +43,8 @@
   "work_items": [
     {
       "id": "wire-edit-save",
-      "title": "Persist edit and save workflow",
+      "title": "Save your edits to a note",
+      "summary": "Add an editing box to a note, send the edited text to the server when the person saves, and show the updated note once it sticks.",
       "estimate": "M",
       "depends_on": [],
       "design_reference": "app shell read/edit pane",

@@ -1,5 +1,7 @@
 {
   "slug": "note-create-workflow",
+  "title": "Save new notes so they stick around",
+  "summary": "Right now a brand-new note vanishes when you reload the page. This makes the New button save the note for real, so it's still there after a refresh and ready to edit.",
   "motivation": "Persist the New note action through the existing backend create endpoint so newly created notes survive refresh before edit/save work lands.",
   "scope": {
     "included": [
@@ -41,7 +43,8 @@
   "work_items": [
     {
       "id": "wire-new-note-create",
-      "title": "Persist New note action",
+      "title": "Keep new notes after a refresh",
+      "summary": "When someone clicks New, save the note to the server right away and open it, so it survives a page reload instead of disappearing.",
       "estimate": "S",
       "depends_on": [],
       "design_reference": "app shell sidebar New button and active note pane",

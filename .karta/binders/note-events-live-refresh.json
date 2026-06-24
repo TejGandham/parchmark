@@ -1,0 +1,190 @@
+{
+  "slug": "note-events-live-refresh",
+  "after": [
+    "settings-notes-export"
+  ],
+  "title": "Keep the notes list up to date across sessions",
+  "summary": "When your notes change somewhere else, the list updates on its own so you always see the latest version without reloading the page.",
+  "motivation": "Use the existing authenticated note-events stream so the notes list refreshes after backend note changes from another session.",
+  "scope": {
+    "included": [
+      "GET /api/notes/events remains the backend Server-Sent Events contract",
+      "the frontend opens the stream with authenticated fetch, not native EventSource, because bearer headers are required",
+      "note created/updated/deleted events trigger a debounced notes refetch",
+      "stream teardown runs on component unmount and when authentication is lost"
+    ],
+    "excluded": [
+      "changing the backend SSE endpoint to query-token or cookie auth",
+      "optimistic event payload application; the frontend refetches canonical notes instead",
+      "collaborative editing, conflict resolution, or per-note live cursors",
+      "new SSE/client-streaming dependencies"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Mixed Vue 3/TypeScript/Vite frontend plus FastAPI/Python 3.13/SQLAlchemy async/PostgreSQL backend; DTCG design tokens; no router or Pinia."
+  },
+  "sme": [
+    "minimalism",
+    "vue",
+    "python-fastapi"
+  ],
+  "token_manifest": {
+    "system": "W3C DTCG JSON built with Style Dictionary into CSS custom properties.",
+    "source_dir": "ui/src/design-system/tokens",
+    "sources": [
+      "ui/src/design-system/tokens/primitives.json",
+      "ui/src/design-system/tokens/semantic.json",
+      "ui/src/design-system/tokens/semantic.dark.json"
+    ],
+    "build_command": "npm --prefix ui run build:tokens",
+    "generated_artifacts": [
+      "ui/src/design-system/tokens.css"
+    ],
+    "generated_artifacts_read_only": true,
+    "consumption_rule": "New component CSS consumes semantic custom properties only; primitives are not used in new code.",
+    "name_resolution_rule": "$extensions[\"com.parchmark.cssName\"] emits short CSS variable names.",
+    "theme_context_selector": {
+      "light": ":root",
+      "dark": "[data-theme=\"dark\"]"
+    },
+    "expected_changes": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      },
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "frontend-authenticated-sse-client",
+      "title": "Listen for note changes as they happen",
+      "summary": "Open a signed-in live connection that listens for notes being added, changed, or removed.",
+      "estimate": "M",
+      "depends_on": [],
+      "design_reference": "none",
+      "component_map": [
+        {
+          "component": "note event stream client",
+          "mapping": "Composable/service logic, no rendered component",
+          "notes": "Use browser fetch, ReadableStream, TextDecoder, and AbortController; no native EventSource because headers are needed."
+        }
+      ],
+      "icon_map": [],
+      "token_changes": [],
+      "contract": {
+        "exposes": {
+          "service": "ui/src/services/noteEvents.ts",
+          "composable": "ui/src/features/notes/useNoteEvents.ts"
+        },
+        "event_shape": {
+          "kind": "\"created\" | \"updated\" | \"deleted\" | string",
+          "note_id": "string"
+        },
+        "behavior": [
+          "opens GET /notes/events with the same bearer and one-refresh retry policy used by authenticated non-JSON requests",
+          "parses SSE data frames containing JSON note event payloads and ignores heartbeat/comment/blank frames",
+          "uses AbortController for explicit teardown and component unmount",
+          "does not add a new dependency or change backend auth semantics"
+        ]
+      },
+      "touches": [
+        "ui/src/services/http.ts",
+        "ui/src/services/http.test.ts",
+        "ui/src/services/noteEvents.ts",
+        "ui/src/services/noteEvents.test.ts",
+        "ui/src/features/notes/useNoteEvents.ts",
+        "ui/src/features/notes/useNoteEvents.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability-or-resource:new long-lived authenticated streaming request",
+          "contract-mutation:additive note event service/composable interfaces",
+          "explicit-open-question:uses fetch streaming instead of native EventSource because Authorization headers are required"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/http.test.ts src/services/noteEvents.test.ts src/features/notes/useNoteEvents.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "The stream client sends Authorization and aborts cleanly.",
+          "SSE data frames are parsed into note event objects; heartbeat frames are ignored.",
+          "A 401 before the stream opens uses the existing one-refresh retry path exactly once."
+        ]
+      }
+    },
+    {
+      "id": "app-shell-live-refresh-wiring",
+      "title": "Refresh notes from live events",
+      "summary": "Reload the notes list when a change comes in, and keep the note you have open in sync.",
+      "estimate": "M",
+      "depends_on": [
+        "frontend-authenticated-sse-client"
+      ],
+      "design_reference": "AppShell notes list",
+      "component_map": [
+        {
+          "component": "AppShell live refresh integration",
+          "mapping": "Existing AppShell wiring",
+          "notes": "No new visible UI; refresh keeps sidebar and active note in sync with backend events."
+        }
+      ],
+      "icon_map": [],
+      "token_changes": [],
+      "contract": {
+        "consumes": {
+          "notes_store": "useNotes().fetchNotes()",
+          "auth": "useAuth().isAuthenticated"
+        },
+        "behavior": [
+          "AppShell starts the note-events stream after the initial notes load while authenticated",
+          "created, updated, and deleted event payloads schedule one debounced fetchNotes call",
+          "deleted active notes clear or reselect consistently after the refetched list returns",
+          "stream errors do not clear the visible notes list; they may expose a non-blocking status for tests",
+          "teardown happens on component unmount and when auth becomes unauthenticated"
+        ]
+      },
+      "touches": [
+        "ui/src/features/shell/AppShell.vue",
+        "ui/src/features/shell/__tests__/AppShell.test.ts",
+        "ui/src/features/notes/useNotes.ts",
+        "ui/src/features/notes/useNotes.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability-or-resource:AppShell opens a long-lived backend stream",
+          "blast-radius:AppShell note-loading lifecycle changes",
+          "not-computed:e2e multi-tab behavior beyond unit stream simulation"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/features/notes/useNoteEvents.test.ts src/features/notes/useNotes.test.ts src/features/shell/__tests__/AppShell.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "AppShell starts the event stream after initial fetch and aborts it on unmount.",
+          "Multiple quick note events cause a debounced single refetch.",
+          "A deleted active note is reconciled against the refetched list without leaving a broken activeId."
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "slug": "settings-notes-export",
+  "after": [
+    "settings-password-change"
+  ],
+  "title": "Download all your notes from Settings",
+  "summary": "Adds a button in Settings that downloads every note you have as a single zip file, so you can keep your own backup. It also adds a shared, signed-in way for the app to fetch file downloads from the server.",
+  "motivation": "Expose the backend streaming ZIP note export from settings and add a reusable authenticated raw-response path.",
+  "scope": {
+    "included": [
+      "GET /api/settings/export-notes remains the backend streaming ZIP contract",
+      "export filename, metadata, and ZIP generation move from router code into settings service helpers",
+      "the frontend can request an authenticated Blob/Response through the existing HTTP/auth hook policy",
+      "SettingsView gains an export action that downloads the backend ZIP"
+    ],
+    "excluded": [
+      "import/restore from ZIP backups",
+      "single-note export changes in the note overflow menu",
+      "custom export filters, date ranges, or alternate formats",
+      "new download dependencies or File System Access API usage"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Mixed Vue 3/TypeScript/Vite frontend plus FastAPI/Python 3.13/SQLAlchemy async/PostgreSQL backend; DTCG design tokens; no router or Pinia."
+  },
+  "sme": [
+    "minimalism",
+    "vue",
+    "python-fastapi"
+  ],
+  "token_manifest": {
+    "system": "W3C DTCG JSON built with Style Dictionary into CSS custom properties.",
+    "source_dir": "ui/src/design-system/tokens",
+    "sources": [
+      "ui/src/design-system/tokens/primitives.json",
+      "ui/src/design-system/tokens/semantic.json",
+      "ui/src/design-system/tokens/semantic.dark.json"
+    ],
+    "build_command": "npm --prefix ui run build:tokens",
+    "generated_artifacts": [
+      "ui/src/design-system/tokens.css"
+    ],
+    "generated_artifacts_read_only": true,
+    "consumption_rule": "New component CSS consumes semantic custom properties only; primitives are not used in new code.",
+    "name_resolution_rule": "$extensions[\"com.parchmark.cssName\"] emits short CSS variable names.",
+    "theme_context_selector": {
+      "light": ":root",
+      "dark": "[data-theme=\"dark\"]"
+    },
+    "expected_changes": []
+  },
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": "24"
+      },
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "backend-export-service",
+      "title": "Bundle your notes into one download",
+      "summary": "Moves the work of gathering a person's notes and packaging them into a downloadable zip out of the request handler and into a shared service, while keeping each person's notes private to them.",
+      "estimate": "M",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "functions": [
+            "async collect_notes_for_export(db: AsyncSession, user_id: int) -> tuple[list[tuple[str, str]], list[dict[str, Any]]]",
+            "generate_zip_entries(note_files, notes_metadata)",
+            "build_export_response(note_files, notes_metadata) -> StreamingResponse"
+          ]
+        },
+        "behavior": [
+          "all Note reads remain tenant-scoped with Note.user_id == user_id",
+          "duplicate and unsafe note titles still produce unique safe .md filenames",
+          "metadata JSON still includes id, title, content, createdAt, and updatedAt for every exported note",
+          "the route streams application/zip with Content-Disposition containing parchmark_notes_<timestamp>.zip",
+          "routers/settings.py delegates export collection/response assembly to the settings service module"
+        ]
+      },
+      "touches": [
+        "backend/app/services/settings_service.py",
+        "backend/app/routers/settings.py",
+        "backend/tests/integration/test_settings.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability-or-resource:streaming ZIP export path",
+          "sensitive-zone:bulk export of all user notes",
+          "blast-radius:router export helpers move into services"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/test_settings.py::TestExportNotes -v",
+        "cwd": ".",
+        "assertions": [
+          "Export still streams a valid ZIP for empty, normal, duplicate-title, and large note sets.",
+          "The metadata JSON shape and Content-Disposition filename remain unchanged.",
+          "The export query remains scoped to the current user's notes."
+        ]
+      }
+    },
+    {
+      "id": "frontend-export-download-action",
+      "title": "Save all your notes to your device",
+      "summary": "Adds an export button to the Settings screen that asks the server for the notes zip and saves it to the reader's device, showing a loading state while it works and a clear message if something goes wrong.",
+      "estimate": "M",
+      "depends_on": [
+        "backend-export-service"
+      ],
+      "design_reference": "SettingsView export section",
+      "component_map": [
+        {
+          "component": "Settings export action",
+          "mapping": "Custom SettingsView subsection",
+          "notes": "Native button with loading and error text; use Blob URL download only after backend response succeeds."
+        }
+      ],
+      "icon_map": [
+        {
+          "purpose": "export notes",
+          "source": "local design system",
+          "import": "DownloadIcon from @/design-system/icons"
+        }
+      ],
+      "token_changes": [],
+      "contract": {
+        "exposes": {
+          "http": "an authenticated raw/blob response helper in ui/src/services/http.ts",
+          "service": "exportNotes(): Promise<ExportNotesDownload> in ui/src/services/settings.ts",
+          "composable": "useSettings().exportNotes() mutation state"
+        },
+        "behavior": [
+          "the HTTP helper attaches the bearer token and preserves the existing single refresh-and-retry policy for 401s",
+          "exportNotes calls GET /settings/export-notes and returns a Blob plus filename parsed from Content-Disposition, falling back to parchmark_notes.zip",
+          "SettingsView disables the export button while pending, shows errors inline, and creates/revokes exactly one object URL per successful download",
+          "the existing note overflow single-note export remains local and unchanged"
+        ]
+      },
+      "touches": [
+        "ui/src/services/http.ts",
+        "ui/src/services/http.test.ts",
+        "ui/src/services/settings.ts",
+        "ui/src/services/settings.test.ts",
+        "ui/src/features/settings/useSettings.ts",
+        "ui/src/features/settings/useSettings.test.ts",
+        "ui/src/features/settings/SettingsView.vue",
+        "ui/src/features/settings/SettingsView.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:additive raw/blob HTTP helper",
+          "capability-or-resource:download of user data backup",
+          "blast-radius:shared HTTP layer"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "make test-ui-lint && cd ui && npm run test -- src/services/http.test.ts src/services/settings.test.ts src/features/settings/useSettings.test.ts src/features/settings/SettingsView.test.ts",
+        "cwd": ".",
+        "assertions": [
+          "The raw/blob HTTP helper sends Authorization, refreshes once on 401, and surfaces ApiError details on failure.",
+          "exportNotes parses the backend filename from Content-Disposition and falls back when absent.",
+          "SettingsView downloads the Blob through URL.createObjectURL, clicks a temporary anchor, revokes the URL, and handles pending/error states."
+        ]
+      }
+    }
+  ]
+}

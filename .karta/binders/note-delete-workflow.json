@@ -1,5 +1,7 @@
 {
   "slug": "note-delete-workflow",
+  "title": "Delete notes for good",
+  "summary": "When you delete a note, it stays deleted. The note disappears for real on the server, so it won't come back the next time you open or refresh the app.",
   "motivation": "Persist the existing Delete note menu action through the backend delete endpoint so removed notes stay removed after refresh.",
   "scope": {
     "included": [
@@ -41,7 +43,8 @@
   "work_items": [
     {
       "id": "wire-note-delete",
-      "title": "Persist Delete note action",
+      "title": "Make deleted notes stay deleted",
+      "summary": "Makes the Delete option in a note's menu actually remove the note on the server, then opens the next note left in your list (or shows the empty screen if it was your last one).",
       "estimate": "S",
       "depends_on": [],
       "design_reference": "app shell overflow note menu",
