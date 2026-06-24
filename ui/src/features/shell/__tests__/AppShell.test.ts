@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mockNotes } from "@/features/notes/mockNotes";
 import { extractTitle } from "@/features/notes/noteMockHelpers";
+import { useSettings } from "@/features/settings/useSettings";
 
 import AppShell from "../AppShell.vue";
 
@@ -24,11 +25,27 @@ const createdNoteDto = {
   updatedAt: "2026-06-21T10:00:01.000Z",
 };
 
+const accountInfoDto = {
+  username: "ada",
+  email: "ada@example.com",
+  created_at: "2024-01-15T10:30:00.000Z",
+  notes_count: 7,
+  auth_provider: "local",
+};
+
 function fetchStub(url: string | URL | Request, init?: RequestInit) {
   const method = (init?.method ?? "GET").toUpperCase();
   if (method === "GET" && String(url).includes("/notes/")) {
     return Promise.resolve(
       new Response(JSON.stringify(noteDtos), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  }
+  if (method === "GET" && String(url).includes("/settings/user-info")) {
+    return Promise.resolve(
+      new Response(JSON.stringify(accountInfoDto), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -85,6 +102,10 @@ describe("AppShell", () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
+    const { userInfo, loading, error } = useSettings();
+    userInfo.value = null;
+    loading.value = false;
+    error.value = null;
     vi.stubGlobal("fetch", fetchStub);
   });
 
@@ -147,13 +168,24 @@ describe("AppShell", () => {
   });
 
   it("opens settings from the user footer", async () => {
+    const fetchMock = vi.fn(fetchStub);
+    vi.stubGlobal("fetch", fetchMock);
     const wrapper = mount(AppShell);
     await flushPromises();
 
     await wrapper.get(".user-footer__main").trigger("click");
+    await flushPromises();
 
     expect(wrapper.text()).toContain("Settings");
+    expect(wrapper.text()).toContain("ada");
+    expect(wrapper.text()).toContain("ada@example.com");
+    expect(wrapper.text()).toContain("Local password");
     expect(wrapper.get(".user-footer").classes()).toContain("is-active");
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).includes("/settings/user-info"),
+      ),
+    ).toBe(true);
   });
 
   it("uses the header edit action to switch modes", async () => {
