@@ -1,14 +1,21 @@
-"""Settings account-summary business logic."""
+"""Settings account management business logic."""
 
-from typing import cast
+import json
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from stream_zip import ZIP_32, stream_zip
 
 from app.auth.auth import get_password_hash, verify_password
 from app.models.models import Note, User
 from app.schemas.schemas import MessageResponse, PasswordChangeRequest, UserInfoResponse
+
+EXPORT_BATCH_SIZE = 100
 
 
 async def get_user_info(db: AsyncSession, current_user: User) -> UserInfoResponse:
@@ -51,3 +58,78 @@ async def change_password(db: AsyncSession, current_user: User, request: Passwor
     await db.commit()
 
     return MessageResponse(message="Password changed successfully")
+
+
+def _sanitize_filename(title: str, used_filenames: set[str]) -> str:
+    """Sanitize a note title into a unique markdown filename."""
+    safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "-", "_"))
+    safe_title = safe_title.strip() or "untitled"
+    base_filename = f"{safe_title[:50]}.md"
+
+    filename = base_filename
+    counter = 1
+    while filename in used_filenames:
+        filename = f"{safe_title[:45]}_{counter}.md"
+        counter += 1
+    used_filenames.add(filename)
+
+    return filename
+
+
+async def collect_notes_for_export(
+    db: AsyncSession, user_id: int
+) -> tuple[list[tuple[str, str]], list[dict[str, Any]]]:
+    """Collect one user's notes as markdown files plus backup metadata."""
+    used_filenames: set[str] = set()
+    note_files: list[tuple[str, str]] = []
+    notes_metadata: list[dict[str, Any]] = []
+
+    result = await db.stream(
+        select(Note).filter(Note.user_id == user_id).execution_options(yield_per=EXPORT_BATCH_SIZE)
+    )
+
+    async for note in result.scalars():
+        filename = _sanitize_filename(str(note.title), used_filenames)
+        note_files.append((filename, str(note.content)))
+        notes_metadata.append(
+            {
+                "id": note.id,
+                "title": note.title,
+                "content": note.content,
+                "createdAt": note.created_at.isoformat(),
+                "updatedAt": note.updated_at.isoformat(),
+            }
+        )
+
+    return note_files, notes_metadata
+
+
+def generate_zip_entries(
+    note_files: list[tuple[str, str]], notes_metadata: list[dict[str, Any]]
+) -> Iterable[tuple[str, datetime, int, Any, Iterable[bytes]]]:
+    """Yield stream_zip entries for markdown notes and metadata JSON."""
+    modified_time = datetime.now(UTC)
+    file_mode = 0o644
+
+    for filename, content in note_files:
+        content_bytes = content.encode("utf-8")
+        yield filename, modified_time, file_mode, ZIP_32, (content_bytes,)
+
+    metadata_json = json.dumps(notes_metadata, indent=2).encode("utf-8")
+    yield "notes_metadata.json", modified_time, file_mode, ZIP_32, (metadata_json,)
+
+
+def build_export_response(note_files: list[tuple[str, str]], notes_metadata: list[dict[str, Any]]) -> StreamingResponse:
+    """Build the streaming ZIP response for a full-notes export."""
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    zip_filename = f"parchmark_notes_{timestamp}.zip"
+    zip_chunks = stream_zip(
+        generate_zip_entries(note_files, notes_metadata),
+        chunk_size=65536,
+    )
+
+    return StreamingResponse(
+        iter(zip_chunks),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={zip_filename}"},
+    )
