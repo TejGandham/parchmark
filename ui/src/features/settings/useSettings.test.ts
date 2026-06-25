@@ -2,13 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/settings", () => ({
   changePassword: vi.fn(),
+  exportNotes: vi.fn(),
   getUserInfo: vi.fn(),
 }));
 
 import { ApiError } from "../../services/http";
 import {
   changePassword,
+  exportNotes,
   getUserInfo,
+  type ExportNotesDownload,
   type UserInfoDTO,
 } from "../../services/settings";
 
@@ -16,6 +19,7 @@ import { useSettings } from "./useSettings";
 
 const getUserInfoMock = vi.mocked(getUserInfo);
 const changePasswordMock = vi.mocked(changePassword);
+const exportNotesMock = vi.mocked(exportNotes);
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -37,6 +41,8 @@ describe("useSettings", () => {
       changingPassword,
       passwordError,
       passwordSuccess,
+      exportingNotes,
+      exportError,
     } = useSettings();
     userInfo.value = null;
     loading.value = false;
@@ -44,8 +50,11 @@ describe("useSettings", () => {
     changingPassword.value = false;
     passwordError.value = null;
     passwordSuccess.value = null;
+    exportingNotes.value = false;
+    exportError.value = null;
     getUserInfoMock.mockReset();
     changePasswordMock.mockReset();
+    exportNotesMock.mockReset();
   });
 
   it("fetchUserInfo stores the returned account details", async () => {
@@ -107,10 +116,14 @@ describe("useSettings", () => {
     expect(a.changingPassword).toBe(b.changingPassword);
     expect(a.passwordError).toBe(b.passwordError);
     expect(a.passwordSuccess).toBe(b.passwordSuccess);
+    expect(a.exportingNotes).toBe(b.exportingNotes);
+    expect(a.exportError).toBe(b.exportError);
     expect(a.fetchUserInfo).toBe(b.fetchUserInfo);
     expect(a.clearSettingsError).toBe(b.clearSettingsError);
     expect(a.clearPasswordStatus).toBe(b.clearPasswordStatus);
+    expect(a.clearExportStatus).toBe(b.clearExportStatus);
     expect(a.changePassword).toBe(b.changePassword);
+    expect(a.exportNotes).toBe(b.exportNotes);
   });
 
   it("changePassword posts the supplied passwords and records the success message", async () => {
@@ -171,5 +184,59 @@ describe("useSettings", () => {
 
     expect(passwordError.value).toBeNull();
     expect(passwordSuccess.value).toBeNull();
+  });
+
+  it("exportNotes returns the download payload and clears stale export errors", async () => {
+    const { exportError } = useSettings();
+    const download: ExportNotesDownload = {
+      blob: new Blob(["zip"], { type: "application/zip" }),
+      filename: "parchmark_notes.zip",
+    };
+    exportError.value = "stale error";
+    exportNotesMock.mockResolvedValue(download);
+
+    await expect(useSettings().exportNotes()).resolves.toBe(download);
+
+    expect(exportNotesMock).toHaveBeenCalledOnce();
+    expect(exportError.value).toBeNull();
+  });
+
+  it("exportNotes toggles exportingNotes during the request", async () => {
+    const { exportingNotes } = useSettings();
+    let resolveExport!: (value: ExportNotesDownload) => void;
+    exportNotesMock.mockReturnValue(
+      new Promise<ExportNotesDownload>((resolve) => {
+        resolveExport = resolve;
+      }),
+    );
+
+    const pending = useSettings().exportNotes();
+    expect(exportingNotes.value).toBe(true);
+
+    resolveExport({
+      blob: new Blob(["zip"], { type: "application/zip" }),
+      filename: "parchmark_notes.zip",
+    });
+    await pending;
+
+    expect(exportingNotes.value).toBe(false);
+  });
+
+  it("on exportNotes rejection, exportError is set to ApiError.detail", async () => {
+    const { exportError } = useSettings();
+    exportNotesMock.mockRejectedValue(new ApiError(500, "export failed"));
+
+    await expect(useSettings().exportNotes()).rejects.toBeInstanceOf(ApiError);
+
+    expect(exportError.value).toBe("export failed");
+  });
+
+  it("clearExportStatus clears the current export error", () => {
+    const { exportError, clearExportStatus } = useSettings();
+    exportError.value = "stale";
+
+    clearExportStatus();
+
+    expect(exportError.value).toBeNull();
   });
 });

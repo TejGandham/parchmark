@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import { GearIcon, LockIcon } from "@/design-system/icons";
+import { DownloadIcon, GearIcon, LockIcon } from "@/design-system/icons";
 
 import { useSettings } from "./useSettings";
 
@@ -12,9 +12,13 @@ const {
   changingPassword,
   passwordError,
   passwordSuccess,
+  exportingNotes,
+  exportError,
   fetchUserInfo,
+  exportNotes,
   changePassword,
   clearPasswordStatus,
+  clearExportStatus,
 } = useSettings();
 
 const currentPassword = ref("");
@@ -96,6 +100,29 @@ async function submitPasswordChange() {
     // The settings store owns the visible password error.
   }
 }
+
+async function submitExportNotes() {
+  clearExportStatus();
+
+  try {
+    const download = await exportNotes();
+    const objectUrl = URL.createObjectURL(download.blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = download.filename;
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+
+    try {
+      anchor.click();
+    } finally {
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch {
+    // The settings store owns the visible export error.
+  }
+}
 </script>
 
 <template>
@@ -130,6 +157,39 @@ async function submitPasswordChange() {
           <dd>{{ row.value }}</dd>
         </div>
       </dl>
+
+      <section
+        v-if="userInfo"
+        class="settings-view__export"
+        aria-labelledby="settings-export-title"
+      >
+        <div class="settings-view__section-heading">
+          <div class="settings-view__section-icon" aria-hidden="true">
+            <DownloadIcon />
+          </div>
+          <div>
+            <h2 id="settings-export-title">Export notes</h2>
+            <p>Download all of your notes and note metadata as a ZIP backup.</p>
+          </div>
+        </div>
+
+        <button
+          class="settings-view__action-button"
+          type="button"
+          :disabled="exportingNotes"
+          @click="submitExportNotes"
+        >
+          {{ exportingNotes ? "Preparing download..." : "Download all notes" }}
+        </button>
+
+        <p
+          v-if="exportError"
+          class="settings-view__inline-message is-error"
+          role="alert"
+        >
+          {{ exportError }}
+        </p>
+      </section>
 
       <section
         v-if="userInfo"
@@ -300,6 +360,7 @@ async function submitPasswordChange() {
   overflow-wrap: anywhere;
 }
 
+.settings-view__export,
 .settings-view__security {
   padding-top: 30px;
   margin-top: 30px;
@@ -385,13 +446,32 @@ async function submitPasswordChange() {
   border-radius: var(--r-sm);
 }
 
+.settings-view__action-button {
+  justify-self: start;
+  padding: 9px 13px;
+  color: var(--button-primary-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-sm);
+}
+
 .settings-view__password-form button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
+.settings-view__action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .settings-view__password-form button:not(:disabled):hover,
-.settings-view__password-form button:not(:disabled):focus-visible {
+.settings-view__password-form button:not(:disabled):focus-visible,
+.settings-view__action-button:not(:disabled):hover,
+.settings-view__action-button:not(:disabled):focus-visible {
   background: var(--accent-600);
   outline: none;
 }

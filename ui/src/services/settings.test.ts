@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, resetAuthHooks, setAuthHooks } from "./http";
-import { changePassword, getUserInfo, type UserInfoDTO } from "./settings";
+import {
+  changePassword,
+  exportNotes,
+  getUserInfo,
+  type UserInfoDTO,
+} from "./settings";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -133,6 +138,66 @@ describe("changePassword", () => {
     ).rejects.toMatchObject({
       status: 400,
       detail: "Password change is not available",
+    });
+  });
+});
+
+describe("exportNotes", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    resetAuthHooks();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("GETs /api/settings/export-notes and returns the Blob plus backend filename", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("zip-data", {
+        status: 200,
+        headers: {
+          "Content-Disposition":
+            'attachment; filename="parchmark_notes_20260625_120000.zip"',
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await exportNotes();
+
+    expect(calledUrl(fetchMock)).toContain("/api/settings/export-notes");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("GET");
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(await result.blob.text()).toBe("zip-data");
+    expect(result.filename).toBe("parchmark_notes_20260625_120000.zip");
+  });
+
+  it("falls back to a default filename when Content-Disposition is absent", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(new Blob(["zip"]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(exportNotes()).resolves.toMatchObject({
+      filename: "parchmark_notes.zip",
+    });
+  });
+
+  it("rejects with ApiError carrying backend { detail } on export failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(500, { detail: "export failed" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(exportNotes()).rejects.toMatchObject({
+      status: 500,
+      detail: "export failed",
     });
   });
 });

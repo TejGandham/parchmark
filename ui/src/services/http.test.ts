@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, request, resetAuthHooks, setAuthHooks } from "./http";
+import {
+  ApiError,
+  request,
+  requestRaw,
+  resetAuthHooks,
+  setAuthHooks,
+} from "./http";
 
 /** Build a `fetch`-compatible `Response` carrying a JSON body. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -250,5 +256,71 @@ describe("http request", () => {
 
     expect(calledUrl(fetchMock)).toBe("https://api.example.test/auth/me");
     vi.unstubAllEnvs();
+  });
+});
+
+describe("http requestRaw", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the raw response with Authorization attached", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("zip-bytes", {
+        status: 200,
+        headers: { "Content-Type": "application/zip" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await requestRaw("/settings/export-notes", {
+      method: "GET",
+    });
+
+    expect(response.headers.get("Content-Type")).toContain("application/zip");
+    expect(await response.text()).toBe("zip-bytes");
+    expect(calledUrl(fetchMock)).toContain("/api/settings/export-notes");
+    expect(authHeader(calledInit(fetchMock))).toBe("Bearer access-token");
+  });
+
+  it("refreshes once and retries a raw request on 401", async () => {
+    const onRefresh = vi.fn().mockResolvedValue(true);
+    setAuthHooks({ getToken: () => "access-token", onRefresh });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { detail: "expired" }))
+      .mockResolvedValueOnce(new Response("zip", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await requestRaw("/settings/export-notes", {
+      method: "GET",
+    });
+
+    expect(await response.text()).toBe("zip");
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws ApiError details for raw non-2xx responses", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(500, { detail: "export failed" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      requestRaw("/settings/export-notes", { method: "GET" }),
+    ).rejects.toMatchObject({
+      status: 500,
+      detail: "export failed",
+    });
   });
 });
