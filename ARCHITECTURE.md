@@ -2,14 +2,14 @@
 
 > Domain map, layer dependencies, and cross-cutting concerns for ParchMark.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over a JSON REST API (`/api/*`); in this `parchmark-v2` worktree auth and note CRUD, including tag edits, are wired to the backend. Copy/export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
+ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, and the settings notes export returns a ZIP download. In this `parchmark-v2` worktree auth, note CRUD, tag edits, and full-notes export are wired to the backend. Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
 
 ```
 +----------------------+         +-----------------------+
 |       Frontend       |  HTTP   |       Backend         |
 |    Vue 3 / Vite / TS  | ------> |  FastAPI / SQLAlchemy |
 |    localhost:5173     | <------ |  localhost:8000       |
-+----------------------+  JSON   +-----------------------+
++----------------------+ JSON/ZIP +-----------------------+
                                            |
                                            v
                                   +-----------------+
@@ -33,13 +33,13 @@ Layers are listed bottom-up. Code may only import from layers **below** it—nev
  |  src/App.vue, src/main.ts           |
  +-------------------------------------+
  |  Features                           |  Feature modules (SFCs + composables)
- |  features/{auth,shell,notes}/       |
+ |  features/{auth,shell,notes,settings}/ |
  +-------------------------------------+
  |  Design system                      |  Ds* components, icons, generated tokens
  |  design-system/                     |
  +-------------------------------------+
- |  Services                           |  HTTP client + auth/notes API wrappers
- |  services/{http.ts,auth.ts,notes.ts}  |
+ |  Services                           |  HTTP client + auth/notes/settings API wrappers
+ |  services/{http.ts,auth.ts,notes.ts,settings.ts} |
  +-------------------------------------+
 ```
 
@@ -66,7 +66,8 @@ ui/src/
 ├── services/
 │   ├── http.ts                 # ofetch instance, ApiError, setAuthHooks(), 401 retry
 │   ├── auth.ts                 # login/refresh/getCurrentUser/logout wrappers
-│   └── notes.ts                # list/create/update/delete wrappers + NoteDTO
+│   ├── notes.ts                # list/create/update/delete wrappers + NoteDTO
+│   └── settings.ts             # account info/password/export wrappers
 ├── features/
 │   ├── auth/
 │   │   ├── useAuth.ts          # Composable singleton (session via useStorage "pm_auth")
@@ -77,13 +78,16 @@ ui/src/
 │   │   ├── BreadcrumbTrail.vue, OverflowNoteMenu.vue, ReadEditSegment.vue
 │   │   ├── SearchBox.vue, TagFilter.vue, ThemeToggleButton.vue
 │   │   └── headerTypes.ts
-│   └── notes/
-│       ├── MarkdownProse.vue   # v-html prose pane with scoped typography
-│       ├── markdownRender.ts   # marked + DOMPurify rendering
-│       ├── NoteCard.vue
-│       ├── useNotes.ts         # Notes store composable singleton (fetch/create/update/delete + status refs)
-│       ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
-│       └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
+│   ├── notes/
+│   │   ├── MarkdownProse.vue   # v-html prose pane with scoped typography
+│   │   ├── markdownRender.ts   # marked + DOMPurify rendering
+│   │   ├── NoteCard.vue
+│   │   ├── useNotes.ts         # Notes store composable singleton (fetch/create/update/delete + status refs)
+│   │   ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
+│   │   └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
+│   └── settings/
+│       ├── SettingsView.vue    # Account details, password change, full-notes ZIP export
+│       └── useSettings.ts      # Settings composable singleton (user info/password/export status refs)
 ├── design-system/
 │   ├── base.css                # Static base styles
 │   ├── tokens.css              # GENERATED — do not edit by hand
@@ -137,14 +141,15 @@ Database     database/                        Engine, sessions, init, seed
 | `main.py` → `auth/oidc_validator` | Lifespan imports the OIDC validator singleton for `close()` on shutdown |
 | `main.py` → `services/note_events`, `services/note_event_streams` | Lifespan starts a per-worker Postgres `LISTEN` consumer (`create_note_event_listener`) on startup and closes active SSE streams (`note_event_stream_manager.close_all()`) before stopping the consumer on shutdown |
 
-### Fat Routers, Thin Services
+### Routers And Services
 
-Business logic currently lives in routers, not in a services layer:
+Most endpoint orchestration lives in routers. Shared backend behavior that must be reused or tested directly lives in services:
 
 - **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, and the SSE stream — `GET /api/notes/events` (`stream_note_events`) returns a `StreamingResponse` of Server-Sent Events, backed by the note-event broker and stream manager in `services/`
-- **`routers/settings.py`**: filename sanitization, batched streaming export, password change with auth provider checks, cascading account deletion
+- **`routers/settings.py`**: settings endpoints that depend on the current user and DB session, then delegate account info, password change, and full-notes export to `services/settings_service.py`; account deletion still runs in the router
+- **`services/settings_service.py`**: account info, local-password changes, export filename sanitization, batched note collection, ZIP entry generation, and streaming export responses
 
-The `services/` package holds health checks plus the note-event broker: `health_service.py` (DB connectivity), `note_events.py` (an in-process note-event broker + per-worker Postgres `LISTEN` consumer on channel `notes_events`), and `note_event_streams.py` (`NoteEventStreamManager`, coordinating active SSE streams). It is not a general business-logic layer.
+The `services/` package also holds health checks and the note-event broker: `health_service.py` (DB connectivity), `note_events.py` (an in-process note-event broker + per-worker Postgres `LISTEN` consumer on channel `notes_events`), and `note_event_streams.py` (`NoteEventStreamManager`, coordinating active SSE streams).
 
 ### Directory Reference
 
@@ -165,7 +170,8 @@ backend/app/
 ├── services/
 │   ├── health_service.py       # DB connectivity check
 │   ├── note_events.py          # Note-event broker + Postgres LISTEN consumer (notes_events)
-│   └── note_event_streams.py   # NoteEventStreamManager: coordinates active SSE streams
+│   ├── note_event_streams.py   # NoteEventStreamManager: coordinates active SSE streams
+│   └── settings_service.py     # Account info, password change, full-notes ZIP export
 ├── routers/
 │   ├── auth.py                 # /api/auth/* endpoints
 │   ├── notes.py                # /api/notes/* endpoints (incl. GET /events SSE stream)
@@ -259,7 +265,7 @@ User action (login / app mount)
     → reactive refs update; gate reveals LoginView or AppShell
 ```
 
-The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` -> `services/notes.ts` `listNotes()` -> `GET /api/notes/` -> `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps -> epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. `AppShell.vue` also persists note create, content save, delete, and tag add/remove through `useNotes()` mutation wrappers; tag edits send the full replacement tag set through `PUT /api/notes/{note_id}`. Note selection, search/tag filters, copy, and single-note export stay local to the browser.
+The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` -> `services/notes.ts` `listNotes()` -> `GET /api/notes/` -> `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps -> epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. `AppShell.vue` also persists note create, content save, delete, and tag add/remove through `useNotes()` mutation wrappers; tag edits send the full replacement tag set through `PUT /api/notes/{note_id}`. Note selection, search/tag filters, copy, and single-note export stay local to the browser. The settings view uses `useSettings()` -> `services/settings.ts` -> `GET /api/settings/export-notes` for full-notes ZIP downloads.
 
 ### State Management
 
@@ -269,6 +275,7 @@ No store library. State is held in Vue reactivity:
 |-|-|-|
 | `useAuth()` (composable singleton) | `pm_auth` = `{ accessToken, refreshToken, user }` (localStorage via `useStorage`) | `error`, `pending`, `refreshPromise` |
 | `useNotes()` (composable singleton) | Nothing | `notes`, `loading`, `error`, `creating`, `updating`, `deletingId`, `mutationError` (reset on reload; `fetchNotes()` populates from `GET /notes/`) |
+| `useSettings()` (composable singleton) | Nothing | `userInfo`, `loading`, `error`, `changingPassword`, `passwordError`, `passwordSuccess`, `exportingNotes`, `exportError` |
 | `AppShell.vue` (local refs) | Nothing | `activeId`, `mode` (read/edit), `search`, `activeTags`, `menuOpen`, `navOpen`, `settingsActive` |
 | Theme (`AppShell.vue`) | `pm_theme` = `"light"` \| `"dark"` (localStorage; read on init, written on change, mirrored to the `data-theme` attribute) | `theme` ref |
 
