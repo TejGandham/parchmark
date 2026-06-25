@@ -3,7 +3,9 @@ import { ref } from "vue";
 import { ApiError } from "../../services/http";
 import {
   changePassword as changePasswordRequest,
+  exportNotes as exportNotesRequest,
   getUserInfo,
+  type ExportNotesDownload,
   type MessageResponseDTO,
   type UserInfoDTO,
 } from "../../services/settings";
@@ -14,6 +16,8 @@ const error = ref<string | null>(null);
 const changingPassword = ref(false);
 const passwordError = ref<string | null>(null);
 const passwordSuccess = ref<string | null>(null);
+const exportingNotes = ref(false);
+const exportError = ref<string | null>(null);
 
 function errorDetail(caught: unknown): string {
   return caught instanceof ApiError ? caught.detail : String(caught);
@@ -41,6 +45,10 @@ export function clearPasswordStatus(): void {
   passwordSuccess.value = null;
 }
 
+export function clearExportStatus(): void {
+  exportError.value = null;
+}
+
 export async function changePassword(
   currentPassword: string,
   newPassword: string,
@@ -63,6 +71,20 @@ export async function changePassword(
   }
 }
 
+export async function exportNotes(): Promise<ExportNotesDownload> {
+  exportingNotes.value = true;
+  clearExportStatus();
+
+  try {
+    return await exportNotesRequest();
+  } catch (caught) {
+    exportError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    exportingNotes.value = false;
+  }
+}
+
 export function useSettings() {
   return {
     userInfo,
@@ -71,9 +93,13 @@ export function useSettings() {
     changingPassword,
     passwordError,
     passwordSuccess,
+    exportingNotes,
+    exportError,
     fetchUserInfo,
     clearSettingsError,
     clearPasswordStatus,
+    clearExportStatus,
     changePassword,
+    exportNotes,
   };
 }
