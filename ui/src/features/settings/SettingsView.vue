@@ -280,6 +280,9 @@ async function submitExportNotes() {
 
 <style scoped>
 .settings-view {
+  --settings-primary-button-text: var(--button-primary-text, var(--n50));
+  --settings-control-radius: var(--r-sm, 8px);
+
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -382,7 +385,7 @@ async function submitExportNotes() {
   place-items: center;
   color: var(--accent);
   background: var(--focus-ring);
-  border-radius: var(--r-sm);
+  border-radius: var(--settings-control-radius);
 }
 
 .settings-view__section-icon :deep(svg) {
@@ -425,7 +428,7 @@ async function submitExportNotes() {
   text-transform: none;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
+  border-radius: var(--settings-control-radius);
 }
 
 .settings-view__password-form input:focus {
@@ -437,25 +440,25 @@ async function submitExportNotes() {
 .settings-view__password-form button {
   justify-self: start;
   padding: 9px 13px;
-  color: var(--button-primary-text);
+  color: var(--settings-primary-button-text);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   background: var(--accent);
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--settings-control-radius);
 }
 
 .settings-view__action-button {
   justify-self: start;
   padding: 9px 13px;
-  color: var(--button-primary-text);
+  color: var(--settings-primary-button-text);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   background: var(--accent);
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--settings-control-radius);
 }
 
 .settings-view__password-form button:disabled {
@@ -480,7 +483,7 @@ async function submitExportNotes() {
   max-width: 420px;
   padding: 10px 12px;
   font-size: 13px;
-  border-radius: var(--r-sm);
+  border-radius: var(--settings-control-radius);
 }
 
 .settings-view__inline-message.is-error {
@@ -523,13 +526,13 @@ async function submitExportNotes() {
 .settings-view__state button {
   margin-top: 12px;
   padding: 7px 12px;
-  color: var(--button-primary-text);
+  color: var(--settings-primary-button-text);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   background: var(--accent);
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--settings-control-radius);
 }
 
 .settings-view__state button:hover,
