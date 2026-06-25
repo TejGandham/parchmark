@@ -1,11 +1,19 @@
 import { ref } from "vue";
 
 import { ApiError } from "../../services/http";
-import { getUserInfo, type UserInfoDTO } from "../../services/settings";
+import {
+  changePassword as changePasswordRequest,
+  getUserInfo,
+  type MessageResponseDTO,
+  type UserInfoDTO,
+} from "../../services/settings";
 
 const userInfo = ref<UserInfoDTO | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const changingPassword = ref(false);
+const passwordError = ref<string | null>(null);
+const passwordSuccess = ref<string | null>(null);
 
 function errorDetail(caught: unknown): string {
   return caught instanceof ApiError ? caught.detail : String(caught);
@@ -28,12 +36,44 @@ export function clearSettingsError(): void {
   error.value = null;
 }
 
+export function clearPasswordStatus(): void {
+  passwordError.value = null;
+  passwordSuccess.value = null;
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<MessageResponseDTO> {
+  changingPassword.value = true;
+  clearPasswordStatus();
+
+  try {
+    const response = await changePasswordRequest({
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    passwordSuccess.value = response.message;
+    return response;
+  } catch (caught) {
+    passwordError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    changingPassword.value = false;
+  }
+}
+
 export function useSettings() {
   return {
     userInfo,
     loading,
     error,
+    changingPassword,
+    passwordError,
+    passwordSuccess,
     fetchUserInfo,
     clearSettingsError,
+    clearPasswordStatus,
+    changePassword,
   };
 }

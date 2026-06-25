@@ -2,15 +2,19 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/settings", () => ({
+  changePassword: vi.fn(),
   getUserInfo: vi.fn(),
 }));
 
+import { ApiError } from "../../services/http";
 import { getUserInfo, type UserInfoDTO } from "../../services/settings";
+import { changePassword } from "../../services/settings";
 
 import SettingsView from "./SettingsView.vue";
 import { useSettings } from "./useSettings";
 
 const getUserInfoMock = vi.mocked(getUserInfo);
+const changePasswordMock = vi.mocked(changePassword);
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -25,11 +29,22 @@ function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
 
 describe("SettingsView", () => {
   beforeEach(() => {
-    const { userInfo, loading, error } = useSettings();
+    const {
+      userInfo,
+      loading,
+      error,
+      changingPassword,
+      passwordError,
+      passwordSuccess,
+    } = useSettings();
     userInfo.value = null;
     loading.value = false;
     error.value = null;
+    changingPassword.value = false;
+    passwordError.value = null;
+    passwordSuccess.value = null;
     getUserInfoMock.mockReset();
+    changePasswordMock.mockReset();
   });
 
   it("fetches account info on mount and renders returned facts", async () => {
@@ -84,5 +99,101 @@ describe("SettingsView", () => {
     expect(getUserInfoMock).toHaveBeenCalledTimes(2);
     expect(wrapper.text()).toContain("grace");
     expect(wrapper.text()).toContain("OIDC");
+  });
+
+  it("renders a local-account password form and submits typed passwords", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    changePasswordMock.mockResolvedValue({
+      message: "Password changed successfully",
+    });
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper
+      .get('input[name="current-password"]')
+      .setValue("old pass typed");
+    await wrapper.get('input[name="new-password"]').setValue("new pass typed");
+    await wrapper
+      .get('input[name="confirm-new-password"]')
+      .setValue("new pass typed");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(changePasswordMock).toHaveBeenCalledWith({
+      current_password: "old pass typed",
+      new_password: "new pass typed",
+    });
+    expect(wrapper.text()).toContain("Password changed successfully");
+    expect(
+      (
+        wrapper.get('input[name="current-password"]')
+          .element as HTMLInputElement
+      ).value,
+    ).toBe("");
+    expect(
+      (wrapper.get('input[name="new-password"]').element as HTMLInputElement)
+        .value,
+    ).toBe("");
+  });
+
+  it("blocks mismatched confirmation before calling the API", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="current-password"]').setValue("oldpass123");
+    await wrapper.get('input[name="new-password"]').setValue("newpass456");
+    await wrapper
+      .get('input[name="confirm-new-password"]')
+      .setValue("different456");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(changePasswordMock).not.toHaveBeenCalled();
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "New password and confirmation must match",
+    );
+  });
+
+  it("shows backend password-change errors without clearing account details or fields", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    changePasswordMock.mockRejectedValue(
+      new ApiError(401, "Current password is incorrect"),
+    );
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="current-password"]').setValue("wrongpass");
+    await wrapper.get('input[name="new-password"]').setValue("newpass456");
+    await wrapper
+      .get('input[name="confirm-new-password"]')
+      .setValue("newpass456");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("ada");
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "Current password is incorrect",
+    );
+    expect(
+      (
+        wrapper.get('input[name="current-password"]')
+          .element as HTMLInputElement
+      ).value,
+    ).toBe("wrongpass");
+  });
+
+  it("renders an identity-provider note and no password inputs for OIDC users", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "oidc" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("This account signs in through OIDC");
+    expect(wrapper.find('input[type="password"]').exists()).toBe(false);
+    expect(changePasswordMock).not.toHaveBeenCalled();
   });
 });
