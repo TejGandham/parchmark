@@ -46,6 +46,13 @@ function resolveBaseURL(): string {
   return import.meta.env.VITE_API_URL ?? "/api";
 }
 
+/** Resolve an API path against the configured base URL for native fetch calls. */
+function resolveRequestURL(path: string): string {
+  const baseURL = resolveBaseURL().replace(/\/$/, "");
+  const requestPath = path.replace(/^\//, "");
+  return `${baseURL}/${requestPath}`;
+}
+
 // `retry: false` — this module owns the single refresh-and-retry policy, so
 // ofetch must not also retry on its own (which would double-send and exhaust
 // queued responses in tests / hit the server twice in production). The baseURL
@@ -71,6 +78,30 @@ function toApiError(error: IFetchError): ApiError {
   return new ApiError(status, detail);
 }
 
+/** Convert a failed raw response into an {@link ApiError}. */
+async function responseToApiError(response: Response): Promise<ApiError> {
+  let detail = response.statusText || "Request failed";
+
+  try {
+    const data = (await response.clone().json()) as { detail?: unknown };
+    if (typeof data.detail === "string" && data.detail.length > 0) {
+      detail = data.detail;
+    }
+  } catch {
+    // Non-JSON error bodies fall back to the response status text.
+  }
+
+  return new ApiError(response.status, detail);
+}
+
+/** Convert a native fetch transport failure into an {@link ApiError}. */
+function transportToApiError(error: unknown): ApiError {
+  return new ApiError(
+    0,
+    error instanceof Error ? error.message : String(error),
+  );
+}
+
 /**
  * Perform a single request through the configured ofetch instance, attaching
  * the bearer token when present.
@@ -82,6 +113,17 @@ function fetchOnce<T>(path: string, options: FetchOptions<"json">): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
   return client<T>(path, { ...options, baseURL: resolveBaseURL(), headers });
+}
+
+/** Perform one native fetch call, attaching the bearer token when present. */
+function fetchRawOnce(path: string, options: RequestInit): Promise<Response> {
+  const token = authHooks?.getToken() ?? null;
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return fetch(resolveRequestURL(path), { ...options, headers });
 }
 
 /**
@@ -114,5 +156,52 @@ export async function request<T>(
     } catch (retryError) {
       throw toApiError(retryError as IFetchError);
     }
+  }
+}
+
+/**
+ * Raw response helper for authenticated downloads. It preserves the same
+ * single refresh-and-retry behavior as {@link request}, but returns the native
+ * Response so callers can read headers and Blob bodies.
+ */
+export async function requestRaw(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  let response: Response;
+
+  try {
+    response = await fetchRawOnce(path, options);
+  } catch (error) {
+    throw transportToApiError(error);
+  }
+
+  if (response.ok) {
+    return response;
+  }
+
+  const canRetry =
+    response.status === 401 && !isRefreshCall(path) && authHooks !== null;
+
+  if (!canRetry) {
+    throw await responseToApiError(response);
+  }
+
+  const refreshed = await authHooks!.onRefresh();
+  if (!refreshed) {
+    throw await responseToApiError(response);
+  }
+
+  try {
+    const retryResponse = await fetchRawOnce(path, options);
+    if (retryResponse.ok) {
+      return retryResponse;
+    }
+    throw await responseToApiError(retryResponse);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw transportToApiError(error);
   }
 }

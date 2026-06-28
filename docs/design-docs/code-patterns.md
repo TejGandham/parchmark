@@ -69,7 +69,7 @@ There is no router. The top-level switch is an **auth gate in `App.vue`**: a
 `onMounted`), then `v-if="!ready"` loading → `v-else-if="!isAuthenticated"`
 `<LoginView/>` → `v-else` `<AppShell/>`. Inside the app, "navigation" is ref
 toggles in `AppShell.vue` (`mode` is `"read"|"edit"`, `activeId` selects a
-note, `settingsActive` toggles a settings placeholder); views are
+note, `settingsActive` shows `SettingsView`); views are
 `v-if`/`v-else-if`/`v-else` `<section>`s.
 
 ### Markdown Processing
@@ -102,7 +102,9 @@ Create, content update, delete, and tag add/remove use the `createNote()`,
 `updateNote()`, and `deleteNote()` wrappers in `useNotes`; tag edits send the
 full replacement tag set through `PUT /notes/{note_id}`. Selection,
 search/tag filters, copy, and single-note export remain local browser state
-or clipboard/Blob actions. The `features/notes/mockNotes.ts` module now only
+or clipboard/Blob actions. Full-notes export runs through
+`useSettings()` and `GET /settings/export-notes`. The
+`features/notes/mockNotes.ts` module now only
 provides the `NoteMock` type and an in-memory seed used outside the live list
 path.
 

@@ -219,6 +219,11 @@ The API endpoints are designed to match the current frontend composable and serv
 - `updateNote()` -> PUT `/api/notes/{id}`
 - `deleteNote()` -> DELETE `/api/notes/{id}`
 
+**Settings composable and service (`ui/src/features/settings/useSettings.ts`, `ui/src/services/settings.ts`):**
+- `fetchUserInfo()` -> GET `/api/settings/user-info`
+- `changePassword()` -> POST `/api/settings/change-password`
+- `exportNotes()` -> GET `/api/settings/export-notes`
+
 ### Error Handling
 
 The API returns consistent error responses:

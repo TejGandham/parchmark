@@ -335,6 +335,13 @@ class TestExportNotes:
             # All filenames should be unique
             assert len(file_list) == len(set(file_list))
 
+    def test_export_notes_route_delegates_to_service(self):
+        """Test that export assembly stays in the settings service."""
+        route_source = inspect.getsource(settings.export_notes)
+
+        assert "settings_service.collect_notes_for_export" in route_source
+        assert "settings_service.build_export_response" in route_source
+
 
 class TestDeleteAccount:
     """Tests for DELETE /api/settings/delete-account endpoint."""

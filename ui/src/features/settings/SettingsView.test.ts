@@ -3,18 +3,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/settings", () => ({
   changePassword: vi.fn(),
+  exportNotes: vi.fn(),
   getUserInfo: vi.fn(),
 }));
 
 import { ApiError } from "../../services/http";
-import { getUserInfo, type UserInfoDTO } from "../../services/settings";
-import { changePassword } from "../../services/settings";
+import {
+  changePassword,
+  exportNotes,
+  getUserInfo,
+  type ExportNotesDownload,
+  type UserInfoDTO,
+} from "../../services/settings";
 
 import SettingsView from "./SettingsView.vue";
 import { useSettings } from "./useSettings";
 
 const getUserInfoMock = vi.mocked(getUserInfo);
 const changePasswordMock = vi.mocked(changePassword);
+const exportNotesMock = vi.mocked(exportNotes);
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -36,6 +43,8 @@ describe("SettingsView", () => {
       changingPassword,
       passwordError,
       passwordSuccess,
+      exportingNotes,
+      exportError,
     } = useSettings();
     userInfo.value = null;
     loading.value = false;
@@ -43,8 +52,11 @@ describe("SettingsView", () => {
     changingPassword.value = false;
     passwordError.value = null;
     passwordSuccess.value = null;
+    exportingNotes.value = false;
+    exportError.value = null;
     getUserInfoMock.mockReset();
     changePasswordMock.mockReset();
+    exportNotesMock.mockReset();
   });
 
   it("fetches account info on mount and renders returned facts", async () => {
@@ -70,6 +82,36 @@ describe("SettingsView", () => {
 
     expect(wrapper.text()).not.toContain("Email");
     expect(wrapper.text()).not.toContain("ada@example.com");
+  });
+
+  it("renders raw creation dates and provider labels when the backend sends unknown values", async () => {
+    getUserInfoMock.mockResolvedValue(
+      dto({
+        auth_provider: "saml",
+        created_at: "not-a-real-date",
+        email: null,
+      }),
+    );
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("not-a-real-date");
+    expect(wrapper.text()).toContain("saml");
+    expect(wrapper.text()).toContain("This account signs in through saml");
+    expect(wrapper.find('input[type="password"]').exists()).toBe(false);
+  });
+
+  it("falls back to generic identity-provider copy when no provider label is available", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(
+      "This account signs in through your identity provider",
+    );
+    expect(wrapper.find('input[type="password"]').exists()).toBe(false);
   });
 
   it("shows loading state while the request is pending", async () => {
@@ -137,6 +179,82 @@ describe("SettingsView", () => {
     ).toBe("");
   });
 
+  it("downloads the exported ZIP through a temporary object URL", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    const download: ExportNotesDownload = {
+      blob: new Blob(["zip-data"], { type: "application/zip" }),
+      filename: "parchmark_notes_20260625_120000.zip",
+    };
+    exportNotesMock.mockResolvedValue(download);
+    const createObjectURL = vi.fn().mockReturnValue("blob:notes-export");
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL,
+    });
+    const anchorClick = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tagName, options) => {
+        const element = originalCreateElement(tagName, options);
+        if (String(tagName).toLowerCase() === "a") {
+          Object.defineProperty(element, "click", {
+            configurable: true,
+            value: anchorClick,
+          });
+        }
+        return element;
+      });
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get("button.settings-view__action-button").trigger("click");
+    await flushPromises();
+
+    expect(exportNotesMock).toHaveBeenCalledOnce();
+    expect(createObjectURL).toHaveBeenCalledWith(download.blob);
+    expect(anchorClick).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:notes-export");
+    expect(createElementSpy).toHaveBeenCalledWith("a");
+
+    createElementSpy.mockRestore();
+  });
+
+  it("disables the export button while the download is pending", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    exportNotesMock.mockReturnValue(new Promise<ExportNotesDownload>(() => {}));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get("button.settings-view__action-button").trigger("click");
+    await flushPromises();
+
+    const button = wrapper.get("button.settings-view__action-button");
+    expect(button.attributes("disabled")).toBeDefined();
+    expect(button.text()).toContain("Preparing download");
+  });
+
+  it("shows export errors inline without clearing account details", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    exportNotesMock.mockRejectedValue(new ApiError(500, "export failed"));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get("button.settings-view__action-button").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("ada");
+    expect(wrapper.get('[role="alert"]').text()).toContain("export failed");
+  });
+
   it("blocks mismatched confirmation before calling the API", async () => {
     getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
 
@@ -154,6 +272,24 @@ describe("SettingsView", () => {
     expect(changePasswordMock).not.toHaveBeenCalled();
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "New password and confirmation must match",
+    );
+  });
+
+  it("blocks too-short new passwords before calling the API", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="current-password"]').setValue("oldpass123");
+    await wrapper.get('input[name="new-password"]').setValue("abc");
+    await wrapper.get('input[name="confirm-new-password"]').setValue("abc");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(changePasswordMock).not.toHaveBeenCalled();
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "New password must be at least 4 characters",
     );
   });
 

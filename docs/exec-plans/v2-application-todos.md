@@ -33,29 +33,23 @@ Frontend work completed in this branch:
 
 ### 2. Profile Settings Contract
 
-Status: not planned yet.
+Status: implemented for read-only account details, password availability, and
+provider-specific copy; editable profile fields are not planned.
 
-Needed because the settings entry exists in the shell, but the v2 UI does not
-yet have a real profile screen.
+The settings screen is real now. It reads username, email, auth provider,
+account creation date, and note count from `/api/settings/user-info`, then
+shows local-vs-OIDC password copy.
 
-Backend work:
-- Decide the profile fields the UI can read and edit.
-- Keep existing account metadata available: username, email, auth provider,
-  account creation date, and note count.
-- Add update endpoints only for fields the product actually allows users to
-  change.
-- Make local-account and SSO-account constraints explicit in response data.
-
-Frontend work:
-- Replace the settings placeholder with a profile settings view.
-- Render provider-specific copy and disabled states based on backend metadata.
+Remaining product decision:
+- Decide whether users may edit profile fields.
 
 ### 3. Workspace Settings Contract
 
 Status: not planned yet.
 
-Needed because workspace preferences are mentioned in the settings placeholder,
-but no persisted backend preference contract exists.
+Needed if workspace preferences become product scope. The current settings view
+does not expose persisted workspace preferences, and no backend preference
+contract exists.
 
 Backend work:
 - Define a per-user workspace/preferences model.
@@ -68,24 +62,20 @@ Frontend work:
 - Move durable preferences out of local-only state where appropriate.
 - Keep ephemeral view state local unless product scope says otherwise.
 
-### 4. SSO Settings Surface
+### 4. SSO Provider Management Surface
 
 Status: not planned yet.
 
-Core OIDC/SSO auth exists, but the settings UI still needs an explicit account
-metadata and provider-management contract.
+Core OIDC/SSO auth exists, and the settings UI now shows provider-aware account
+metadata and disables local password changes for OIDC accounts. Provider
+management is still not planned.
 
 Backend work:
-- Expose whether the current account is local or SSO-backed.
-- Expose whether password change is available.
-- Expose SSO identity attributes needed by the UI, such as email/provider
-  metadata.
 - Decide whether connect, disconnect, provider switch, or IdP management links
   are in scope.
 
 Frontend work:
-- Show the right account-management affordances for local vs SSO users.
-- Avoid offering password changes for SSO-only accounts.
+- Add provider-management affordances only if product scope includes them.
 
 ## Frontend Wiring Against Existing Backend
 
@@ -109,7 +99,8 @@ Remaining product decision:
 
 ### 6. Existing Settings Routes
 
-Status: backend exists; frontend not wired.
+Status: backend exists; frontend is wired for account info, password change, and
+full-notes export. Delete-account UI is not wired.
 
 Backend already has:
 - `GET /api/settings/user-info`
@@ -117,10 +108,13 @@ Backend already has:
 - `GET /api/settings/export-notes`
 - `DELETE /api/settings/delete-account`
 
-Frontend work:
-- Build the settings screen around these routes.
-- Add account info, password change, export-all-notes, and delete-account UI.
-- Handle OIDC/local-account constraints cleanly.
+Frontend now:
+- Shows account info.
+- Supports local-account password changes and OIDC disabled-state copy.
+- Downloads all notes through `/api/settings/export-notes`.
+
+Remaining product decision:
+- Add delete-account UI if product scope requires it.
 
 ## Parked Infrastructure
 
