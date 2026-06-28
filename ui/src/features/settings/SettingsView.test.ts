@@ -84,6 +84,36 @@ describe("SettingsView", () => {
     expect(wrapper.text()).not.toContain("ada@example.com");
   });
 
+  it("renders raw creation dates and provider labels when the backend sends unknown values", async () => {
+    getUserInfoMock.mockResolvedValue(
+      dto({
+        auth_provider: "saml",
+        created_at: "not-a-real-date",
+        email: null,
+      }),
+    );
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("not-a-real-date");
+    expect(wrapper.text()).toContain("saml");
+    expect(wrapper.text()).toContain("This account signs in through saml");
+    expect(wrapper.find('input[type="password"]').exists()).toBe(false);
+  });
+
+  it("falls back to generic identity-provider copy when no provider label is available", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(
+      "This account signs in through your identity provider",
+    );
+    expect(wrapper.find('input[type="password"]').exists()).toBe(false);
+  });
+
   it("shows loading state while the request is pending", async () => {
     getUserInfoMock.mockReturnValue(new Promise<UserInfoDTO>(() => {}));
 
@@ -242,6 +272,24 @@ describe("SettingsView", () => {
     expect(changePasswordMock).not.toHaveBeenCalled();
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "New password and confirmation must match",
+    );
+  });
+
+  it("blocks too-short new passwords before calling the API", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="current-password"]').setValue("oldpass123");
+    await wrapper.get('input[name="new-password"]').setValue("abc");
+    await wrapper.get('input[name="confirm-new-password"]').setValue("abc");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(changePasswordMock).not.toHaveBeenCalled();
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "New password must be at least 4 characters",
     );
   });
 
