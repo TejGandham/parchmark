@@ -281,6 +281,7 @@ async function submitExportNotes() {
 <style scoped>
 .settings-view {
   --settings-primary-button-text: var(--button-primary-text, var(--n50));
+  --settings-primary-button-radius: var(--button-primary-radius, 10px);
   --settings-control-radius: var(--r-sm, 8px);
 
   flex: 1;
@@ -437,28 +438,37 @@ async function submitExportNotes() {
   outline-offset: 0;
 }
 
-.settings-view__password-form button {
-  justify-self: start;
-  padding: 9px 13px;
+.settings-view__password-form button,
+.settings-view__action-button,
+.settings-view__state button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
   color: var(--settings-primary-button-text);
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 600;
   background: var(--accent);
   border: none;
-  border-radius: var(--settings-control-radius);
+  border-radius: var(--settings-primary-button-radius);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.settings-view__password-form button {
+  justify-self: start;
 }
 
 .settings-view__action-button {
   justify-self: start;
-  padding: 9px 13px;
-  color: var(--settings-primary-button-text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--settings-control-radius);
+}
+
+.settings-view__state button {
+  margin-top: 12px;
 }
 
 .settings-view__password-form button:disabled {
@@ -472,11 +482,26 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form button:not(:disabled):hover,
-.settings-view__password-form button:not(:disabled):focus-visible,
 .settings-view__action-button:not(:disabled):hover,
-.settings-view__action-button:not(:disabled):focus-visible {
-  background: var(--accent-600);
+.settings-view__state button:hover {
+  background: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.settings-view__password-form button:not(:disabled):active,
+.settings-view__action-button:not(:disabled):active,
+.settings-view__state button:active {
+  transform: translateY(0);
+}
+
+.settings-view__password-form button:focus-visible,
+.settings-view__action-button:focus-visible,
+.settings-view__state button:focus-visible {
   outline: none;
+  box-shadow:
+    0 0 0 3px var(--focus-ring),
+    var(--shadow-sm);
 }
 
 .settings-view__inline-message {
@@ -521,24 +546,6 @@ async function submitExportNotes() {
   color: var(--danger);
   background: var(--danger-surface);
   border-color: color-mix(in srgb, var(--danger) 24%, transparent);
-}
-
-.settings-view__state button {
-  margin-top: 12px;
-  padding: 7px 12px;
-  color: var(--settings-primary-button-text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--settings-control-radius);
-}
-
-.settings-view__state button:hover,
-.settings-view__state button:focus-visible {
-  background: var(--accent-600);
-  outline: none;
 }
 
 @media (max-width: 53.75em) {
