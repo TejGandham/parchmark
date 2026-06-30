@@ -11,6 +11,7 @@ A modern, full-stack markdown note-taking application built with Vue 3 and FastA
 - **Backend OIDC Support**: The FastAPI backend also supports OIDC hybrid auth (local accounts and Authelia SSO)
 - **User Isolation**: Each user has their own private note collection (backend, owner-scoped)
 - **App Shell Navigation**: Topbar, sidebar drawer, breadcrumb trail, search box, and tag filter with read/edit segment toggle
+- **Live Note Sync**: The notes list refreshes on its own when a note changes in another session, over an authenticated Server-Sent Events stream (`GET /api/notes/events`)
 - **Responsive Design**: Works on desktop and mobile devices
 - **Dark Mode Support**: Toggle between light ("Parchment") and dark ("Desk lamp") themes via the design-token system
 - **Mermaid Diagrams**: Mermaid code fences are rendered into `<div class="mermaid">` markup blocks
@@ -379,6 +380,7 @@ uv run python -m app.database.init_db  # Recreate
 - **No Vue Router** — top-level routing is an auth gate in `App.vue` (login vs app shell); in-app navigation is `ref` toggles in `AppShell.vue`
 - **`marked`** (GFM) for markdown parsing + **`dompurify`** for sanitization
 - **`ofetch`** HTTP client with a single refresh-and-retry policy in `services/http.ts`
+- **Live note refresh** via an authenticated Server-Sent Events client (`services/noteEvents.ts` + `useNoteEvents`) that debounces a notes-list refetch on backend change events
 - **Vitest** + **`@vue/test-utils`** (jsdom) for testing
 
 ### Backend Architecture

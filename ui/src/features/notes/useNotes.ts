@@ -83,6 +83,34 @@ export async function fetchNotes(): Promise<void> {
   }
 }
 
+/** Default debounce window (ms) for coalescing live-event refetches. */
+const REFETCH_DEBOUNCE_MS = 200;
+
+let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Schedule a debounced {@link fetchNotes}. Calls made within `delayMs` of each
+ * other collapse into a single refetch — used by the live note-events stream so
+ * a burst of backend changes triggers one canonical reload, not one per event.
+ */
+export function scheduleRefetch(delayMs: number = REFETCH_DEBOUNCE_MS): void {
+  if (refetchTimer !== null) {
+    clearTimeout(refetchTimer);
+  }
+  refetchTimer = setTimeout(() => {
+    refetchTimer = null;
+    void fetchNotes();
+  }, delayMs);
+}
+
+/** Cancel any pending {@link scheduleRefetch} (teardown helper). */
+export function cancelScheduledRefetch(): void {
+  if (refetchTimer !== null) {
+    clearTimeout(refetchTimer);
+    refetchTimer = null;
+  }
+}
+
 export async function createNote(
   payload: CreateNoteRequest = { content: "# Untitled\n\n", tags: [] },
 ): Promise<NoteMock> {
@@ -158,6 +186,8 @@ export function useNotes() {
     deletingId,
     mutationError,
     fetchNotes,
+    scheduleRefetch,
+    cancelScheduledRefetch,
     createNote,
     updateNote,
     deleteNote,

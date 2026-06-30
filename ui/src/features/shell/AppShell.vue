@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
+import { useAuth } from "@/features/auth/useAuth";
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
 import NoteEditor from "@/features/notes/NoteEditor.vue";
 import NoteTagEditor from "@/features/notes/NoteTagEditor.vue";
@@ -11,6 +12,7 @@ import {
   relTime,
   wordCount,
 } from "@/features/notes/noteMockHelpers";
+import { useNoteEvents } from "@/features/notes/useNoteEvents";
 import { useNotes } from "@/features/notes/useNotes";
 import SettingsView from "@/features/settings/SettingsView.vue";
 
@@ -28,10 +30,13 @@ const {
   mutationError,
   clearMutationError,
   fetchNotes,
+  scheduleRefetch,
+  cancelScheduledRefetch,
   createNote: persistNote,
   updateNote: persistNoteUpdate,
   deleteNote: persistDeleteNote,
 } = useNotes();
+const { isAuthenticated } = useAuth();
 const activeId = ref<string | null>(null);
 const mode = ref<NoteMode>("read");
 const search = ref("");
@@ -63,6 +68,54 @@ onMounted(async () => {
     .slice()
     .sort((left, right) => right.updatedAt - left.updatedAt)[0];
   activeId.value = newest?.id ?? null;
+  // Start the live note-events stream only once the initial list is loaded and
+  // the session is authenticated; auth changes are handled by the watch below.
+  if (isAuthenticated.value) {
+    startNoteEvents();
+  }
+});
+
+// Live refresh: a backend note change from this or another session arrives on
+// the events stream and triggers a single debounced reload of the canonical
+// notes list (the frontend refetches rather than applying event payloads).
+function handleNoteEvent() {
+  scheduleRefetch();
+}
+
+const { start: startNoteEvents, stop: stopNoteEvents } = useNoteEvents({
+  onEvent: handleNoteEvent,
+});
+
+// Mirror auth into the stream lifecycle: open it on (re)authentication, and on
+// sign-out tear the stream down and drop any pending refetch.
+watch(isAuthenticated, (authenticated) => {
+  if (authenticated) {
+    startNoteEvents();
+  } else {
+    stopNoteEvents();
+    cancelScheduledRefetch();
+  }
+});
+
+// Keep the selection valid when a refreshed list no longer contains the active
+// note (e.g. it was deleted in another session): reselect the newest remaining
+// note, or fall back to the empty state — never leave a dangling activeId.
+watch(notes, (list) => {
+  if (
+    activeId.value !== null &&
+    !list.some((note) => note.id === activeId.value)
+  ) {
+    const newest = list
+      .slice()
+      .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+    activeId.value = newest?.id ?? null;
+    draftContent.value = "";
+    mode.value = "read";
+  }
+});
+
+onUnmounted(() => {
+  cancelScheduledRefetch();
 });
 
 const tags = computed(() => allTags(notes.value));

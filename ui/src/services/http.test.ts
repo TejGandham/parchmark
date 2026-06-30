@@ -4,6 +4,7 @@ import {
   ApiError,
   request,
   requestRaw,
+  requestStream,
   resetAuthHooks,
   setAuthHooks,
 } from "./http";
@@ -322,5 +323,96 @@ describe("http requestRaw", () => {
       status: 500,
       detail: "export failed",
     });
+  });
+});
+
+describe("http requestStream", () => {
+  /** Build a 200 Server-Sent Events response (an open, readable stream). */
+  function streamResponse(): Response {
+    return new Response("", {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    });
+  }
+
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("opens the stream with Authorization and an event-stream Accept header", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await requestStream("/notes/events");
+
+    expect(response.status).toBe(200);
+    expect(calledUrl(fetchMock)).toContain("/api/notes/events");
+    const init = calledInit(fetchMock);
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(
+      new Headers(init.headers as HeadersInit | undefined).get("Accept"),
+    ).toBe("text/event-stream");
+  });
+
+  it("refreshes once and retries once when the stream open returns 401", async () => {
+    const onRefresh = vi.fn().mockResolvedValue(true);
+    setAuthHooks({ getToken: () => "access-token", onRefresh });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { detail: "expired" }))
+      .mockResolvedValueOnce(streamResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await requestStream("/notes/events");
+
+    expect(response.status).toBe(200);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry the stream open when the refresh fails", async () => {
+    const onRefresh = vi.fn().mockResolvedValue(false);
+    setAuthHooks({ getToken: () => "access-token", onRefresh });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(401, { detail: "nope" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestStream("/notes/events")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws ApiError when the stream open fails with a non-401 status", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(500, { detail: "stream boom" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestStream("/notes/events")).rejects.toMatchObject({
+      status: 500,
+      detail: "stream boom",
+    });
+  });
+
+  it("forwards an abort signal to the underlying fetch", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+
+    await requestStream("/notes/events", { signal: controller.signal });
+
+    expect(calledInit(fetchMock).signal).toBe(controller.signal);
   });
 });
