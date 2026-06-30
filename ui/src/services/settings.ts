@@ -15,6 +15,10 @@ export interface PasswordChangePayload {
   new_password: string;
 }
 
+export interface AccountDeletePayload {
+  password: string;
+}
+
 export interface MessageResponseDTO {
   message: string;
 }
@@ -51,6 +55,16 @@ export function changePassword(
 ): Promise<MessageResponseDTO> {
   return request<MessageResponseDTO>("/settings/change-password", {
     method: "POST",
+    body: payload,
+  });
+}
+
+/** Permanently delete the current authenticated user's account and all notes. */
+export function deleteAccount(
+  payload: AccountDeletePayload,
+): Promise<MessageResponseDTO> {
+  return request<MessageResponseDTO>("/settings/delete-account", {
+    method: "DELETE",
     body: payload,
   });
 }

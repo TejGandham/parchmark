@@ -102,4 +102,21 @@ describe("App", () => {
     expect(wrapper.get(".prose").text()).toContain("Today");
     expect(wrapper.find(".prose blockquote").exists()).toBe(true);
   });
+
+  it("returns to the login gate once the session is cleared after account deletion", async () => {
+    isAuthenticated.value = true;
+    user.value = { username: "jamie" };
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    expect(wrapper.find(".app-shell").exists()).toBe(true);
+
+    // Deleting the account clears auth via logout; App must fall back to LoginView.
+    isAuthenticated.value = false;
+    await flushPromises();
+
+    expect(wrapper.find(".auth-shell").exists()).toBe(true);
+    expect(wrapper.find(".app-shell").exists()).toBe(false);
+  });
 });

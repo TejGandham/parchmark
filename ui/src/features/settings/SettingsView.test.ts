@@ -3,13 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/settings", () => ({
   changePassword: vi.fn(),
+  deleteAccount: vi.fn(),
   exportNotes: vi.fn(),
   getUserInfo: vi.fn(),
+}));
+
+const { logoutMock } = vi.hoisted(() => ({ logoutMock: vi.fn() }));
+vi.mock("../auth/useAuth", () => ({
+  useAuth: () => ({ logout: logoutMock }),
 }));
 
 import { ApiError } from "../../services/http";
 import {
   changePassword,
+  deleteAccount,
   exportNotes,
   getUserInfo,
   type ExportNotesDownload,
@@ -22,6 +29,7 @@ import { useSettings } from "./useSettings";
 const getUserInfoMock = vi.mocked(getUserInfo);
 const changePasswordMock = vi.mocked(changePassword);
 const exportNotesMock = vi.mocked(exportNotes);
+const deleteAccountMock = vi.mocked(deleteAccount);
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -45,6 +53,8 @@ describe("SettingsView", () => {
       passwordSuccess,
       exportingNotes,
       exportError,
+      deletingAccount,
+      deleteError,
     } = useSettings();
     userInfo.value = null;
     loading.value = false;
@@ -54,9 +64,14 @@ describe("SettingsView", () => {
     passwordSuccess.value = null;
     exportingNotes.value = false;
     exportError.value = null;
+    deletingAccount.value = false;
+    deleteError.value = null;
     getUserInfoMock.mockReset();
     changePasswordMock.mockReset();
     exportNotesMock.mockReset();
+    deleteAccountMock.mockReset();
+    logoutMock.mockReset();
+    logoutMock.mockResolvedValue(undefined);
   });
 
   it("fetches account info on mount and renders returned facts", async () => {
@@ -331,5 +346,93 @@ describe("SettingsView", () => {
     expect(wrapper.text()).toContain("This account signs in through OIDC");
     expect(wrapper.find('input[type="password"]').exists()).toBe(false);
     expect(changePasswordMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the delete button disabled until a local user supplies password and confirmation", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    const button = wrapper.get("button.settings-view__danger-button");
+    expect(button.attributes("disabled")).toBeDefined();
+
+    await wrapper.get('input[name="delete-password"]').setValue("oldpass123");
+    expect(button.attributes("disabled")).toBeDefined();
+
+    await wrapper.get('input[name="delete-confirm"]').setValue("DELETE");
+    expect(button.attributes("disabled")).toBeUndefined();
+  });
+
+  it("keeps the delete button disabled until an OIDC user types the confirmation", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "oidc" }));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.find('input[name="delete-password"]').exists()).toBe(false);
+    const button = wrapper.get("button.settings-view__danger-button");
+    expect(button.attributes("disabled")).toBeDefined();
+
+    await wrapper.get('input[name="delete-confirm"]').setValue("nope");
+    expect(button.attributes("disabled")).toBeDefined();
+
+    await wrapper.get('input[name="delete-confirm"]').setValue("DELETE");
+    expect(button.attributes("disabled")).toBeUndefined();
+  });
+
+  it("deletes the account with the password and clears the session via logout", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    deleteAccountMock.mockResolvedValue({ message: "Account deleted" });
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="delete-password"]').setValue("oldpass123");
+    await wrapper.get('input[name="delete-confirm"]').setValue("DELETE");
+    await wrapper.get("form.settings-view__danger-form").trigger("submit");
+    await flushPromises();
+
+    expect(deleteAccountMock).toHaveBeenCalledWith({ password: "oldpass123" });
+    expect(logoutMock).toHaveBeenCalledOnce();
+  });
+
+  it("sends the typed confirmation as the password for accounts without a local password", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "oidc" }));
+    deleteAccountMock.mockResolvedValue({ message: "Account deleted" });
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="delete-confirm"]').setValue("DELETE");
+    await wrapper.get("form.settings-view__danger-form").trigger("submit");
+    await flushPromises();
+
+    expect(deleteAccountMock).toHaveBeenCalledWith({ password: "DELETE" });
+    expect(logoutMock).toHaveBeenCalledOnce();
+  });
+
+  it("shows backend delete errors inline and preserves the session", async () => {
+    getUserInfoMock.mockResolvedValue(dto({ auth_provider: "local" }));
+    deleteAccountMock.mockRejectedValue(
+      new ApiError(401, "Password is incorrect"),
+    );
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="delete-password"]').setValue("wrongpass");
+    await wrapper.get('input[name="delete-confirm"]').setValue("DELETE");
+    await wrapper.get("form.settings-view__danger-form").trigger("submit");
+    await flushPromises();
+
+    expect(
+      wrapper
+        .get("form.settings-view__danger-form")
+        .get('[role="alert"]')
+        .text(),
+    ).toContain("Password is incorrect");
+    expect(logoutMock).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("ada");
   });
 });

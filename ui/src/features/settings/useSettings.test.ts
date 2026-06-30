@@ -2,13 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/settings", () => ({
   changePassword: vi.fn(),
+  deleteAccount: vi.fn(),
   exportNotes: vi.fn(),
   getUserInfo: vi.fn(),
+}));
+
+const { logoutMock } = vi.hoisted(() => ({ logoutMock: vi.fn() }));
+vi.mock("../auth/useAuth", () => ({
+  useAuth: () => ({ logout: logoutMock }),
 }));
 
 import { ApiError } from "../../services/http";
 import {
   changePassword,
+  deleteAccount,
   exportNotes,
   getUserInfo,
   type ExportNotesDownload,
@@ -20,6 +27,7 @@ import { useSettings } from "./useSettings";
 const getUserInfoMock = vi.mocked(getUserInfo);
 const changePasswordMock = vi.mocked(changePassword);
 const exportNotesMock = vi.mocked(exportNotes);
+const deleteAccountMock = vi.mocked(deleteAccount);
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -43,6 +51,8 @@ describe("useSettings", () => {
       passwordSuccess,
       exportingNotes,
       exportError,
+      deletingAccount,
+      deleteError,
     } = useSettings();
     userInfo.value = null;
     loading.value = false;
@@ -52,9 +62,14 @@ describe("useSettings", () => {
     passwordSuccess.value = null;
     exportingNotes.value = false;
     exportError.value = null;
+    deletingAccount.value = false;
+    deleteError.value = null;
     getUserInfoMock.mockReset();
     changePasswordMock.mockReset();
     exportNotesMock.mockReset();
+    deleteAccountMock.mockReset();
+    logoutMock.mockReset();
+    logoutMock.mockResolvedValue(undefined);
   });
 
   it("fetchUserInfo stores the returned account details", async () => {
@@ -118,12 +133,16 @@ describe("useSettings", () => {
     expect(a.passwordSuccess).toBe(b.passwordSuccess);
     expect(a.exportingNotes).toBe(b.exportingNotes);
     expect(a.exportError).toBe(b.exportError);
+    expect(a.deletingAccount).toBe(b.deletingAccount);
+    expect(a.deleteError).toBe(b.deleteError);
     expect(a.fetchUserInfo).toBe(b.fetchUserInfo);
     expect(a.clearSettingsError).toBe(b.clearSettingsError);
     expect(a.clearPasswordStatus).toBe(b.clearPasswordStatus);
     expect(a.clearExportStatus).toBe(b.clearExportStatus);
+    expect(a.clearDeleteStatus).toBe(b.clearDeleteStatus);
     expect(a.changePassword).toBe(b.changePassword);
     expect(a.exportNotes).toBe(b.exportNotes);
+    expect(a.deleteAccount).toBe(b.deleteAccount);
   });
 
   it("changePassword posts the supplied passwords and records the success message", async () => {
@@ -238,5 +257,60 @@ describe("useSettings", () => {
     clearExportStatus();
 
     expect(exportError.value).toBeNull();
+  });
+
+  it("deleteAccount sends the password then clears the session via logout", async () => {
+    const { deleteError } = useSettings();
+    deleteError.value = "stale error";
+    deleteAccountMock.mockResolvedValue({ message: "Account deleted" });
+
+    await useSettings().deleteAccount("confirm pass");
+
+    expect(deleteAccountMock).toHaveBeenCalledWith({
+      password: "confirm pass",
+    });
+    expect(logoutMock).toHaveBeenCalledOnce();
+    expect(deleteError.value).toBeNull();
+  });
+
+  it("deleteAccount toggles deletingAccount during the request", async () => {
+    const { deletingAccount } = useSettings();
+    let resolveDelete!: (value: { message: string }) => void;
+    deleteAccountMock.mockReturnValue(
+      new Promise<{ message: string }>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+
+    const pending = useSettings().deleteAccount("confirm pass");
+    expect(deletingAccount.value).toBe(true);
+
+    resolveDelete({ message: "Account deleted" });
+    await pending;
+
+    expect(deletingAccount.value).toBe(false);
+  });
+
+  it("on deleteAccount rejection, deleteError is set and logout is not called", async () => {
+    const { deleteError } = useSettings();
+    deleteAccountMock.mockRejectedValue(
+      new ApiError(401, "Password is incorrect"),
+    );
+
+    await expect(useSettings().deleteAccount("wrong")).rejects.toBeInstanceOf(
+      ApiError,
+    );
+
+    expect(deleteError.value).toBe("Password is incorrect");
+    expect(logoutMock).not.toHaveBeenCalled();
+  });
+
+  it("clearDeleteStatus clears the current delete error", () => {
+    const { deleteError, clearDeleteStatus } = useSettings();
+    deleteError.value = "stale";
+
+    clearDeleteStatus();
+
+    expect(deleteError.value).toBeNull();
   });
 });

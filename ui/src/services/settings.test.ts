@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, resetAuthHooks, setAuthHooks } from "./http";
 import {
   changePassword,
+  deleteAccount,
   exportNotes,
   getUserInfo,
   type UserInfoDTO,
@@ -199,5 +200,57 @@ describe("exportNotes", () => {
       status: 500,
       detail: "export failed",
     });
+  });
+});
+
+describe("deleteAccount", () => {
+  beforeEach(() => {
+    setAuthHooks({
+      getToken: () => "access-token",
+      onRefresh: vi.fn().mockResolvedValue(true),
+    });
+  });
+
+  afterEach(() => {
+    resetAuthHooks();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("issues DELETE to /api/settings/delete-account with the password and bearer token", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(200, { message: "Account 'ada' deleted successfully" }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deleteAccount({ password: "confirm pass" });
+
+    expect(calledUrl(fetchMock)).toContain("/api/settings/delete-account");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("DELETE");
+    expect(authHeader(init)).toBe("Bearer access-token");
+    expect(JSON.parse(String(init.body))).toEqual({ password: "confirm pass" });
+    expect(result).toEqual({ message: "Account 'ada' deleted successfully" });
+  });
+
+  it("rejects with ApiError carrying backend { detail } on a wrong password", async () => {
+    // A fresh Response per call: a 401 triggers the http refresh-and-retry, which
+    // reads the body again, so a single shared Response would be consumed twice.
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse(401, { detail: "Password is incorrect" })),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteAccount({ password: "wrong" })).rejects.toMatchObject({
+      status: 401,
+      detail: "Password is incorrect",
+    });
+    await expect(deleteAccount({ password: "wrong" })).rejects.toBeInstanceOf(
+      ApiError,
+    );
   });
 });
