@@ -68,7 +68,7 @@ ui/src/
 │   ├── auth.ts                 # login/refresh/getCurrentUser/logout wrappers
 │   ├── notes.ts                # list/create/update/delete wrappers + NoteDTO
 │   ├── noteEvents.ts           # Authenticated SSE client (openNoteEventStream) for note-change events
-│   └── settings.ts             # account info/password/export wrappers
+│   └── settings.ts             # account info/password/export/delete-account wrappers
 ├── features/
 │   ├── auth/
 │   │   ├── useAuth.ts          # Composable singleton (session via useStorage "pm_auth")
@@ -88,8 +88,8 @@ ui/src/
 │   │   ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
 │   │   └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
 │   └── settings/
-│       ├── SettingsView.vue    # Account details, password change, full-notes ZIP export
-│       └── useSettings.ts      # Settings composable singleton (user info/password/export status refs)
+│       ├── SettingsView.vue    # Account details, password change, full-notes ZIP export, delete-account danger zone
+│       └── useSettings.ts      # Settings composable singleton (user info/password/export/delete-account status refs)
 ├── design-system/
 │   ├── base.css                # Static base styles
 │   ├── tokens.css              # GENERATED — do not edit by hand
@@ -148,8 +148,8 @@ Database     database/                        Engine, sessions, init, seed
 Most endpoint orchestration lives in routers. Shared backend behavior that must be reused or tested directly lives in services:
 
 - **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, and the SSE stream — `GET /api/notes/events` (`stream_note_events`) returns a `StreamingResponse` of Server-Sent Events, backed by the note-event broker and stream manager in `services/`
-- **`routers/settings.py`**: settings endpoints that depend on the current user and DB session, then delegate account info, password change, and full-notes export to `services/settings_service.py`; account deletion still runs in the router
-- **`services/settings_service.py`**: account info, local-password changes, export filename sanitization, batched note collection, ZIP entry generation, and streaming export responses
+- **`routers/settings.py`**: settings endpoints that depend on the current user and DB session, then delegate account info, password change, full-notes export, and account deletion to `services/settings_service.py`
+- **`services/settings_service.py`**: account info, local-password changes, account deletion (cascades notes via the ORM relationship), export filename sanitization, batched note collection, ZIP entry generation, and streaming export responses
 
 The `services/` package also holds health checks and the note-event broker: `health_service.py` (DB connectivity), `note_events.py` (an in-process note-event broker + per-worker Postgres `LISTEN` consumer on channel `notes_events`), and `note_event_streams.py` (`NoteEventStreamManager`, coordinating active SSE streams).
 
@@ -173,7 +173,7 @@ backend/app/
 │   ├── health_service.py       # DB connectivity check
 │   ├── note_events.py          # Note-event broker + Postgres LISTEN consumer (notes_events)
 │   ├── note_event_streams.py   # NoteEventStreamManager: coordinates active SSE streams
-│   └── settings_service.py     # Account info, password change, full-notes ZIP export
+│   └── settings_service.py     # Account info, password change, account deletion, full-notes ZIP export
 ├── routers/
 │   ├── auth.py                 # /api/auth/* endpoints
 │   ├── notes.py                # /api/notes/* endpoints (incl. GET /events SSE stream)
@@ -277,7 +277,7 @@ No store library. State is held in Vue reactivity:
 |-|-|-|
 | `useAuth()` (composable singleton) | `pm_auth` = `{ accessToken, refreshToken, user }` (localStorage via `useStorage`) | `error`, `pending`, `refreshPromise` |
 | `useNotes()` (composable singleton) | Nothing | `notes`, `loading`, `error`, `creating`, `updating`, `deletingId`, `mutationError` (reset on reload; `fetchNotes()` populates from `GET /notes/`) |
-| `useSettings()` (composable singleton) | Nothing | `userInfo`, `loading`, `error`, `changingPassword`, `passwordError`, `passwordSuccess`, `exportingNotes`, `exportError` |
+| `useSettings()` (composable singleton) | Nothing | `userInfo`, `loading`, `error`, `changingPassword`, `passwordError`, `passwordSuccess`, `exportingNotes`, `exportError`, `deletingAccount`, `deleteError` |
 | `AppShell.vue` (local refs) | Nothing | `activeId`, `mode` (read/edit), `search`, `activeTags`, `menuOpen`, `navOpen`, `settingsActive` |
 | Theme (`AppShell.vue`) | `pm_theme` = `"light"` \| `"dark"` (localStorage; read on init, written on change, mirrored to the `data-theme` attribute) | `theme` ref |
 

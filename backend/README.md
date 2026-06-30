@@ -89,7 +89,8 @@ backend/
 │   ├── services/
 │   │   ├── health_service.py # Health check logic
 │   │   ├── note_events.py    # Note-event broker + Postgres LISTEN
-│   │   └── note_event_streams.py # Active SSE stream manager
+│   │   ├── note_event_streams.py # Active SSE stream manager
+│   │   └── settings_service.py # Account info, password change, account deletion, full-notes export
 │   ├── utils/
 │   │   └── markdown.py      # Markdown processing (mirrors frontend)
 │   └── middleware/           # Request middleware
@@ -223,6 +224,7 @@ The API endpoints are designed to match the current frontend composable and serv
 - `fetchUserInfo()` -> GET `/api/settings/user-info`
 - `changePassword()` -> POST `/api/settings/change-password`
 - `exportNotes()` -> GET `/api/settings/export-notes`
+- `deleteAccount()` -> DELETE `/api/settings/delete-account`
 
 **Note-events composable and service (`ui/src/features/notes/useNoteEvents.ts`, `ui/src/services/noteEvents.ts`):**
 - live note-list refresh -> GET `/api/notes/events` (SSE)
