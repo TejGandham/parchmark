@@ -113,19 +113,22 @@ Known shortcuts, deferred improvements, and open questions.
 - [ ] **Automated browser E2E for the Vue frontend.** The backend
       live-update flow still has integration coverage and Forgejo-gated
       cross-user SSE isolation coverage, but the v2 Vue frontend has no
-      automated browser E2E suite. The notes list and persisted note
-      mutations now flow through the backend notes API, but the SSE stream is
-      unconsumed. Add Playwright coverage once manual browser verification of
-      the live notes flow becomes recurring merge-gate work.
+      automated browser E2E suite. The notes list, persisted note
+      mutations, and the live note-events stream now flow through the backend
+      notes API, but none of that flow is exercised by an automated browser
+      suite. Add Playwright coverage once manual browser verification of the
+      live notes flow becomes recurring merge-gate work.
 
-- [ ] **SSE stream unconsumed.**
+- [x] **RESOLVED — SSE stream now consumed for live refresh.**
       The v2 `ui/src/services/` layer covers auth and notes CRUD
       (`http.ts`, `auth.ts`, `notes.ts`); `useNotes` fetches `GET /notes/`
       on mount and wraps `POST`, `PUT`, and `DELETE` mutations with
       `creating`/`updating`/`deletingId`/`mutationError` state. `AppShell.vue`
       persists create, edit, delete, and tag add/remove. The backend
-      `GET /api/notes/events` SSE stream is still unconsumed, so live-update
-      reconciliation is the outstanding integration work.
+      `GET /api/notes/events` SSE stream is now consumed: `services/noteEvents.ts`
+      and `features/notes/useNoteEvents.ts` open the authenticated stream over
+      `http.ts`'s `requestStream`, and `AppShell.vue` debounces a
+      `useNotes().scheduleRefetch()` on each change event to reconcile the list.
 
 - [ ] **No virtualization for the rendered notes list (Vue rewrite).**
       The legacy React `NotesExplorer` used `react-window` to virtualize

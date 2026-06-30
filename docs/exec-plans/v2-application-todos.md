@@ -4,8 +4,8 @@ Vetted against the current `parchmark-v2` worktree on June 21, 2026.
 
 This file tracks remaining application work from the v2 redesign. It separates
 real backend expansion from frontend wiring against endpoints that already
-exist. The backend SSE note-events infrastructure is intentionally parked for
-future UI upgrades and is not a deletion target.
+exist. The backend SSE note-events infrastructure is now consumed by the frontend
+for live note-list refresh.
 
 ## Backend Expansion
 
@@ -116,19 +116,24 @@ Frontend now:
 Remaining product decision:
 - Add delete-account UI if product scope requires it.
 
-## Parked Infrastructure
+## Live Note Events
 
 ### 7. SSE Note Events
 
-Status: parked backend infrastructure.
+Status: implemented — the frontend consumes the backend stream for live
+note-list refresh.
 
-Do not delete. The backend stream is available for future UI live-update work:
+Backend already had:
 - `GET /api/notes/events`
 
-Future frontend work:
-- Add a Vue event-stream client when live note-list refresh is in scope.
-- Reconcile missed events by refetching the notes list.
-- Ensure logout/session refresh tears down or reconnects the stream correctly.
+Frontend now:
+- Opens an authenticated event-stream client (`ui/src/services/noteEvents.ts`,
+  `ui/src/features/notes/useNoteEvents.ts`) over the shared refresh-and-retry
+  policy in `services/http.ts` (`requestStream`).
+- Reconciles changes by refetching the notes list — `AppShell.vue` debounces a
+  `useNotes().scheduleRefetch()` on each created/updated/deleted event.
+- Tears the stream down on sign-out and on unmount, and reopens it on
+  re-authentication.
 
 ## Out Of Scope Unless Product Scope Changes
 

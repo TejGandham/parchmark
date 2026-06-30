@@ -2,7 +2,7 @@
 
 > Domain map, layer dependencies, and cross-cutting concerns for ParchMark.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, and the settings notes export returns a ZIP download. In this `parchmark-v2` worktree auth, note CRUD, tag edits, and full-notes export are wired to the backend. Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
+ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, and the settings notes export returns a ZIP download. In this `parchmark-v2` worktree auth, note CRUD, tag edits, full-notes export, and live note-events refresh are wired to the backend. Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
 
 ```
 +----------------------+         +-----------------------+
@@ -39,7 +39,7 @@ Layers are listed bottom-up. Code may only import from layers **below** it—nev
  |  design-system/                     |
  +-------------------------------------+
  |  Services                           |  HTTP client + auth/notes/settings API wrappers
- |  services/{http.ts,auth.ts,notes.ts,settings.ts} |
+ |  services/{http.ts,auth.ts,notes.ts,noteEvents.ts,settings.ts} |
  +-------------------------------------+
 ```
 
@@ -64,9 +64,10 @@ ui/src/
 ├── App.vue                     # Auth gate: ready -> LoginView | AppShell
 ├── vite-env.d.ts
 ├── services/
-│   ├── http.ts                 # ofetch instance, ApiError, setAuthHooks(), 401 retry
+│   ├── http.ts                 # ofetch + native-fetch helpers, ApiError, setAuthHooks(), 401 refresh-and-retry (request/requestRaw/requestStream)
 │   ├── auth.ts                 # login/refresh/getCurrentUser/logout wrappers
 │   ├── notes.ts                # list/create/update/delete wrappers + NoteDTO
+│   ├── noteEvents.ts           # Authenticated SSE client (openNoteEventStream) for note-change events
 │   └── settings.ts             # account info/password/export wrappers
 ├── features/
 │   ├── auth/
@@ -82,7 +83,8 @@ ui/src/
 │   │   ├── MarkdownProse.vue   # v-html prose pane with scoped typography
 │   │   ├── markdownRender.ts   # marked + DOMPurify rendering
 │   │   ├── NoteCard.vue
-│   │   ├── useNotes.ts         # Notes store composable singleton (fetch/create/update/delete + status refs)
+│   │   ├── useNotes.ts         # Notes store composable singleton (fetch/create/update/delete + status refs + debounced live-event refetch)
+│   │   ├── useNoteEvents.ts    # Composable managing the note-events SSE stream lifecycle (start/stop, unmount teardown)
 │   │   ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
 │   │   └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
 │   └── settings/
@@ -265,7 +267,7 @@ User action (login / app mount)
     → reactive refs update; gate reveals LoginView or AppShell
 ```
 
-The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` -> `services/notes.ts` `listNotes()` -> `GET /api/notes/` -> `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps -> epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. `AppShell.vue` also persists note create, content save, delete, and tag add/remove through `useNotes()` mutation wrappers; tag edits send the full replacement tag set through `PUT /api/notes/{note_id}`. Note selection, search/tag filters, copy, and single-note export stay local to the browser. The settings view uses `useSettings()` -> `services/settings.ts` -> `GET /api/settings/export-notes` for full-notes ZIP downloads.
+The notes list is fetched from the backend on mount: `AppShell.vue` calls `useNotes().fetchNotes()` -> `services/notes.ts` `listNotes()` -> `GET /api/notes/` -> `useNotes` maps each `NoteDTO` to `NoteMock` (ISO timestamps -> epoch ms, normalized `tags` copied from `NoteResponse`). `SidebarDrawer.vue` surfaces the `loading`/`error` refs and emits `retry` to refetch. `AppShell.vue` also persists note create, content save, delete, and tag add/remove through `useNotes()` mutation wrappers; tag edits send the full replacement tag set through `PUT /api/notes/{note_id}`. Note selection, search/tag filters, copy, and single-note export stay local to the browser. The settings view uses `useSettings()` -> `services/settings.ts` -> `GET /api/settings/export-notes` for full-notes ZIP downloads. While authenticated, `AppShell.vue` also opens the note-events SSE stream (`useNoteEvents` -> `services/noteEvents.ts` -> `requestStream` -> `GET /api/notes/events`): each created/updated/deleted event schedules one debounced `fetchNotes`, so a change made in any session refreshes the canonical list, and a refreshed list that drops the active note reselects the newest remaining one. The stream tears down on unmount and on sign-out and reopens on re-authentication.
 
 ### State Management
 

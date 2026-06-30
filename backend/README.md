@@ -224,6 +224,9 @@ The API endpoints are designed to match the current frontend composable and serv
 - `changePassword()` -> POST `/api/settings/change-password`
 - `exportNotes()` -> GET `/api/settings/export-notes`
 
+**Note-events composable and service (`ui/src/features/notes/useNoteEvents.ts`, `ui/src/services/noteEvents.ts`):**
+- live note-list refresh -> GET `/api/notes/events` (SSE)
+
 ### Error Handling
 
 The API returns consistent error responses:
