@@ -1,11 +1,63 @@
-import { flushPromises, mount } from "@vue/test-utils";
+import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAuth } from "@/features/auth/useAuth";
+
+// Unmount every mounted wrapper after each test. Without this, AppShell
+// instances from earlier tests stay alive and their watch(isAuthenticated)
+// hooks react to the shared auth ref, opening extra event streams.
+enableAutoUnmount(afterEach);
 import { mockNotes } from "@/features/notes/mockNotes";
 import { extractTitle } from "@/features/notes/noteMockHelpers";
 import { useSettings } from "@/features/settings/useSettings";
 
 import AppShell from "../AppShell.vue";
+
+// The note-events service is mocked so AppShell's live-refresh wiring can be
+// driven directly (capture the handlers it registers, fire events, assert
+// teardown) without opening a real stream.
+const noteEventsMock = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("@/services/noteEvents", () => ({
+  NOTE_EVENTS_PATH: "/notes/events",
+  openNoteEventStream: noteEventsMock.open,
+}));
+
+// useAuth is mocked with a controllable, reactive isAuthenticated (default
+// false, so the existing unauthenticated tests never start the stream).
+vi.mock("@/features/auth/useAuth", async () => {
+  const { ref } = await import("vue");
+  const isAuthenticated = ref(false);
+  const user = ref<{ username: string } | null>(null);
+  const logout = vi.fn().mockResolvedValue(undefined);
+  return { useAuth: () => ({ isAuthenticated, user, logout }) };
+});
+
+/** Mutate the mocked, reactive auth state. */
+function setAuthenticated(value: boolean): void {
+  (
+    useAuth() as unknown as { isAuthenticated: { value: boolean } }
+  ).isAuthenticated.value = value;
+}
+
+interface CapturedStreamHandlers {
+  onEvent: (event: { kind: string; note_id: string }) => void;
+  onError?: (error: unknown) => void;
+}
+
+/** Read back the handlers AppShell's composable passed to the opened stream. */
+function lastStreamHandlers(): CapturedStreamHandlers {
+  const calls = noteEventsMock.open.mock.calls;
+  return calls[calls.length - 1][0] as CapturedStreamHandlers;
+}
+
+/** Count GET requests to the notes collection in a stubbed fetch mock. */
+function noteListGetCount(fetchMock: ReturnType<typeof vi.fn>): number {
+  return fetchMock.mock.calls.filter(
+    ([url, init]) =>
+      (init?.method ?? "GET").toUpperCase() === "GET" &&
+      String(url).includes("/notes/"),
+  ).length;
+}
 
 const noteDtos = mockNotes.map((note) => ({
   id: note.id,
@@ -106,6 +158,9 @@ describe("AppShell", () => {
     userInfo.value = null;
     loading.value = false;
     error.value = null;
+    setAuthenticated(false);
+    noteEventsMock.open.mockReset();
+    noteEventsMock.open.mockReturnValue({ close: vi.fn() });
     vi.stubGlobal("fetch", fetchStub);
   });
 
@@ -579,5 +634,172 @@ describe("AppShell", () => {
 
     expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
     expect(wrapper.get(".action-error").text()).toBe("delete failed");
+  });
+});
+
+describe("AppShell live refresh", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute("data-theme");
+    const { userInfo, loading, error } = useSettings();
+    userInfo.value = null;
+    loading.value = false;
+    error.value = null;
+    setAuthenticated(false);
+    noteEventsMock.open.mockReset();
+    noteEventsMock.open.mockReturnValue({ close: vi.fn() });
+    vi.stubGlobal("fetch", fetchStub);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("starts the note-events stream after the initial fetch and stops it on unmount", async () => {
+    setAuthenticated(true);
+    const close = vi.fn();
+    noteEventsMock.open.mockReturnValue({ close });
+    const fetchMock = vi.fn(fetchStub);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(AppShell);
+    await flushPromises();
+
+    expect(noteEventsMock.open).toHaveBeenCalledTimes(1);
+    // The initial notes list was loaded (the stream starts only after it).
+    expect(noteListGetCount(fetchMock)).toBeGreaterThanOrEqual(1);
+
+    wrapper.unmount();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not start the stream when unauthenticated", async () => {
+    mount(AppShell);
+    await flushPromises();
+
+    expect(noteEventsMock.open).not.toHaveBeenCalled();
+  });
+
+  it("stops the stream and cancels pending refetches when authentication is lost", async () => {
+    setAuthenticated(true);
+    const close = vi.fn();
+    noteEventsMock.open.mockReturnValue({ close });
+    mount(AppShell);
+    await flushPromises();
+    expect(noteEventsMock.open).toHaveBeenCalledTimes(1);
+
+    setAuthenticated(false);
+    await flushPromises();
+
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces multiple quick note events into a single debounced refetch", async () => {
+    setAuthenticated(true);
+    const fetchMock = vi.fn(fetchStub);
+    vi.stubGlobal("fetch", fetchMock);
+    mount(AppShell);
+    await flushPromises();
+    const initialGets = noteListGetCount(fetchMock);
+
+    vi.useFakeTimers();
+    const handlers = lastStreamHandlers();
+    handlers.onEvent({ kind: "updated", note_id: "n1" });
+    handlers.onEvent({ kind: "created", note_id: "n2" });
+    handlers.onEvent({ kind: "deleted", note_id: "n3" });
+    await vi.advanceTimersByTimeAsync(250);
+    vi.useRealTimers();
+    await flushPromises();
+
+    expect(noteListGetCount(fetchMock) - initialGets).toBe(1);
+  });
+
+  it("reselects a remaining note when the active note disappears from a refresh", async () => {
+    setAuthenticated(true);
+    const keptDto = {
+      id: "kept",
+      title: "Kept Note",
+      content: "# Kept Note\n\nStill here.",
+      tags: [],
+      createdAt: "2026-06-20T10:00:00.000Z",
+      updatedAt: "2026-06-20T10:00:00.000Z",
+    };
+    let getCount = 0;
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "GET" && String(url).includes("/notes/")) {
+          getCount += 1;
+          const body = getCount === 1 ? noteDtos : [keptDto];
+          return Promise.resolve(
+            new Response(JSON.stringify(body), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(AppShell);
+    await flushPromises();
+    expect(wrapper.get(".doc-title").text()).toBe("Morning Pages");
+
+    vi.useFakeTimers();
+    lastStreamHandlers().onEvent({ kind: "deleted", note_id: "n1" });
+    await vi.advanceTimersByTimeAsync(250);
+    vi.useRealTimers();
+    await flushPromises();
+
+    expect(wrapper.get(".doc-title").text()).toBe("Kept Note");
+  });
+
+  it("clears the selection to the empty state when a refresh returns no notes", async () => {
+    setAuthenticated(true);
+    let getCount = 0;
+    const fetchMock = vi.fn(
+      (url: string | URL | Request, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (method === "GET" && String(url).includes("/notes/")) {
+          getCount += 1;
+          return Promise.resolve(
+            new Response(JSON.stringify(getCount === 1 ? noteDtos : []), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return fetchStub(url, init);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mount(AppShell);
+    await flushPromises();
+    expect(wrapper.find(".doc-title").exists()).toBe(true);
+
+    vi.useFakeTimers();
+    lastStreamHandlers().onEvent({ kind: "deleted", note_id: "n1" });
+    await vi.advanceTimersByTimeAsync(250);
+    vi.useRealTimers();
+    await flushPromises();
+
+    expect(wrapper.find(".empty-state").exists()).toBe(true);
+    expect(wrapper.find(".doc-title").exists()).toBe(false);
+  });
+
+  it("keeps the notes list visible when the stream reports an error", async () => {
+    setAuthenticated(true);
+    const wrapper = mount(AppShell);
+    await flushPromises();
+    const before = wrapper.get(".doc-title").text();
+
+    lastStreamHandlers().onError?.(new Error("stream down"));
+    await flushPromises();
+
+    expect(wrapper.get(".doc-title").text()).toBe(before);
   });
 });

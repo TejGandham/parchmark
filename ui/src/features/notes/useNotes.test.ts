@@ -460,4 +460,33 @@ describe("useNotes", () => {
     );
     expect(notes.value.map((note) => note.id)).toEqual(["target"]);
   });
+
+  it("scheduleRefetch debounces a burst of calls into a single fetchNotes", async () => {
+    vi.useFakeTimers();
+    listNotesMock.mockResolvedValue([dto()]);
+    const { scheduleRefetch } = useNotes();
+
+    scheduleRefetch(50);
+    scheduleRefetch(50);
+    scheduleRefetch(50);
+    expect(listNotesMock).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(60);
+
+    expect(listNotesMock).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("cancelScheduledRefetch prevents a pending debounced fetchNotes", async () => {
+    vi.useFakeTimers();
+    listNotesMock.mockResolvedValue([dto()]);
+    const { scheduleRefetch, cancelScheduledRefetch } = useNotes();
+
+    scheduleRefetch(50);
+    cancelScheduledRefetch();
+    await vi.advanceTimersByTimeAsync(60);
+
+    expect(listNotesMock).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });
