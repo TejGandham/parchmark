@@ -13,7 +13,12 @@ from stream_zip import ZIP_32, stream_zip
 
 from app.auth.auth import get_password_hash, verify_password
 from app.models.models import Note, User
-from app.schemas.schemas import MessageResponse, PasswordChangeRequest, UserInfoResponse
+from app.schemas.schemas import (
+    AccountDeleteRequest,
+    MessageResponse,
+    PasswordChangeRequest,
+    UserInfoResponse,
+)
 
 EXPORT_BATCH_SIZE = 100
 
@@ -58,6 +63,30 @@ async def change_password(db: AsyncSession, current_user: User, request: Passwor
     await db.commit()
 
     return MessageResponse(message="Password changed successfully")
+
+
+async def delete_account(db: AsyncSession, current_user: User, request: AccountDeleteRequest) -> MessageResponse:
+    """Permanently delete the authenticated user's account and all of its notes.
+
+    Local accounts (and OIDC accounts with a linked password) must supply a
+    password that verifies. OIDC accounts without a password hash rely on the
+    non-empty confirmation enforced by ``AccountDeleteRequest``.
+    """
+    if current_user.password_hash is not None and not verify_password(
+        request.password, cast(str, current_user.password_hash)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Password is incorrect",
+        )
+
+    username = current_user.username
+
+    # Deleting the user cascades notes through the ORM relationship.
+    await db.delete(current_user)
+    await db.commit()
+
+    return MessageResponse(message=f"Account '{username}' deleted successfully")
 
 
 def _sanitize_filename(title: str, used_filenames: set[str]) -> str:
