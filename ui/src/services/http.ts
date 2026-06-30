@@ -160,13 +160,15 @@ export async function request<T>(
 }
 
 /**
- * Raw response helper for authenticated downloads. It preserves the same
- * single refresh-and-retry behavior as {@link request}, but returns the native
- * Response so callers can read headers and Blob bodies.
+ * Open one authenticated raw request under the shared single refresh-and-retry
+ * policy: attach the bearer token, and on a 401 (for any call other than
+ * `/auth/refresh`) attempt exactly one refresh and one retry. Returns the
+ * native Response so callers can read headers, a Blob body, or a streaming
+ * `body`. All non-2xx outcomes surface as {@link ApiError}.
  */
-export async function requestRaw(
+async function openRawWithRetry(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit,
 ): Promise<Response> {
   let response: Response;
 
@@ -204,4 +206,35 @@ export async function requestRaw(
     }
     throw transportToApiError(error);
   }
+}
+
+/**
+ * Raw response helper for authenticated downloads. It preserves the same
+ * single refresh-and-retry behavior as {@link request}, but returns the native
+ * Response so callers can read headers and Blob bodies.
+ */
+export function requestRaw(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  return openRawWithRetry(path, options);
+}
+
+/**
+ * Open an authenticated streaming request (e.g. Server-Sent Events) over the
+ * same single refresh-and-retry policy as {@link requestRaw}. Defaults the
+ * `Accept` header to `text/event-stream` and returns the open Response so the
+ * caller can read `response.body` as a stream. A 401 raised before the stream
+ * opens drives exactly one refresh-and-retry; pass an `AbortSignal` via
+ * `options.signal` to tear the request down.
+ */
+export function requestStream(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(options.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "text/event-stream");
+  }
+  return openRawWithRetry(path, { ...options, headers });
 }
