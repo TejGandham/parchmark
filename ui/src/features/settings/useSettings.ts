@@ -3,12 +3,14 @@ import { ref } from "vue";
 import { ApiError } from "../../services/http";
 import {
   changePassword as changePasswordRequest,
+  deleteAccount as deleteAccountRequest,
   exportNotes as exportNotesRequest,
   getUserInfo,
   type ExportNotesDownload,
   type MessageResponseDTO,
   type UserInfoDTO,
 } from "../../services/settings";
+import { useAuth } from "../auth/useAuth";
 
 const userInfo = ref<UserInfoDTO | null>(null);
 const loading = ref(false);
@@ -18,6 +20,8 @@ const passwordError = ref<string | null>(null);
 const passwordSuccess = ref<string | null>(null);
 const exportingNotes = ref(false);
 const exportError = ref<string | null>(null);
+const deletingAccount = ref(false);
+const deleteError = ref<string | null>(null);
 
 function errorDetail(caught: unknown): string {
   return caught instanceof ApiError ? caught.detail : String(caught);
@@ -47,6 +51,10 @@ export function clearPasswordStatus(): void {
 
 export function clearExportStatus(): void {
   exportError.value = null;
+}
+
+export function clearDeleteStatus(): void {
+  deleteError.value = null;
 }
 
 export async function changePassword(
@@ -85,6 +93,23 @@ export async function exportNotes(): Promise<ExportNotesDownload> {
   }
 }
 
+export async function deleteAccount(password: string): Promise<void> {
+  deletingAccount.value = true;
+  clearDeleteStatus();
+
+  try {
+    await deleteAccountRequest({ password });
+    // Account is gone: clear the local session so App.vue returns to the login
+    // gate. logout is best-effort and clears pm_auth even if the server call fails.
+    await useAuth().logout();
+  } catch (caught) {
+    deleteError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    deletingAccount.value = false;
+  }
+}
+
 export function useSettings() {
   return {
     userInfo,
@@ -95,11 +120,15 @@ export function useSettings() {
     passwordSuccess,
     exportingNotes,
     exportError,
+    deletingAccount,
+    deleteError,
     fetchUserInfo,
     clearSettingsError,
     clearPasswordStatus,
     clearExportStatus,
+    clearDeleteStatus,
     changePassword,
     exportNotes,
+    deleteAccount,
   };
 }

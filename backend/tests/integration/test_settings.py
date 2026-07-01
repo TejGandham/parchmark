@@ -404,6 +404,12 @@ class TestDeleteAccount:
         notes_after = test_db_session.query(Note).filter(Note.user_id == sample_user.id).all()
         assert len(notes_after) == 0
 
+    def test_delete_account_route_delegates_to_service(self):
+        """Test that account-deletion rules stay in the settings service."""
+        route_source = inspect.getsource(settings.delete_account)
+
+        assert "settings_service.delete_account" in route_source
+
 
 class TestDeleteAccountOIDC:
     """Tests for account deletion with OIDC users."""

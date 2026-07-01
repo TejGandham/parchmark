@@ -4,11 +4,10 @@ Handles password changes, account information, note exports, and account deletio
 Supports both local and OIDC authentication providers.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.auth import verify_password
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
 from app.models.models import User
@@ -130,18 +129,4 @@ async def delete_account(
     Raises:
         HTTPException: 401 if password is incorrect (for local users)
     """
-    # Verify password if user has one (local or OIDC with password)
-    if current_user.password_hash is not None:
-        if not verify_password(request.password, current_user.password_hash):  # type: ignore[arg-type]
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Password is incorrect",
-            )
-
-    username = current_user.username
-
-    # Delete user (notes will cascade delete due to relationship)
-    await db.delete(current_user)
-    await db.commit()
-
-    return MessageResponse(message=f"Account '{username}' deleted successfully")
+    return await settings_service.delete_account(db, current_user, request)

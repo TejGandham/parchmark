@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import { DownloadIcon, GearIcon, LockIcon } from "@/design-system/icons";
+import {
+  AlertIcon,
+  DownloadIcon,
+  GearIcon,
+  LockIcon,
+  TrashIcon,
+} from "@/design-system/icons";
 
 import { useSettings } from "./useSettings";
 
@@ -14,17 +20,25 @@ const {
   passwordSuccess,
   exportingNotes,
   exportError,
+  deletingAccount,
+  deleteError,
   fetchUserInfo,
   exportNotes,
   changePassword,
+  deleteAccount,
   clearPasswordStatus,
   clearExportStatus,
+  clearDeleteStatus,
 } = useSettings();
 
 const currentPassword = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
 const clientPasswordError = ref<string | null>(null);
+
+const DELETE_CONFIRMATION = "DELETE";
+const deletePassword = ref("");
+const deleteConfirmation = ref("");
 
 onMounted(() => {
   void fetchUserInfo();
@@ -77,6 +91,15 @@ const passwordProviderLabel = computed(() => {
   return authProviderLabel.value || "your identity provider";
 });
 
+// Local accounts confirm with their password plus the typed phrase; accounts
+// without a local password (OIDC and other providers) confirm with the phrase
+// alone, which is what the backend accepts as their confirmation.
+const canDeleteAccount = computed(() => {
+  if (deleteConfirmation.value !== DELETE_CONFIRMATION) return false;
+  if (canChangePassword.value) return deletePassword.value.length > 0;
+  return true;
+});
+
 async function submitPasswordChange() {
   clientPasswordError.value = null;
   clearPasswordStatus();
@@ -98,6 +121,24 @@ async function submitPasswordChange() {
     confirmPassword.value = "";
   } catch {
     // The settings store owns the visible password error.
+  }
+}
+
+async function submitDeleteAccount() {
+  if (!canDeleteAccount.value) return;
+  clearDeleteStatus();
+
+  // Send the password for local accounts, or the typed confirmation for accounts
+  // without a local password — exactly as entered for the selected account type.
+  const password = canChangePassword.value
+    ? deletePassword.value
+    : deleteConfirmation.value;
+
+  try {
+    await deleteAccount(password);
+    // On success the auth session is cleared and App.vue returns to LoginView.
+  } catch {
+    // The settings store owns the visible delete error; the session is preserved.
   }
 }
 
@@ -274,6 +315,76 @@ async function submitExportNotes() {
           password with that identity provider.
         </p>
       </section>
+
+      <section
+        v-if="userInfo"
+        class="settings-view__danger"
+        aria-labelledby="settings-danger-title"
+      >
+        <div class="settings-view__section-heading">
+          <div class="settings-view__section-icon is-danger" aria-hidden="true">
+            <TrashIcon />
+          </div>
+          <div>
+            <h2 id="settings-danger-title">Delete account</h2>
+            <p>
+              Permanently delete your account and every note it owns. This
+              cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        <p class="settings-view__danger-warning" role="note">
+          <span class="settings-view__danger-warning-icon" aria-hidden="true">
+            <AlertIcon />
+          </span>
+          Deleting your account removes all of your notes and signs you out
+          immediately.
+        </p>
+
+        <form
+          class="settings-view__danger-form"
+          @submit.prevent="submitDeleteAccount"
+        >
+          <label v-if="canChangePassword">
+            Current password
+            <input
+              v-model="deletePassword"
+              autocomplete="current-password"
+              name="delete-password"
+              required
+              type="password"
+            />
+          </label>
+
+          <label>
+            Type {{ DELETE_CONFIRMATION }} to confirm
+            <input
+              v-model="deleteConfirmation"
+              autocomplete="off"
+              name="delete-confirm"
+              required
+              type="text"
+            />
+          </label>
+
+          <p
+            v-if="deleteError"
+            class="settings-view__inline-message is-error"
+            role="alert"
+          >
+            {{ deleteError }}
+          </p>
+
+          <button
+            class="settings-view__danger-button"
+            type="submit"
+            :disabled="!canDeleteAccount || deletingAccount"
+          >
+            {{ deletingAccount ? "Deleting account..." : "Delete account" }}
+          </button>
+        </form>
+      </section>
     </div>
   </section>
 </template>
@@ -365,10 +476,16 @@ async function submitExportNotes() {
 }
 
 .settings-view__export,
-.settings-view__security {
+.settings-view__security,
+.settings-view__danger {
   padding-top: 30px;
   margin-top: 30px;
   border-top: 1px solid var(--line-2);
+}
+
+.settings-view__section-icon.is-danger {
+  color: var(--danger);
+  background: var(--danger-surface);
 }
 
 .settings-view__section-heading {
@@ -402,13 +519,15 @@ async function submitExportNotes() {
   line-height: 1.2;
 }
 
-.settings-view__password-form {
+.settings-view__password-form,
+.settings-view__danger-form {
   display: grid;
   gap: 14px;
   max-width: 420px;
 }
 
-.settings-view__password-form label {
+.settings-view__password-form label,
+.settings-view__danger-form label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -418,7 +537,8 @@ async function submitExportNotes() {
   text-transform: uppercase;
 }
 
-.settings-view__password-form input {
+.settings-view__password-form input,
+.settings-view__danger-form input {
   width: 100%;
   min-width: 0;
   padding: 10px 11px;
@@ -432,10 +552,77 @@ async function submitExportNotes() {
   border-radius: var(--settings-control-radius);
 }
 
-.settings-view__password-form input:focus {
+.settings-view__password-form input:focus,
+.settings-view__danger-form input:focus {
   border-color: var(--accent);
   outline: 2px solid var(--focus-ring);
   outline-offset: 0;
+}
+
+.settings-view__danger-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 520px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  color: var(--danger);
+  font-size: 14px;
+  background: var(--danger-surface);
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, transparent);
+  border-radius: var(--r);
+}
+
+.settings-view__danger-warning-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.settings-view__danger-warning-icon :deep(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-view__danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  padding: 9px 14px;
+  color: var(--settings-primary-button-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: var(--danger);
+  border: none;
+  border-radius: var(--settings-primary-button-radius);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.settings-view__danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.settings-view__danger-button:not(:disabled):hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.settings-view__danger-button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.settings-view__danger-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--danger) 40%, transparent),
+    var(--shadow-sm);
 }
 
 .settings-view__password-form button,

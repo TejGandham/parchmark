@@ -99,8 +99,8 @@ Remaining product decision:
 
 ### 6. Existing Settings Routes
 
-Status: backend exists; frontend is wired for account info, password change, and
-full-notes export. Delete-account UI is not wired.
+Status: backend exists; frontend is wired for account info, password change,
+full-notes export, and account deletion.
 
 Backend already has:
 - `GET /api/settings/user-info`
@@ -112,9 +112,9 @@ Frontend now:
 - Shows account info.
 - Supports local-account password changes and OIDC disabled-state copy.
 - Downloads all notes through `/api/settings/export-notes`.
-
-Remaining product decision:
-- Add delete-account UI if product scope requires it.
+- Deletes the account through `/api/settings/delete-account` from a danger-zone
+  section, then logs out (local users confirm with their password; OIDC/no-local-password
+  accounts confirm by typing "DELETE").
 
 ## Live Note Events
 
