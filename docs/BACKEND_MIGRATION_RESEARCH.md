@@ -185,7 +185,7 @@ end
 | FastAPI routes | Phoenix Controllers + Router |
 | Pydantic schemas | Ecto Changesets |
 | SQLAlchemy models | Ecto Schemas |
-| JWT (python-jose) | Guardian + JOSE |
+| JWT (PyJWT) | Guardian + JOSE |
 | Alembic migrations | Ecto Migrations (built-in) |
 | Bcrypt hashing | bcrypt_elixir |
 | ZIP export | `:zip` Erlang module (built-in) |
