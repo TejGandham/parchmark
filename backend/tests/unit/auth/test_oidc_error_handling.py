@@ -6,9 +6,19 @@ Tests failure scenarios and error recovery mechanisms.
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from jose import JWTError
+from jwt import PyJWTError as JWTError
 
 from app.auth.oidc_validator import OIDCValidator
+
+# A real RSA public JWK (RFC 7517 example key) with kid "test-key" so
+# RSAAlgorithm.from_jwk can build a key before the mocked jwt.decode runs.
+_TEST_RSA_JWK = {
+    "kty": "RSA",
+    "kid": "test-key",
+    "use": "sig",
+    "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+    "e": "AQAB",
+}
 
 
 @pytest.mark.unit
@@ -84,7 +94,7 @@ async def test_validate_oidc_token_invalid_audience():
         }
 
         jwks_response = Mock()
-        jwks_response.json.return_value = {"keys": [{"kid": "test-key", "kty": "RSA"}]}
+        jwks_response.json.return_value = {"keys": [_TEST_RSA_JWK]}
 
         mock_get.side_effect = [discovery_response, jwks_response]
 
@@ -116,7 +126,7 @@ async def test_validate_oidc_token_invalid_issuer():
         }
 
         jwks_response = Mock()
-        jwks_response.json.return_value = {"keys": [{"kid": "test-key", "kty": "RSA"}]}
+        jwks_response.json.return_value = {"keys": [_TEST_RSA_JWK]}
 
         mock_get.side_effect = [discovery_response, jwks_response]
 

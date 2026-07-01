@@ -9,7 +9,7 @@ import logging
 import httpx
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
+from jwt import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -158,7 +158,7 @@ async def get_current_user(
             )
             raise credentials_exception
 
-    except (JWTError, httpx.TimeoutException, httpx.HTTPError, ValueError, TimeoutError) as e:
+    except (PyJWTError, httpx.TimeoutException, httpx.HTTPError, ValueError, TimeoutError) as e:
         # Expected OIDC validation failures - log at debug level
         logger.debug(f"OIDC token validation failed (expected): {type(e).__name__}: {e}")
     except IntegrityError as e:
