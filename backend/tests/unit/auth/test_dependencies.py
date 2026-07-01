@@ -5,9 +5,12 @@ Tests dependency functions for protected routes and user authentication.
 
 from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
 import pytest
 from fastapi import HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
+from jwt import PyJWTError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import create_access_token
@@ -410,3 +413,297 @@ class TestOIDCUserCreationRaceCondition:
                 # Should find the existing user
                 assert result.oidc_sub == oidc_sub
                 assert result.username == oidc_username
+
+
+def _bearer(token: str = "some.oidc.token") -> HTTPAuthorizationCredentials:
+    """Build Bearer credentials for OIDC-branch tests."""
+    return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+
+def _mock_result(user):
+    """Build a mock SQLAlchemy result whose scalar_one_or_none returns ``user``."""
+    result = Mock()
+    result.scalar_one_or_none.return_value = user
+    return result
+
+
+class TestOIDCBranchCoverage:
+    """Exhaustive coverage of the OIDC branches in ``get_current_user``.
+
+    These tests drive ``app.auth.dependencies`` with fully mocked ``oidc_validator``
+    methods and an ``AsyncMock`` session so every OIDC decision point is exercised
+    deterministically without a live database or identity provider.
+    """
+
+    @pytest.mark.asyncio
+    async def test_local_jwt_username_none_falls_through_to_oidc(self):
+        """Local JWT that decodes to a ``None`` username raises the credentials
+        exception internally, is swallowed, and control falls through to OIDC."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", return_value=TokenData(username=None)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                # OIDC then fails so the request ultimately 401s, but only *after*
+                # the local-JWT ``username is None`` branch has executed.
+                mock_validator.validate_oidc_token = AsyncMock(side_effect=ValueError("no oidc"))
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+                # Confirms we reached the OIDC fallback rather than returning a user.
+                mock_validator.validate_oidc_token.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_oidc_token_missing_sub_raises_401(self):
+        """A validated OIDC token whose extracted info lacks ``oidc_sub`` is rejected."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"aud": "parchmark"})
+                mock_validator.extract_user_info.return_value = {}  # no oidc_sub
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+                # The DB is never queried when the sub claim is missing.
+                mock_session.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_userinfo_fallback_success_merges_and_creates_user(self):
+        """When the access token carries a sub but no username, the userinfo
+        endpoint is consulted and its claims are merged before user creation."""
+        created = Mock(spec=User)
+        created.username = "fetched_user"
+        created.oidc_sub = "sub-userinfo-ok"
+        created.email = "fetched@example.com"
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute.return_value = _mock_result(None)  # no existing user
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-userinfo-ok"})
+                mock_validator.extract_user_info.return_value = {"oidc_sub": "sub-userinfo-ok"}  # no username
+                mock_validator.get_userinfo = AsyncMock(
+                    return_value={"preferred_username": "fetched_user", "email": "fetched@example.com"}
+                )
+
+                with patch("app.auth.dependencies._create_oidc_user", new_callable=AsyncMock) as mock_create:
+                    mock_create.return_value = created
+
+                    result = await get_current_user(credentials, mock_session)
+
+                assert result is created
+                mock_validator.get_userinfo.assert_awaited_once_with(credentials.credentials)
+                # Userinfo claims were merged into the dict handed to user creation.
+                created_info = mock_create.call_args.args[1]
+                assert created_info["username"] == "fetched_user"
+                assert created_info["email"] == "fetched@example.com"
+
+    @pytest.mark.asyncio
+    async def test_userinfo_fetch_raises_is_swallowed_then_401(self):
+        """If the userinfo fetch itself raises, the error is logged/swallowed and,
+        with still no username available, the request is rejected."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute.return_value = _mock_result(None)
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-userinfo-boom"})
+                mock_validator.extract_user_info.return_value = {"oidc_sub": "sub-userinfo-boom"}
+                mock_validator.get_userinfo = AsyncMock(side_effect=httpx.HTTPError("userinfo down"))
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+                mock_validator.get_userinfo.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_userinfo_returns_no_username_then_401(self):
+        """Userinfo returns successfully but yields no usable username claim, so the
+        request is rejected after the merge leaves username unset."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute.return_value = _mock_result(None)
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-empty-userinfo"})
+                mock_validator.extract_user_info.return_value = {"oidc_sub": "sub-empty-userinfo"}
+                # No preferred_username / email / name -> username resolves to None.
+                mock_validator.get_userinfo = AsyncMock(return_value={})
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @pytest.mark.asyncio
+    async def test_auto_create_oidc_user_on_first_login(self):
+        """A validated OIDC token with a username but no existing user triggers
+        auto-creation and returns the newly created user."""
+        created = Mock(spec=User)
+        created.username = "brand_new"
+        created.oidc_sub = "sub-create"
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.execute.return_value = _mock_result(None)
+        user_info = {"oidc_sub": "sub-create", "username": "brand_new", "email": "new@example.com"}
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-create"})
+                mock_validator.extract_user_info.return_value = user_info
+
+                with patch("app.auth.dependencies._create_oidc_user", new_callable=AsyncMock) as mock_create:
+                    mock_create.return_value = created
+
+                    result = await get_current_user(credentials, mock_session)
+
+                assert result is created
+                mock_create.assert_awaited_once_with(mock_session, user_info)
+                # Username was already present, so the userinfo endpoint is not consulted.
+                mock_validator.get_userinfo.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_integrity_error_race_recovers_existing_user(self):
+        """Concurrent creation raising IntegrityError triggers a rollback and a
+        re-fetch that returns the user created by the winning request."""
+        raced_user = Mock(spec=User)
+        raced_user.username = "raced"
+        raced_user.oidc_sub = "sub-race"
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        # 1st execute -> initial lookup (None); 2nd execute -> post-rollback re-fetch (winner).
+        mock_session.execute.side_effect = [_mock_result(None), _mock_result(raced_user)]
+        credentials = _bearer()
+
+        integrity_error = IntegrityError("INSERT INTO users", {}, Exception("duplicate key oidc_sub"))
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-race"})
+                mock_validator.extract_user_info.return_value = {
+                    "oidc_sub": "sub-race",
+                    "username": "raced",
+                    "email": "raced@example.com",
+                }
+
+                with patch("app.auth.dependencies._create_oidc_user", new_callable=AsyncMock) as mock_create:
+                    mock_create.side_effect = integrity_error
+
+                    result = await get_current_user(credentials, mock_session)
+
+                assert result is raced_user
+                mock_session.rollback.assert_awaited_once()
+                assert mock_session.execute.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_integrity_error_race_refetch_none_raises_401(self):
+        """If the post-IntegrityError re-fetch still finds no user, the request is
+        rejected rather than returning ``None``."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        # Both lookups miss: initial lookup and the post-rollback re-fetch.
+        mock_session.execute.side_effect = [_mock_result(None), _mock_result(None)]
+        credentials = _bearer()
+
+        integrity_error = IntegrityError("INSERT INTO users", {}, Exception("duplicate key oidc_sub"))
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-race-lost"})
+                mock_validator.extract_user_info.return_value = {
+                    "oidc_sub": "sub-race-lost",
+                    "username": "lost",
+                    "email": "lost@example.com",
+                }
+
+                with patch("app.auth.dependencies._create_oidc_user", new_callable=AsyncMock) as mock_create:
+                    mock_create.side_effect = integrity_error
+
+                    with pytest.raises(HTTPException) as exc_info:
+                        await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+                mock_session.rollback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_outer_integrity_error_rolls_back_and_401(self):
+        """An IntegrityError raised outside the creation block (here from
+        ``extract_user_info``) is caught at the outer handler, rolled back, and 401s."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        credentials = _bearer()
+
+        integrity_error = IntegrityError("SELECT", {}, Exception("db integrity"))
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(return_value={"sub": "sub-outer"})
+                mock_validator.extract_user_info.side_effect = integrity_error
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+                mock_session.rollback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "validation_error",
+        [
+            PyJWTError("bad signature"),
+            httpx.TimeoutException("jwks timeout"),
+            httpx.HTTPError("jwks http error"),
+            ValueError("bad issuer"),
+            TimeoutError("asyncio timeout"),
+        ],
+    )
+    async def test_expected_oidc_validation_errors_yield_401(self, validation_error):
+        """Each expected validation failure type is caught and converted to a 401."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(side_effect=validation_error)
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @pytest.mark.asyncio
+    async def test_unexpected_error_yields_401(self):
+        """An unexpected (non-enumerated) error during OIDC validation still results
+        in a 401 via the catch-all handler."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        credentials = _bearer()
+
+        with patch("app.auth.dependencies.verify_token", side_effect=HTTPException(status_code=401)):
+            with patch("app.auth.dependencies.oidc_validator") as mock_validator:
+                mock_validator.is_opaque_token.return_value = False
+                mock_validator.validate_oidc_token = AsyncMock(side_effect=RuntimeError("boom"))
+
+                with pytest.raises(HTTPException) as exc_info:
+                    await get_current_user(credentials, mock_session)
+
+                assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED

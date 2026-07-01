@@ -79,6 +79,10 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["app"]
+# FastAPI TestClient runs async handlers in a portal thread and SQLAlchemy
+# async executes DB code in greenlets; without these concurrency backends
+# coverage.py does not trace either context and under-reports real coverage.
+concurrency = ["thread", "greenlet"]
 omit = [
     "*/tests/*",
     "*/test_*",
