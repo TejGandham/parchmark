@@ -8,9 +8,10 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
+import jwt
 from dotenv import load_dotenv
 from fastapi import HTTPException, status
-from jose import JWTError, jwt
+from jwt import PyJWTError
 from passlib.context import CryptContext
 
 from app.models.models import User
@@ -26,20 +27,22 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT configuration from environment variables
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
+_secret_key = os.getenv("SECRET_KEY")
+if not _secret_key:
     raise ValueError(
         "CRITICAL SECURITY ERROR: SECRET_KEY environment variable is not set.\n"
         "A strong SECRET_KEY is required for production security.\n"
         "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'\n"
         "Then set it in your .env file: SECRET_KEY=<generated-key>"
     )
-if len(SECRET_KEY) < 32:
+if len(_secret_key) < 32:
     raise ValueError(
         f"SECURITY ERROR: SECRET_KEY must be at least 32 characters for security.\n"
-        f"Current length: {len(SECRET_KEY)} characters\n"
+        f"Current length: {len(_secret_key)} characters\n"
         f"Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
     )
+# Narrowed to str after the guards above so downstream jwt.encode/decode type-check.
+SECRET_KEY: str = _secret_key
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
@@ -134,7 +137,7 @@ def verify_token(token: str, credentials_exception: HTTPException, token_type: s
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         token_type_in_payload: str = payload.get("type", "access")
 
         if username is None:
@@ -144,7 +147,7 @@ def verify_token(token: str, credentials_exception: HTTPException, token_type: s
 
         token_data = TokenData(username=username)
         return token_data
-    except JWTError as e:
+    except PyJWTError as e:
         raise credentials_exception from e
 
 

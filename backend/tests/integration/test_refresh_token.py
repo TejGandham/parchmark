@@ -2,8 +2,8 @@
 Integration tests for refresh token functionality.
 """
 
+import jwt
 from fastapi import status
-from jose import jwt
 
 from app.auth.auth import ALGORITHM, SECRET_KEY
 

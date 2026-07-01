@@ -29,7 +29,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 import httpx
-from jose.jwt import encode
+from jwt import encode
 
 # Color codes for output
 GREEN = "\033[92m"

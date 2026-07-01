@@ -10,7 +10,7 @@ dependencies = [
     "psycopg2-binary>=2.9.7",
     "asyncpg>=0.29.0",
     "greenlet>=3.0.0",  # Required for SQLAlchemy async operations
-    "python-jose[cryptography]==3.3.0",
+    "pyjwt[crypto]>=2.10.0",
     "passlib[bcrypt]==1.7.4",
     "bcrypt==3.2.0",
     "python-multipart==0.0.6",
@@ -124,7 +124,7 @@ line-ending = "auto"
 [tool.mypy]
 python_version = "3.11"
 # Pragmatic configuration - catch real bugs, not style issues
-warn_return_any = false  # Too noisy with third-party libs like passlib/jose
+warn_return_any = false  # Too noisy with third-party libs like passlib/pyjwt
 warn_unused_configs = true
 disallow_untyped_defs = false  # Allow gradual typing
 check_untyped_defs = true  # Still type-check untyped functions

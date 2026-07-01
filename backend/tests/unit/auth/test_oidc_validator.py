@@ -233,7 +233,7 @@ async def test_validate_oidc_token_expired(oidc_validator, mock_jwks, mock_disco
         with patch("app.auth.oidc_validator.jwt.get_unverified_header") as mock_header:
             with patch("app.auth.oidc_validator.jwt.decode") as mock_decode:
                 mock_header.return_value = {"kid": "test-key-1"}
-                from jose import JWTError
+                from jwt import PyJWTError as JWTError
 
                 mock_decode.side_effect = JWTError("Token expired")
 
@@ -269,7 +269,7 @@ async def test_validate_oidc_token_invalid_kid(oidc_validator):
 
             mock_get.side_effect = [discovery_response, jwks_response]
 
-            from jose import JWTError
+            from jwt import PyJWTError as JWTError
 
             with pytest.raises(JWTError, match="not found in JWKS"):
                 await oidc_validator.validate_oidc_token("invalid_token")
