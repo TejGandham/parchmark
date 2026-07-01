@@ -1,0 +1,121 @@
+{
+  "slug": "backend-drop-sync-session",
+  "after": [
+    "backend-pyjwt-migration"
+  ],
+  "title": "Remove the deprecated sync database session",
+  "summary": "The app runs entirely on async SQLAlchemy, but a deprecated sync engine, SessionLocal, and get_db() still linger — kept alive mainly by the test fixtures. Migrate the remaining consumers to async and delete the sync path.",
+  "motivation": "Eliminate the dead dual-session foot-gun now that async is the only runtime path; the sync get_db() is already marked DEPRECATED. Salvaged from closed PR #8 (feature/service-layer-refactor).",
+  "scope": {
+    "included": [
+      "Migrate backend/tests/conftest.py fixtures (the sync test_db_session) and any tests that use it to an async session",
+      "Remove the get_db() dependency override from the test client setup",
+      "Delete the sync create_engine, SessionLocal, and get_db() from app/database/database.py once no app or test code depends on them"
+    ],
+    "excluded": [
+      "Changing async session behavior, connection pooling, or the DATABASE_URL contract",
+      "Changing Alembic migration execution (its own engine is out of scope)",
+      "Any API, router, or auth behavior change"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "SQLAlchemy 2.0 async is the sole runtime path (create_async_engine/AsyncSession/get_async_db). A deprecated sync create_engine/SessionLocal/get_db remains only for legacy and test fixtures; conftest currently overrides get_db and drives tests off a sync test_db_session."
+  },
+  "sme": [
+    "minimalism",
+    "python-fastapi"
+  ],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "async-test-fixtures",
+      "title": "Move test fixtures to async sessions",
+      "summary": "Convert conftest's sync test_db_session (and the tests that use it) to an async session so the suite no longer depends on the sync path, without changing what any test asserts.",
+      "estimate": "L",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "note": "Test-harness change only; no app runtime surface changes."
+        },
+        "behavior": [
+          "conftest provides an async DB session fixture that tests use instead of the sync test_db_session",
+          "No test imports or overrides the sync get_db, SessionLocal, or sync create_engine",
+          "The full backend test suite passes on the async fixtures with the same assertions"
+        ]
+      },
+      "touches": [
+        "backend/tests/conftest.py",
+        "backend/tests/integration/test_settings.py",
+        "backend/tests/integration/notes/test_notes_router.py"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest -q",
+        "cwd": ".",
+        "assertions": [
+          "The full backend suite passes using async DB fixtures.",
+          "No test references the sync get_db, SessionLocal, or sync create_engine."
+        ]
+      }
+    },
+    {
+      "id": "remove-sync-session",
+      "title": "Delete the sync engine and get_db()",
+      "summary": "Remove the sync create_engine, SessionLocal, and get_db() from database.py and any lingering get_db dependency override, now that only the async path remains in use.",
+      "estimate": "S",
+      "depends_on": [
+        "async-test-fixtures"
+      ],
+      "contract": {
+        "exposes": {
+          "note": "database.py exposes only the async engine/session factory and get_async_db."
+        },
+        "behavior": [
+          "app/database/database.py has no sync create_engine, SessionLocal, or get_db()",
+          "No dependency_overrides[get_db] remains in the test setup",
+          "The app starts cleanly and the backend suite passes"
+        ]
+      },
+      "touches": [
+        "backend/app/database/database.py",
+        "backend/tests/conftest.py",
+        "backend/tests/unit/database/test_database.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability:remove the sync database session path"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/unit/database/test_database.py tests/unit/database/test_init_db.py -v",
+        "cwd": ".",
+        "assertions": [
+          "database.py exposes only the async session path — no create_engine, SessionLocal, or get_db remains.",
+          "The database unit tests pass with the sync path removed."
+        ]
+      }
+    }
+  ]
+}

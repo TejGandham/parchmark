@@ -1,0 +1,94 @@
+{
+  "slug": "backend-pyjwt-migration",
+  "after": [
+    "settings-account-delete"
+  ],
+  "title": "Migrate auth from python-jose to PyJWT",
+  "summary": "Replace the deprecated python-jose JWT library with the maintained PyJWT across local HS256 auth and OIDC RS256 validation, keeping token behavior identical at the API boundary.",
+  "motivation": "python-jose is unmaintained and emits deprecation warnings on every run; PyJWT is the maintained standard. Salvaged from closed PR #8 (feature/service-layer-refactor).",
+  "scope": {
+    "included": [
+      "Replace `from jose import jwt, JWTError` usage in app/auth/auth.py, app/auth/dependencies.py, and app/auth/oidc_validator.py with PyJWT equivalents",
+      "Local HS256 access/refresh token encode and decode keep the same claims, expiry, and rejection behavior",
+      "OIDC RS256 JWKS validation keeps the same signature, issuer, and audience checks",
+      "Drop python-jose from backend/pyproject.toml, add PyJWT, and refresh uv.lock"
+    ],
+    "excluded": [
+      "Changing token claims, lifetimes, SECRET_KEY, or ALGORITHM configuration",
+      "Changing the OIDC opaque-token userinfo validation path (non-JWT)",
+      "Changing any auth endpoint, request/response schema, or the get_current_user contract"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "FastAPI/Python 3.13 backend. Hybrid auth: local JWT (HS256) plus OIDC via Authelia (RS256 JWKS for JWT access tokens, userinfo endpoint for opaque tokens)."
+  },
+  "sme": [
+    "minimalism",
+    "python-fastapi"
+  ],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "swap-jose-for-pyjwt",
+      "title": "Swap python-jose for PyJWT",
+      "summary": "Move all JWT encode/decode in the auth modules to PyJWT while preserving local HS256 and OIDC RS256 behavior at the API boundary, then drop python-jose from the dependency set.",
+      "estimate": "M",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "note": "Auth function signatures stay the same (create_access_token, token decode, get_current_user); only the underlying JWT library changes."
+        },
+        "behavior": [
+          "Local HS256 tokens are issued and validated by PyJWT with the same claims and expiry",
+          "Expired, malformed, and wrong-signature tokens are rejected with the existing status codes",
+          "OIDC RS256 tokens are validated against JWKS with the same issuer and audience checks",
+          "python-jose is removed from pyproject.toml and uv.lock; PyJWT is added"
+        ]
+      },
+      "touches": [
+        "backend/app/auth/auth.py",
+        "backend/app/auth/dependencies.py",
+        "backend/app/auth/oidc_validator.py",
+        "backend/pyproject.toml",
+        "backend/uv.lock",
+        "backend/tests/unit/auth/test_auth.py",
+        "backend/tests/unit/auth/test_dependencies.py",
+        "backend/tests/unit/auth/test_oidc_validator.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive-zone:JWT auth validation path",
+          "contract-mutation:auth token library swap",
+          "capability:replace python-jose dependency with PyJWT"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/unit/auth/test_auth.py tests/unit/auth/test_dependencies.py tests/unit/auth/test_oidc_validator.py tests/unit/auth/test_oidc_error_handling.py tests/integration/auth/test_auth_router.py tests/integration/auth/test_oidc_hybrid_auth.py -v",
+        "cwd": ".",
+        "assertions": [
+          "Local login issues an HS256 token that get_current_user accepts, and tampered or expired tokens are rejected with the existing status codes.",
+          "OIDC RS256 JWT validation still passes issuer, audience, and signature checks against JWKS.",
+          "No `jose` import remains in app/auth; python-jose is gone from pyproject.toml and PyJWT is present."
+        ]
+      }
+    }
+  ]
+}
