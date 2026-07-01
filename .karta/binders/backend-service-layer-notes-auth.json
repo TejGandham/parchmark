@@ -1,0 +1,127 @@
+{
+  "slug": "backend-service-layer-notes-auth",
+  "after": [
+    "backend-drop-sync-session"
+  ],
+  "title": "Finish the router to service-layer extraction (notes, auth)",
+  "summary": "settings, health, and note-events already have service modules, but notes CRUD and auth logic still live in their routers. Extract them into notes_service.py and auth_service.py so routers stay thin and the business logic is directly testable.",
+  "motivation": "Consistency with the established service-layer pattern (settings_service mirrors this) and thin, declarative routers. Salvaged from closed PR #8 (feature/service-layer-refactor).",
+  "scope": {
+    "included": [
+      "Create app/services/notes_service.py holding notes create/update/delete/list orchestration, note-id generation, and ORM to schema conversion; routers/notes.py becomes dependency wiring plus service calls",
+      "Create app/services/auth_service.py holding login and token issuance plus get_user_by_username; routers/auth.py becomes dependency wiring plus service calls",
+      "Preserve every endpoint path, request/response schema, status code, transaction error handling, and the SSE stream wiring"
+    ],
+    "excluded": [
+      "Changing any API contract, response shape, or status code",
+      "Moving or changing the note-events SSE stream, broker, or LISTEN wiring (stays in the router/services already present)",
+      "Changing auth semantics or token behavior"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "FastAPI/Python 3.13 backend, SQLAlchemy 2.0 async. Existing service layer: services/settings_service.py, health_service.py, note_events.py, note_event_streams.py. notes and auth routers still carry business logic."
+  },
+  "sme": [
+    "minimalism",
+    "python-fastapi"
+  ],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": false,
+    "isolation_params": [],
+    "cwd": "."
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "python",
+        "version": "3.13",
+        "manager": "uv"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "notes-service-extraction",
+      "title": "Extract notes business logic into notes_service",
+      "summary": "Move notes create/update/delete/list orchestration, note-id generation, ORM to schema conversion, and transaction error handling out of routers/notes.py into a new services/notes_service.py; the router delegates. The SSE stream wiring stays in the router.",
+      "estimate": "M",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "note": "New services/notes_service.py functions for notes CRUD orchestration; routers/notes.py delegates, mirroring settings_service."
+        },
+        "behavior": [
+          "Notes CRUD endpoints keep identical paths, request/response schemas, and status codes",
+          "Ownership checks (404 for another user's note) and SQLAlchemyError rollback-to-500 handling are preserved in the service",
+          "The GET /notes/events SSE stream and its broker wiring are unchanged"
+        ]
+      },
+      "touches": [
+        "backend/app/services/notes_service.py",
+        "backend/app/routers/notes.py",
+        "backend/tests/integration/notes/test_notes_router.py",
+        "backend/tests/unit/routers/test_notes_transaction_errors.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "destructive-op:notes deletion logic relocated to the service",
+          "contract-mutation:additive notes service module"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/notes/test_notes_router.py tests/integration/notes/test_note_tags_api.py tests/unit/routers/test_notes_transaction_errors.py tests/unit/notes/test_notes_utils.py -v",
+        "cwd": ".",
+        "assertions": [
+          "Notes create/update/delete/list keep the same status codes, response shapes, and ownership 404s.",
+          "Transaction errors still roll back and return HTTP 500 with the existing message.",
+          "routers/notes.py delegates the CRUD business logic to notes_service."
+        ]
+      }
+    },
+    {
+      "id": "auth-service-extraction",
+      "title": "Extract auth business logic into auth_service",
+      "summary": "Move login and token issuance plus get_user_by_username out of routers/auth.py into a new services/auth_service.py; the router delegates.",
+      "estimate": "M",
+      "depends_on": [],
+      "contract": {
+        "exposes": {
+          "note": "New services/auth_service.py functions for login/token issuance and get_user_by_username; routers/auth.py delegates."
+        },
+        "behavior": [
+          "Login, refresh, /auth/me, and logout endpoints keep identical paths, schemas, and status codes",
+          "Credential verification and token issuance behavior are unchanged",
+          "get_user_by_username is a reusable service function"
+        ]
+      },
+      "touches": [
+        "backend/app/services/auth_service.py",
+        "backend/app/routers/auth.py",
+        "backend/tests/integration/auth/test_auth_router.py",
+        "backend/tests/unit/auth/test_auth.py"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive-zone:auth login and token issuance path",
+          "contract-mutation:additive auth service module"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/auth/test_auth_router.py tests/unit/auth/test_auth.py tests/unit/auth/test_dependencies.py -v",
+        "cwd": ".",
+        "assertions": [
+          "Login with valid and invalid credentials returns the existing tokens and status codes.",
+          "/auth/me, refresh, and logout endpoints behave identically after the extraction.",
+          "routers/auth.py delegates login/token issuance and user lookup to auth_service."
+        ]
+      }
+    }
+  ]
+}
