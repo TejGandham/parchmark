@@ -102,17 +102,23 @@ Known shortcuts, deferred improvements, and open questions.
       `AsyncSession` construction; every session must be request-scoped via
       `Depends`. Current code already honours this but it's un-enforced.
 
-- [ ] **Suite globally ignores `DeprecationWarning` (and `UserWarning`).**
-      `pyproject.toml [tool.pytest.ini_options]` sets `filterwarnings =
-      ["ignore::UserWarning", "ignore::DeprecationWarning"]`. This became
-      live only when the pytest config actually started applying (the
-      `pytest.ini` shadowing fix, PR #135) — before that the shadowed
-      config meant all warnings were shown (~65+ per run). The blanket
-      ignores can now mask upcoming library / stdlib deprecations before
-      they turn into hard breakages. Follow-up: triage the
-      previously-visible warning volume, then either narrow to specific
-      `ignore:...:DeprecationWarning:<module>` filters or drop the blanket
-      ignores and fix the real deprecations.
+- [x] **RESOLVED — DeprecationWarnings triaged and the filter narrowed
+      (PR #138).** The blanket `filterwarnings = ["ignore::UserWarning",
+      "ignore::DeprecationWarning"]` became live only when the pytest
+      config actually started applying (the `pytest.ini` shadowing fix,
+      PR #135) and could have masked upcoming deprecations. Triage (the
+      suite re-run with the ignores overridden) found only **one
+      actionable** DeprecationWarning — our own `test_login_invalid_json`
+      posting httpx `data=<str>` (deprecated in favour of `content=`) —
+      plus two transitive uvicorn/`websockets` ones (`websockets.legacy` /
+      `WebSocketServerProtocol`, deprecated in websockets 14.0; not our
+      code, the app uses SSE). Fixed the httpx call and replaced the
+      blanket ignore with `default::DeprecationWarning` (so future in-code
+      deprecations surface in the test summary) plus targeted `ignore:`
+      filters for only the two transitive websockets messages.
+      `ignore::UserWarning` stays — its lone case is PyJWT's
+      `InsecureKeyLengthWarning` from tests that deliberately sign with
+      short HMAC keys.
 
 ## Post-MVP
 
