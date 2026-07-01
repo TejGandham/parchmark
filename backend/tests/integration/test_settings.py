@@ -11,7 +11,9 @@ import zipfile
 from datetime import timedelta
 
 import pytest
+import pytest_asyncio
 from fastapi import status
+from sqlalchemy import select
 
 from app.auth.auth import create_access_token, verify_password
 from app.models.models import Note, User
@@ -43,7 +45,8 @@ class TestGetUserInfo:
         data = response.json()
         assert data["notes_count"] == 0
 
-    def test_get_user_info_oidc_user(self, client, test_db_session):
+    @pytest.mark.asyncio
+    async def test_get_user_info_oidc_user(self, client, test_db_session):
         """Test getting OIDC user info with tenant-scoped note count."""
         oidc_user = User(
             username="oidc_settings_user",
@@ -54,9 +57,9 @@ class TestGetUserInfo:
         )
         other_user = User(username="other_settings_user", password_hash="hashed_password")
         test_db_session.add_all([oidc_user, other_user])
-        test_db_session.commit()
-        test_db_session.refresh(oidc_user)
-        test_db_session.refresh(other_user)
+        await test_db_session.commit()
+        await test_db_session.refresh(oidc_user)
+        await test_db_session.refresh(other_user)
 
         test_db_session.add_all(
             [
@@ -64,7 +67,7 @@ class TestGetUserInfo:
                 Note(id="other-note-1", user_id=other_user.id, title="Other Note", content="# Other\n\nIgnored."),
             ]
         )
-        test_db_session.commit()
+        await test_db_session.commit()
 
         token = create_access_token(
             data={"sub": oidc_user.username},
@@ -95,7 +98,8 @@ class TestGetUserInfo:
 class TestChangePassword:
     """Tests for POST /api/settings/change-password endpoint."""
 
-    def test_change_password_success(self, client, sample_user, sample_user_data, auth_headers, test_db_session):
+    @pytest.mark.asyncio
+    async def test_change_password_success(self, client, sample_user, sample_user_data, auth_headers, test_db_session):
         """Test changing password with correct current password."""
         new_password = "newSecurePassword123"
 
@@ -109,7 +113,7 @@ class TestChangePassword:
         assert response.json()["message"] == "Password changed successfully"
 
         # Verify password was actually changed in database
-        test_db_session.refresh(sample_user)
+        await test_db_session.refresh(sample_user)
         assert verify_password(new_password, sample_user.password_hash)
         assert not verify_password(sample_user_data["password"], sample_user.password_hash)
 
@@ -164,8 +168,8 @@ class TestChangePassword:
 class TestChangePasswordOIDC:
     """Tests for password change with OIDC users."""
 
-    @pytest.fixture
-    def oidc_user(self, test_db_session):
+    @pytest_asyncio.fixture
+    async def oidc_user(self, test_db_session):
         """Create an OIDC user without password hash."""
         user = User(
             username="oidc_user",
@@ -175,8 +179,8 @@ class TestChangePasswordOIDC:
             auth_provider="oidc",
         )
         test_db_session.add(user)
-        test_db_session.commit()
-        test_db_session.refresh(user)
+        await test_db_session.commit()
+        await test_db_session.refresh(user)
         return user
 
     @pytest.fixture
@@ -201,7 +205,8 @@ class TestChangePasswordOIDC:
 class TestExportNotes:
     """Tests for GET /api/settings/export-notes endpoint."""
 
-    def test_export_notes_streams_without_buffering_entire_response(
+    @pytest.mark.asyncio
+    async def test_export_notes_streams_without_buffering_entire_response(
         self, client, auth_headers, sample_user, test_db_session
     ):
         """Test that export streams response incrementally without loading all notes into memory first.
@@ -224,7 +229,7 @@ class TestExportNotes:
                 content=f"# Stress Test Note {i}\n\n{'x' * content_size}",
             )
             test_db_session.add(note)
-        test_db_session.commit()
+        await test_db_session.commit()
 
         # Request export
         response = client.get("/api/settings/export-notes", headers=auth_headers)
@@ -312,7 +317,8 @@ class TestExportNotes:
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_export_notes_handles_duplicate_titles(self, client, auth_headers, sample_user, test_db_session):
+    @pytest.mark.asyncio
+    async def test_export_notes_handles_duplicate_titles(self, client, auth_headers, sample_user, test_db_session):
         """Test that export handles notes with duplicate titles."""
         # Create notes with same title
         for i in range(3):
@@ -323,7 +329,7 @@ class TestExportNotes:
                 content=f"# Same Title\n\nContent {i}",
             )
             test_db_session.add(note)
-        test_db_session.commit()
+        await test_db_session.commit()
 
         response = client.get("/api/settings/export-notes", headers=auth_headers)
         assert response.status_code == status.HTTP_200_OK
@@ -346,10 +352,11 @@ class TestExportNotes:
 class TestDeleteAccount:
     """Tests for DELETE /api/settings/delete-account endpoint."""
 
-    def test_delete_account_success(self, client, sample_user, sample_user_data, auth_headers, test_db_session):
+    @pytest.mark.asyncio
+    async def test_delete_account_success(self, client, sample_user, sample_user_data, auth_headers, test_db_session):
         """Test deleting account with correct password."""
         # Verify user exists before deletion
-        user_before = test_db_session.query(User).filter(User.id == sample_user.id).first()
+        user_before = await test_db_session.scalar(select(User).filter(User.id == sample_user.id))
         assert user_before is not None
 
         response = client.request(
@@ -364,7 +371,7 @@ class TestDeleteAccount:
         assert "deleted successfully" in response.json()["message"]
 
         # Verify user was actually deleted from database
-        user_after = test_db_session.query(User).filter(User.id == sample_user.id).first()
+        user_after = await test_db_session.scalar(select(User).filter(User.id == sample_user.id))
         assert user_after is None
 
     def test_delete_account_wrong_password(self, client, auth_headers):
@@ -382,12 +389,15 @@ class TestDeleteAccount:
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_delete_account_cascades_notes(
+    @pytest.mark.asyncio
+    async def test_delete_account_cascades_notes(
         self, client, sample_user, sample_user_data, auth_headers, multiple_notes, test_db_session
     ):
         """Test that deleting account also deletes all user's notes."""
         # Verify notes exist before deletion
-        notes_before = test_db_session.query(Note).filter(Note.user_id == sample_user.id).all()
+        notes_before = (
+            (await test_db_session.execute(select(Note).filter(Note.user_id == sample_user.id))).scalars().all()
+        )
         assert len(notes_before) == len(multiple_notes)
 
         # Delete account
@@ -401,7 +411,9 @@ class TestDeleteAccount:
         assert response.status_code == status.HTTP_200_OK
 
         # Verify notes were cascade deleted
-        notes_after = test_db_session.query(Note).filter(Note.user_id == sample_user.id).all()
+        notes_after = (
+            (await test_db_session.execute(select(Note).filter(Note.user_id == sample_user.id))).scalars().all()
+        )
         assert len(notes_after) == 0
 
     def test_delete_account_route_delegates_to_service(self):
@@ -414,8 +426,8 @@ class TestDeleteAccount:
 class TestDeleteAccountOIDC:
     """Tests for account deletion with OIDC users."""
 
-    @pytest.fixture
-    def oidc_user(self, test_db_session):
+    @pytest_asyncio.fixture
+    async def oidc_user(self, test_db_session):
         """Create an OIDC user without password hash."""
         user = User(
             username="oidc_delete_user",
@@ -425,8 +437,8 @@ class TestDeleteAccountOIDC:
             auth_provider="oidc",
         )
         test_db_session.add(user)
-        test_db_session.commit()
-        test_db_session.refresh(user)
+        await test_db_session.commit()
+        await test_db_session.refresh(user)
         return user
 
     @pytest.fixture
@@ -435,7 +447,8 @@ class TestDeleteAccountOIDC:
         token = create_access_token(data={"sub": oidc_user.username}, expires_delta=timedelta(minutes=30))
         return {"Authorization": f"Bearer {token}"}
 
-    def test_delete_oidc_account_success(self, client, oidc_user, oidc_auth_headers, test_db_session):
+    @pytest.mark.asyncio
+    async def test_delete_oidc_account_success(self, client, oidc_user, oidc_auth_headers, test_db_session):
         """Test that OIDC users can delete their account with confirmation."""
         user_id = oidc_user.id
 
@@ -451,5 +464,5 @@ class TestDeleteAccountOIDC:
         assert "deleted successfully" in response.json()["message"]
 
         # Verify user was deleted
-        user_after = test_db_session.query(User).filter(User.id == user_id).first()
+        user_after = await test_db_session.scalar(select(User).filter(User.id == user_id))
         assert user_after is None

@@ -108,7 +108,8 @@ class TestLoginEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_login_special_characters(self, client: TestClient, test_db_session):
+    @pytest.mark.asyncio
+    async def test_login_special_characters(self, client: TestClient, test_db_session):
         """Test login with special characters in credentials."""
         from app.auth.auth import get_password_hash
         from app.models.models import User
@@ -116,7 +117,7 @@ class TestLoginEndpoint:
         # Create user with special characters
         special_user = User(username="user@domain.com", password_hash=get_password_hash("pass@word123!"))
         test_db_session.add(special_user)
-        test_db_session.commit()
+        await test_db_session.commit()
 
         login_data = {"username": "user@domain.com", "password": "pass@word123!"}
 

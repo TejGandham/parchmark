@@ -5,8 +5,10 @@ Tests notes CRUD endpoints with real FastAPI client and database.
 
 from datetime import datetime
 
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 
 class TestGetNotesEndpoint:
@@ -55,7 +57,8 @@ class TestGetNotesEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_get_notes_user_isolation(self, client: TestClient, test_db_session):
+    @pytest.mark.asyncio
+    async def test_get_notes_user_isolation(self, client: TestClient, test_db_session):
         """Test that users only see their own notes."""
         from datetime import timedelta
 
@@ -66,15 +69,15 @@ class TestGetNotesEndpoint:
         user1 = User(username="user1", password_hash=get_password_hash("pass1"))
         user2 = User(username="user2", password_hash=get_password_hash("pass2"))
         test_db_session.add_all([user1, user2])
-        test_db_session.commit()
-        test_db_session.refresh(user1)
-        test_db_session.refresh(user2)
+        await test_db_session.commit()
+        await test_db_session.refresh(user1)
+        await test_db_session.refresh(user2)
 
         # Create notes for each user
         note1 = Note(id="user1-note", user_id=user1.id, title="User 1 Note", content="# User 1 Note\n\nContent 1")
         note2 = Note(id="user2-note", user_id=user2.id, title="User 2 Note", content="# User 2 Note\n\nContent 2")
         test_db_session.add_all([note1, note2])
-        test_db_session.commit()
+        await test_db_session.commit()
 
         # Test user1 only sees their note
         token1 = create_access_token({"sub": user1.username}, timedelta(minutes=30))
@@ -353,7 +356,8 @@ class TestUpdateNoteEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_update_note_user_isolation(self, client: TestClient, test_db_session):
+    @pytest.mark.asyncio
+    async def test_update_note_user_isolation(self, client: TestClient, test_db_session):
         """Test that users can only update their own notes."""
         from datetime import timedelta
 
@@ -364,14 +368,14 @@ class TestUpdateNoteEndpoint:
         user1 = User(username="user1", password_hash=get_password_hash("pass1"))
         user2 = User(username="user2", password_hash=get_password_hash("pass2"))
         test_db_session.add_all([user1, user2])
-        test_db_session.commit()
-        test_db_session.refresh(user1)
-        test_db_session.refresh(user2)
+        await test_db_session.commit()
+        await test_db_session.refresh(user1)
+        await test_db_session.refresh(user2)
 
         # Create note for user1
         note = Note(id="user1-note", user_id=user1.id, title="User 1 Note", content="# User 1 Note\n\nContent")
         test_db_session.add(note)
-        test_db_session.commit()
+        await test_db_session.commit()
 
         # Try to update with user2's token
         token2 = create_access_token({"sub": user2.username}, timedelta(minutes=30))
@@ -434,7 +438,8 @@ class TestDeleteNoteEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_delete_note_user_isolation(self, client: TestClient, test_db_session):
+    @pytest.mark.asyncio
+    async def test_delete_note_user_isolation(self, client: TestClient, test_db_session):
         """Test that users can only delete their own notes."""
         from datetime import timedelta
 
@@ -445,14 +450,14 @@ class TestDeleteNoteEndpoint:
         user1 = User(username="user1", password_hash=get_password_hash("pass1"))
         user2 = User(username="user2", password_hash=get_password_hash("pass2"))
         test_db_session.add_all([user1, user2])
-        test_db_session.commit()
-        test_db_session.refresh(user1)
-        test_db_session.refresh(user2)
+        await test_db_session.commit()
+        await test_db_session.refresh(user1)
+        await test_db_session.refresh(user2)
 
         # Create note for user1
         note = Note(id="user1-note", user_id=user1.id, title="User 1 Note", content="# User 1 Note\n\nContent")
         test_db_session.add(note)
-        test_db_session.commit()
+        await test_db_session.commit()
 
         # Try to delete with user2's token
         token2 = create_access_token({"sub": user2.username}, timedelta(minutes=30))
@@ -462,14 +467,15 @@ class TestDeleteNoteEndpoint:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_delete_note_persistence(self, client: TestClient, auth_headers, sample_note, test_db_session):
+    @pytest.mark.asyncio
+    async def test_delete_note_persistence(self, client: TestClient, auth_headers, sample_note, test_db_session):
         """Test that note is actually deleted from database."""
         from app.models.models import Note
 
         note_id = sample_note.id
 
         # Verify note exists
-        existing_note = test_db_session.query(Note).filter(Note.id == note_id).first()
+        existing_note = await test_db_session.scalar(select(Note).filter(Note.id == note_id))
         assert existing_note is not None
 
         # Delete note
@@ -477,7 +483,7 @@ class TestDeleteNoteEndpoint:
         assert response.status_code == status.HTTP_200_OK
 
         # Verify note is deleted from database
-        deleted_note = test_db_session.query(Note).filter(Note.id == note_id).first()
+        deleted_note = await test_db_session.scalar(select(Note).filter(Note.id == note_id))
         assert deleted_note is None
 
 
@@ -520,7 +526,8 @@ class TestGetSingleNoteEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_get_note_user_isolation(self, client: TestClient, test_db_session):
+    @pytest.mark.asyncio
+    async def test_get_note_user_isolation(self, client: TestClient, test_db_session):
         """Test that users can only get their own notes."""
         from datetime import timedelta
 
@@ -531,14 +538,14 @@ class TestGetSingleNoteEndpoint:
         user1 = User(username="user1", password_hash=get_password_hash("pass1"))
         user2 = User(username="user2", password_hash=get_password_hash("pass2"))
         test_db_session.add_all([user1, user2])
-        test_db_session.commit()
-        test_db_session.refresh(user1)
-        test_db_session.refresh(user2)
+        await test_db_session.commit()
+        await test_db_session.refresh(user1)
+        await test_db_session.refresh(user2)
 
         # Create note for user1
         note = Note(id="user1-note", user_id=user1.id, title="User 1 Note", content="# User 1 Note\n\nContent")
         test_db_session.add(note)
-        test_db_session.commit()
+        await test_db_session.commit()
 
         # Try to get with user2's token
         token2 = create_access_token({"sub": user2.username}, timedelta(minutes=30))
