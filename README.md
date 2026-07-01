@@ -386,7 +386,7 @@ uv run python -m app.database.init_db  # Recreate
 ### Backend Architecture
 
 - **FastAPI** for high-performance async API
-- **SQLAlchemy 2.0** (async via asyncpg; a deprecated sync engine + `init_db` `create_all` remain for schema bootstrap) with PostgreSQL
+- **SQLAlchemy 2.0** (async via asyncpg; `init_db` runs `create_all` on the async engine for schema bootstrap) with PostgreSQL
 - **Pydantic** for data validation
 - **JWT + OIDC** hybrid authentication: local JWT is HS256, the OIDC JWT path is RS256 (JWKS); Authelia opaque tokens validated via the userinfo endpoint (local + Authelia SSO)
 - **Bcrypt** for password hashing
