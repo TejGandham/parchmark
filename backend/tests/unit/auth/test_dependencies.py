@@ -9,7 +9,6 @@ import pytest
 from fastapi import HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.auth.auth import create_access_token
 from app.auth.dependencies import (
@@ -24,7 +23,7 @@ class TestGetCurrentUser:
     """Test get_current_user dependency function."""
 
     @pytest.mark.asyncio
-    async def test_get_current_user_success(self, client, test_db_session: Session, sample_user: User):
+    async def test_get_current_user_success(self, client, test_db_session: AsyncSession, sample_user: User):
         """Test successful current user retrieval."""
         # Create valid token
         token_data = {"sub": sample_user.username}
@@ -352,7 +351,7 @@ class TestOIDCUserCreationRaceCondition:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    async def test_race_condition_recovery(self, test_db_session: Session):
+    async def test_race_condition_recovery(self, test_db_session: AsyncSession):
         """Test that race condition during OIDC user creation is handled properly.
 
         Scenario: Two concurrent requests both try to create the same OIDC user.
@@ -372,8 +371,8 @@ class TestOIDCUserCreationRaceCondition:
             password_hash=None,
         )
         test_db_session.add(existing_user)
-        test_db_session.commit()
-        test_db_session.refresh(existing_user)
+        await test_db_session.commit()
+        await test_db_session.refresh(existing_user)
 
         # Mock OIDC validation to return user info for this user
         mock_oidc_claims = {

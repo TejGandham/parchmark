@@ -5,10 +5,11 @@ Creates default user and seeds with default notes for testing purposes.
 
 import logging
 
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import get_password_hash
-from app.database.database import SessionLocal, engine
+from app.database.database import AsyncSessionLocal, async_engine
 from app.models.models import Note, User
 
 logger = logging.getLogger(__name__)
@@ -111,12 +112,12 @@ DEFAULT_NOTES_DATA = [
 ]
 
 
-def create_default_users(db: Session) -> list[User]:
+async def create_default_users(db: AsyncSession) -> list[User]:
     """
     Create the default users for testing purposes.
 
     Args:
-        db: Database session
+        db: Async database session
 
     Returns:
         list[User]: List of created user objects
@@ -125,7 +126,7 @@ def create_default_users(db: Session) -> list[User]:
 
     for user_data in DEFAULT_USERS:
         # Check if user already exists
-        existing_user = db.query(User).filter(User.username == user_data["username"]).first()
+        existing_user = await db.scalar(select(User).filter(User.username == user_data["username"]))
         if existing_user:
             logger.info(f"Default user '{user_data['username']}' already exists")
             created_users.append(existing_user)
@@ -139,22 +140,22 @@ def create_default_users(db: Session) -> list[User]:
         created_users.append(default_user)
         logger.info(f"Creating default user: {user_data['username']}")
 
-    db.commit()
+    await db.commit()
 
     # Refresh all users
     for user in created_users:
-        db.refresh(user)
+        await db.refresh(user)
         logger.info(f"Created default user: {user.username}")
 
     return created_users
 
 
-def create_default_notes(db: Session, user: User) -> list[Note]:
+async def create_default_notes(db: AsyncSession, user: User) -> list[Note]:
     """
     Create default notes for the user.
 
     Args:
-        db: Database session
+        db: Async database session
         user: User object to associate notes with
 
     Returns:
@@ -164,7 +165,7 @@ def create_default_notes(db: Session, user: User) -> list[Note]:
 
     for note_data in DEFAULT_NOTES_DATA:
         # Check if note already exists
-        existing_note = db.query(Note).filter(Note.id == note_data["id"], Note.user_id == user.id).first()
+        existing_note = await db.scalar(select(Note).filter(Note.id == note_data["id"], Note.user_id == user.id))
 
         if existing_note:
             logger.info(f"Default note '{note_data['title']}' already exists")
@@ -183,16 +184,16 @@ def create_default_notes(db: Session, user: User) -> list[Note]:
         created_notes.append(default_note)
         logger.info(f"Created default note: {note_data['title']}")
 
-    db.commit()
+    await db.commit()
 
     # Refresh all created notes
     for note in created_notes:
-        db.refresh(note)
+        await db.refresh(note)
 
     return created_notes
 
 
-def seed_database() -> bool:
+async def seed_database() -> bool:
     """
     Main function to seed the database with default data.
 
@@ -202,16 +203,16 @@ def seed_database() -> bool:
     try:
         logger.info("Starting database seeding...")
 
-        # Create database session
-        db = SessionLocal()
+        # Create async database session
+        db = AsyncSessionLocal()
 
         try:
             # Create default users
-            default_users = create_default_users(db)
+            default_users = await create_default_users(db)
 
             # Create default notes for the first user (demouser)
             if default_users:
-                default_notes = create_default_notes(db, default_users[0])
+                default_notes = await create_default_notes(db, default_users[0])
                 logger.info(f"Created {len(default_notes)} notes for {default_users[0].username}")
 
             logger.info("Database seeding completed successfully!")
@@ -221,18 +222,18 @@ def seed_database() -> bool:
 
         except Exception as e:
             logger.error(f"Error during database seeding: {e}")
-            db.rollback()
+            await db.rollback()
             return False
 
         finally:
-            db.close()
+            await db.close()
 
     except Exception as e:
         logger.error(f"Failed to create database session for seeding: {e}")
         return False
 
 
-def reset_and_seed_database() -> bool:
+async def reset_and_seed_database() -> bool:
     """
     Reset the database and seed with fresh default data.
     WARNING: This will delete all existing data!
@@ -246,20 +247,21 @@ def reset_and_seed_database() -> bool:
         # Drop all tables and recreate them
         from app.database.database import Base
 
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
 
         logger.info("Database tables reset successfully")
 
         # Seed with default data
-        return seed_database()
+        return await seed_database()
 
     except Exception as e:
         logger.error(f"Failed to reset and seed database: {e}")
         return False
 
 
-def check_seeding_status() -> dict:
+async def check_seeding_status() -> dict:
     """
     Check the current seeding status of the database.
 
@@ -267,22 +269,24 @@ def check_seeding_status() -> dict:
         dict: Status information about seeded data
     """
     try:
-        db = SessionLocal()
+        db = AsyncSessionLocal()
 
         try:
             # Check for default users
             users_exist = True
             for user_data in DEFAULT_USERS:
-                user = db.query(User).filter(User.username == user_data["username"]).first()
+                user = await db.scalar(select(User).filter(User.username == user_data["username"]))
                 if not user:
                     users_exist = False
                     break
 
             # Check for default notes on first user (demouser)
-            first_user = db.query(User).filter(User.username == DEFAULT_USERS[0]["username"]).first()
+            first_user = await db.scalar(select(User).filter(User.username == DEFAULT_USERS[0]["username"]))
             notes_count = 0
             if first_user:
-                notes_count = db.query(Note).filter(Note.user_id == first_user.id).count()
+                notes_count = (
+                    await db.scalar(select(func.count()).select_from(Note).filter(Note.user_id == first_user.id)) or 0
+                )
 
             return {
                 "default_users_exist": users_exist,
@@ -293,7 +297,7 @@ def check_seeding_status() -> dict:
             }
 
         finally:
-            db.close()
+            await db.close()
 
     except Exception as e:
         logger.error(f"Failed to check seeding status: {e}")
@@ -302,16 +306,17 @@ def check_seeding_status() -> dict:
 
 if __name__ == "__main__":
     # Allow running this script directly to seed the database
+    import asyncio
     import sys
 
     if len(sys.argv) > 1 and sys.argv[1] == "--reset":
-        success = reset_and_seed_database()
+        success = asyncio.run(reset_and_seed_database())
     else:
-        success = seed_database()
+        success = asyncio.run(seed_database())
 
     if success:
         print("Database seeding completed successfully!")
-        status = check_seeding_status()
+        status = asyncio.run(check_seeding_status())
         print(f"Seeding status: {status}")
     else:
         print("Database seeding failed!")

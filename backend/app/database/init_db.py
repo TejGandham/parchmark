@@ -17,7 +17,7 @@ def create_tables():
     print("Database tables created successfully!")
 
 
-def init_database():
+async def init_database():
     """
     Initialize the database with tables and default data if needed.
     This is the main function to call for database setup.
@@ -26,10 +26,10 @@ def init_database():
         create_tables()
 
         # Check if the database is already seeded
-        seeding_status = check_seeding_status()
+        seeding_status = await check_seeding_status()
         if not seeding_status.get("seeding_complete"):
             print("Database is not seeded. Seeding with default data...")
-            seed_database()
+            await seed_database()
         else:
             print("Database is already seeded. Skipping seeding.")
 
@@ -41,4 +41,6 @@ def init_database():
 
 if __name__ == "__main__":
     # Allow running this script directly to initialize the database
-    init_database()
+    import asyncio
+
+    asyncio.run(init_database())

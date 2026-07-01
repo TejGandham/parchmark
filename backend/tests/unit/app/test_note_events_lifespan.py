@@ -17,7 +17,10 @@ async def test_lifespan_starts_one_note_event_listener_after_database_init(monke
 
     listener = FakeListener()
 
-    monkeypatch.setattr("app.main.init_database", lambda: True)
+    async def fake_init_database():
+        return True
+
+    monkeypatch.setattr("app.main.init_database", fake_init_database)
     monkeypatch.setattr("app.main.create_note_event_listener", lambda: listener)
 
     class FakeStreamManager:

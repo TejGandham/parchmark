@@ -7,10 +7,10 @@ import os
 from datetime import datetime, timedelta
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.postgres import PostgresContainer
 
 # Set test environment variables BEFORE importing app
@@ -88,10 +88,10 @@ def test_async_db_engine(test_db_engine):
     # 2. Explicit dispose would require async context which is complex in sync fixtures
 
 
-@pytest.fixture(scope="function")
-def test_db_session(test_db_engine):
+@pytest_asyncio.fixture(scope="function")
+async def test_db_session(test_db_engine, test_async_db_engine):
     """
-    Create a database session for testing with automatic cleanup.
+    Create an async database session for testing with automatic cleanup.
 
     This fixture ensures test isolation by deleting data before and after
     each test. With pytest-xdist parallel execution:
@@ -100,23 +100,31 @@ def test_db_session(test_db_engine):
     - No race conditions between workers (databases are isolated)
 
     NOTE: Uses DELETE instead of TRUNCATE to avoid ACCESS EXCLUSIVE lock
-    conflicts with async connection pools.
+    conflicts with async connection pools. The async session is bound to
+    test_async_db_engine (asyncpg) which shares the same PostgreSQL container
+    as the sync test_db_engine used for the pre/post cleanup.
     """
     # Clean tables before each test to ensure clean state
     with test_db_engine.begin() as conn:
         conn.execute(text("DELETE FROM notes"))
         conn.execute(text("DELETE FROM users"))
 
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
+    TestingAsyncSessionLocal = async_sessionmaker(
+        bind=test_async_db_engine,
+        class_=AsyncSession,
+        autocommit=False,
+        autoflush=False,
+        expire_on_commit=False,
+    )
 
-    # Create a new session for the test
-    session = TestingSessionLocal()
+    # Create a new async session for the test
+    session = TestingAsyncSessionLocal()
 
     try:
         yield session
     finally:
         # Ensure session is closed
-        session.close()
+        await session.close()
 
         # Clean up all data after the test
         with test_db_engine.begin() as conn:
@@ -208,25 +216,25 @@ def sample_user_data():
     return UserDataFactory()
 
 
-@pytest.fixture
-def sample_user(test_db_session: Session, sample_user_data: dict[str, str]) -> User:
+@pytest_asyncio.fixture
+async def sample_user(test_db_session: AsyncSession, sample_user_data: dict[str, str]) -> User:
     """Create a sample user in the test database."""
     hashed_password = get_password_hash(sample_user_data["password"])
     user = User(username=sample_user_data["username"], password_hash=hashed_password)
     test_db_session.add(user)
-    test_db_session.commit()
-    test_db_session.refresh(user)
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
     return user
 
 
-@pytest.fixture
-def sample_admin_user(test_db_session: Session) -> User:
+@pytest_asyncio.fixture
+async def sample_admin_user(test_db_session: AsyncSession) -> User:
     """Create a sample admin user in the test database."""
     hashed_password = get_password_hash("adminpass123")
     user = User(username="adminuser", password_hash=hashed_password)
     test_db_session.add(user)
-    test_db_session.commit()
-    test_db_session.refresh(user)
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
     return user
 
 
@@ -250,20 +258,20 @@ def sample_note_data():
     return NoteDataFactory()
 
 
-@pytest.fixture
-def sample_note(test_db_session: Session, sample_user: User, sample_note_data: dict[str, str]) -> Note:
+@pytest_asyncio.fixture
+async def sample_note(test_db_session: AsyncSession, sample_user: User, sample_note_data: dict[str, str]) -> Note:
     """Create a sample note in the test database."""
     note = Note(
         id="test-note-1", user_id=sample_user.id, title=sample_note_data["title"], content=sample_note_data["content"]
     )
     test_db_session.add(note)
-    test_db_session.commit()
-    test_db_session.refresh(note)
+    await test_db_session.commit()
+    await test_db_session.refresh(note)
     return note
 
 
-@pytest.fixture
-def multiple_notes(test_db_session: Session, sample_user: User) -> list[Note]:
+@pytest_asyncio.fixture
+async def multiple_notes(test_db_session: AsyncSession, sample_user: User) -> list[Note]:
     """Create multiple sample notes for testing."""
     notes_data = [
         {"id": "note-1", "title": "First Note", "content": "# First Note\n\nThis is the first test note."},
@@ -277,10 +285,10 @@ def multiple_notes(test_db_session: Session, sample_user: User) -> list[Note]:
         test_db_session.add(note)
         notes.append(note)
 
-    test_db_session.commit()
+    await test_db_session.commit()
 
     for note in notes:
-        test_db_session.refresh(note)
+        await test_db_session.refresh(note)
 
     return notes
 

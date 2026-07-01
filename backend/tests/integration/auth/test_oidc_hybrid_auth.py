@@ -33,8 +33,8 @@ async def test_get_current_user_with_local_jwt(test_db_session, async_session: A
     # Create a test user using sync session (to commit to DB)
     user = User(username="testuser", password_hash="hashed_password", auth_provider="local")
     test_db_session.add(user)
-    test_db_session.commit()
-    test_db_session.refresh(user)
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
 
     # Create valid local JWT
     from app.auth.auth import create_access_token
@@ -65,8 +65,8 @@ async def test_get_current_user_with_oidc_token_existing_user(test_db_session, a
         password_hash=None,
     )
     test_db_session.add(user)
-    test_db_session.commit()
-    test_db_session.refresh(user)
+    await test_db_session.commit()
+    await test_db_session.refresh(user)
 
     # Mock OIDC token validation
     mock_claims = {
@@ -102,7 +102,7 @@ async def test_get_current_user_with_oidc_token_existing_user(test_db_session, a
 async def test_get_current_user_with_oidc_token_new_user_creation(test_db_session, async_session: AsyncSession):
     """Test auto-creation of user on first OIDC login."""
     # No user exists yet
-    assert test_db_session.query(User).filter(User.oidc_sub == "authelia-sub-456").first() is None
+    assert await test_db_session.scalar(select(User).filter(User.oidc_sub == "authelia-sub-456")) is None
 
     # Mock OIDC token validation
     mock_claims = {
@@ -200,7 +200,7 @@ async def test_get_current_user_with_opaque_oidc_token(test_db_session, async_se
     user looked up/created → returned.
     """
     # No user exists yet
-    assert test_db_session.query(User).filter(User.oidc_sub == "authelia-opaque-sub-001").first() is None
+    assert await test_db_session.scalar(select(User).filter(User.oidc_sub == "authelia-opaque-sub-001")) is None
 
     # Mock OIDC userinfo response (what the userinfo endpoint returns for valid opaque tokens)
     mock_userinfo = {
@@ -255,7 +255,7 @@ async def test_get_current_user_with_opaque_token_existing_user(test_db_session,
         password_hash=None,
     )
     test_db_session.add(user)
-    test_db_session.commit()
+    await test_db_session.commit()
 
     mock_userinfo = {
         "sub": "authelia-opaque-sub-002",
@@ -298,7 +298,7 @@ async def test_get_user_by_oidc_sub(test_db_session, async_session: AsyncSession
         password_hash=None,
     )
     test_db_session.add(user)
-    test_db_session.commit()
+    await test_db_session.commit()
 
     # Test finding user with async query
     found_user = await query_user_by_oidc_sub(async_session, "authelia-sub-999")

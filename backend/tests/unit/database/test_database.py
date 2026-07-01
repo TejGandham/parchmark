@@ -262,20 +262,22 @@ class TestDatabaseCompatibility:
             test_engine = create_engine(url)
             assert test_engine is not None
 
-    def test_concurrent_connections(self, test_db_session):
+    @pytest.mark.asyncio
+    async def test_concurrent_connections(self, test_db_session):
         """Test that the database allows concurrent connections with our configuration."""
         # Use test_db_session fixture which provides a working database connection
         from sqlalchemy import text
 
-        result = test_db_session.execute(text("SELECT 1"))
+        result = await test_db_session.execute(text("SELECT 1"))
         assert result.scalar() == 1
 
-    def test_database_basic_operations(self, test_db_session):
+    @pytest.mark.asyncio
+    async def test_database_basic_operations(self, test_db_session):
         """Test basic database operations work."""
         # Use test_db_session fixture which provides a working database connection
         from sqlalchemy import text
 
-        result = test_db_session.execute(text("SELECT 1 as test_value"))
+        result = await test_db_session.execute(text("SELECT 1 as test_value"))
         value = result.scalar()
 
         assert value == 1
