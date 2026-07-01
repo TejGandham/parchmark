@@ -24,7 +24,7 @@ os.environ["ALLOWED_ORIGINS"] = (
 from app.auth.auth import create_access_token, get_password_hash
 
 # Import application components
-from app.database.database import Base, get_async_db, get_async_session_factory, get_db
+from app.database.database import Base, get_async_db, get_async_session_factory
 from app.main import app
 from app.models.models import Note, User
 from tests.factories import (
@@ -173,13 +173,6 @@ def client(test_db_session, test_async_db_session):
         async def stop(self):
             return None
 
-    # Override sync get_db (kept for backwards compatibility)
-    def override_get_db():
-        try:
-            yield test_db_session
-        finally:
-            pass
-
     # Override async get_async_db
     # NOTE: We avoid 'async with' context manager here because TestClient
     # runs in a separate thread with its own event loop. Using async with
@@ -192,7 +185,6 @@ def client(test_db_session, test_async_db_session):
         finally:
             await session.close()
 
-    app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_async_db] = override_get_async_db
     app.dependency_overrides[get_async_session_factory] = lambda: test_async_db_session
 

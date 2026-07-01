@@ -3,17 +3,18 @@ Database initialization module for ParchMark backend.
 Creates database tables and handles initial database setup.
 """
 
-from app.database.database import Base, engine
+from app.database.database import Base, async_engine
 from app.database.seed import check_seeding_status, seed_database
 
 
-def create_tables():
+async def create_tables():
     """
     Create all database tables defined in the models.
     This function is idempotent and will not recreate existing tables.
     """
     print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     print("Database tables created successfully!")
 
 
@@ -23,7 +24,7 @@ async def init_database():
     This is the main function to call for database setup.
     """
     try:
-        create_tables()
+        await create_tables()
 
         # Check if the database is already seeded
         seeding_status = await check_seeding_status()

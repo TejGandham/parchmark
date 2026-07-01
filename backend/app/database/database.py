@@ -6,9 +6,8 @@ Configures PostgreSQL database engine and session management with async support.
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,12 +44,6 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
-# Create sync SQLAlchemy engine (kept for backwards compatibility during migration)
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-# Create SessionLocal class for sync database sessions (kept for backwards compatibility)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 # Create Base class for declarative models
 Base = declarative_base()
 
@@ -71,18 +64,3 @@ async def get_async_db():
             yield session
         finally:
             await session.close()
-
-
-# Sync dependency (kept for backwards compatibility during migration)
-def get_db():
-    """
-    Dependency function to get database session.
-    Yields a database session and ensures it's closed after use.
-
-    DEPRECATED: Use get_async_db for new code.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
