@@ -73,8 +73,17 @@ console_output_style = "progress"
 log_level = "INFO"
 asyncio_mode = "auto"
 filterwarnings = [
+    # Surface DeprecationWarnings (especially our own) instead of blanket-hiding
+    # them, so real deprecations show up in the test summary.
+    "default::DeprecationWarning",
+    # UserWarnings stay quiet — the only one the suite raises is PyJWT's
+    # InsecureKeyLengthWarning from tests that deliberately sign with short HMAC keys.
     "ignore::UserWarning",
-    "ignore::DeprecationWarning",
+    # Transitive noise: uvicorn still imports the deprecated legacy websockets API
+    # (deprecated in websockets 14.0). Not our code — the app uses SSE, not websockets.
+    # Remove these once the uvicorn/websockets stack drops the legacy API.
+    "ignore:websockets.legacy is deprecated:DeprecationWarning",
+    "ignore:websockets.server.WebSocketServerProtocol is deprecated:DeprecationWarning",
 ]
 
 [tool.coverage.run]

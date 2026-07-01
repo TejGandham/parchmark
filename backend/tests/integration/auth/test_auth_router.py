@@ -96,7 +96,7 @@ class TestLoginEndpoint:
 
     def test_login_invalid_json(self, client: TestClient):
         """Test login with invalid JSON."""
-        response = client.post("/api/auth/login", data="invalid json", headers={"Content-Type": "application/json"})
+        response = client.post("/api/auth/login", content="invalid json", headers={"Content-Type": "application/json"})
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
