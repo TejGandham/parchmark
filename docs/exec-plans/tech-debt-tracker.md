@@ -34,6 +34,45 @@ Known shortcuts, deferred improvements, and open questions.
       Remaining `docs/design-docs/` reconciliation, if any, is tracked
       separately.
 
+- [x] **RESOLVED — `pytest.ini` `[tool:pytest]` header shadowed the real
+      pytest config.** Surfaced during the drop-sync-session delivery
+      (PR #134); fixed in PR #135. `backend/pytest.ini` used a
+      `[tool:pytest]` section header — valid only in `setup.cfg`, not
+      `pytest.ini` (which needs `[pytest]`) — so pytest selected
+      `pytest.ini` as its config file, found no recognised section, ran
+      with empty config, and silently shadowed the complete, identical
+      `pyproject.toml [tool.pytest.ini_options]`. Effect: the
+      `--cov-fail-under=90` gate, `-n auto` xdist, `--strict-markers` /
+      `--strict-config`, and `asyncio_mode=auto` never applied (61
+      unknown-mark warnings per run; the coverage gate was not enforced at
+      all). Fixed by deleting `pytest.ini` so `pyproject.toml` — the
+      project's single tool-config source (ruff, mypy, coverage, hatch all
+      live there) — governs pytest.
+
+- [x] **RESOLVED — coverage under-reported ~3 points (no thread/greenlet
+      tracing).** Once the coverage gate was actually live (see the
+      `pytest.ini` item above), the reported 90.89% was a measurement
+      artifact: `[tool.coverage.run]` had no `concurrency` setting, so
+      coverage.py did not trace async handlers running in FastAPI
+      `TestClient`'s portal **thread** or DB code in SQLAlchemy's async
+      **greenlets**. Those lines were exercised by passing tests all
+      along — not a test gap. Fixed in PR #136 by adding
+      `concurrency = ["thread", "greenlet"]`: TOTAL 90.89% → 96.22%,
+      `app/routers/auth.py` 64% → 96%. pytest-cov already combines
+      correctly under xdist, so no `parallel` / `sigterm` was needed.
+
+- [x] **RESOLVED — OIDC dependency branches untested.** After the
+      concurrency fix, `app/auth/dependencies.py` was the one genuine
+      coverage gap (~71%). Added `TestOIDCBranchCoverage` (PR #136)
+      covering missing-`sub` → 401, the userinfo-endpoint fallback
+      (success / fetch-raises / empty), OIDC user auto-creation,
+      race-condition `IntegrityError` rollback + re-fetch recovery, and the
+      validation exception handlers → 97.65%. Residual uncovered lines are
+      intentional and minor: `app/auth/dependencies.py:155-159` (a
+      defensive "should not happen" `else`, unreachable) and
+      `app/routers/auth.py:107,112` (refresh-token error branches) — left
+      as-is rather than contorted to hit.
+
 ### Cross-cutting
 
 - [ ] **Markdown parity as a shared test fixture.** Frontend and backend
@@ -62,6 +101,18 @@ Known shortcuts, deferred improvements, and open questions.
 - [ ] **`Depends(get_async_db)` enforcement.** Prohibit module-level
       `AsyncSession` construction; every session must be request-scoped via
       `Depends`. Current code already honours this but it's un-enforced.
+
+- [ ] **Suite globally ignores `DeprecationWarning` (and `UserWarning`).**
+      `pyproject.toml [tool.pytest.ini_options]` sets `filterwarnings =
+      ["ignore::UserWarning", "ignore::DeprecationWarning"]`. This became
+      live only when the pytest config actually started applying (the
+      `pytest.ini` shadowing fix, PR #135) — before that the shadowed
+      config meant all warnings were shown (~65+ per run). The blanket
+      ignores can now mask upcoming library / stdlib deprecations before
+      they turn into hard breakages. Follow-up: triage the
+      previously-visible warning volume, then either narrow to specific
+      `ignore:...:DeprecationWarning:<module>` filters or drop the blanket
+      ignores and fix the real deprecations.
 
 ## Post-MVP
 
