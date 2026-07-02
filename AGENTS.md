@@ -7,7 +7,7 @@ Guidance for Claude Code working with the ParchMark codebase. This file is a tab
 | Layer | Stack |
 |-|-|
 | Frontend | Vue 3 (`<script setup>` SFCs), TypeScript, Vite, custom DTCG design-token system, Vue composables (no Pinia, no router) |
-| Backend | FastAPI, Python 3.13, SQLAlchemy 2.0 (async), JWT + OIDC auth, PostgreSQL |
+| Backend | FastAPI, Python 3.14, SQLAlchemy 2.0 (async), JWT + OIDC auth, PostgreSQL |
 | Deploy | Docker, Nginx, k3s, Forgejo CI |
 
 Deeper references:

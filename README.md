@@ -24,7 +24,7 @@ A modern, full-stack markdown note-taking application built with Vue 3 and FastA
 ### Prerequisites
 
 - **Node.js** 24 (CI pin) and npm
-- **Python** 3.13+
+- **Python** 3.14+
 - **Docker** and Docker Compose (REQUIRED for PostgreSQL and testing)
 - **Git**
 
