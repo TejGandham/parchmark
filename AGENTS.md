@@ -11,9 +11,9 @@ Guidance for Claude Code working with the ParchMark codebase. This file is a tab
 | Deploy | Docker, Nginx, k3s, Forgejo CI |
 
 Deeper references:
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — domain / layer maps, dependency rules
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — domain / layer maps, dependency rules
 - [`docs/design-docs/index.md`](docs/design-docs/index.md) — core beliefs, UI design, code patterns, design context
-- [`PRODUCTION_DEPLOYMENT.md`](PRODUCTION_DEPLOYMENT.md) — deployment runbook
+- [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md) — deployment runbook
 
 Domain invariants live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/core-beliefs.md). Tech debt is tracked in `docs/exec-plans/tech-debt-tracker.md`.
 
@@ -103,10 +103,12 @@ parchmark/
 ├── makefiles/           # modular make targets
 ├── deploy/              # production scripts
 ├── docs/
+│   ├── ARCHITECTURE.md  # domain / layer maps, dependency rules
+│   ├── PRODUCTION_DEPLOYMENT.md  # deployment runbook
+│   ├── AUTHELIA_OIDC.md # OIDC client registration + local testing
 │   ├── design-docs/     # core beliefs, UI design, code patterns, design context
-│   ├── exec-plans/      # completed handoffs, tech-debt-tracker
-│   ├── product-specs/   # feature specs
-│   └── references/      # external docs, llms.txt
+│   ├── exec-plans/      # tech-debt-tracker, completed/ handoff landing area
+│   └── product-specs/   # feature specs
 └── .claude/             # skills
 ```
 

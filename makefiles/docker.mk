@@ -131,7 +131,7 @@ docker-oidc-test: ## Start OIDC testing environment (Authelia + all services)
 	@echo "  make docker-oidc-logs          - View service logs"
 	@echo "  make docker-oidc-down          - Stop all services"
 	@echo "  make docker-oidc-reset         - Reset and restart"
-	@echo "  See docs/AUTHELIA_OIDC_LOCAL_TESTING.md for detailed guide"
+	@echo "  See docs/AUTHELIA_OIDC.md for detailed guide"
 	@echo ""
 
 .PHONY: docker-oidc-logs

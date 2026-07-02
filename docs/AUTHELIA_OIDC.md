@@ -1,32 +1,43 @@
 # Authelia OIDC Integration Guide
 
-This guide covers setting up Authelia OIDC (Single Sign-On) with ParchMark.
+This guide covers registering ParchMark as an Authelia OIDC client and testing the backend's OIDC token validation.
 
 ## Overview
 
-ParchMark supports hybrid authentication:
-- **Local auth**: Traditional username/password login
-- **OIDC auth**: Single Sign-On via Authelia (or any OIDC provider)
+ParchMark's **backend** supports hybrid authentication:
+- **Local auth**: Traditional username/password login (HS256 JWT)
+- **OIDC auth**: Bearer tokens issued by Authelia (or any OIDC provider)
 
-Both methods can be used simultaneously. OIDC users are auto-created on first login.
+Both methods work simultaneously — the backend tries local JWT validation first, then falls back to OIDC. OIDC users are auto-created on first authenticated request.
 
-## Quick Start (10 minutes)
+**Scope note:** OIDC support is backend-only. The Vue frontend has no SSO button, no OIDC redirect/callback flow, and no `VITE_OIDC_*` configuration — the login screen is local username/password only. OIDC tokens reach the API from external clients (e.g. tools calling the API with an Authelia-issued access token).
 
-### Step 1: Authelia Configuration
+## Token Validation Model
 
-Add ParchMark as an OIDC client in your `authelia/configuration.yml`:
+Authelia issues **opaque** access tokens (`authelia_at_...`) by default — these are not JWTs and cannot be decoded locally. The backend handles both formats:
+
+- **Opaque tokens** (the primary path): validated by calling Authelia's **userinfo endpoint**; a valid response yields the user claims
+- **JWT access tokens**: validated locally against Authelia's **JWKS** (RS256 public keys), fetched via OIDC discovery and cached
+
+Discovery and JWKS responses are cached in-process. Backend env vars (`OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_USERNAME_CLAIM`, plus optional `OIDC_DISCOVERY_URL` and `OIDC_OPAQUE_TOKEN_PREFIX`) are documented in [`AGENTS.md`](../AGENTS.md#environment-variables); defaults live in `backend/app/auth/oidc_validator.py`. Two non-obvious knobs:
+
+- `OIDC_DISCOVERY_URL` — separate URL for discovery/JWKS fetches, e.g. internal cluster DNS to bypass CDN bot challenges (Cloudflare JS challenges block non-browser clients) while `OIDC_ISSUER_URL` stays the public issuer
+- `OIDC_OPAQUE_TOKEN_PREFIX` — optional required prefix (e.g. `authelia_at_`) so garbage tokens are rejected before an outbound userinfo call
+
+## Registering the Client in Authelia
+
+Add ParchMark as a public OIDC client in your `authelia/configuration.yml`. Production uses client id `parchmark`; the in-repo test rig uses `parchmark-web` (see `authelia-dev-config.yml` for the working example):
 
 ```yaml
 identity_providers:
   oidc:
     clients:
-      - id: parchmark
+      - id: parchmark            # must match backend OIDC_AUDIENCE
         description: ParchMark Note-Taking Application
         public: true
         secret: ~
         redirect_uris:
-          - https://notes.engen.tech/oidc/callback  # Production
-          - http://localhost:5173/oidc/callback     # Development
+          - https://notes.engen.tech/oidc/callback
         scopes:
           - openid
           - profile
@@ -38,132 +49,29 @@ identity_providers:
           - code
         require_pkce: true
         pkce_challenge_method: S256
+        userinfo_signed_response_alg: none
 ```
 
-Restart Authelia:
-```bash
-docker restart authelia
-```
+Restart Authelia after editing, then point the backend at it via `OIDC_ISSUER_URL` / `OIDC_AUDIENCE` in `backend/.env`.
 
-### Step 2: Backend Configuration
+## Auto-User Creation
 
-Add to `backend/.env`:
+On a valid OIDC token, the backend (`backend/app/auth/dependencies.py`):
 
-```bash
-OIDC_ISSUER_URL=https://auth.engen.tech  # Your Authelia URL
-OIDC_AUDIENCE=parchmark                   # Must match Authelia client id
-OIDC_USERNAME_CLAIM=preferred_username    # Claim for username extraction
-```
+1. Extracts claims (from the JWT or the userinfo response)
+2. Looks up the user by `oidc_sub`
+3. If the token lacks user claims, fetches them from the userinfo endpoint
+4. If no user exists: auto-creates one with `auth_provider='oidc'`, `oidc_sub` set, and `password_hash=NULL` (concurrent first requests are handled — the loser of the race re-fetches the winner's row)
 
-### Step 3: Frontend Configuration
+The username comes from the claim named by `OIDC_USERNAME_CLAIM` (default `preferred_username`), falling back to `email`.
 
-Add to `ui/.env`:
+## Local Testing
 
-```bash
-VITE_OIDC_ISSUER_URL=https://auth.engen.tech
-VITE_OIDC_CLIENT_ID=parchmark
-VITE_OIDC_REDIRECT_URI=http://localhost:5173/oidc/callback
-VITE_OIDC_LOGOUT_REDIRECT_URI=http://localhost:5173/login
-```
+The repo ships a self-contained OIDC test rig — `docker-compose.oidc-test.yml` (PostgreSQL + Authelia + backend, plus a frontend container on :8080; its `VITE_OIDC_*` env vars are vestigial — the UI does not read them) configured by `authelia-dev-config.yml`, with client id `parchmark-web`. `.env.example.oidc` is the annotated env template.
 
-### Step 4: Start Services
-
-```bash
-make docker-dev      # Start PostgreSQL
-make dev-backend     # Start backend
-make dev-ui          # Start frontend
-```
-
-### Step 5: Test
-
-1. Open http://localhost:5173/login
-2. Click "Sign In with SSO"
-3. Login at Authelia
-4. Should redirect back to notes page
-
-## Configuration Reference
-
-### Backend Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OIDC_ISSUER_URL` | Authelia base URL | `https://auth.engen.tech` |
-| `OIDC_AUDIENCE` | OIDC client ID (must match Authelia) | `parchmark` |
-| `OIDC_USERNAME_CLAIM` | JWT claim for username | `preferred_username` |
-
-### Frontend Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_OIDC_ISSUER_URL` | Authelia base URL | `https://auth.engen.tech` |
-| `VITE_OIDC_CLIENT_ID` | OIDC client ID | `parchmark` |
-| `VITE_OIDC_REDIRECT_URI` | Callback URL after login | `{origin}/oidc/callback` |
-| `VITE_OIDC_LOGOUT_REDIRECT_URI` | Redirect after logout | `{origin}/login` |
-
-### Production Configuration
-
-**Backend** (`backend/.env.production`):
-```bash
-OIDC_ISSUER_URL=https://auth.engen.tech
-OIDC_AUDIENCE=parchmark
-OIDC_USERNAME_CLAIM=preferred_username
-```
-
-**Frontend** (`ui/.env.production`):
-```bash
-VITE_OIDC_ISSUER_URL=https://auth.engen.tech
-VITE_OIDC_CLIENT_ID=parchmark
-VITE_OIDC_REDIRECT_URI=https://notes.engen.tech/oidc/callback
-VITE_OIDC_LOGOUT_REDIRECT_URI=https://notes.engen.tech/login
-```
-
-## How It Works
-
-### Authentication Flow
-
-1. User clicks "Sign In with SSO"
-2. Frontend redirects to Authelia authorization endpoint
-3. User authenticates at Authelia
-4. Authelia redirects back with authorization code
-5. Frontend exchanges code for tokens (PKCE)
-6. Frontend stores OIDC token in auth store
-7. API requests include OIDC token in Authorization header
-8. Backend validates token against Authelia JWKS
-
-### Auto-User Creation
-
-1. Backend receives OIDC token
-2. Validates token against Authelia JWKS
-3. Extracts user info from token claims
-4. Looks up user by `oidc_sub`
-5. If not found: auto-creates user with `auth_provider='oidc'`
-6. Returns user for API request
-
-### Database Schema
-
-OIDC users have:
-- `auth_provider='oidc'`
-- `oidc_sub` set to unique OIDC subject identifier
-- `password_hash=NULL` (OIDC-only authentication)
+Start it with `make docker-oidc-test` (it prints the follow-up status/logs/stop targets; `make help` lists them all). `make test-backend-oidc` runs the backend OIDC unit + hybrid-auth integration tests without the rig. Against a live Authelia (running rig or real deployment), `make test-oidc-integration` exercises discovery, JWKS, and token validation end to end.
 
 ## Troubleshooting
-
-### SSO button not appearing
-
-```javascript
-// Check frontend config in browser console
-console.log('OIDC config:', import.meta.env.VITE_OIDC_ISSUER_URL);
-```
-
-**Fix**: Verify `.env` has OIDC variables, rebuild frontend if changed.
-
-### "Invalid client_id" error
-
-**Fix**: Ensure `VITE_OIDC_CLIENT_ID` exactly matches Authelia config (case-sensitive).
-
-### Redirect URI mismatch
-
-**Fix**: Ensure `VITE_OIDC_REDIRECT_URI` exactly matches Authelia's `redirect_uris` (protocol, port, path).
 
 ### Token validation fails (401 errors)
 
@@ -175,7 +83,7 @@ curl https://auth.engen.tech/.well-known/openid-configuration
 docker exec parchmark-backend env | grep OIDC
 ```
 
-**Fix**: Verify `OIDC_ISSUER_URL` and `OIDC_AUDIENCE` match Authelia configuration.
+**Fix**: Verify `OIDC_ISSUER_URL` and `OIDC_AUDIENCE` match the Authelia client registration (case-sensitive). If `OIDC_OPAQUE_TOKEN_PREFIX` is set, confirm the tokens actually carry that prefix.
 
 ### User not created after OIDC login
 
@@ -185,7 +93,7 @@ docker exec postgres psql -U parchmark_user -d parchmark_db -c "\d users"
 # Should show: oidc_sub, email, auth_provider columns
 ```
 
-**Fix**: Run database migrations: `cd backend && uv run alembic upgrade head`
+**Fix**: Run database migrations: `cd backend && uv run alembic upgrade head`. If the schema is present, check backend logs — a token whose claims (and userinfo response) contain neither `preferred_username` nor `email` is rejected; adjust the Authelia client scopes/claims.
 
 ### Cannot reach OIDC provider
 
@@ -194,38 +102,14 @@ docker exec postgres psql -U parchmark_user -d parchmark_db -c "\d users"
 docker exec parchmark-backend curl -I https://auth.engen.tech/.well-known/openid-configuration
 ```
 
-**Fix**: Check DNS, firewall rules, and TLS certificate validity.
-
-## Testing
-
-```bash
-# Run all tests (includes OIDC tests)
-make test-all
-
-# Or run OIDC-specific tests only (see `make help` for all targets)
-make test-backend-oidc
-make test-ui-oidc
-```
+**Fix**: Check DNS, firewall rules, and TLS certificate validity. If the issuer sits behind a CDN that challenges non-browser clients, set `OIDC_DISCOVERY_URL` to an internal address.
 
 ## Security Notes
 
-- ParchMark is a **public OIDC client** (browser SPA) - no client secret
-- **PKCE (S256)** is required for security
-- Tokens validated against Authelia's **JWKS** (public keys)
-- OIDC users have no local password (OIDC-only auth)
+- ParchMark is registered as a **public OIDC client** — no client secret; **PKCE (S256)** required
+- Opaque tokens are validated server-side via the **userinfo endpoint**; JWT access tokens against Authelia's **JWKS**
+- OIDC users have no local password (`password_hash=NULL`)
 - **HTTPS required** in production
-
-## Verification Checklist
-
-- [ ] Authelia OIDC client configured
-- [ ] Backend starts without errors
-- [ ] Frontend shows SSO button
-- [ ] Local login still works
-- [ ] OIDC login redirects to Authelia
-- [ ] OIDC login creates user in database
-- [ ] Token refresh works
-- [ ] Logout clears session
-- [ ] Tests pass: `make test-all`
 
 ## References
 

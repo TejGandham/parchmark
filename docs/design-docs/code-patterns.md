@@ -59,8 +59,10 @@ carries no user). `refresh()` dedupes concurrent 401s with a shared
 
 There is no store library. Cross-cutting auth state is the `useAuth()`
 composable singleton (above); per-view UI state is plain `ref`/`computed`
-inside SFCs. For example `AppShell.vue` holds `notes`, `activeId`, `mode`,
-`search`, `activeTags`, `navOpen`, `settingsActive`, `theme` as local refs.
+inside SFCs. For example `AppShell.vue` holds `activeId`, `mode`, `search`,
+`activeTags`, `navOpen`, `settingsActive`, `theme` as local refs; the `notes`
+list itself comes from the `useNotes()` composable singleton (see "Notes
+data" below).
 
 ### Routing — NO Vue Router; manual view switching
 
@@ -124,6 +126,15 @@ in `design-system/icons/index.ts` (`defineComponent` + render-function
 `h("svg", …)`) — there is no icon library dependency.
 
 ## Backend (FastAPI + SQLAlchemy)
+
+### Router → service delegation
+
+Routers under `app/routers/` are thin HTTP adapters: they declare the route,
+dependencies, and response model, then delegate to a module in
+`app/services/` (e.g. `notes_service`, `auth_service`, `settings_service`)
+that owns the business logic and ORM queries. New endpoints should follow
+this shape — put logic in a service function taking `(db, current_user, …)`
+and returning a response schema, not in the router body.
 
 ### Async Session
 
