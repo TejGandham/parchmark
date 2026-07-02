@@ -48,7 +48,7 @@ class TestGetNotesEndpoint:
         """Test getting notes without authentication."""
         response = client.get("/api/notes/")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_get_notes_invalid_token(self, client: TestClient):
         """Test getting notes with invalid token."""
@@ -208,7 +208,7 @@ class TestCreateNoteEndpoint:
         """Test creating note without authentication."""
         response = client.post("/api/notes/", json=sample_note_data)
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_create_note_invalid_token(self, client: TestClient, sample_note_data):
         """Test creating note with invalid token."""
@@ -345,7 +345,7 @@ class TestUpdateNoteEndpoint:
 
         response = client.put(f"/api/notes/{sample_note.id}", json=update_data)
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_update_note_invalid_token(self, client: TestClient, sample_note):
         """Test updating note with invalid token."""
@@ -429,7 +429,7 @@ class TestDeleteNoteEndpoint:
         """Test deleting note without authentication."""
         response = client.delete(f"/api/notes/{sample_note.id}")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_delete_note_invalid_token(self, client: TestClient, sample_note):
         """Test deleting note with invalid token."""
@@ -517,7 +517,7 @@ class TestGetSingleNoteEndpoint:
         """Test getting note without authentication."""
         response = client.get(f"/api/notes/{sample_note.id}")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_get_note_invalid_token(self, client: TestClient, sample_note):
         """Test getting note with invalid token."""

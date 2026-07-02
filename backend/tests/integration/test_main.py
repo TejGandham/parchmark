@@ -412,7 +412,7 @@ class TestApplicationIntegration:
 
         # 401 on protected endpoint without auth
         response = client.get("/api/notes/")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         # 422 on validation error
         response = client.post("/api/auth/login", json={"invalid": "data"})

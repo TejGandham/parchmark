@@ -155,7 +155,7 @@ class TestLogoutEndpoint:
         """Test logout without authentication token."""
         response = client.post("/api/auth/logout")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_logout_invalid_token(self, client: TestClient):
         """Test logout with invalid token."""
@@ -221,7 +221,7 @@ class TestGetCurrentUserInfoEndpoint:
         """Test get current user without authentication token."""
         response = client.get("/api/auth/me")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_get_current_user_invalid_token(self, client: TestClient):
         """Test get current user with invalid token."""
