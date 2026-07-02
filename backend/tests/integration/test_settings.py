@@ -86,7 +86,7 @@ class TestGetUserInfo:
         """Test that user info endpoint requires authentication."""
         response = client.get("/api/settings/user-info")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_get_user_info_route_delegates_to_service(self):
         """Test that account-summary assembly stays in the settings service."""
@@ -145,7 +145,7 @@ class TestChangePassword:
             "/api/settings/change-password", json={"current_password": "anypass", "new_password": "newpass"}
         )
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_password_validation_min_length(self, client, auth_headers):
         """Test that password validation requires minimum length."""
@@ -315,7 +315,7 @@ class TestExportNotes:
         """Test that note export requires authentication."""
         response = client.get("/api/settings/export-notes")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
     async def test_export_notes_handles_duplicate_titles(self, client, auth_headers, sample_user, test_db_session):
@@ -387,7 +387,7 @@ class TestDeleteAccount:
         """Test that account deletion requires authentication."""
         response = client.request("DELETE", "/api/settings/delete-account", json={"password": "anypass"})
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
     async def test_delete_account_cascades_notes(

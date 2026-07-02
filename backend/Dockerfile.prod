@@ -1,8 +1,8 @@
 # Production Dockerfile for ParchMark Backend
 # Optimized multi-stage build for minimal image size and security
 
-# Stage 1: Builder stage using official uv image with Python 3.13
-FROM ghcr.io/astral-sh/uv:python3.13-trixie as builder
+# Stage 1: Builder stage using official uv image with Python 3.14
+FROM ghcr.io/astral-sh/uv:python3.14-trixie as builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY migrations ./migrations
 RUN uv sync --frozen --no-dev --no-editable
 
 # Stage 2: Final production stage using slim Python image
-FROM python:3.13-slim-trixie
+FROM python:3.14-slim-trixie
 
 # Create non-root user for security
 RUN useradd -m -u 1000 -s /bin/bash appuser

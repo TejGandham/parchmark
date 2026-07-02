@@ -188,7 +188,7 @@ class TestPgExtensionVectorAbsent:
             rows = conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'")).fetchall()
 
         assert rows == [], (
-            "Expected pg_extension to have zero rows for extname='vector' after upgrade, " f"but got: {rows}"
+            f"Expected pg_extension to have zero rows for extname='vector' after upgrade, but got: {rows}"
         )
 
 
@@ -252,7 +252,7 @@ class TestRoundTripDowngradeUpgrade:
         with engine.connect() as conn:
             ext_rows = conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'")).fetchall()
         assert len(ext_rows) == 1, (
-            "After downgrade to parent, expected vector extension to be recreated, " f"but pg_extension has: {ext_rows}"
+            f"After downgrade to parent, expected vector extension to be recreated, but pg_extension has: {ext_rows}"
         )
 
         # After downgrade: columns must be present

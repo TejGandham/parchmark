@@ -12,7 +12,8 @@ import jwt
 from dotenv import load_dotenv
 from fastapi import HTTPException, status
 from jwt import PyJWTError
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
 
 from app.models.models import User
 from app.schemas.schemas import TokenData
@@ -24,7 +25,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Password hashing configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = PasswordHash((BcryptHasher(),))
 
 # JWT configuration from environment variables
 _secret_key = os.getenv("SECRET_KEY")
@@ -168,7 +169,7 @@ def verify_refresh_token(token: str, credentials_exception: HTTPException) -> To
     return verify_token(token, credentials_exception, token_type="refresh")
 
 
-def verify_user_password(user: "User | None", password: str) -> "User | None":
+def verify_user_password(user: User | None, password: str) -> User | None:
     """
     Verify password for a user object.
 

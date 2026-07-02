@@ -6,7 +6,7 @@ A FastAPI-based backend for the ParchMark note-taking application, providing JWT
 
 ### Prerequisites
 
-- Python 3.13 or higher
+- Python 3.14 or higher
 - Docker and Docker Compose (REQUIRED for PostgreSQL and tests)
 - [uv](https://docs.astral.sh/uv/) - Fast Python package manager
 

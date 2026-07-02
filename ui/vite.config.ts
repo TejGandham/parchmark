@@ -28,11 +28,7 @@ export default defineConfig({
     globals: true,
     css: true,
     pool: "forks",
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    fileParallelism: false,
     include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",

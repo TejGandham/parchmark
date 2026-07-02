@@ -180,7 +180,7 @@ class TestF20BrownfieldReplay49f4:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             current = result.scalar()
         assert current == _BROWNFIELD_TARGET_REVISION, (
-            f"Expected alembic_version to be {_BROWNFIELD_TARGET_REVISION!r} " f"after upgrade, but got {current!r}"
+            f"Expected alembic_version to be {_BROWNFIELD_TARGET_REVISION!r} after upgrade, but got {current!r}"
         )
 
     def test_notes_embedding_column_type_is_vector_after_upgrade(self, brownfield_migration_container):
