@@ -1,14 +1,17 @@
 # Archived (closed) binders
 
-Completed karta binders, moved here after a codebase verification confirmed
-every work item is implemented in `main`. Each shipped via a merged PR (see the
-binder's `slug` and the referenced PR in git history). They are retained as the
-planning + acceptance record for delivered features; they are **not** active work.
+Completed karta binders, moved here after their work fully landed in `main` —
+either confirmed by a codebase-verification sweep (the note/settings/backend
+feature binders) or archived on completion of their own karta delivery
+(`deps-upgrade-latest`, `backend-service-layer-notes-auth`). Each shipped via a
+merged PR (see the binder's `slug` and the referenced PR in git history). They
+are retained as the planning + acceptance record for delivered features; they
+are **not** active work.
 
 karta tooling only reads top-level `.karta/binders/*.json`, so nothing in this
 `archive/` subdirectory is treated as an open binder.
 
-Closed in this sweep:
+Closed:
 
 | Binder | Delivered by |
 |-|-|
@@ -24,3 +27,5 @@ Closed in this sweep:
 | settings-account-summary | PR #127 |
 | settings-notes-export | PR #129 |
 | settings-password-change | PR #128 |
+| deps-upgrade-latest | PR #141 |
+| backend-service-layer-notes-auth | PR #142 |
