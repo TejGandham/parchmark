@@ -1,8 +1,5 @@
 {
   "slug": "backend-service-layer-notes-auth",
-  "after": [
-    "backend-drop-sync-session"
-  ],
   "title": "Finish the router to service-layer extraction (notes, auth)",
   "summary": "settings, health, and note-events already have service modules, but notes CRUD and auth logic still live in their routers. Extract them into notes_service.py and auth_service.py so routers stay thin and the business logic is directly testable.",
   "motivation": "Consistency with the established service-layer pattern (settings_service mirrors this) and thin, declarative routers. Salvaged from closed PR #8 (feature/service-layer-refactor).",
@@ -20,23 +17,17 @@
   },
   "design_facts": {
     "source": null,
-    "stack": "FastAPI/Python 3.13 backend, SQLAlchemy 2.0 async. Existing service layer: services/settings_service.py, health_service.py, note_events.py, note_event_streams.py. notes and auth routers still carry business logic."
+    "stack": "FastAPI/Python 3.14 backend, SQLAlchemy 2.0 async. Existing service layer: services/settings_service.py, health_service.py, note_events.py, note_event_streams.py. notes and auth routers still carry business logic."
   },
   "sme": [
     "minimalism",
     "python-fastapi"
   ],
-  "env_contract": {
-    "command": "make dev",
-    "supports_isolation": false,
-    "isolation_params": [],
-    "cwd": "."
-  },
   "runtime_contract": {
     "runtimes": [
       {
         "name": "python",
-        "version": "3.13",
+        "version": ">=3.14",
         "manager": "uv"
       }
     ],
@@ -74,8 +65,8 @@
       },
       "oracle": {
         "type": "integration",
-        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/notes/test_notes_router.py tests/integration/notes/test_note_tags_api.py tests/unit/routers/test_notes_transaction_errors.py tests/unit/notes/test_notes_utils.py -v",
-        "cwd": ".",
+        "cwd": "backend",
+        "command": "uv run ruff check app tests --no-fix && uv run ruff format --check app tests && uv run mypy app",
         "assertions": [
           "Notes create/update/delete/list keep the same status codes, response shapes, and ownership 404s.",
           "Transaction errors still roll back and return HTTP 500 with the existing message.",
@@ -114,8 +105,8 @@
       },
       "oracle": {
         "type": "integration",
-        "command": "make test-backend-lint && make test-backend-format && make test-backend-types && cd backend && uv run pytest tests/integration/auth/test_auth_router.py tests/unit/auth/test_auth.py tests/unit/auth/test_dependencies.py -v",
-        "cwd": ".",
+        "cwd": "backend",
+        "command": "uv run ruff check app tests --no-fix && uv run ruff format --check app tests && uv run mypy app",
         "assertions": [
           "Login with valid and invalid credentials returns the existing tokens and status codes.",
           "/auth/me, refresh, and logout endpoints behave identically after the extraction.",
