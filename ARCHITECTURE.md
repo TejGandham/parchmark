@@ -109,9 +109,9 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
 ```
 Main         main.py                          App bootstrap, lifespan, CORS, routers
   ^
-Routers      routers/{auth,notes,settings,health}   API endpoint handlers
+Routers      routers/{auth,notes,settings,health}   API endpoint handlers (thin delegation)
   ^
-Services     services/                        Health checks + note-event broker/streams
+Services     services/                        Notes/auth/settings orchestration, health checks, note-event broker/streams
   ^
 Auth         auth/                            JWT, OIDC, dependencies
   ^
@@ -145,9 +145,12 @@ Database     database/                        Engine, sessions, init, seed
 
 ### Routers And Services
 
-Most endpoint orchestration lives in routers. Shared backend behavior that must be reused or tested directly lives in services:
+Routers are thin dependency wiring; CRUD and auth business logic lives in services:
 
-- **`routers/notes.py`**: CRUD orchestration, ORM→schema conversion, markdown processing, and the SSE stream — `GET /api/notes/events` (`stream_note_events`) returns a `StreamingResponse` of Server-Sent Events, backed by the note-event broker and stream manager in `services/`
+- **`routers/notes.py`**: dependency wiring plus calls into `services/notes_service.py` for CRUD; keeps the SSE stream — `GET /api/notes/events` (`stream_note_events`) returns a `StreamingResponse` of Server-Sent Events, backed by the note-event broker and stream manager in `services/`
+- **`services/notes_service.py`**: CRUD orchestration (list/create/update/delete/get), note-ID generation, ORM→schema conversion, markdown processing, ownership 404s, and `SQLAlchemyError` → 500 handling
+- **`routers/auth.py`**: dependency wiring plus calls into `services/auth_service.py` for login, token refresh, and user lookup
+- **`services/auth_service.py`**: login credential validation, token issuance/refresh, and `get_user_by_username`
 - **`routers/settings.py`**: settings endpoints that depend on the current user and DB session, then delegate account info, password change, full-notes export, and account deletion to `services/settings_service.py`
 - **`services/settings_service.py`**: account info, local-password changes, account deletion (cascades notes via the ORM relationship), export filename sanitization, batched note collection, ZIP entry generation, and streaming export responses
 
@@ -173,10 +176,12 @@ backend/app/
 │   ├── health_service.py       # DB connectivity check
 │   ├── note_events.py          # Note-event broker + Postgres LISTEN consumer (notes_events)
 │   ├── note_event_streams.py   # NoteEventStreamManager: coordinates active SSE streams
+│   ├── notes_service.py        # Notes CRUD orchestration (list/create/update/delete/get)
+│   ├── auth_service.py         # Login, token issuance/refresh, get_user_by_username
 │   └── settings_service.py     # Account info, password change, account deletion, full-notes ZIP export
 ├── routers/
-│   ├── auth.py                 # /api/auth/* endpoints
-│   ├── notes.py                # /api/notes/* endpoints (incl. GET /events SSE stream)
+│   ├── auth.py                 # /api/auth/* endpoints (delegates to services/auth_service.py)
+│   ├── notes.py                # /api/notes/* endpoints (delegates to services/notes_service.py; incl. GET /events SSE stream)
 │   ├── settings.py             # /api/settings/* endpoints (streaming ZIP export)
 │   └── health.py               # /api/health endpoint
 ├── utils/
