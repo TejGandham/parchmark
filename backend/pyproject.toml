@@ -11,8 +11,7 @@ dependencies = [
     "asyncpg>=0.29.0",
     "greenlet>=3.0.0",  # Required for SQLAlchemy async operations
     "pyjwt[crypto]>=2.10.0",
-    "passlib[bcrypt]==1.7.4",
-    "bcrypt==3.2.0",
+    "pwdlib[bcrypt]==0.3.0",
     "python-multipart==0.0.6",
     "python-dotenv==1.0.0",
     "httpx>=0.26.0",
@@ -137,7 +136,7 @@ line-ending = "auto"
 [tool.mypy]
 python_version = "3.11"
 # Pragmatic configuration - catch real bugs, not style issues
-warn_return_any = false  # Too noisy with third-party libs like passlib/pyjwt
+warn_return_any = false  # Too noisy with third-party libs like pwdlib/pyjwt
 warn_unused_configs = true
 disallow_untyped_defs = false  # Allow gradual typing
 check_untyped_defs = true  # Still type-check untyped functions
