@@ -48,7 +48,7 @@ def test_contract_file_is_absent(rel_path: str) -> None:
     """
     target = _REPO_ROOT / rel_path
     assert not target.exists(), (
-        f"Contract violation: {rel_path} must be deleted (contract.deleted_files) " f"but still exists at {target}"
+        f"Contract violation: {rel_path} must be deleted (contract.deleted_files) but still exists at {target}"
     )
 
 

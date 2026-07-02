@@ -1,5 +1,5 @@
-# Stage 1: Builder stage using official uv image with Python 3.13 on Debian Trixie
-FROM ghcr.io/astral-sh/uv:python3.13-trixie as builder
+# Stage 1: Builder stage using official uv image with Python 3.14 on Debian Trixie
+FROM ghcr.io/astral-sh/uv:python3.14-trixie as builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY migrations ./migrations
 RUN uv sync --frozen --no-dev --no-editable
 
 # Stage 2: Final stage using matching Python version
-FROM python:3.13-slim-trixie
+FROM python:3.14-slim-trixie
 
 WORKDIR /app
 
