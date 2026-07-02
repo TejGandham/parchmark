@@ -10,9 +10,8 @@
     "noEmit": true,
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "types": ["node", "vitest/globals", "web-bluetooth"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
