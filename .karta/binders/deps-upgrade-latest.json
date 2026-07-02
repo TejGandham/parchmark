@@ -1,0 +1,135 @@
+{
+  "slug": "deps-upgrade-latest",
+  "title": "Upgrade everything to the latest versions",
+  "summary": "Move ParchMark onto current toolchains: Python 3.14 and the latest stable release of every backend and frontend dependency, replacing the dead passlib library along the way. Clears years of accumulated dependency debt and the deprecation warnings that come with it.",
+  "motivation": "Pinned-old dependencies (FastAPI 0.104, Vite 5, Vitest 2) and passlib, which cannot run on Python 3.13+, are blocking modernization and masking deprecations.",
+  "scope": {
+    "included": [
+      "Move the backend runtime to Python 3.14 across pyproject, .python-version, both Dockerfiles, CI, and the Makefiles",
+      "Bump every backend dependency (runtime and dev/test) to its latest stable release, pinned via Exa/PyPI at build time",
+      "Replace the unmaintained passlib with pwdlib[bcrypt], keeping bcrypt and existing stored password hashes verifiable",
+      "Bump every frontend dependency to its latest stable release (Vite 8, Vitest 4, TypeScript 6, Vue and all others) and regenerate the lockfile",
+      "Keep Node on the 24 LTS line (already the CI/Docker target); pin it explicitly via engines/.nvmrc",
+      "Adapt any code, config, or tests broken by the major version jumps so all lint, type-check, and test gates pass"
+    ],
+    "excluded": [
+      "Pre-release / beta versions (e.g. SQLAlchemy 2.1b, Vitest 5 beta) — latest STABLE only",
+      "Moving Node to the 26 Current line",
+      "Changing the password-hash algorithm to Argon2 — bcrypt is retained via pwdlib",
+      "Any behavioral or feature change beyond what the upgrades strictly require",
+      "Editing Alembic migration history or OIDC/auth behavior"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "FastAPI + SQLAlchemy 2.0 async + PostgreSQL backend (Python, uv); Vue 3 + Vite + Vitest frontend (Node, npm)"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "python", "version": ">=3.14", "manager": "uv" },
+      { "name": "node", "version": ">=24", "manager": "nvm" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "sme": ["minimalism", "python-fastapi", "vue"],
+  "work_items": [
+    {
+      "id": "migrate-password-hashing",
+      "title": "Swap the dead passlib library for pwdlib (keep bcrypt)",
+      "summary": "Move password hashing off the unmaintained passlib onto pwdlib with bcrypt, so auth keeps working and existing password hashes still verify — a prerequisite for the Python 3.14 jump.",
+      "estimate": "M",
+      "depends_on": [],
+      "contract": "Replace passlib with pwdlib for password hashing while keeping bcrypt. In backend/app/auth/auth.py, swap `from passlib.context import CryptContext` and `CryptContext(schemes=['bcrypt'], deprecated='auto')` for pwdlib's `PasswordHash((BcryptHasher(),))` (from pwdlib import PasswordHash; from pwdlib.hashers.bcrypt import BcryptHasher). get_password_hash() must still emit a bcrypt $2b$ hash; verify_password()/verify_user_password() must still verify pre-existing stored bcrypt hashes in User.password_hash unchanged. In backend/pyproject.toml remove `passlib[bcrypt]==1.7.4` and `bcrypt==3.2.0`, and add `pwdlib[bcrypt]` at its latest stable release. Update any test that imports passlib/CryptContext directly. No change to auth endpoints, token flow, or the on-disk hash format. NOTE: the Docker/testcontainers pytest suite is verified by CI and a manual Incus run before merge; the karta oracle here is the runnable lint+type floor.",
+      "touches": ["backend/app/auth/auth.py", "backend/pyproject.toml"],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive: modifies authentication / password-hashing code (app/auth/auth.py)",
+          "dependency-change: swaps a security-relevant library (passlib to pwdlib)",
+          "not-computed:diff-signals (no diff at plan time)"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "cwd": "backend",
+        "command": "uv run ruff check app tests --no-fix && uv run ruff format --check app tests && uv run mypy app",
+        "assertions": [
+          "backend/pyproject.toml no longer lists passlib or a standalone bcrypt pin, and lists pwdlib[bcrypt] at latest stable",
+          "backend/app/auth/auth.py imports pwdlib (PasswordHash + BcryptHasher) and no longer imports passlib",
+          "get_password_hash still returns a bcrypt $2b$ hash and verify_password still verifies pre-existing bcrypt hashes",
+          "ruff check, ruff format --check, and mypy app all pass"
+        ]
+      }
+    },
+    {
+      "id": "upgrade-backend-runtime-and-deps",
+      "title": "Move backend to Python 3.14 and bump all backend deps to latest",
+      "summary": "Raise the backend runtime to Python 3.14 everywhere it is pinned and upgrade every backend dependency to its latest stable release, fixing whatever the major jumps break.",
+      "estimate": "L",
+      "depends_on": ["migrate-password-hashing"],
+      "contract": "Move the backend to Python 3.14 and bump every backend dependency to its latest stable release. Runtime pins: backend/pyproject.toml requires-python -> >=3.14, [tool.ruff] target-version -> py314, [tool.mypy] python_version -> 3.14; backend/.python-version -> 3.14.6; backend/Dockerfile and backend/Dockerfile.prod -> uv `python3.14-trixie` builder + `python:3.14-slim-trixie` final; .forgejo/workflows/test.yml python-version matrix and `uv python install/pin` -> 3.14; makefiles/common.mk PYTHON_VERSION -> 3.14. Dependencies: pin fastapi, uvicorn[standard], sqlalchemy, psycopg2-binary, asyncpg, greenlet, pyjwt[crypto], python-multipart, python-dotenv, httpx, alembic, stream-zip, and every dev/test dep (ruff, mypy, pytest, pytest-asyncio, pytest-cov, pytest-mock, pytest-xdist, faker, factory-boy, freezegun, testcontainers, pre-commit) to their latest STABLE release (resolve via Exa/PyPI at build time; exclude pre-releases such as SQLAlchemy 2.1b). Adapt any code broken by the major bumps (FastAPI 0.104->~0.139 + Starlette 1.x + Pydantic latest, SQLAlchemy latest, uvicorn latest — e.g. deprecated startup on_event -> lifespan handlers, TestClient/httpx changes) so ruff, mypy, and the full pytest suite pass. Requires the passlib->pwdlib migration first (passlib cannot import on Python 3.14). NOTE: the karta oracle is the runnable lint+type floor; the Docker/testcontainers pytest suite is the CI + manual-Incus merge gate.",
+      "touches": [
+        "backend/pyproject.toml",
+        "backend/.python-version",
+        "backend/Dockerfile",
+        "backend/Dockerfile.prod",
+        ".forgejo/workflows/test.yml",
+        "makefiles/common.mk"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "broad-blast-radius: runtime bump plus every backend dependency across pyproject, both Dockerfiles, CI, and Makefiles",
+          "runtime-change: Python 3.13 -> 3.14",
+          "contract-surface: base images and CI matrix",
+          "not-computed:diff-signals (no diff at plan time)"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "cwd": "backend",
+        "command": "uv run ruff check app tests --no-fix && uv run ruff format --check app tests && uv run mypy app",
+        "assertions": [
+          "requires-python is >=3.14; [tool.ruff] target-version is py314; [tool.mypy] python_version is 3.14",
+          "backend/.python-version, both backend Dockerfiles, the CI python-version matrix, and makefiles/common.mk PYTHON_VERSION all reference Python 3.14",
+          "fastapi (>=0.139), starlette (1.x), sqlalchemy (2.0.51), and every other backend and dev dependency are pinned to their latest stable release with no pre-releases",
+          "ruff check, ruff format --check, and mypy app all pass under Python 3.14 and the upgraded dependencies"
+        ]
+      }
+    },
+    {
+      "id": "upgrade-frontend-deps",
+      "title": "Bump all frontend deps to latest (Vite 8, Vitest 4, TS 6)",
+      "summary": "Upgrade every frontend dependency to its latest stable release and pin Node to the 24 LTS line, fixing whatever the Vite/Vitest/TypeScript major jumps break.",
+      "estimate": "L",
+      "depends_on": [],
+      "contract": "Bump every frontend dependency to its latest stable release and keep Node on the 24 LTS line. In ui/package.json: vue, @vueuse/core, dompurify, marked, ofetch to latest; dev deps vite -> 8.x, vitest -> 4.x, @vitest/coverage-v8 -> 4.x (must match vitest's major), @vue/test-utils, @vitejs/plugin-vue (Vite 8-compatible), typescript -> 6.x, vue-tsc (TS6-compatible), happy-dom, jsdom, prettier, style-dictionary, @types/node to latest stable (resolve via Exa/npm at build time; exclude pre-releases such as Vitest 5 beta). Regenerate and commit ui/package-lock.json. Add engines.node '>=24' and an ui/.nvmrc pinning 24. Adapt any config/tests broken by the Vite 8 / Vitest 4 / TypeScript 6 majors (vitest config, tsconfig, plugin options, the style-dictionary token build) so npm run lint, npm run test:coverage (>=90% coverage floor), and npm run build all pass. Node stays on 24 LTS, so CI's node-version is unchanged.",
+      "touches": [
+        "ui/package.json",
+        "ui/package-lock.json",
+        "ui/tsconfig.json",
+        "ui/vite.config.ts",
+        "ui/.nvmrc"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "broad-blast-radius: every frontend dependency plus the build/test toolchain",
+          "major-version-upgrades: Vite 5 -> 8, Vitest 2 -> 4, TypeScript 5 -> 6",
+          "not-computed:diff-signals (no diff at plan time)"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "cwd": "ui",
+        "command": "npm install && npm run lint && npm run test:coverage && npm run build",
+        "assertions": [
+          "ui/package.json pins vite ^8, vitest ^4, @vitest/coverage-v8 ^4, typescript ^6, and vue plus all other deps at their latest stable release",
+          "ui/package-lock.json is regenerated to match and Node is pinned to 24 (engines + .nvmrc)",
+          "vue-tsc type-check and prettier --check pass",
+          "the vitest suite passes with coverage >= 90% and npm run build (tokens + vue-tsc + vite build) succeeds"
+        ]
+      }
+    }
+  ]
+}
