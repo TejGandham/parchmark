@@ -63,7 +63,7 @@ class TestPasswordHashing:
             result = verify_password("password", "")
             assert result is False
         except Exception:
-            # passlib might raise exception for invalid hash format
+            # pwdlib might raise exception for invalid hash format
             pass
 
         # Both empty - handle gracefully
