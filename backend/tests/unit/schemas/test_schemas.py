@@ -532,9 +532,9 @@ class TestNoteSchemas:
             assert response.updatedAt == "2023-01-01T12:30:00"
             # F19: accessCount and lastAccessedAt fields have been removed from the schema.
             assert not hasattr(response, "accessCount"), "accessCount must not be a field on NoteResponse after F19"
-            assert not hasattr(
-                response, "lastAccessedAt"
-            ), "lastAccessedAt must not be a field on NoteResponse after F19"
+            assert not hasattr(response, "lastAccessedAt"), (
+                "lastAccessedAt must not be a field on NoteResponse after F19"
+            )
 
         def test_note_response_missing_fields(self):
             """Test NoteResponse with missing required fields."""

@@ -83,7 +83,8 @@ class MarkdownContentFactory(factory.DictFactory):
     simple = factory.LazyFunction(lambda: f"# {fake.sentence()}\n\n{fake.paragraph()}")
 
     complex = factory.LazyFunction(
-        lambda: f"""# {fake.sentence()}
+        lambda: (
+            f"""# {fake.sentence()}
 
 This note has **bold** and *italic* text.
 
@@ -102,6 +103,7 @@ def {fake.word()}():
 
 [{fake.word()}]({fake.url()})
 """
+        )
     )
 
     no_title = factory.LazyFunction(lambda: fake.paragraph(nb_sentences=3))
@@ -111,7 +113,8 @@ def {fake.word()}():
     only_title = factory.LazyFunction(lambda: f"# {fake.sentence()}")
 
     multiple_h1 = factory.LazyFunction(
-        lambda: f"""# {fake.sentence()}
+        lambda: (
+            f"""# {fake.sentence()}
 
 {fake.paragraph()}
 
@@ -119,6 +122,7 @@ def {fake.word()}():
 
 {fake.paragraph()}
 """
+        )
     )
 
     title_with_formatting = factory.LazyFunction(lambda: f"# **{fake.word()}** with *{fake.word()}*")
@@ -168,7 +172,7 @@ class DatabaseTestDataFactory:
 
         notes = []
         for i in range(num_notes):
-            note = NoteFactory(user_id=user.id, id=f"note-{user.id}-{i+1}")
+            note = NoteFactory(user_id=user.id, id=f"note-{user.id}-{i + 1}")
             session.add(note)
             notes.append(note)
 

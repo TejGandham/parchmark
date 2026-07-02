@@ -39,7 +39,7 @@ jobs:
       TESTCONTAINERS_RYUK_DISABLED: "true"
     strategy:
       matrix:
-        python-version: ["3.13"]
+        python-version: ["3.14"]
 
     steps:
       - name: Checkout code

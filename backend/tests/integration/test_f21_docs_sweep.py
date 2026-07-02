@@ -172,7 +172,7 @@ def _scan_repo_for_literal(literal: str) -> list[tuple[Path, int, str]]:
             continue
         try:
             text = candidate.read_text(errors="replace")
-        except (OSError, PermissionError):
+        except OSError, PermissionError:
             continue
         if literal in text:
             for i, line in enumerate(text.splitlines(), start=1):
@@ -272,7 +272,7 @@ class TestCoreBeliefsinvariantsRetired:
         pattern = re.compile(r"^#+\s*6\.", re.MULTILINE)
         matches = pattern.findall(text)
         assert matches == [], (
-            f"Invariant 6 heading still present in {_CORE_BELIEFS}: {matches}. " "Retire invariant 6 per F21 contract."
+            f"Invariant 6 heading still present in {_CORE_BELIEFS}: {matches}. Retire invariant 6 per F21 contract."
         )
 
     def test_invariant_7_heading_absent(self):
@@ -281,7 +281,7 @@ class TestCoreBeliefsinvariantsRetired:
         pattern = re.compile(r"^#+\s*7\.", re.MULTILINE)
         matches = pattern.findall(text)
         assert matches == [], (
-            f"Invariant 7 heading still present in {_CORE_BELIEFS}: {matches}. " "Retire invariant 7 per F21 contract."
+            f"Invariant 7 heading still present in {_CORE_BELIEFS}: {matches}. Retire invariant 7 per F21 contract."
         )
 
 

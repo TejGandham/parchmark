@@ -120,22 +120,21 @@ class TestNotesCRUDPayloadHasNoDroppedFields:
     ):
         """POST /api/notes/ returns 200 and payload has no accessCount/lastAccessedAt."""
         response = client.post("/api/notes/", headers=auth_headers, json=sample_note_data)
-        assert (
-            response.status_code == status.HTTP_200_OK
-        ), f"POST /api/notes/ returned {response.status_code}: {response.text}"
+        assert response.status_code == status.HTTP_200_OK, (
+            f"POST /api/notes/ returned {response.status_code}: {response.text}"
+        )
         payload = response.json()
         present = self._DROPPED_FIELDS & set(payload.keys())
         assert present == set(), (
-            f"POST /api/notes/ response contained dropped fields: {present}. "
-            f"Full payload keys: {set(payload.keys())}"
+            f"POST /api/notes/ response contained dropped fields: {present}. Full payload keys: {set(payload.keys())}"
         )
 
     def test_get_notes_list_returns_200_without_dropped_fields(self, client: TestClient, auth_headers, sample_note):
         """GET /api/notes/ returns 200 and each note payload has no accessCount/lastAccessedAt."""
         response = client.get("/api/notes/", headers=auth_headers)
-        assert (
-            response.status_code == status.HTTP_200_OK
-        ), f"GET /api/notes/ returned {response.status_code}: {response.text}"
+        assert response.status_code == status.HTTP_200_OK, (
+            f"GET /api/notes/ returned {response.status_code}: {response.text}"
+        )
         notes = response.json()
         assert isinstance(notes, list)
         assert len(notes) >= 1
@@ -149,9 +148,9 @@ class TestNotesCRUDPayloadHasNoDroppedFields:
     def test_get_note_by_id_returns_200_without_dropped_fields(self, client: TestClient, auth_headers, sample_note):
         """GET /api/notes/{id} returns 200 and payload has no accessCount/lastAccessedAt."""
         response = client.get(f"/api/notes/{sample_note.id}", headers=auth_headers)
-        assert (
-            response.status_code == status.HTTP_200_OK
-        ), f"GET /api/notes/{sample_note.id} returned {response.status_code}: {response.text}"
+        assert response.status_code == status.HTTP_200_OK, (
+            f"GET /api/notes/{sample_note.id} returned {response.status_code}: {response.text}"
+        )
         payload = response.json()
         present = self._DROPPED_FIELDS & set(payload.keys())
         assert present == set(), (
@@ -163,9 +162,9 @@ class TestNotesCRUDPayloadHasNoDroppedFields:
         """PUT /api/notes/{id} returns 200 and payload has no accessCount/lastAccessedAt."""
         update_data = {"title": "Updated Title F19", "content": "# Updated Title F19\n\nContent."}
         response = client.put(f"/api/notes/{sample_note.id}", headers=auth_headers, json=update_data)
-        assert (
-            response.status_code == status.HTTP_200_OK
-        ), f"PUT /api/notes/{sample_note.id} returned {response.status_code}: {response.text}"
+        assert response.status_code == status.HTTP_200_OK, (
+            f"PUT /api/notes/{sample_note.id} returned {response.status_code}: {response.text}"
+        )
         payload = response.json()
         present = self._DROPPED_FIELDS & set(payload.keys())
         assert present == set(), (

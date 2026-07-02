@@ -169,7 +169,7 @@ def verify_refresh_token(token: str, credentials_exception: HTTPException) -> To
     return verify_token(token, credentials_exception, token_type="refresh")
 
 
-def verify_user_password(user: "User | None", password: str) -> "User | None":
+def verify_user_password(user: User | None, password: str) -> User | None:
     """
     Verify password for a user object.
 

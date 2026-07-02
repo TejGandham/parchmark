@@ -111,9 +111,9 @@ class TestGetNotesEndpoint:
         note = data[0]
         # F19: accessCount and lastAccessedAt are removed from the Note response schema.
         required_fields = {"id", "title", "content", "tags", "createdAt", "updatedAt"}
-        assert required_fields.issubset(
-            set(note.keys())
-        ), f"Missing required fields. Expected {required_fields}, got {set(note.keys())}"
+        assert required_fields.issubset(set(note.keys())), (
+            f"Missing required fields. Expected {required_fields}, got {set(note.keys())}"
+        )
         assert note["tags"] == []
         assert "accessCount" not in note, "accessCount must not appear in note payload after F19"
         assert "lastAccessedAt" not in note, "lastAccessedAt must not appear in note payload after F19"

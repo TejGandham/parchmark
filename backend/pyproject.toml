@@ -2,36 +2,36 @@
 name = "parchmark-backend"
 version = "0.0.0"
 description = "Backend API for ParchMark note-taking application"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
-    "fastapi==0.104.1",
-    "uvicorn[standard]==0.24.0",
-    "sqlalchemy>=2.0.32",
-    "psycopg2-binary>=2.9.7",
-    "asyncpg>=0.29.0",
-    "greenlet>=3.0.0",  # Required for SQLAlchemy async operations
-    "pyjwt[crypto]>=2.10.0",
+    "fastapi==0.139.0",
+    "uvicorn[standard]==0.49.0",
+    "sqlalchemy>=2.0.51",
+    "psycopg2-binary>=2.9.12",
+    "asyncpg>=0.31.0",
+    "greenlet>=3.5.3",  # Required for SQLAlchemy async operations
+    "pyjwt[crypto]>=2.13.0",
     "pwdlib[bcrypt]==0.3.0",
-    "python-multipart==0.0.6",
-    "python-dotenv==1.0.0",
-    "httpx>=0.26.0",
-    "alembic>=1.17.2",
-    "stream-zip>=0.0.83",
+    "python-multipart==0.0.32",
+    "python-dotenv==1.2.2",
+    "httpx>=0.28.1",
+    "alembic>=1.18.5",
+    "stream-zip>=0.0.84",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.8.5",
-    "pre-commit==4.1.0",
-    "pytest==7.4.4",
-    "pytest-cov==4.1.0",
-    "pytest-mock==3.12.0",
-    "pytest-asyncio==0.23.2",
-    "pytest-xdist==3.5.0",
-    "httpx==0.26.0",
-    "mypy==1.8.0",
-    "faker==20.1.0",
-    "factory-boy==3.3.0",
+    "ruff==0.15.20",
+    "pre-commit==4.6.0",
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "pytest-mock==3.15.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-xdist==3.8.0",
+    "httpx==0.28.1",
+    "mypy==2.1.0",
+    "faker==40.28.1",
+    "factory-boy==3.3.3",
 ]
 
 [build-system]
@@ -108,7 +108,7 @@ skip_covered = false
 directory = "coverage_html"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py314"
 line-length = 120
 
 [tool.ruff.lint]
@@ -134,7 +134,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 # Pragmatic configuration - catch real bugs, not style issues
 warn_return_any = false  # Too noisy with third-party libs like pwdlib/pyjwt
 warn_unused_configs = true
@@ -149,17 +149,17 @@ exclude = ["tests/"]  # Tests intentionally break type rules for validation test
 
 [dependency-groups]
 dev = [
-    "ruff>=0.8.5",
-    "pre-commit>=4.1.0",
-    "factory-boy>=3.3.0",
-    "faker>=20.1.0",
+    "ruff>=0.15.20",
+    "pre-commit>=4.6.0",
+    "factory-boy>=3.3.3",
+    "faker>=40.28.1",
     "freezegun>=1.5.5",
-    "httpx>=0.26.0",
-    "mypy>=1.8.0",
-    "pytest>=7.4.4",
-    "pytest-asyncio>=0.23.2",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "pytest-xdist>=3.5.0",
-    "testcontainers[postgres]>=4.0.0",
+    "httpx>=0.28.1",
+    "mypy>=2.1.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+    "pytest-xdist>=3.8.0",
+    "testcontainers[postgres]>=4.14.2",
 ]
