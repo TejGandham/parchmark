@@ -11,7 +11,19 @@ Known shortcuts, deferred improvements, and open questions.
 
 ### Open Questions
 
-<!-- None currently tracked. Add as they surface during feature pre-checks. -->
+- [ ] **Open product decisions (carried from the retired v2 TODO list).**
+      Unresolved scope questions that block further wiring work until product
+      decides: whether users may edit profile fields (account details are
+      display-only today; settings already supports password change, notes
+      export, and account deletion); whether workspace/preferences persistence
+      (theme, default view,
+      editor/sort defaults surviving across devices) becomes product scope —
+      no backend preference contract exists; whether SSO provider management
+      (connect / disconnect / provider switch / IdP links) is in scope;
+      whether note deletion needs a confirmation step. Out of scope unless
+      product scope changes: server-generated single-note export, server-side
+      note search / tag query params, bulk tag management (colors, ordering,
+      cross-note admin, saved views), Mermaid runtime rendering.
 
 ## During Implementation
 
@@ -88,11 +100,15 @@ Known shortcuts, deferred improvements, and open questions.
       it and asserts identical outputs. Until then, parity is enforced only
       by convention + the `parchmark-markdown-sync` skill.
 
-- [ ] **Auth-provider consistency DB invariant.**
-      `User.auth_provider='local'` should imply `password_hash IS NOT NULL`;
-      `auth_provider='oidc'` should imply `oidc_sub IS NOT NULL`. Currently
-      only the Python-side logic enforces this; adding a CHECK constraint
-      would make it DB-level.
+- [ ] **Auth-provider consistency DB invariant — migration missing for
+      brownfield DBs.** `User.auth_provider='local'` should imply
+      `password_hash IS NOT NULL`; `auth_provider='oidc'` should imply
+      `oidc_sub IS NOT NULL`. A `valid_auth_credentials` CHECK constraint
+      already exists on the model (`backend/app/models/models.py`), so any
+      `create_all`-built DB enforces it DB-level. What's missing is an
+      Alembic migration backfilling the constraint onto brownfield databases
+      migrated before it existed — no file under
+      `backend/migrations/versions/` references it.
 
 - [ ] **CORS `ALLOWED_ORIGINS` sanity check.** Nothing forbids `*`
       wildcards in production. Add a check once we've confirmed the deploy
@@ -101,6 +117,10 @@ Known shortcuts, deferred improvements, and open questions.
 - [ ] **`Depends(get_async_db)` enforcement.** Prohibit module-level
       `AsyncSession` construction; every session must be request-scoped via
       `Depends`. Current code already honours this but it's un-enforced.
+
+- [ ] **`make test-ui-oidc` is broken.** `makefiles/ui.mk` still targets
+      React-era `src/__tests__/**/*.tsx` files that were deleted in the Vue
+      rewrite, so the target can never pass. Remove or repoint it.
 
 - [x] **RESOLVED — DeprecationWarnings triaged and the filter narrowed
       (PR #138).** The blanket `filterwarnings = ["ignore::UserWarning",
@@ -131,30 +151,28 @@ Known shortcuts, deferred improvements, and open questions.
       of a broken downgrade, don't invest in this — deferred for this
       reason.
 
-- [ ] **Pre-existing doc drift surfaced by an F14 post-commit doc sweep.**
-      Ad-hoc sweep after F14 commit found drift not caused by F14 but
-      worth tracking for a future docs cleanup feature:
-      `docs/BACKEND_MIGRATION_RESEARCH.md:3` carries a "Document Created:
-      January 2026" date annotation. (The earlier `AGENTS.md` north-star
-      cross-reference flagged here is now moot: `AGENTS.md` no longer
-      references north-star, and neither `docs/north-star.md` nor a
-      repo-root `NORTH-STAR.md` exists anywhere in the tree.) Items
-      previously tracked here that are now resolved: (a) ARCHITECTURE.md
-      cosine-similarity / `/similar` endpoint references (swept by F20+F21);
-      (b) F12/F13 DRAFTED markers (cleaned during retirement); (c)
-      `docs/ai-embeddings-design.md` §P5 violations (file archived by F21
-      to `docs/design-docs/archive/`; archived content is historical
-      by contract).
+- [x] **RESOLVED — pre-existing doc drift surfaced by an F14 post-commit
+      doc sweep.** The last outstanding sub-item — the "Document Created:
+      January 2026" annotation in `docs/BACKEND_MIGRATION_RESEARCH.md` —
+      was closed by the docs-accuracy overhaul deleting that file outright.
+      Earlier sub-items were already resolved: ARCHITECTURE.md
+      cosine-similarity / `/similar` references (swept by F20+F21), F12/F13
+      DRAFTED markers (cleaned during retirement),
+      `docs/ai-embeddings-design.md` §P5 violations (archived by F21, then
+      the archive itself deleted by the docs overhaul), and the moot
+      north-star cross-reference.
 
-- [ ] **`docs/deployment_upgrade/archive/` P5 timeline-artifact drift.**
-      A doc sweep flagged three §P5 violations during F14:
-      `DEPLOYMENT.md` carries a `## Changelog` section with version
-      table; `PHASE4_GITHUB_SECRETS.md` and `DEPLOYMENT_VALIDATED.md`
-      carry "as of January 2025" annotations in current-state assertions.
-      These predate the §P5 invariant and are unrelated to F14's contract,
-      so deferring rather than bundling into F14's PR. Sweep when
-      touching deployment docs next, or as a dedicated docs cleanup
-      feature.
+- **DECISION (January 2026): the backend stays Python/FastAPI.** The
+  migration research that produced `docs/BACKEND_MIGRATION_RESEARCH.md`
+  concluded against a rewrite; the doc is deleted. Revisit only under real
+  performance or reliability pressure, not speculation.
+
+- [x] **RESOLVED — `docs/deployment_upgrade/archive/` P5 timeline-artifact
+      drift.** The flagged files (`DEPLOYMENT.md`'s changelog table,
+      `PHASE4_GITHUB_SECRETS.md` / `DEPLOYMENT_VALIDATED.md` "as of January
+      2025" annotations) were deleted wholesale by the docs-accuracy
+      overhaul along with the rest of `docs/deployment_upgrade/`; nothing
+      left to sweep.
 
 - [ ] **Endpoint-removal test pattern accumulator.** With the
       `remove-for-you` retirement complete (F12-F22 landed),
@@ -189,8 +207,9 @@ Known shortcuts, deferred improvements, and open questions.
 
 - [ ] **No virtualization for the rendered notes list (Vue rewrite).**
       The legacy React `NotesExplorer` used `react-window` to virtualize
-      large lists; the v2 Vue shell renders notes directly in `AppShell.vue`
-      with no windowing. With the list now sourced from the backend this is
+      large lists; the v2 Vue shell renders the notes list in
+      `SidebarDrawer.vue` (a plain `v-for` over `NoteCard`s) with no
+      windowing. With the list now sourced from the backend this is
       only harmless at low per-user note counts; it must be revisited before
       the app is wired to real per-user note volumes. Threshold to act:
       re-evaluate when avg user note count exceeds ~200, or when a
@@ -208,7 +227,7 @@ Known shortcuts, deferred improvements, and open questions.
 
 - [ ] **Audit future migrations for brownfield-tolerance guards.** F20
       codified the pattern (inspect → `_table_exists` → return early on
-      fresh DB) in CLAUDE.md "Migration history conventions". All seven
+      fresh DB) in CLAUDE.md "Migration history conventions". All eight
       migrations in the current chain follow the pattern (`170dd30cebde`
       was retrofitted in F20's post-merge-fix-1 after CI surfaced the gap
       on fresh vanilla-postgres containers). Going forward: every new

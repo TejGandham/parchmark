@@ -50,7 +50,7 @@ _BACKEND_ROOT = Path(__file__).parents[2]  # backend/
 _REPO_ROOT = _BACKEND_ROOT.parent  # repo root
 
 _CORE_BELIEFS = _REPO_ROOT / "docs" / "design-docs" / "core-beliefs.md"
-_ARCHITECTURE_MD = _REPO_ROOT / "ARCHITECTURE.md"
+_ARCHITECTURE_MD = _REPO_ROOT / "docs" / "ARCHITECTURE.md"
 _AI_EMBEDDINGS_DESIGN_DOCS_ROOT = _REPO_ROOT / "docs" / "ai-embeddings-design.md"
 _AI_EMBEDDINGS_ARCHIVE = _REPO_ROOT / "docs" / "design-docs" / "archive" / "ai-embeddings-design.md"
 

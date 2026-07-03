@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Script to create the test user mentioned in the README.
+Script to create the default test user (testuser/testpass123), matching app/database/seed.py.
 """
 
 import sys

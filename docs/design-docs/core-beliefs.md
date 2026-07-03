@@ -176,7 +176,7 @@ has a corresponding test. When specs change, tests change first.
 ### Layer 0: Spec Consistency
 
 Docs must not contradict each other. Before writing tests, verify that
-product-specs, design-docs, exec-plans, and ARCHITECTURE.md agree.
+product-specs, design-docs, exec-plans, and `docs/ARCHITECTURE.md` agree.
 
 ### Layer 1: Safety Invariants (the seven)
 
@@ -187,11 +187,11 @@ mocking safety means testing your mock.
 |-|-|
 | #1 Tenant isolation | Integration test in `backend/tests/integration/` that creates two users, posts notes as A, and verifies B's `GET /notes/` returns only B's data. |
 | #2 Auth allowlist | Integration test that hits every router endpoint unauthenticated and asserts `401` for non-allowlisted paths. |
-| #3 Raw SQL | Grep-based audit in CI. |
+| #3 Raw SQL | Grep audit: `text(` across `backend/app/**` must hit only the whitelisted health-check site. (Manual review-time audit today — not automated in CI.) |
 | #4 Typed body | Integration test posts a malformed body (missing/wrong-typed required field) to a mutation endpoint and asserts a `422` from Pydantic. Note: schemas do **not** set `extra="forbid"`, so unknown extra fields are silently ignored, not rejected — only type/required-field validation is enforced at the boundary. |
-| #5 Secrets in logs | Unit test captures `caplog` during a login/password-change flow and asserts no log record contains the plaintext. |
-| #8 Password-hash write | Unit test against `User.set_password`/equivalents — rejects non-hashed input. |
-| #9 OIDC sub | Unit test in `test_oidc_validator.py` verifies lookup uses `oidc_sub`, not `preferred_username`. |
+| #5 Secrets in logs | Requirement (not yet implemented — no backend test uses `caplog` today): capture `caplog` during a login/password-change flow and assert no log record contains the plaintext. |
+| #8 Password-hash write | Grep audit: every `.password_hash` assignment in `backend/app/**` has `get_password_hash(...)` or `None` as its RHS. (There is no `User.set_password` setter to unit-test; hashing happens at the write sites.) |
+| #9 OIDC sub | Unit tests in `backend/tests/unit/auth/test_dependencies.py` verify lookup keys on `oidc_sub` (via `query_user_by_oidc_sub`), not `preferred_username`. |
 
 ### Layer 2a: Integration (Slow)
 
@@ -242,5 +242,5 @@ Validates the full stack boots correctly inside the container:
 |-|-|
 | Fixture helper | `backend/tests/conftest.py` provides `client`, `sample_user`, `auth_headers`. UI side mounts SFCs directly with `@vue/test-utils`. |
 | Mock framework | Python `unittest.mock`; TypeScript Vitest `vi.mock` (stubs `ofetch`/the `services/` layer). |
-| Test tags | Pytest markers: `slow`, `integration`, `oidc`; Vitest co-locates `*.test.ts` next to source. |
+| Test tags | Pytest markers: `unit`, `integration`, `slow`, `auth`, `notes`, `database`; Vitest co-locates `*.test.ts` next to source. |
 | Coverage floor | **90%** both sides, enforced by config (`pyproject.toml` `--cov-fail-under=90`, `ui/vite.config.ts` v8 thresholds — branches/functions/lines/statements all 90). |

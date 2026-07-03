@@ -2,7 +2,7 @@
 
 > Domain map, layer dependencies, and cross-cutting concerns for ParchMark.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, and the settings notes export returns a ZIP download. In this `parchmark-v2` worktree auth, note CRUD, tag edits, full-notes export, and live note-events refresh are wired to the backend. Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](./AGENTS.md).
+ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, and the settings notes export returns a ZIP download. Auth, note CRUD, tag edits, full-notes export, and live note-events refresh are wired to the backend. Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](../AGENTS.md).
 
 ```
 +----------------------+         +-----------------------+
@@ -54,49 +54,7 @@ There is **no `types/`, `config/`, `utils/`, `store/`, or `router/` directory** 
 | Features | Design system, Services |
 | App shell / gate | Features, Services |
 
-\* **No service↔store cycle.** `services/http.ts` never imports the auth composable. Instead, the auth composable injects token/refresh callbacks via `setAuthHooks({ getToken, onRefresh })`, so `http.ts` stays dependency-free and the 401 refresh-and-retry policy is wired without an import cycle.
-
-### Directory Reference
-
-```
-ui/src/
-├── main.ts                     # createApp(App).mount("#app"); imports tokens.css + base.css
-├── App.vue                     # Auth gate: ready -> LoginView | AppShell
-├── vite-env.d.ts
-├── services/
-│   ├── http.ts                 # ofetch + native-fetch helpers, ApiError, setAuthHooks(), 401 refresh-and-retry (request/requestRaw/requestStream)
-│   ├── auth.ts                 # login/refresh/getCurrentUser/logout wrappers
-│   ├── notes.ts                # list/create/update/delete wrappers + NoteDTO
-│   ├── noteEvents.ts           # Authenticated SSE client (openNoteEventStream) for note-change events
-│   └── settings.ts             # account info/password/export/delete-account wrappers
-├── features/
-│   ├── auth/
-│   │   ├── useAuth.ts          # Composable singleton (session via useStorage "pm_auth")
-│   │   └── LoginView.vue       # Two-pane username/password login
-│   ├── shell/
-│   │   ├── AppShell.vue        # In-app view switching (mode/activeId/settings via refs)
-│   │   ├── AppTopbar.vue, SidebarDrawer.vue, UserFooter.vue
-│   │   ├── BreadcrumbTrail.vue, OverflowNoteMenu.vue, ReadEditSegment.vue
-│   │   ├── SearchBox.vue, TagFilter.vue, ThemeToggleButton.vue
-│   │   └── headerTypes.ts
-│   ├── notes/
-│   │   ├── MarkdownProse.vue   # v-html prose pane with scoped typography
-│   │   ├── markdownRender.ts   # marked + DOMPurify rendering
-│   │   ├── NoteCard.vue
-│   │   ├── useNotes.ts         # Notes store composable singleton (fetch/create/update/delete + status refs + debounced live-event refetch)
-│   │   ├── useNoteEvents.ts    # Composable managing the note-events SSE stream lifecycle (start/stop, unmount teardown)
-│   │   ├── mockNotes.ts        # NoteMock type + in-memory seed (no longer the list source)
-│   │   └── noteMockHelpers.ts  # extractTitle/stripTitle/relTime/groupByTime/...
-│   └── settings/
-│       ├── SettingsView.vue    # Account details, password change, full-notes ZIP export, delete-account danger zone
-│       └── useSettings.ts      # Settings composable singleton (user info/password/export/delete-account status refs)
-├── design-system/
-│   ├── base.css                # Static base styles
-│   ├── tokens.css              # GENERATED — do not edit by hand
-│   ├── tokens/                 # primitives.json, semantic.json, semantic.dark.json, build.mjs
-│   ├── components/             # DsMenu.vue, DsSegment.vue, DsToolButton.vue
-│   └── icons/index.ts          # createIcon() factory + 18 hand-authored SVG icons
-```
+**No service↔store cycle.** `services/http.ts` never imports the auth composable. Instead, the auth composable injects token/refresh callbacks via `setAuthHooks({ getToken, onRefresh })`, so `http.ts` stays dependency-free and the 401 refresh-and-retry policy is wired without an import cycle.
 
 ---
 
@@ -117,10 +75,12 @@ Auth         auth/                            JWT, OIDC, dependencies
   ^
 Schemas      schemas/                         Pydantic request/response models
   ^
-Models       models/                          SQLAlchemy ORM (User, Note)
+Models       models/                          SQLAlchemy ORM (User, Note, NoteTag)
   ^
 Database     database/                        Engine, sessions, init, seed
 ```
+
+`utils/markdown.py` sits outside the stack as a leaf helper (no app imports); services may use it.
 
 ### Dependency Rules
 
@@ -129,9 +89,10 @@ Database     database/                        Engine, sessions, init, seed
 | Database | Nothing (foundation) |
 | Models | Database (Base class only) |
 | Schemas | Nothing from app (standalone Pydantic models) |
+| Utils | Nothing from app (pure helpers) |
 | Auth | Models, Schemas, Database |
-| Services | Database, Models |
-| Routers | Auth, Services, Models, Schemas, Database, Utils |
+| Services | Auth, Schemas, Models, Database, Utils |
+| Routers | Auth, Services, Models, Schemas, Database |
 | Main | All layers (wiring only) |
 
 ### Known Cross-Layer Edges
@@ -139,7 +100,7 @@ Database     database/                        Engine, sessions, init, seed
 | Edge | Reason |
 |-|-|
 | `models/models.py` → `database` | Models import `Base` for declarative ORM—unavoidable SQLAlchemy pattern |
-| `database/seed.py` → `auth` | Seed needs `get_password_hash` for default user passwords; runs on startup |
+| `database/seed.py` → `auth`, `models` | Seed needs `get_password_hash` for default user passwords and the `User`/`Note` ORM classes to create default rows; runs on startup |
 | `main.py` → `auth/oidc_validator` | Lifespan imports the OIDC validator singleton for `close()` on shutdown |
 | `main.py` → `services/note_events`, `services/note_event_streams` | Lifespan starts a per-worker Postgres `LISTEN` consumer (`create_note_event_listener`) on startup and closes active SSE streams (`note_event_stream_manager.close_all()`) before stopping the consumer on shutdown |
 
@@ -156,57 +117,9 @@ Routers are thin dependency wiring; CRUD and auth business logic lives in servic
 
 The `services/` package also holds health checks and the note-event broker: `health_service.py` (DB connectivity), `note_events.py` (an in-process note-event broker + per-worker Postgres `LISTEN` consumer on channel `notes_events`), and `note_event_streams.py` (`NoteEventStreamManager`, coordinating active SSE streams).
 
-### Directory Reference
-
-```
-backend/app/
-├── database/
-│   ├── database.py             # Async engine, session factory, get_async_db()
-│   ├── init_db.py              # Table creation
-│   └── seed.py                 # Default users and notes
-├── models/
-│   └── models.py               # User, Note
-├── schemas/
-│   └── schemas.py              # Pydantic schemas (no model imports)
-├── auth/
-│   ├── auth.py                 # JWT creation/validation, password hashing
-│   ├── dependencies.py         # get_current_user (hybrid JWT + OIDC)
-│   └── oidc_validator.py       # OIDC token validation, discovery caching
-├── services/
-│   ├── health_service.py       # DB connectivity check
-│   ├── note_events.py          # Note-event broker + Postgres LISTEN consumer (notes_events)
-│   ├── note_event_streams.py   # NoteEventStreamManager: coordinates active SSE streams
-│   ├── notes_service.py        # Notes CRUD orchestration (list/create/update/delete/get)
-│   ├── auth_service.py         # Login, token issuance/refresh, get_user_by_username
-│   └── settings_service.py     # Account info, password change, account deletion, full-notes ZIP export
-├── routers/
-│   ├── auth.py                 # /api/auth/* endpoints (delegates to services/auth_service.py)
-│   ├── notes.py                # /api/notes/* endpoints (delegates to services/notes_service.py; incl. GET /events SSE stream)
-│   ├── settings.py             # /api/settings/* endpoints (streaming ZIP export)
-│   └── health.py               # /api/health endpoint
-├── utils/
-│   └── markdown.py             # Title extraction, H1 removal (synced with frontend)
-├── main.py                     # FastAPI app, lifespan (starts per-worker note-event LISTEN consumer, closes SSE streams on shutdown), CORS, exception handlers
-├── __main__.py                 # uvicorn entry point
-└── version.py                  # CalVer version info
-
-backend/
-├── tests/                      # Pytest: unit/ and integration/
-└── migrations/                 # Alembic schema migrations
-```
-
 ### Dependency Injection
 
-Protected routes use FastAPI's `Depends()`:
-
-```python
-async def endpoint(
-    current_user: User = Depends(get_current_user),  # Auth layer
-    db: AsyncSession = Depends(get_async_db),         # Database layer
-):
-```
-
-`get_current_user` resolves via: Bearer token → try local JWT → fall back to OIDC → return User model. OIDC users are auto-created on first login.
+Protected routes use FastAPI's `Depends()` to pull `get_current_user` (Auth layer) and `get_async_db` (Database layer). `get_current_user` resolves via: Bearer token → try local JWT → fall back to OIDC → return User model. OIDC users are auto-created on first login.
 
 ---
 
@@ -231,12 +144,12 @@ Backend: `get_current_user` dependency tries local JWT first, then OIDC. All end
 
 ### Markdown Processing
 
-The backend owns title/H1 handling in `utils/markdown.py` (`extract_title`, `remove_h1`), applied when notes are created or updated.
+The backend owns title/H1 handling in `utils/markdown.py`: a `MarkdownService` class (exposed as the `markdown_service` singleton) with `extract_title`, `format_content`, `remove_h1`, and `create_empty_note` methods, applied when notes are created or updated.
 
-In this `parchmark-v2` worktree the frontend processes markdown for **display only**, against notes fetched from the backend:
+The frontend processes markdown for **display only**, against notes fetched from the backend:
 
 - `features/notes/noteMockHelpers.ts` — pure helpers including `extractTitle` and `stripTitle` (strips the leading H1 before rendering).
-- `features/notes/markdownRender.ts` — `renderMarkdownBody()` parses with `marked` (GFM), rewrites `language-mermaid` fences into `<div class="mermaid">`, then sanitizes with `dompurify` (allowing GFM task-list `input` elements). No mermaid runtime is wired in this worktree — mermaid blocks are emitted as markup only.
+- `features/notes/markdownRender.ts` — `renderMarkdownBody()` parses with `marked` (GFM), rewrites `language-mermaid` fences into `<div class="mermaid">`, then sanitizes with `dompurify` (allowing GFM task-list `input` elements). No mermaid runtime is wired — mermaid blocks are emitted as markup only.
 
 The notes list is fetched from the backend (`GET /api/notes/` via `useNotes`), so the frontend and backend title/H1 handling round-trip through `extract_title`/`remove_h1` and `stripTitle`/`extractTitle` must stay in sync — use the `parchmark-markdown-sync` skill after editing either side.
 
@@ -258,7 +171,7 @@ New cross-layer dependencies require explicit justification and must be document
 
 ### Request Lifecycle (auth + notes CRUD)
 
-The paths that reach the backend in this worktree are authentication (above) and note list/create/update/delete calls:
+The paths that reach the backend are authentication (above) and note list/create/update/delete calls:
 
 ```
 User action (login / app mount)
@@ -292,14 +205,4 @@ No store library. State is held in Vue reactivity:
 
 ## Infrastructure
 
-```
-deploy/                       # Production deployment scripts
-docker-compose.dev.yml        # PostgreSQL only (local dev)
-docker-compose.yml            # Full stack (container testing)
-docker-compose.prod.yml       # Production (registry images)
-docker-compose.oidc-test.yml  # PostgreSQL + Authelia (OIDC testing)
-makefiles/                    # Modular make targets
-.forgejo/workflows/           # CI: test.yml (PR gate), deploy.yml (push to main)
-```
-
-CI runs on Forgejo (origin). Tests must pass before images build. Deploy is automated via k3s `kubectl rollout restart` on push to main.
+CI runs on Forgejo (origin). Tests must pass before images build. Deploy is automated via k3s `kubectl rollout restart` on push to main. Compose files, make targets, and CI workflow details are catalogued in [AGENTS.md](../AGENTS.md).
