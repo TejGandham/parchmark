@@ -21,7 +21,7 @@ Domain invariants live in [`docs/design-docs/core-beliefs.md`](docs/design-docs/
 
 **Every feature or bug fix MUST use a new branch. No exceptions.**
 
-> **Docs-only exception:** If the change touches **only markdown / documentation files** and no code (`.ts`, `.tsx`, `.js`, `.py`, `.yml`, `.json`, etc.), you may commit directly to `main` and skip the PR. The moment any code file is touched, the full branch + PR + CI workflow applies.
+> **Docs-only exception:** If the change touches **only markdown / documentation files** and no code (`.ts`, `.tsx`, `.js`, `.py`, `.yml`, `.json`, etc.), you still need a branch + PR — the Forgejo pre-receive hook rejects direct pushes to `main`, docs included — but you may self-merge the PR as soon as CI is green, no review needed. The moment any code file is touched, the full branch + PR + CI workflow applies.
 
 ### 1. Create a Branch (first step)
 
