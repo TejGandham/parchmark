@@ -138,6 +138,8 @@ _EXCLUDED_DIR_PARTS: tuple[str, ...] = (
     # (F) Active backlog + tech-debt tracker reference literals as PRD-derived titles
     "docs/exec-plans/active/feature-backlog.md",
     "docs/exec-plans/tech-debt-tracker.md",
+    # (F) karta orchestration records — binder work-item prose names retired literals
+    ".karta",
 )
 
 
