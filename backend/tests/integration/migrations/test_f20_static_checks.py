@@ -175,12 +175,12 @@ class TestNoVectorImportInMigrationVersions:
 
     def test_no_from_pgvector_or_vector_call_in_migration_versions(self):
         """
-        rg -n "from pgvector|Vector\\(" backend/migrations/versions/ must return
+        rg -n "from pgvector\\.|Vector\\(" backend/migrations/versions/ must return
         zero matches. Descriptive title strings like 'drop embedding columns and
         pgvector' in docstrings are permitted by the narrow pattern.
         """
         assert _MIGRATIONS_VERSIONS_DIR.exists(), f"migrations/versions/ not found at {_MIGRATIONS_VERSIONS_DIR}"
-        pattern = re.compile(r"from pgvector|Vector\(")
+        pattern = re.compile(r"from pgvector\.|Vector\(")
         hits: list[tuple[Path, int, str]] = []
 
         for py_file in _MIGRATIONS_VERSIONS_DIR.glob("*.py"):

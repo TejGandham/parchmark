@@ -87,40 +87,35 @@ Known shortcuts, deferred improvements, and open questions.
 
 ### Cross-cutting
 
-- [ ] **Markdown parity as a shared test fixture.** Frontend and backend
-      markdown handling must stay aligned (title extraction / leading-H1
-      stripping), but cross-language equivalence can't be reliably enforced
-      by a static check. The v2 frontend renderer lives in
-      `ui/src/features/notes/markdownRender.ts` (`marked` + `dompurify`),
-      with title/H1 helpers in
-      `ui/src/features/notes/noteMockHelpers.ts`; the backend counterpart
-      is `backend/app/utils/markdown.py`. Follow-up: extract a shared
-      fixture of title/strip cases into a JSON file that both test suites
-      import, then write a Python test in `backend/tests/unit/` that loads
-      it and asserts identical outputs. Until then, parity is enforced only
-      by convention + the `parchmark-markdown-sync` skill.
+- [x] **RESOLVED — Markdown parity now enforced by a shared test
+      fixture.** `testdata/markdown-parity.json` holds title/strip cases
+      that both suites load: `backend/tests/unit/utils/test_markdown_parity.py`
+      asserts `app.utils.markdown.markdown_service` against it, and
+      `ui/src/features/notes/__tests__/markdownParity.test.ts` asserts the
+      frontend's `markdownRender.ts`/`noteMockHelpers.ts` helpers against
+      the same fixture. The `parchmark-markdown-sync` skill remains the
+      process check to run after editing either side's markdown utils.
 
-- [ ] **Auth-provider consistency DB invariant — migration missing for
-      brownfield DBs.** `User.auth_provider='local'` should imply
-      `password_hash IS NOT NULL`; `auth_provider='oidc'` should imply
-      `oidc_sub IS NOT NULL`. A `valid_auth_credentials` CHECK constraint
-      already exists on the model (`backend/app/models/models.py`), so any
-      `create_all`-built DB enforces it DB-level. What's missing is an
-      Alembic migration backfilling the constraint onto brownfield databases
-      migrated before it existed — no file under
-      `backend/migrations/versions/` references it.
+- [x] **RESOLVED — Auth-provider consistency DB invariant backfilled for
+      brownfield DBs.** Migration `be7aafff4947` backfills the
+      `valid_auth_credentials` CHECK constraint onto brownfield databases
+      migrated before it existed; it no-ops if the constraint is already
+      present and aborts rather than silently mutating data if existing
+      rows violate the predicate.
 
 - [ ] **CORS `ALLOWED_ORIGINS` sanity check.** Nothing forbids `*`
       wildcards in production. Add a check once we've confirmed the deploy
       pipeline never sets a wildcard.
 
-- [ ] **`Depends(get_async_db)` enforcement.** Prohibit module-level
-      `AsyncSession` construction; every session must be request-scoped via
-      `Depends`. Current code already honours this but it's un-enforced.
+- [x] **RESOLVED — `Depends(get_async_db)` enforcement.** An AST-based
+      guard test (`backend/tests/unit/database/test_session_scoping.py`)
+      now fails the suite if any module under `backend/app` (other than
+      `app/database/database.py`) constructs `AsyncSession`/
+      `AsyncSessionLocal` outside a function body.
 
-- [ ] **`make test-ui-oidc` is broken.** `makefiles/ui.mk` still targets
-      React-era `src/__tests__/**/*.tsx` files that were deleted in the Vue
-      rewrite, so the target can never pass. Remove or repoint it.
+- [x] **RESOLVED — broken `test-ui-oidc`/`test-ui-auth` targets removed.**
+      Both targeted React-era `src/__tests__/**/*.tsx` files deleted in the
+      Vue rewrite and could never pass; removed from `makefiles/ui.mk`.
 
 - [x] **RESOLVED — DeprecationWarnings triaged and the filter narrowed
       (PR #138).** The blanket `filterwarnings = ["ignore::UserWarning",
@@ -227,14 +222,11 @@ Known shortcuts, deferred improvements, and open questions.
 
 - [ ] **Audit future migrations for brownfield-tolerance guards.** F20
       codified the pattern (inspect → `_table_exists` → return early on
-      fresh DB) in CLAUDE.md "Migration history conventions". All eight
+      fresh DB) in CLAUDE.md "Migration history conventions". All nine
       migrations in the current chain follow the pattern (`170dd30cebde`
       was retrofitted in F20's post-merge-fix-1 after CI surfaced the gap
-      on fresh vanilla-postgres containers). Going forward: every new
-      migration MUST include the `_table_exists` / column / index inspector
-      guards before mutating DDL, so the chain remains replayable on a
-      literally-empty DB regardless of the `create_all` vs `alembic-first`
-      boot ordering. Optionally: tighten F20's pgvector grep assertion from
-      `from pgvector|Vector\(` to `from pgvector\.|Vector\(` so historical
-      prose mentioning "pgvector" doesn't force migration-body cosmetic
-      edits to clear the grep.
+      on fresh vanilla-postgres containers; `be7aafff4947` was written
+      guarded from the start). Going forward: every new migration MUST
+      include the `_table_exists` / column / index inspector guards before
+      mutating DDL, so the chain remains replayable on a literally-empty DB
+      regardless of the `create_all` vs `alembic-first` boot ordering.
