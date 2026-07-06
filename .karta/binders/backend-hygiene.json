@@ -1,0 +1,196 @@
+{
+  "slug": "backend-hygiene",
+  "title": "Backend hygiene sweep",
+  "summary": "Closes five small tracked tech-debt items in one pass: a migration that backfills the auth-credentials database check onto existing databases, a shared fixture that keeps frontend and backend markdown title handling in step, removal of two make targets that can never pass, a guard test that blocks import-time database sessions, and a sharper static check for a retired dependency.",
+  "motivation": "The tech-debt tracker lists five backend hygiene gaps that are cheap to close now and only get costlier as they drift.",
+  "scope": {
+    "included": [
+      "backend Alembic migration chain and its integration test suite (backend/migrations, backend/tests/integration/migrations)",
+      "backend and frontend markdown title helper test suites plus one shared fixture file",
+      "make targets for frontend tests (makefiles/ui.mk)",
+      "backend static-enforcement tests (import-time session guard, retired-dependency grep)",
+      "the fresh-vs-brownfield divergence notes in docs/ARCHITECTURE.md",
+      "the markdown-parity entry in docs/exec-plans/tech-debt-tracker.md"
+    ],
+    "excluded": [
+      "behavior changes to the markdown title helpers themselves — the known divergences (frontend default title 'Untitled' vs backend 'Untitled Note', backend trimming trailing whitespace after stripping, headings not at the document start) stay as they are",
+      "repairing brownfield rows that violate the auth-credentials check — the migration fails loudly on bad data and a human decides",
+      "ticking tracker checkboxes for the other four entries — done in one follow-up commit after the binder merges, to avoid five work items colliding on one file",
+      "any UI feature or design surface"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "FastAPI + SQLAlchemy 2.0 async + PostgreSQL backend (Python 3.14 via uv); Vue 3 + Vite + TypeScript frontend (Node 24 via nvm); make-driven test pipeline mirrored in Forgejo CI"
+  },
+  "sme": ["minimalism", "python-fastapi", "vue"],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": true,
+    "isolation_params": [
+      "Backend pytest is self-contained via testcontainers (per-worker PostgreSQL) but requires Docker; on this host Docker is reachable only through the Incus instance vader-incus-docker-host — stage the repo into /tmp inside it and run pytest from the ghcr.io/astral-sh/uv:python3.13-bookworm image with --network host, per the 'Docker-backed tests from worktrees' section of ~/AGENTS.md. CI has Docker natively."
+    ]
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "python", "version": ">=3.14", "manager": "uv" },
+      { "name": "node", "version": ">=24", "manager": "nvm" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "auth-constraint-migration",
+      "title": "Backfill the auth-credentials database check onto existing databases",
+      "summary": "Add an Alembic migration so brownfield databases gain the same auth-credentials check constraint that freshly created databases already get from the model, with tests proving both the fresh and brownfield paths.",
+      "estimate": "M",
+      "depends_on": [],
+      "serialize": true,
+      "shared_resources": ["alembic-migration-chain"],
+      "touches": [
+        "backend/migrations/versions/<new-rev>_backfill_valid_auth_credentials.py",
+        "backend/tests/integration/migrations/test_backfill_valid_auth_credentials.py",
+        "docs/ARCHITECTURE.md"
+      ],
+      "contract": {
+        "migration": "New revision with down_revision '1b2c3d4e5f6a' (current head). Upgrade adds a named CHECK constraint 'valid_auth_credentials' on the users table with exactly the model's predicate from backend/app/models/models.py: (auth_provider = 'local' AND password_hash IS NOT NULL) OR (auth_provider = 'oidc' AND oidc_sub IS NOT NULL). Revision id, filename, and direction are immutable once landed, per the project's migration history conventions.",
+        "guards": "Upgrade inspects existing check constraints on users (sa.inspect(conn).get_check_constraints) and returns early when 'valid_auth_credentials' is already present — that is the fresh-DB case where create_all built the schema first. Downgrade drops the constraint only when present and no-ops otherwise.",
+        "failure_mode": "If brownfield rows violate the predicate, ADD CONSTRAINT fails loudly and the migration aborts. No silent data mutation, no constraint added NOT VALID. That failure is accepted, documented behavior — a human repairs the data.",
+        "tests": "New integration test module follows the stamp-at-parent pattern of backend/tests/integration/migrations/test_note_tags_migration.py: (a) brownfield — stamp '1b2c3d4e5f6a', upgrade head, assert the constraint exists and an insert with auth_provider='local' and NULL password_hash is rejected; (b) fresh — create_all first, then upgrade head no-ops without error and leaves exactly one constraint; (c) downgrade drops it.",
+        "docs": "Update the divergence bullet in docs/ARCHITECTURE.md ('Known Fresh-vs-Brownfield Divergences', currently line 168) — the check constraint is no longer fresh-only once this migration lands."
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "On a database stamped at revision 1b2c3d4e5f6a, alembic upgrade head adds a CHECK constraint named valid_auth_credentials on users with the model's exact predicate",
+          "On a fresh database where create_all already produced the schema, the upgrade body detects the existing constraint via the inspector and returns early without error",
+          "After upgrade, inserting a users row with auth_provider='local' and a NULL password_hash fails with an integrity error",
+          "Downgrade drops the constraint when present and no-ops when absent",
+          "The stale 'no migration creates it' claim about this constraint is gone from docs/ARCHITECTURE.md"
+        ],
+        "command": "make test-backend-all"
+      },
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract-mutation:db-schema — tightens the users table on brownfield databases (additive constraint, but rejects future writes that previously succeeded)",
+          "destructive-op:migration — schema migration with a downgrade that drops the constraint",
+          "sensitive-zone:migrations — backend/migrations is governed by the repo's migration history conventions (immutable ids, mandatory brownfield guards, fresh+brownfield test evidence)"
+        ]
+      }
+    },
+    {
+      "id": "markdown-parity-fixture",
+      "title": "Shared fixture keeps frontend and backend markdown titles in step",
+      "summary": "One JSON file of markdown cases, imported by both test suites, so any drift between the two title helpers fails a test instead of relying on convention.",
+      "estimate": "S",
+      "depends_on": [],
+      "touches": [
+        "testdata/markdown-parity.json",
+        "backend/tests/unit/utils/test_markdown_parity.py",
+        "ui/src/features/notes/__tests__/markdownParity.test.ts",
+        "ui/tsconfig.json",
+        "docs/exec-plans/tech-debt-tracker.md"
+      ],
+      "contract": {
+        "fixture": "New repo-root testdata/markdown-parity.json: an array of cases { name, markdown, title, stripped }. The backend test asserts extract_title(markdown) == title and remove_h1(markdown) == stripped (module functions in backend/app/utils/markdown.py) for every case; the frontend test asserts extractTitle(markdown) == title and stripTitle(markdown) == stripped (from ui/src/features/notes/noteMockHelpers.ts) for the same cases. Identical expected values on both sides — no per-side expectations.",
+        "case_categories": "Derived from the two implementations' actual regexes, restricted to the surface where they agree today: (1) plain first-line ATX H1 plus body; (2) H1 line with extra whitespace after the hash and trailing spaces; (3) blank lines before the H1; (4) H1-only document (stripped result is empty); (5) multiple H1s — only the first becomes the title and only the first is stripped; (6) sub-headings (##, ###) after the H1 preserved and never treated as the title; (7) hash lines inside code fences after the H1 left intact. Every case's markdown ends without trailing whitespace, because the backend trims the stripped result and the frontend does not.",
+        "deliberate_exclusions": "No-H1 inputs (frontend defaults to 'Untitled', backend to 'Untitled Note'), leading spaces before the hash, and H1s preceded by non-blank content are known divergences and stay out of the fixture; changing helper behavior is out of scope for this item.",
+        "wiring": "Backend test resolves the fixture via pathlib relative to the test file. Frontend test imports the JSON by relative path — Vitest runs in Node, so importing JSON from outside ui/ works; touch ui/tsconfig.json only if the type-checker needs resolveJsonModule enabled. Ticks the markdown-parity checkbox in docs/exec-plans/tech-debt-tracker.md (this binder's only tracker edit)."
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "Backend pytest loads testdata/markdown-parity.json and, for every case, extract_title and remove_h1 return exactly the case's title and stripped values",
+          "Frontend Vitest imports the same JSON file and extractTitle and stripTitle return exactly the same expected values",
+          "The fixture contains at least one case in each of the seven agreed categories",
+          "Both suites read one shared file — no copied case data on either side"
+        ],
+        "command": "make test-backend-all && make test-ui-all"
+      },
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "novelty:cross-suite-fixture — first repo-root testdata/ directory and first fixture shared across the Python and TypeScript test suites; a new pattern entering the codebase, not a reuse of an existing one"
+        ]
+      }
+    },
+    {
+      "id": "remove-test-ui-oidc-target",
+      "title": "Remove the two broken frontend auth test targets",
+      "summary": "Delete the two make targets that point at React-era test files deleted in the Vue rewrite, so neither can masquerade as a runnable check.",
+      "estimate": "S",
+      "depends_on": [],
+      "touches": ["makefiles/ui.mk"],
+      "contract": {
+        "change": "Remove the test-ui-oidc target (makefiles/ui.mk lines 31-35) and the test-ui-auth target (lines 37-41), each with its .PHONY declaration. Both invoke paths under ui/__tests__/features/auth/ that no longer exist and cannot return — current auth tests are colocated under ui/src/features/auth/ and OIDC validation is a backend concern. Nothing meaningful to repoint to, so removal, not repointing.",
+        "unchanged": "All other targets in makefiles/ui.mk stay byte-identical."
+      },
+      "oracle": {
+        "type": "smoke",
+        "assertions": [
+          "make -n test-ui-oidc exits non-zero with 'No rule to make target'",
+          "make -n test-ui-auth exits non-zero with 'No rule to make target'",
+          "make help still lists targets without error",
+          "make test-ui-all still passes"
+        ],
+        "command": "! make -n test-ui-oidc 2>/dev/null && ! make -n test-ui-auth 2>/dev/null && make help >/dev/null && make test-ui-all"
+      },
+      "surface": {
+        "flagged": false,
+        "signals": []
+      }
+    },
+    {
+      "id": "async-session-enforcement",
+      "title": "Guard against import-time database sessions",
+      "summary": "Add a test that fails whenever any backend application module constructs a database session at import time, so sessions stay request-scoped through dependency injection.",
+      "estimate": "S",
+      "depends_on": [],
+      "touches": ["backend/tests/unit/database/test_session_scoping.py"],
+      "contract": {
+        "rule": "Every session must be request-scoped via Depends(get_async_db). The only allowed definition site for the session factory is backend/app/database/database.py (AsyncSessionLocal = async_sessionmaker(...)).",
+        "test": "New AST-based unit test: parse every backend/app/**/*.py with the standard-library ast module and fail if any Call whose callee name (Name or trailing Attribute) is 'AsyncSession' or 'AsyncSessionLocal' executes at import time — i.e. sits in the module or class body, outside any function or async function body — in a file other than app/database/database.py. Calls inside function bodies are allowed (seed.py constructs sessions inside functions and must keep passing). Failure message names the offending file and line. Standard library only — no new dependency.",
+        "current_state": "The tree already honors the rule, so the test passes as written and exists purely to stop regressions."
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "The new test parses every Python file under backend/app and passes on the current tree",
+          "Injecting a module-scope AsyncSessionLocal() or AsyncSession() call into any app module other than database.py makes the test fail and name the file and line",
+          "Function-scoped construction (as in seed.py) does not trip the rule"
+        ],
+        "command": "make test-backend-all"
+      },
+      "surface": {
+        "flagged": false,
+        "signals": []
+      }
+    },
+    {
+      "id": "pgvector-grep-tighten",
+      "title": "Sharpen the retired-dependency static check",
+      "summary": "Tighten the grep that polices migration files for the retired vector-search dependency so prose mentions of its name in docstrings no longer count as violations.",
+      "estimate": "S",
+      "depends_on": [],
+      "touches": ["backend/tests/integration/migrations/test_f20_static_checks.py"],
+      "contract": {
+        "change": "In backend/tests/integration/migrations/test_f20_static_checks.py (currently line 183), change the compiled pattern from r\"from pgvector|Vector\\(\" to exactly r\"from pgvector\\.|Vector\\(\", and update the test's docstring so the documented rg equivalent matches the new pattern.",
+        "behavior": "A docstring or comment line that merely says 'pgvector' in prose no longer matches; the module-qualified import form used historically (from pgvector.sqlalchemy import Vector) and any Vector( call site still match. The scan scope (every *.py under backend/migrations/versions) and the failure message are unchanged. No migration bodies are edited."
+      },
+      "oracle": {
+        "type": "unit",
+        "assertions": [
+          "The compiled pattern in the static-check test is exactly r\"from pgvector\\.|Vector\\(\"",
+          "A line containing only the prose word pgvector does not match the new pattern; 'from pgvector.sqlalchemy import Vector' and 'Vector(' both still match",
+          "The static-check test still passes against the current migration files"
+        ],
+        "command": "make test-backend-all"
+      },
+      "surface": {
+        "flagged": false,
+        "signals": []
+      }
+    }
+  ]
+}
