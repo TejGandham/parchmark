@@ -394,7 +394,7 @@ Deliberate simplifications and latent hazards a plan should treat as facts, not 
 - **`deploy.yml` doesn't wait for `test.yml`** — the test gate is convention, not CI-enforced.
 - **No rate limiting, no security headers/CSP** anywhere.
 - **Seeding runs in every environment**, production included; seeded IDs are non-standard (`"1"`,`"2"`,`"3"`).
-- **Fresh-vs-brownfield schema divergences** (CHECK constraint, email index, `auth_provider` length).
+- **Fresh-vs-brownfield schema divergences** (email index, `auth_provider` length).
 - **Prod `version` reports `"dev"`** — trust `gitSha` only.
 - Note-ID collisions under same-millisecond concurrent creates surface as 500s.
 
