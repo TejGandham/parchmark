@@ -165,7 +165,7 @@ Alembic's `env.py` overrides `sqlalchemy.url` from `DATABASE_URL` and runs **syn
 
 ### Known Fresh-vs-Brownfield Divergences (verified)
 
-- The `valid_auth_credentials` CHECK exists **only on fresh DBs** — no migration creates it (tracked in the tech-debt tracker).
+- The `valid_auth_credentials` CHECK now exists on both paths: fresh DBs get it from the model (`User.__table_args__`), and brownfield DBs get it backfilled by migration `be7aafff4947` (guarded: no-ops if the constraint is already present, and aborts loudly rather than silently mutating data if existing rows violate the predicate).
 - `ix_users_email` (unique) exists **only on brownfield DBs** — a migration creates it but the model doesn't declare it, so `create_all` omits it. Same migration types `auth_provider` String(20) vs the model's String(50).
 - **Greenfield trigger gap:** the note-events NOTIFY trigger is installed only by a migration. A truly fresh deployment (empty DB → stamp head → `create_all`) gets **no live note events** until the trigger function/triggers are installed manually. Production today is brownfield, so the trigger exists.
 - Downgrades may legitimately fail on data (e.g. re-NOT-NULLing `password_hash` with OIDC users present).
