@@ -1,0 +1,44 @@
+[
+  {
+    "name": "plain-h1-with-body",
+    "markdown": "# Getting Started\n\nWelcome to your first note.\nEnjoy writing here.",
+    "title": "Getting Started",
+    "stripped": "Welcome to your first note.\nEnjoy writing here."
+  },
+  {
+    "name": "h1-extra-whitespace-and-trailing-spaces",
+    "markdown": "#    Padded Title   \n\nBody content follows.\nSecond line of body.",
+    "title": "Padded Title",
+    "stripped": "Body content follows.\nSecond line of body."
+  },
+  {
+    "name": "blank-lines-before-h1",
+    "markdown": "\n\n# Deferred Start\n\nThe heading appears after two blank lines.\nBody continues here.",
+    "title": "Deferred Start",
+    "stripped": "The heading appears after two blank lines.\nBody continues here."
+  },
+  {
+    "name": "h1-only-document",
+    "markdown": "# Just A Title",
+    "title": "Just A Title",
+    "stripped": ""
+  },
+  {
+    "name": "multiple-h1s",
+    "markdown": "# First Title\n\nBody paragraph one.\n\n# Second Title\n\nBody paragraph two.",
+    "title": "First Title",
+    "stripped": "Body paragraph one.\n\n# Second Title\n\nBody paragraph two."
+  },
+  {
+    "name": "sub-headings-preserved",
+    "markdown": "# Main Title\n\n## Section One\n\nContent under section one.\n\n### Subsection\n\nMore content.",
+    "title": "Main Title",
+    "stripped": "## Section One\n\nContent under section one.\n\n### Subsection\n\nMore content."
+  },
+  {
+    "name": "hash-in-code-fence-after-h1",
+    "markdown": "# Code Example\n\n```\n# This is a comment, not a heading\n```\n\nExplanation text after code block.",
+    "title": "Code Example",
+    "stripped": "```\n# This is a comment, not a heading\n```\n\nExplanation text after code block."
+  }
+]
