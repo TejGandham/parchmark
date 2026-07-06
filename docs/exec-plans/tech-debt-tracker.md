@@ -87,7 +87,7 @@ Known shortcuts, deferred improvements, and open questions.
 
 ### Cross-cutting
 
-- [ ] **Markdown parity as a shared test fixture.** Frontend and backend
+- [x] **Markdown parity as a shared test fixture.** Frontend and backend
       markdown handling must stay aligned (title extraction / leading-H1
       stripping), but cross-language equivalence can't be reliably enforced
       by a static check. The v2 frontend renderer lives in
