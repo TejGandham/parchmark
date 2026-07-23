@@ -3,6 +3,8 @@ name: vue
 description: Vue 3 (Composition API) do's and don'ts
 match: ["vue", "@vue/runtime-core", "@vitejs/plugin-vue"]
 see_also: ["platform-native#html-elements", "platform-native#css-capabilities", "platform-native#javascript-browser-apis"]
+seeded_from: vue@2.25.0
+base_sha256: 8531e89c058474b93c3733fe6409df11883ff73160bc2a7694093c5e2647625c
 ---
 ## Do
 - Use `<script setup>` with the Composition API; type props and emits with `defineProps<…>()` / `defineEmits<…>()`.

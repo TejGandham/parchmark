@@ -3,6 +3,8 @@ name: python-fastapi
 description: Pydantic + FastAPI do's and don'ts
 match: ["fastapi", "pydantic"]
 see_also: ["python", "platform-native#database"]
+seeded_from: python-fastapi@2.25.0
+base_sha256: b9c22269cf7023452595e229768d97cd5e2d0d7fa524a3b1cc9a8b543793b59b
 ---
 ## Do
 - Define request and response bodies as Pydantic models; set `response_model` on routes.
