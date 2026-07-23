@@ -3,6 +3,8 @@ name: minimalism
 description: Write the least code that works; don't over-build
 always: true
 see_also: ["platform-native"]
+seeded_from: minimalism@2.25.0
+base_sha256: 9af911a88f6e21d3f82a109d8c1aa4029f6abaecf9b4ec0c9fd372a6e9b988f3
 ---
 ## The ladder (advisory — shapes how you write, never gates)
 Stop at the first rung that holds:
