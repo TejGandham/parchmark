@@ -1,4 +1,4 @@
 {
   "enabled": true,
-  "focus": "keep user-facing docs, architecture notes, and API references aligned with note tag editing behavior"
+  "focus": "keep user-facing docs, architecture notes, and API references aligned with shipped behavior across the whole app — every delivery's blast radius, never one feature area; AGENTS.md's navigation/integration map must name each backend-wired flow"
 }
