@@ -12,135 +12,39 @@ Known shortcuts, deferred improvements, and open questions.
 ### Open Questions
 
 - [ ] **Open product decisions (carried from the retired v2 TODO list).**
-      Unresolved scope questions that block further wiring work until product
-      decides: whether users may edit profile fields (account details are
-      display-only today; settings already supports password change, notes
-      export, and account deletion); whether workspace/preferences persistence
-      (theme, default view,
-      editor/sort defaults surviving across devices) becomes product scope —
-      no backend preference contract exists; whether SSO provider management
-      (connect / disconnect / provider switch / IdP links) is in scope;
-      whether note deletion needs a confirmation step. Out of scope unless
-      product scope changes: server-generated single-note export, server-side
-      note search / tag query params, bulk tag management (colors, ordering,
-      cross-note admin, saved views), Mermaid runtime rendering.
+      These block further wiring work until product decides:
+
+      - Can users edit profile fields? Account details are display-only
+        today; settings already covers password change, notes export, and
+        account deletion.
+      - Does workspace/preference persistence (theme, default view,
+        editor/sort defaults surviving across devices) become product
+        scope? No backend preference contract exists yet.
+      - Is SSO provider management (connect, disconnect, provider switch,
+        IdP links) in scope?
+      - Does note deletion need a confirmation step?
+
+      Out of scope unless product scope changes: server-generated
+      single-note export, server-side note search/tag query params, bulk
+      tag management (colors, ordering, cross-note admin, saved views),
+      and Mermaid runtime rendering.
 
 ## During Implementation
 
 <!-- Shortcuts taken, unexpected issues discovered during feature work -->
 
-- [x] **RESOLVED — Root `AGENTS.md` now describes the v2 Vue stack.** The
-      committed repo-root `AGENTS.md` previously named React 18 + Chakra UI
-      v2 + Zustand + React Router + React Testing Library (plus a
-      `ui/test-utils/render.tsx` helper and a `ui/src/__tests__/` tree).
-      None of that existed in the `parchmark-v2` `ui/` — this is a
-      ground-up **Vue 3 + Vite + TypeScript** rewrite using `<script setup>`
-      SFCs, composable singletons for state (no Pinia/Vuex), a manual
-      `App.vue` auth gate for view switching (no Vue Router), and
-      `@vue/test-utils` + Vitest for tests (no React Testing Library, no
-      provider-wrapping render helper). Test placement is **mixed**: 16
-      co-located `*.test.ts` under `ui/src/` plus 12 under `__tests__/`
-      directories (not uniformly co-located next to components/source).
-      `AGENTS.md` has since been corrected to this Vue 3 reality — its
-      stack table and testing table now read Vue 3 + `@vue/test-utils`.
-      Remaining `docs/design-docs/` reconciliation, if any, is tracked
-      separately.
-
-- [x] **RESOLVED — `pytest.ini` `[tool:pytest]` header shadowed the real
-      pytest config.** Surfaced during the drop-sync-session delivery
-      (PR #134); fixed in PR #135. `backend/pytest.ini` used a
-      `[tool:pytest]` section header — valid only in `setup.cfg`, not
-      `pytest.ini` (which needs `[pytest]`) — so pytest selected
-      `pytest.ini` as its config file, found no recognised section, ran
-      with empty config, and silently shadowed the complete, identical
-      `pyproject.toml [tool.pytest.ini_options]`. Effect: the
-      `--cov-fail-under=90` gate, `-n auto` xdist, `--strict-markers` /
-      `--strict-config`, and `asyncio_mode=auto` never applied (61
-      unknown-mark warnings per run; the coverage gate was not enforced at
-      all). Fixed by deleting `pytest.ini` so `pyproject.toml` — the
-      project's single tool-config source (ruff, mypy, coverage, hatch all
-      live there) — governs pytest.
-
-- [x] **RESOLVED — coverage under-reported ~3 points (no thread/greenlet
-      tracing).** Once the coverage gate was actually live (see the
-      `pytest.ini` item above), the reported 90.89% was a measurement
-      artifact: `[tool.coverage.run]` had no `concurrency` setting, so
-      coverage.py did not trace async handlers running in FastAPI
-      `TestClient`'s portal **thread** or DB code in SQLAlchemy's async
-      **greenlets**. Those lines were exercised by passing tests all
-      along — not a test gap. Fixed in PR #136 by adding
-      `concurrency = ["thread", "greenlet"]`: TOTAL 90.89% → 96.22%,
-      `app/routers/auth.py` 64% → 96%. pytest-cov already combines
-      correctly under xdist, so no `parallel` / `sigterm` was needed.
-
-- [x] **RESOLVED — OIDC dependency branches untested.** After the
-      concurrency fix, `app/auth/dependencies.py` was the one genuine
-      coverage gap (~71%). Added `TestOIDCBranchCoverage` (PR #136)
-      covering missing-`sub` → 401, the userinfo-endpoint fallback
-      (success / fetch-raises / empty), OIDC user auto-creation,
-      race-condition `IntegrityError` rollback + re-fetch recovery, and the
-      validation exception handlers → 97.65%. Residual uncovered lines were
-      intentional and minor at the time: `app/auth/dependencies.py:155-159`
-      (a defensive "should not happen" `else`, unreachable — still true
-      today) and `app/routers/auth.py:107,112` (refresh-token error
-      branches). **Stale citation:** the auth-service extraction
-      (`[karta:item-auth-service-extraction]`, merged 2026-07-02) moved
-      login/refresh logic out of `routers/auth.py` into
-      `services/auth_service.py`; `refresh_access_token()`'s error branches
-      now live there, not at the old `auth.py:107,112`. Current coverage of
-      the moved branches hasn't been re-audited post-extraction — needs a
-      fresh look (with Docker, since the exercising tests are
-      integration-level), not assumed still-fine.
+- [ ] **Re-audit `auth_service.py` coverage after the auth-service
+      extraction.** The extraction (`[karta:item-auth-service-extraction]`,
+      merged 2026-07-02) moved `refresh_access_token()`'s error branches
+      out of `routers/auth.py` into `services/auth_service.py`. Their
+      coverage hasn't been re-checked since — needs Docker, since the
+      exercising tests are integration-level.
 
 ### Cross-cutting
-
-- [x] **RESOLVED — Markdown parity now enforced by a shared test
-      fixture.** `testdata/markdown-parity.json` holds title/strip cases
-      that both suites load: `backend/tests/unit/utils/test_markdown_parity.py`
-      asserts `app.utils.markdown.markdown_service` against it, and
-      `ui/src/features/notes/__tests__/markdownParity.test.ts` asserts the
-      frontend's `noteMockHelpers.ts` helpers against the same fixture
-      (`markdownRender.ts` isn't fixture-driven). The `parchmark-markdown-sync` skill remains the
-      process check to run after editing either side's markdown utils.
-
-- [x] **RESOLVED — Auth-provider consistency DB invariant backfilled for
-      brownfield DBs.** Migration `be7aafff4947` backfills the
-      `valid_auth_credentials` CHECK constraint onto brownfield databases
-      migrated before it existed; it no-ops if the constraint is already
-      present and aborts rather than silently mutating data if existing
-      rows violate the predicate.
 
 - [ ] **CORS `ALLOWED_ORIGINS` sanity check.** Nothing forbids `*`
       wildcards in production. Add a check once we've confirmed the deploy
       pipeline never sets a wildcard.
-
-- [x] **RESOLVED — `Depends(get_async_db)` enforcement.** An AST-based
-      guard test (`backend/tests/unit/database/test_session_scoping.py`)
-      now fails the suite if any module under `backend/app` (other than
-      `app/database/database.py`) constructs `AsyncSession`/
-      `AsyncSessionLocal` outside a function body.
-
-- [x] **RESOLVED — broken `test-ui-oidc`/`test-ui-auth` targets removed.**
-      Both targeted React-era `src/__tests__/**/*.tsx` files deleted in the
-      Vue rewrite and could never pass; removed from `makefiles/ui.mk`.
-
-- [x] **RESOLVED — DeprecationWarnings triaged and the filter narrowed
-      (PR #138).** The blanket `filterwarnings = ["ignore::UserWarning",
-      "ignore::DeprecationWarning"]` became live only when the pytest
-      config actually started applying (the `pytest.ini` shadowing fix,
-      PR #135) and could have masked upcoming deprecations. Triage (the
-      suite re-run with the ignores overridden) found only **one
-      actionable** DeprecationWarning — our own `test_login_invalid_json`
-      posting httpx `data=<str>` (deprecated in favour of `content=`) —
-      plus two transitive uvicorn/`websockets` ones (`websockets.legacy` /
-      `WebSocketServerProtocol`, deprecated in websockets 14.0; not our
-      code, the app uses SSE). Fixed the httpx call and replaced the
-      blanket ignore with `default::DeprecationWarning` (so future in-code
-      deprecations surface in the test summary) plus targeted `ignore:`
-      filters for only the two transitive websockets messages.
-      `ignore::UserWarning` stays — its lone case is PyJWT's
-      `InsecureKeyLengthWarning` from tests that deliberately sign with
-      short HMAC keys.
 
 ## Post-MVP
 
@@ -153,28 +57,10 @@ Known shortcuts, deferred improvements, and open questions.
       of a broken downgrade, don't invest in this — deferred for this
       reason.
 
-- [x] **RESOLVED — pre-existing doc drift surfaced by an F14 post-commit
-      doc sweep.** The last outstanding sub-item — the "Document Created:
-      January 2026" annotation in `docs/BACKEND_MIGRATION_RESEARCH.md` —
-      was closed by the docs-accuracy overhaul deleting that file outright.
-      Earlier sub-items were already resolved: ARCHITECTURE.md
-      cosine-similarity / `/similar` references (swept by F20+F21), F12/F13
-      DRAFTED markers (cleaned during retirement),
-      `docs/ai-embeddings-design.md` §P5 violations (archived by F21, then
-      the archive itself deleted by the docs overhaul), and the moot
-      north-star cross-reference.
-
 - **DECISION (January 2026): the backend stays Python/FastAPI.** The
   migration research that produced `docs/BACKEND_MIGRATION_RESEARCH.md`
   concluded against a rewrite; the doc is deleted. Revisit only under real
   performance or reliability pressure, not speculation.
-
-- [x] **RESOLVED — `docs/deployment_upgrade/archive/` P5 timeline-artifact
-      drift.** The flagged files (`DEPLOYMENT.md`'s changelog table,
-      `PHASE4_GITHUB_SECRETS.md` / `DEPLOYMENT_VALIDATED.md` "as of January
-      2025" annotations) were deleted wholesale by the docs-accuracy
-      overhaul along with the rest of `docs/deployment_upgrade/`; nothing
-      left to sweep.
 
 - [ ] **Endpoint-removal test pattern accumulator.** With the
       `remove-for-you` retirement complete (F12-F22 landed),
@@ -188,34 +74,23 @@ Known shortcuts, deferred improvements, and open questions.
       follow-up sweep now that the retirement is complete.
 
 - [ ] **Automated browser E2E for the Vue frontend.** The backend
-      live-update flow still has integration coverage and Forgejo-gated
-      cross-user SSE isolation coverage, but the v2 Vue frontend has no
-      automated browser E2E suite. The notes list, persisted note
-      mutations, and the live note-events stream now flow through the backend
-      notes API, but none of that flow is exercised by an automated browser
-      suite. Add Playwright coverage once manual browser verification of the
-      live notes flow becomes recurring merge-gate work.
-
-- [x] **RESOLVED — SSE stream now consumed for live refresh.**
-      The v2 `ui/src/services/` layer covers auth and notes CRUD
-      (`http.ts`, `auth.ts`, `notes.ts`); `useNotes` fetches `GET /notes/`
-      on mount and wraps `POST`, `PUT`, and `DELETE` mutations with
-      `creating`/`updating`/`deletingId`/`mutationError` state. `AppShell.vue`
-      persists create, edit, delete, and tag add/remove. The backend
-      `GET /api/notes/events` SSE stream is now consumed: `services/noteEvents.ts`
-      and `features/notes/useNoteEvents.ts` open the authenticated stream over
-      `http.ts`'s `requestStream`, and `AppShell.vue` debounces a
-      `useNotes().scheduleRefetch()` on each change event to reconcile the list.
+      live-update flow has integration coverage and Forgejo-gated
+      cross-user SSE isolation coverage, but nothing exercises the Vue
+      frontend in a real browser — not the notes list, not persisted note
+      mutations, not the live note-events stream, even though all three
+      now flow through the backend notes API. Add Playwright coverage once
+      manual browser verification of the live notes flow becomes
+      recurring merge-gate work.
 
 - [ ] **No virtualization for the rendered notes list (Vue rewrite).**
       The legacy React `NotesExplorer` used `react-window` to virtualize
       large lists; the v2 Vue shell renders the notes list in
       `SidebarDrawer.vue` (a plain `v-for` over `NoteCard`s) with no
-      windowing. With the list now sourced from the backend this is
-      only harmless at low per-user note counts; it must be revisited before
-      the app is wired to real per-user note volumes. Threshold to act:
-      re-evaluate when avg user note count exceeds ~200, or when a
-      slow-render report comes in.
+      windowing. Harmless while per-user note counts stay low, but the
+      list is now sourced from the backend and this needs revisiting
+      before the app carries real note volumes. Threshold to act:
+      re-evaluate past ~200 notes per user, or on the first slow-render
+      report.
 
 - [ ] **Superseded React frontend tech debt (`remove-for-you` / F16–F17).**
       The earlier `NotesExplorer.tsx` / `CommandPalette` deletion-fence
