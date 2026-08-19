@@ -11,9 +11,9 @@ dependencies = [
     "asyncpg>=0.31.0",
     "greenlet>=3.5.3",  # Required for SQLAlchemy async operations
     "pyjwt[crypto]>=2.13.0",
-    "pwdlib[bcrypt]==0.3.0",
+    "pwdlib[bcrypt]==0.3.1",
     "python-multipart==0.0.32",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "httpx>=0.28.1",
     "alembic>=1.18.5",
     "stream-zip>=0.0.84",
@@ -21,16 +21,16 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.15.20",
-    "pre-commit==4.6.0",
+    "ruff==0.16.3",
+    "pre-commit==4.6.2",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "pytest-mock==3.15.1",
     "pytest-asyncio==1.4.0",
     "pytest-xdist==3.8.0",
     "httpx==0.28.1",
-    "mypy==2.1.0",
-    "faker==40.28.1",
+    "mypy==2.3.1",
+    "faker==40.36.0",
     "factory-boy==3.3.3",
 ]
 

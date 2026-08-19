@@ -14,7 +14,7 @@ from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 _BACKEND_ROOT = Path(__file__).parents[3]
 _ALEMBIC_INI = _BACKEND_ROOT / "alembic.ini"

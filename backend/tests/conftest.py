@@ -11,7 +11,7 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 # Set test environment variables BEFORE importing app
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
