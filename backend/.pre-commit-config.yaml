@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20  # keep in lockstep with the ruff pin in pyproject.toml
+    rev: v0.16.3  # keep in lockstep with the ruff pin in pyproject.toml
     hooks:
       - id: ruff
         args: [--no-fix]  # Only check, don't auto-fix
@@ -8,7 +8,7 @@ repos:
         args: [--check]  # Only check formatting, don't auto-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0  # keep in lockstep with the mypy pin in pyproject.toml
+    rev: v2.3.1  # keep in lockstep with the mypy pin in pyproject.toml
     hooks:
       - id: mypy
         # pre-commit runs hook commands from the repo root too, so this must
@@ -23,7 +23,7 @@ repos:
           "sqlalchemy>=2.0.51",
           "pydantic>=2.0",
           "pyjwt[crypto]>=2.13.0",
-          "pwdlib[bcrypt]==0.3.0",
+          "pwdlib[bcrypt]==0.3.1",
           "python-multipart==0.0.32",
         ]
 

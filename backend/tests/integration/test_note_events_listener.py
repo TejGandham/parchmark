@@ -3,7 +3,7 @@ import json
 
 import asyncpg
 import pytest
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from app.services.note_events import NOTE_EVENTS_CHANNEL, NoteEvent, NoteEventBroker, PostgresNoteEventListener
 
