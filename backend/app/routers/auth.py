@@ -108,15 +108,3 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         UserResponse: User information (without password)
     """
     return UserResponse.model_validate(current_user)
-
-
-# Health check endpoint for authentication service
-@router.get("/health")
-async def auth_health_check():
-    """
-    Health check endpoint for authentication service.
-
-    Returns:
-        dict: Status message indicating auth service is operational
-    """
-    return {"status": "Authentication service is healthy"}

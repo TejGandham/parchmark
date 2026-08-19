@@ -179,21 +179,6 @@ app.include_router(settings.router, prefix="/api")
 app.include_router(health.router)
 
 
-# Root endpoints
-@app.get("/", tags=["root"])
-async def root():
-    """
-    Root endpoint providing API information.
-    """
-    return {
-        "message": "ParchMark API is running",
-        **get_version_info(),
-        "docs": "/docs",
-        "redoc": "/redoc",
-        "health": "/health",
-    }
-
-
 @app.get("/health", tags=["health"])
 async def health_check():
     """

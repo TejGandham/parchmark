@@ -556,26 +556,6 @@ class TestGetSingleNoteEndpoint:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-class TestNotesHealthEndpoint:
-    """Test /notes/health/check endpoint."""
-
-    def test_notes_health_check(self, client: TestClient):
-        """Test notes service health check."""
-        response = client.get("/api/notes/health/check")
-
-        assert response.status_code == status.HTTP_200_OK
-
-        data = response.json()
-        assert "status" in data
-        assert data["status"] == "Notes service is healthy"
-
-    def test_notes_health_check_no_auth_required(self, client: TestClient):
-        """Test that health check doesn't require authentication."""
-        response = client.get("/api/notes/health/check")
-
-        assert response.status_code == status.HTTP_200_OK
-
-
 class TestNotesRouterIntegration:
     """Test integration between notes router endpoints."""
 

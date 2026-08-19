@@ -40,10 +40,8 @@ transitively via a router-level `dependencies=[...]`), **OR**
 | Method | Path |
 |-|-|
 | `GET` | `/api/health` |
-| `GET` | `/api/auth/health` |
 | `POST` | `/api/auth/login` |
 | `POST` | `/api/auth/refresh` |
-| `GET` | `/api/notes/health/check` |
 
 Any new public endpoint requires an explicit update to this list —
 public routes don't become public by accident.

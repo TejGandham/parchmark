@@ -231,8 +231,3 @@ async def get_note(
         HTTPException: 404 if note not found or not owned by user
     """
     return await notes_service.get_note(db, current_user, note_id)
-
-
-@router.get("/health/check")
-async def notes_health_check():
-    return {"status": "Notes service is healthy"}
