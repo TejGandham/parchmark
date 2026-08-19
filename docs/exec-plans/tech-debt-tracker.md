@@ -38,8 +38,8 @@ Known shortcuts, deferred improvements, and open questions.
       SFCs, composable singletons for state (no Pinia/Vuex), a manual
       `App.vue` auth gate for view switching (no Vue Router), and
       `@vue/test-utils` + Vitest for tests (no React Testing Library, no
-      provider-wrapping render helper). Test placement is **mixed**: 6
-      co-located `*.test.ts` under `ui/src/` plus 11 under `__tests__/`
+      provider-wrapping render helper). Test placement is **mixed**: 16
+      co-located `*.test.ts` under `ui/src/` plus 12 under `__tests__/`
       directories (not uniformly co-located next to components/source).
       `AGENTS.md` has since been corrected to this Vue 3 reality — its
       stack table and testing table now read Vue 3 + `@vue/test-utils`.
@@ -79,11 +79,18 @@ Known shortcuts, deferred improvements, and open questions.
       covering missing-`sub` → 401, the userinfo-endpoint fallback
       (success / fetch-raises / empty), OIDC user auto-creation,
       race-condition `IntegrityError` rollback + re-fetch recovery, and the
-      validation exception handlers → 97.65%. Residual uncovered lines are
-      intentional and minor: `app/auth/dependencies.py:155-159` (a
-      defensive "should not happen" `else`, unreachable) and
-      `app/routers/auth.py:107,112` (refresh-token error branches) — left
-      as-is rather than contorted to hit.
+      validation exception handlers → 97.65%. Residual uncovered lines were
+      intentional and minor at the time: `app/auth/dependencies.py:155-159`
+      (a defensive "should not happen" `else`, unreachable — still true
+      today) and `app/routers/auth.py:107,112` (refresh-token error
+      branches). **Stale citation:** the auth-service extraction
+      (`[karta:item-auth-service-extraction]`, merged 2026-07-02) moved
+      login/refresh logic out of `routers/auth.py` into
+      `services/auth_service.py`; `refresh_access_token()`'s error branches
+      now live there, not at the old `auth.py:107,112`. Current coverage of
+      the moved branches hasn't been re-audited post-extraction — needs a
+      fresh look (with Docker, since the exercising tests are
+      integration-level), not assumed still-fine.
 
 ### Cross-cutting
 
@@ -92,8 +99,8 @@ Known shortcuts, deferred improvements, and open questions.
       that both suites load: `backend/tests/unit/utils/test_markdown_parity.py`
       asserts `app.utils.markdown.markdown_service` against it, and
       `ui/src/features/notes/__tests__/markdownParity.test.ts` asserts the
-      frontend's `markdownRender.ts`/`noteMockHelpers.ts` helpers against
-      the same fixture. The `parchmark-markdown-sync` skill remains the
+      frontend's `noteMockHelpers.ts` helpers against the same fixture
+      (`markdownRender.ts` isn't fixture-driven). The `parchmark-markdown-sync` skill remains the
       process check to run after editing either side's markdown utils.
 
 - [x] **RESOLVED — Auth-provider consistency DB invariant backfilled for
@@ -224,9 +231,11 @@ Known shortcuts, deferred improvements, and open questions.
       codified the pattern (inspect → `_table_exists` → return early on
       fresh DB) in CLAUDE.md "Migration history conventions". All nine
       migrations in the current chain follow the pattern (`170dd30cebde`
-      was retrofitted in F20's post-merge-fix-1 after CI surfaced the gap
-      on fresh vanilla-postgres containers; `be7aafff4947` was written
-      guarded from the start). Going forward: every new migration MUST
+      had its guard added mid-PR, before merge — commit `4979715` fixed a
+      CI failure ("relation notes does not exist" on a fresh vanilla
+      `postgres:17` testcontainer) on the F20 branch itself, landing on
+      `main` already guarded as part of the same merge; `be7aafff4947` was
+      written guarded from the start). Going forward: every new migration MUST
       include the `_table_exists` / column / index inspector guards before
       mutating DDL, so the chain remains replayable on a literally-empty DB
       regardless of the `create_all` vs `alembic-first` boot ordering.
