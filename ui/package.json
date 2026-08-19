@@ -18,24 +18,24 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vueuse/core": "^14.3.0",
-    "dompurify": "^3.4.11",
-    "marked": "^18.0.5",
+    "@vueuse/core": "^14.4.0",
+    "dompurify": "^3.4.14",
+    "marked": "^18.0.10",
     "ofetch": "^1.5.1",
-    "vue": "^3.5.39"
+    "vue": "^3.5.41"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
-    "@vitejs/plugin-vue": "^6.0.7",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@types/node": "^26.2.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.4.11",
-    "happy-dom": "^20.10.6",
-    "jsdom": "^29.1.1",
-    "prettier": "^3.9.4",
-    "style-dictionary": "^5.5.0",
+    "happy-dom": "^20.11.2",
+    "jsdom": "^30.0.1",
+    "prettier": "^3.9.6",
+    "style-dictionary": "^5.5.2",
     "typescript": "^6.0.3",
-    "vite": "^8.1.2",
-    "vitest": "^4.1.9",
-    "vue-tsc": "^3.3.6"
+    "vite": "^8.2.1",
+    "vitest": "^4.1.11",
+    "vue-tsc": "^3.3.10"
   }
 }
