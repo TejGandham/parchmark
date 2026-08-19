@@ -927,21 +927,6 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "factory-boy" },
-    { name = "faker" },
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "pytest-xdist" },
-    { name = "ruff" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "factory-boy" },
@@ -963,45 +948,33 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.5" },
     { name = "asyncpg", specifier = ">=0.31.0" },
-    { name = "factory-boy", marker = "extra == 'dev'", specifier = "==3.3.3" },
-    { name = "faker", marker = "extra == 'dev'", specifier = "==40.36.0" },
     { name = "fastapi", specifier = "==0.139.0" },
     { name = "greenlet", specifier = ">=3.5.3" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = "==0.28.1" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = "==2.3.1" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.6.2" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
     { name = "pwdlib", extras = ["bcrypt"], specifier = "==0.3.1" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.13.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.4.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==7.1.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = "==3.15.1" },
-    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = "==3.8.0" },
     { name = "python-dotenv", specifier = "==1.2.3" },
     { name = "python-multipart", specifier = "==0.0.32" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.16.3" },
     { name = "sqlalchemy", specifier = ">=2.0.51" },
     { name = "stream-zip", specifier = ">=0.0.84" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.49.0" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "factory-boy", specifier = ">=3.3.3" },
-    { name = "faker", specifier = ">=40.28.1" },
+    { name = "faker", specifier = ">=40.36.0" },
     { name = "freezegun", specifier = ">=1.5.5" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "mypy", specifier = ">=2.1.0" },
-    { name = "pre-commit", specifier = ">=4.6.0" },
+    { name = "mypy", specifier = ">=2.3.1" },
+    { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "pytest-mock", specifier = ">=3.15.1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
-    { name = "ruff", specifier = ">=0.15.20" },
+    { name = "ruff", specifier = ">=0.16.3" },
     { name = "testcontainers", extras = ["postgres"], specifier = ">=4.14.2" },
 ]
 
