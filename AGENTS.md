@@ -95,9 +95,9 @@ parchmark/
 │   └── src/
 │       ├── main.ts      # createApp(App).mount("#app"); imports tokens.css then base.css
 │       ├── App.vue      # top-level auth gate: loading → LoginView → AppShell
-│       ├── features/    # auth/, shell/, notes/ (feature-first; SFCs + .ts)
+│       ├── features/    # auth/, shell/, notes/, settings/ (feature-first; SFCs + .ts)
 │       ├── design-system/  # base.css, tokens.css (generated), tokens/ (DTCG JSON + build.mjs), components/ (Ds*.vue), icons/
-│       └── services/    # http.ts (ofetch) + auth.ts + notes.ts (notes API client)
+│       └── services/    # http.ts (ofetch) + auth.ts + notes.ts + noteEvents.ts + settings.ts
 ├── backend/             # Backend (FastAPI)
 │   └── app/             # auth/, database/, models/, routers/, schemas/, services/
 ├── makefiles/           # modular make targets
@@ -216,7 +216,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 
 | Workflow | Trigger | Purpose |
 |-|-|-|
-| `test.yml` | Push/PR to main | UI lint+test, backend lint+format+types+pytest |
+| `test.yml` | Push/PR to `main` or `develop` | UI lint+test, backend lint+format+types+pytest |
 | `deploy.yml` | Push to main | Build images → push to Forgejo registry → deploy to k3s |
 
 GitHub mirror workflows are inactive.
