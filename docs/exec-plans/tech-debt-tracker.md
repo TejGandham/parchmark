@@ -12,18 +12,22 @@ Known shortcuts, deferred improvements, and open questions.
 ### Open Questions
 
 - [ ] **Open product decisions (carried from the retired v2 TODO list).**
-      Unresolved scope questions that block further wiring work until product
-      decides: whether users may edit profile fields (account details are
-      display-only today; settings already supports password change, notes
-      export, and account deletion); whether workspace/preferences persistence
-      (theme, default view,
-      editor/sort defaults surviving across devices) becomes product scope —
-      no backend preference contract exists; whether SSO provider management
-      (connect / disconnect / provider switch / IdP links) is in scope;
-      whether note deletion needs a confirmation step. Out of scope unless
-      product scope changes: server-generated single-note export, server-side
-      note search / tag query params, bulk tag management (colors, ordering,
-      cross-note admin, saved views), Mermaid runtime rendering.
+      These block further wiring work until product decides:
+
+      - Can users edit profile fields? Account details are display-only
+        today; settings already covers password change, notes export, and
+        account deletion.
+      - Does workspace/preference persistence (theme, default view,
+        editor/sort defaults surviving across devices) become product
+        scope? No backend preference contract exists yet.
+      - Is SSO provider management (connect, disconnect, provider switch,
+        IdP links) in scope?
+      - Does note deletion need a confirmation step?
+
+      Out of scope unless product scope changes: server-generated
+      single-note export, server-side note search/tag query params, bulk
+      tag management (colors, ordering, cross-note admin, saved views),
+      and Mermaid runtime rendering.
 
 ## During Implementation
 
@@ -90,7 +94,7 @@ Known shortcuts, deferred improvements, and open questions.
       now live there, not at the old `auth.py:107,112`. Current coverage of
       the moved branches hasn't been re-audited post-extraction — needs a
       fresh look (with Docker, since the exercising tests are
-      integration-level), not assumed still-fine.
+      integration-level); don't assume it still holds.
 
 ### Cross-cutting
 
@@ -188,13 +192,13 @@ Known shortcuts, deferred improvements, and open questions.
       follow-up sweep now that the retirement is complete.
 
 - [ ] **Automated browser E2E for the Vue frontend.** The backend
-      live-update flow still has integration coverage and Forgejo-gated
-      cross-user SSE isolation coverage, but the v2 Vue frontend has no
-      automated browser E2E suite. The notes list, persisted note
-      mutations, and the live note-events stream now flow through the backend
-      notes API, but none of that flow is exercised by an automated browser
-      suite. Add Playwright coverage once manual browser verification of the
-      live notes flow becomes recurring merge-gate work.
+      live-update flow has integration coverage and Forgejo-gated
+      cross-user SSE isolation coverage, but nothing exercises the Vue
+      frontend in a real browser — not the notes list, not persisted note
+      mutations, not the live note-events stream, even though all three
+      now flow through the backend notes API. Add Playwright coverage once
+      manual browser verification of the live notes flow becomes
+      recurring merge-gate work.
 
 - [x] **RESOLVED — SSE stream now consumed for live refresh.**
       The v2 `ui/src/services/` layer covers auth and notes CRUD
@@ -211,11 +215,11 @@ Known shortcuts, deferred improvements, and open questions.
       The legacy React `NotesExplorer` used `react-window` to virtualize
       large lists; the v2 Vue shell renders the notes list in
       `SidebarDrawer.vue` (a plain `v-for` over `NoteCard`s) with no
-      windowing. With the list now sourced from the backend this is
-      only harmless at low per-user note counts; it must be revisited before
-      the app is wired to real per-user note volumes. Threshold to act:
-      re-evaluate when avg user note count exceeds ~200, or when a
-      slow-render report comes in.
+      windowing. Harmless while per-user note counts stay low, but the
+      list is now sourced from the backend and this needs revisiting
+      before the app carries real note volumes. Threshold to act:
+      re-evaluate past ~200 notes per user, or on the first slow-render
+      report.
 
 - [ ] **Superseded React frontend tech debt (`remove-for-you` / F16–F17).**
       The earlier `NotesExplorer.tsx` / `CommandPalette` deletion-fence
