@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.5
+    rev: v0.15.20  # keep in lockstep with the ruff pin in pyproject.toml
     hooks:
       - id: ruff
         args: [--no-fix]  # Only check, don't auto-fix
@@ -8,18 +8,23 @@ repos:
         args: [--check]  # Only check formatting, don't auto-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v2.1.0  # keep in lockstep with the mypy pin in pyproject.toml
     hooks:
       - id: mypy
-        args: [--config-file=pyproject.toml]
-        files: ^app/.*\.py$
+        # pre-commit runs hook commands from the repo root too, so this must
+        # be backend/pyproject.toml, not pyproject.toml.
+        args: [--config-file=backend/pyproject.toml]
+        # pre-commit resolves `files:` against repo-root-relative paths, not
+        # this config's own directory — must be backend/app/, not app/, or
+        # this hook silently matches zero files.
+        files: ^backend/app/.*\.py$
         additional_dependencies: [
-          "fastapi==0.104.1",
-          "sqlalchemy>=2.0.32",
+          "fastapi==0.139.0",
+          "sqlalchemy>=2.0.51",
           "pydantic>=2.0",
-          "python-jose[cryptography]==3.3.0",
-          "passlib[bcrypt]==1.7.4",
-          "python-multipart==0.0.6",
+          "pyjwt[crypto]>=2.13.0",
+          "pwdlib[bcrypt]==0.3.0",
+          "python-multipart==0.0.32",
         ]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
