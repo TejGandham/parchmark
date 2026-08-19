@@ -19,7 +19,7 @@ repos:
         # this hook silently matches zero files.
         files: ^backend/app/.*\.py$
         additional_dependencies: [
-          "fastapi==0.139.0",
+          "fastapi==0.141.1",
           "sqlalchemy>=2.0.51",
           "pydantic>=2.0",
           "pyjwt[crypto]>=2.13.0",
