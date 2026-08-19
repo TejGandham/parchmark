@@ -252,27 +252,6 @@ class TestGetCurrentUserInfoEndpoint:
         assert not any(field in data for field in forbidden_fields)
 
 
-class TestAuthHealthEndpoint:
-    """Test /auth/health endpoint."""
-
-    def test_auth_health_check(self, client: TestClient):
-        """Test authentication service health check."""
-        response = client.get("/api/auth/health")
-
-        assert response.status_code == status.HTTP_200_OK
-
-        data = response.json()
-        assert "status" in data
-        assert data["status"] == "Authentication service is healthy"
-
-    def test_auth_health_check_no_auth_required(self, client: TestClient):
-        """Test that health check doesn't require authentication."""
-        response = client.get("/api/auth/health")
-
-        assert response.status_code == status.HTTP_200_OK
-        # Should work without any authentication headers
-
-
 class TestAuthRouterIntegration:
     """Test integration between auth router endpoints."""
 

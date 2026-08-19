@@ -75,7 +75,6 @@ class TestAppConfiguration:
         assert "/api/auth/me" in paths
         assert "/api/notes/" in paths
         assert "/health" in paths
-        assert "/" in paths
 
 
 class TestCORSMiddleware:
@@ -198,27 +197,6 @@ class TestExceptionHandlers:
 class TestRootEndpoints:
     """Test root endpoints."""
 
-    def test_root_endpoint(self, client: TestClient):
-        """Test root endpoint response."""
-        response = client.get("/")
-
-        assert response.status_code == status.HTTP_200_OK
-
-        data = response.json()
-        assert "message" in data
-        assert "version" in data
-        assert "docs" in data
-        assert "redoc" in data
-        assert "health" in data
-
-        assert data["message"] == "ParchMark API is running"
-        assert data["version"] == VERSION
-        assert "gitSha" in data
-        assert "buildDate" in data
-        assert data["docs"] == "/docs"
-        assert data["redoc"] == "/redoc"
-        assert data["health"] == "/health"
-
     def test_health_endpoint(self, client: TestClient):
         """Test health check endpoint."""
         response = client.get("/health")
@@ -249,43 +227,24 @@ class TestRouterRegistration:
 
     def test_auth_router_registered(self, client: TestClient):
         """Test that auth router is registered with /api prefix."""
-        # Test that auth endpoints are available
-        response = client.get("/api/auth/health")
-        assert response.status_code == status.HTTP_200_OK
+        # Test that auth endpoints are available (this one requires auth, so
+        # an unauthenticated request still proves the route resolved).
+        response = client.get("/api/auth/me")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         # Test that endpoints without prefix don't work
-        response = client.get("/auth/health")
+        response = client.get("/auth/me")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_notes_router_registered(self, client: TestClient):
         """Test that notes router is registered with /api prefix."""
         # Test that notes endpoints are available (even if they require auth)
-        response = client.get("/api/notes/health/check")
-        assert response.status_code == status.HTTP_200_OK
+        response = client.get("/api/notes/")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         # Test that endpoints without prefix don't work
-        response = client.get("/notes/health/check")
+        response = client.get("/notes/")
         assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_router_endpoints_accessible(self, client: TestClient):
-        """Test that router endpoints are accessible through the app."""
-        # Auth endpoints
-        auth_endpoints = [
-            "/api/auth/health",
-        ]
-
-        for endpoint in auth_endpoints:
-            response = client.get(endpoint)
-            assert response.status_code == status.HTTP_200_OK
-
-        # Notes endpoints
-        notes_endpoints = [
-            "/api/notes/health/check",
-        ]
-
-        for endpoint in notes_endpoints:
-            response = client.get(endpoint)
-            assert response.status_code == status.HTTP_200_OK
 
 
 class TestApplicationLifespan:
@@ -425,10 +384,7 @@ class TestApplicationIntegration:
 
         # Test CORS on different types of endpoints
         endpoints = [
-            "/",
             "/health",
-            "/api/auth/health",
-            "/api/notes/health/check",
         ]
 
         for endpoint in endpoints:
