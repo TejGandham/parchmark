@@ -8,7 +8,8 @@ The v2 `ui/` is a ground-up Vue 3 rewrite. Components are `.vue` SFCs using
 `<script setup lang="ts">`; logic helpers are plain `.ts`. There are **no
 `.tsx` files**. Build tool is Vite; the `@` path alias maps to `ui/src`.
 Feature-first layout under `ui/src`: `features/auth/`, `features/shell/`,
-`features/notes/`, plus `design-system/` and `services/`. `App.vue` and
+`features/notes/`, `features/settings/`, plus `design-system/` and
+`services/`. `App.vue` and
 `main.ts` live at the `src/` root — there is no `src/config/`, `src/store/`,
 or `src/router/`.
 
