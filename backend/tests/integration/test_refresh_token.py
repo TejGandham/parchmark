@@ -2,6 +2,9 @@
 Integration tests for refresh token functionality.
 """
 
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
 import jwt
 from fastapi import status
 
@@ -98,6 +101,62 @@ def test_refresh_endpoint_with_access_token(client, sample_user, sample_user_dat
 
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
     assert refresh_response.json()["detail"] == "Could not validate refresh token"
+
+
+def test_refresh_endpoint_with_empty_subject_token(client):
+    """Reject a validly-signed refresh token that carries an empty subject.
+
+    ``verify_token`` only rejects a *missing* (None) subject, so an empty-string
+    ``sub`` passes signature and type validation and flows through to
+    ``refresh_access_token``. There the ``if not token_data.username`` guard
+    (``app/services/auth_service.py`` line 74) fires and raises 401. This is the
+    only input shape that reaches that branch.
+    """
+    empty_subject_token = jwt.encode(
+        {
+            "sub": "",
+            "type": "refresh",
+            "exp": datetime.now(UTC) + timedelta(days=1),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+    response = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": empty_subject_token},
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "Could not validate refresh token"
+
+
+def test_refresh_endpoint_with_unknown_user_token(client):
+    """Reject a validly-signed refresh token whose subject names no user.
+
+    The subject is truthy, so the ``if not token_data.username`` guard passes,
+    but ``get_user_by_username`` returns ``None`` for a subject with no matching
+    row. ``refresh_access_token`` then reaches the ``if not user`` guard
+    (``app/services/auth_service.py`` line 79) and raises 401. The user is never
+    created; the subject deliberately resolves to no row.
+    """
+    unknown_user_token = jwt.encode(
+        {
+            "sub": f"ghost-user-{uuid4().hex}",
+            "type": "refresh",
+            "exp": datetime.now(UTC) + timedelta(days=1),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+    response = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": unknown_user_token},
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "Could not validate refresh token"
 
 
 def test_me_endpoint_still_works_with_access_token(client, sample_user, sample_user_data):
