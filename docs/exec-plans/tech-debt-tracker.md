@@ -33,7 +33,7 @@ Known shortcuts, deferred improvements, and open questions.
 
 <!-- Shortcuts taken, unexpected issues discovered during feature work -->
 
-- [ ] **Re-audit `auth_service.py` coverage after the auth-service
+- [x] **Re-audit `auth_service.py` coverage after the auth-service
       extraction.** The extraction (`[karta:item-auth-service-extraction]`,
       merged 2026-07-02) moved `refresh_access_token()`'s error branches
       out of `routers/auth.py` into `services/auth_service.py`. Their
