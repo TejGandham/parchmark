@@ -1,0 +1,73 @@
+{
+  "slug": "auth-service-refresh-coverage",
+  "title": "Cover the refresh-token rejection paths in the auth service",
+  "summary": "Adds two integration tests for the refresh-token error branches that moved into the auth service and were never re-checked, so both 401 paths are exercised and the auth service reaches full statement coverage.",
+  "motivation": "The auth-service extraction (merged 2026-07-02) moved refresh_access_token()'s error branches out of the router, and their coverage has not been re-checked since — the tech-debt tracker flags it as an open audit.",
+  "scope": {
+    "included": [
+      "two new integration tests against POST /api/auth/refresh in backend/tests/integration/test_refresh_token.py covering the empty-subject and unknown-user rejection paths",
+      "ticking the 're-audit auth_service.py coverage' checkbox in docs/exec-plans/tech-debt-tracker.md"
+    ],
+    "excluded": [
+      "any change to app/services/auth_service.py or app/auth/auth.py behavior — the audit adds tests, it does not touch the code under test",
+      "the already-covered branches: an invalid/malformed refresh token and an access token presented as a refresh token both already return 401 in existing tests",
+      "coverage work on any module other than app/services/auth_service.py"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "FastAPI + SQLAlchemy 2.0 async + PostgreSQL backend (Python 3.14 via uv); pytest + testcontainers integration suite mirrored in Forgejo CI"
+  },
+  "sme": ["minimalism", "python", "python-fastapi"],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": true,
+    "isolation_params": [
+      "Backend pytest is self-contained via testcontainers (per-worker PostgreSQL) but requires Docker; on this host Docker is reachable only through the Incus instance vader-incus-docker-host — stage the repo into /tmp inside it and run pytest from the ghcr.io/astral-sh/uv:python3.13-bookworm image with --network host, per the 'Docker-backed tests from worktrees' section of ~/AGENTS.md. CI has Docker natively."
+    ]
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "python", "version": ">=3.14", "manager": "uv" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "refresh-token-error-branch-tests",
+      "title": "Test the empty-subject and unknown-user refresh rejections",
+      "summary": "Two integration tests that drive a validly-signed refresh token with an empty subject and one for a user missing from the database, closing the last two uncovered 401 branches in refresh_access_token.",
+      "estimate": "S",
+      "depends_on": [],
+      "serialize": false,
+      "touches": [
+        "backend/tests/integration/test_refresh_token.py",
+        "docs/exec-plans/tech-debt-tracker.md"
+      ],
+      "contract": {
+        "gap": "refresh_access_token() in backend/app/services/auth_service.py has three 401 paths. The verify_refresh_token failure path is already covered (test_refresh_endpoint_with_invalid_token, test_refresh_endpoint_with_access_token). Two remain uncovered: the `if not token_data.username` branch (auth_service.py line 74) and the `if not user` branch (line 79). This item covers exactly those two.",
+        "empty_subject_test": "Craft a refresh token the app itself would accept as validly signed but that carries an empty subject: jwt.encode({\"sub\": \"\", \"type\": \"refresh\", \"exp\": <future>}, SECRET_KEY, algorithm=ALGORITHM) using app.auth.auth SECRET_KEY/ALGORITHM. verify_token lets it through (\"\" is not None and the type matches), so refresh_access_token reaches `if not token_data.username` and raises. POST /api/auth/refresh with it must return 401 and detail exactly 'Could not validate refresh token'. This is the only input shape that reaches line 74, because verify_token already rejects a missing (None) subject.",
+        "unknown_user_test": "Craft a validly-signed refresh token whose subject names a user absent from the database: jwt.encode({\"sub\": \"ghost-user-<unique>\", \"type\": \"refresh\", \"exp\": <future>}, SECRET_KEY, algorithm=ALGORITHM). token_data.username is truthy so line 73 passes; get_user_by_username returns None so refresh_access_token reaches `if not user` (line 79) and raises. POST /api/auth/refresh with it must return 401 and detail exactly 'Could not validate refresh token'. Do not create the user; the point is that the subject resolves to no row.",
+        "coverage_outcome": "With both tests added, app/services/auth_service.py reaches 100% statement coverage — login (success + failure), get_user_by_username, and all three refresh branches are now executed. The pytest term-missing report must list app/services/auth_service.py at 100% with no missing lines.",
+        "positive_control": "The coverage claim is only meaningful if it can fail: deleting either new test must drop app/services/auth_service.py below 100% and re-list the corresponding branch line (74 for the empty-subject test, 79 for the unknown-user test) in the term-missing report. State this so the check guards the branches rather than passing vacuously.",
+        "reuse": "Follow the existing style in backend/tests/integration/test_refresh_token.py: the `client` fixture for the request, jwt/SECRET_KEY/ALGORITHM imports already used by that module's neighbours, and the same assert shape (status_code == 401, json()['detail'] == 'Could not validate refresh token'). No new fixtures or helpers.",
+        "tracker": "Tick the '[ ] Re-audit auth_service.py coverage after the auth-service extraction' checkbox to '[x]' in docs/exec-plans/tech-debt-tracker.md. This is the item's own tracker entry — no other checkbox is touched."
+      },
+      "oracle": {
+        "type": "integration",
+        "assertions": [
+          "POST /api/auth/refresh with a validly-signed refresh token carrying an empty subject returns 401 with detail 'Could not validate refresh token', exercising the `if not token_data.username` branch at auth_service.py line 74",
+          "POST /api/auth/refresh with a validly-signed refresh token whose subject names no existing user returns 401 with detail 'Could not validate refresh token', exercising the `if not user` branch at auth_service.py line 79",
+          "The pytest term coverage report shows app/services/auth_service.py at 100% with no missing lines",
+          "Removing either new test drops app/services/auth_service.py below 100% and re-lists the branch line it covered as missing (positive control)",
+          "The 're-audit auth_service.py coverage' checkbox in docs/exec-plans/tech-debt-tracker.md is ticked"
+        ],
+        "command": "make test-backend-all"
+      },
+      "surface": {
+        "flagged": false,
+        "signals": []
+      }
+    }
+  ]
+}
