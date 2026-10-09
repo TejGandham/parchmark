@@ -1,0 +1,299 @@
+{
+  "slug": "parchmark-artifacts",
+  "title": "Publish and share artifacts in ParchMark",
+  "summary": "Lets a user publish self-contained HTML, Markdown or SVG artifacts to a stable versioned URL, view them in the web app, and share an unlisted link, with the ParchMark MCP server publishing on the user's behalf.",
+  "after": ["parchmark-monorepo-move"],
+  "motivation": "Coding harnesses produce shareable output that today has nowhere to live.",
+  "scope": {
+    "included": [
+      "per-user API tokens (create, list, revoke) and token auth in the backend and the MCP client",
+      "artifacts and artifact_versions tables, migration, service and ownership rules",
+      "REST endpoints to publish, update, list, get and delete artifacts and to set visibility",
+      "serving artifact content from a separate origin in a sandboxed iframe under a strict Content Security Policy",
+      "an Artifacts mode in the web app (gallery plus viewer) and token management in Settings",
+      "MCP tools publish_artifact, update_artifact, list_artifacts, get_artifact, set_artifact_visibility"
+    ],
+    "excluded": [
+      "binary artifact types (images, PDF) and object storage",
+      "JSX/React compilation and zipped static sites",
+      "scoped tokens (one full-account scope in v1)",
+      "org-wide read access and password-protected links",
+      "artifact comments and live-session feedback",
+      "auto-publishing heuristics (the calling agent decides when to publish)"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Python/FastAPI backend + Vue 3 UI + Python FastMCP MCP server, PostgreSQL"
+  },
+  "sme": ["minimalism", "python-fastapi", "vue"],
+  "shared_terms": [
+    {
+      "id": "artifact-url-path",
+      "canonical": "/a/",
+      "items": ["artifact-publish-api", "artifact-web-view", "mcp-artifact-tools"]
+    }
+  ],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": true,
+    "isolation_params": ["COMPOSE_PROJECT_NAME"],
+    "cwd": "parchmark-web"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "node", "version": ">=24" },
+      { "name": "python", "version": ">=3.14" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "token-backend",
+      "title": "Issue and revoke per-user API tokens",
+      "summary": "Adds a personal access token model and endpoints so a non-browser client can authenticate without the user's password.",
+      "estimate": "M",
+      "depends_on": [],
+      "serialize": true,
+      "shared_resources": ["db/migrations"],
+      "contract": "POST /api/auth/tokens creates a token and returns the plaintext once; GET /api/auth/tokens lists token metadata; DELETE /api/auth/tokens/{token_id} revokes it. An Authorization: Bearer token authenticates the same as a JWT access token inside the auth dependency.",
+      "touches": [
+        "parchmark-web/backend/app/models/api_token.py",
+        "parchmark-web/backend/app/schemas/api_token.py",
+        "parchmark-web/backend/app/services/api_token_service.py",
+        "parchmark-web/backend/app/routers/auth.py",
+        "parchmark-web/backend/app/auth/dependencies.py",
+        "parchmark-web/backend/migrations/versions",
+        "parchmark-web/backend/tests"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation: new authentication surface and new database table",
+          "destructive op: new migration",
+          "sensitive zone: credentials"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "a created token authenticates a request",
+          "a revoked token is rejected with 401",
+          "the plaintext is returned only at creation"
+        ]
+      }
+    },
+    {
+      "id": "token-settings-ui",
+      "title": "Manage tokens in Settings",
+      "summary": "Adds a Settings section to name, create, copy once and revoke API tokens.",
+      "estimate": "S",
+      "depends_on": ["token-backend"],
+      "contract": "The Settings view lists the signed-in user's tokens and creates and revokes them through the token endpoints; the plaintext is shown once after creation and never again.",
+      "touches": [
+        "parchmark-web/ui/src/features/settings",
+        "parchmark-web/ui/src/features/shell/SettingsView.vue",
+        "parchmark-web/ui/src/services/auth.ts",
+        "parchmark-web/ui/src/features/auth/useAuth.ts"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "npm run lint && npm run test",
+        "cwd": "parchmark-web/ui",
+        "assertions": [
+          "the token list renders",
+          "create and revoke call the API client"
+        ]
+      }
+    },
+    {
+      "id": "mcp-token-auth",
+      "title": "Authenticate the MCP server with a token",
+      "summary": "Switches the MCP server from a username and password to a PARCHMARK_TOKEN environment variable.",
+      "estimate": "S",
+      "depends_on": ["token-backend"],
+      "contract": "The MCP server reads PARCHMARK_URL and PARCHMARK_TOKEN and sends the token as Authorization: Bearer on every request. PARCHMARK_USERNAME and PARCHMARK_PASSWORD are no longer read.",
+      "touches": [
+        "parchmark-mcp/src/parchmark_mcp/client.py",
+        "parchmark-mcp/src/parchmark_mcp/server.py",
+        "parchmark-mcp/tests",
+        "parchmark-mcp/README.md",
+        "parchmark-mcp/docs/INSTALL.md"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation: replaces the documented environment variables",
+          "sensitive zone: credential handling"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "uv run pyright src/ tests/ && uv run pytest tests/ -q",
+        "cwd": "parchmark-mcp",
+        "assertions": [
+          "the client sends the token header and never logs in",
+          "a missing PARCHMARK_TOKEN raises a tool error"
+        ]
+      }
+    },
+    {
+      "id": "artifact-model",
+      "title": "Model artifacts and their versions",
+      "summary": "Adds artifacts and artifact_versions tables, a migration, and the service and ownership rules behind them.",
+      "estimate": "M",
+      "depends_on": [],
+      "serialize": true,
+      "shared_resources": ["db/migrations"],
+      "contract": "An artifact has an id, owner_id, stable unguessable slug, title, a visibility value of private or unlisted, and a current_version_id. A version has an id, artifact_id, monotonically increasing version number, content_type in html, markdown or svg, raw content, and a created_at. Every read is filtered by owner_id.",
+      "touches": [
+        "parchmark-web/backend/app/models/artifact.py",
+        "parchmark-web/backend/app/models/artifact_version.py",
+        "parchmark-web/backend/app/schemas/artifact.py",
+        "parchmark-web/backend/app/services/artifact_service.py",
+        "parchmark-web/backend/migrations/versions",
+        "parchmark-web/backend/tests"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation: new database schema",
+          "destructive op: new migration"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "publishing a version increments the version number and moves current_version_id",
+          "another user's artifact is not readable"
+        ]
+      }
+    },
+    {
+      "id": "artifact-publish-api",
+      "title": "Publish artifacts over the API",
+      "summary": "Adds REST endpoints to publish an artifact, publish a new version, list, get, delete and set visibility.",
+      "estimate": "L",
+      "depends_on": ["artifact-model"],
+      "contract": "POST /api/artifacts publishes a new artifact and its first version; POST /api/artifacts/{artifact_id}/versions adds an immutable version; GET /api/artifacts lists the caller's artifacts; GET /api/artifacts/{artifact_id} returns metadata and the current version; POST /api/artifacts/{artifact_id}/visibility sets private or unlisted; DELETE /api/artifacts/{artifact_id} removes the artifact and its versions. The public content path is served under /a/<slug>.",
+      "touches": [
+        "parchmark-web/backend/app/routers/artifacts.py",
+        "parchmark-web/backend/app/services/artifact_service.py",
+        "parchmark-web/backend/app/schemas/artifact.py",
+        "parchmark-web/backend/app/main.py",
+        "parchmark-web/backend/tests"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation: new public API surface"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "publish, new version, list, get, set visibility and delete all behave as declared",
+          "an unlisted artifact is readable at its slug by an unauthenticated request and a private one is not"
+        ]
+      }
+    },
+    {
+      "id": "artifact-render-origin",
+      "title": "Serve artifact content from a separate origin",
+      "summary": "Serves raw artifact content from an origin separate from the app, in a sandboxed iframe under a strict Content Security Policy.",
+      "estimate": "M",
+      "depends_on": ["artifact-publish-api"],
+      "contract": "A content route serves the raw bytes of the version named at /a/<slug> with a restrictive Content-Security-Policy and no app cookies. The web viewer embeds it in an iframe with the sandbox attribute and no allow-same-origin. Markdown artifacts render through the existing sanitized render path instead of raw iframe content.",
+      "touches": [
+        "parchmark-web/backend/app/routers/artifact_content.py",
+        "parchmark-web/backend/app/main.py",
+        "parchmark-web/deploy",
+        "parchmark-web/backend/tests",
+        "parchmark-web/docs"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability escalation: new serving origin and sandbox policy",
+          "sensitive zone: untrusted content rendering"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "the content route sets the strict Content-Security-Policy header",
+          "the content route sends no authentication cookies",
+          "an svg artifact is served with a restrictive content type"
+        ]
+      }
+    },
+    {
+      "id": "artifact-web-view",
+      "title": "Add the Artifacts view to the web app",
+      "summary": "Adds an Artifacts mode with a gallery list and a full-screen viewer with share controls.",
+      "estimate": "L",
+      "depends_on": ["artifact-publish-api", "artifact-render-origin"],
+      "contract": "A new Artifacts mode in AppShell.vue shows the signed-in user's artifacts as a gallery and opens one in a full-screen viewer that embeds the content origin and offers copy-link and set-visibility controls. The share link is /a/<slug>.",
+      "touches": [
+        "parchmark-web/ui/src/features/artifacts",
+        "parchmark-web/ui/src/features/shell/AppShell.vue",
+        "parchmark-web/ui/src/features/shell/SidebarDrawer.vue",
+        "parchmark-web/ui/src/services/artifacts.ts"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "npm run lint && npm run test:coverage",
+        "cwd": "parchmark-web/ui",
+        "assertions": [
+          "the gallery lists artifacts from the API",
+          "the viewer embeds the content origin in a sandboxed iframe",
+          "copy-link produces the /a/<slug> URL"
+        ]
+      }
+    },
+    {
+      "id": "mcp-artifact-tools",
+      "title": "Publish artifacts from the MCP server",
+      "summary": "Adds MCP tools to publish, update, list, get and set visibility of artifacts.",
+      "estimate": "M",
+      "depends_on": ["artifact-publish-api", "mcp-token-auth"],
+      "contract": "The MCP server exposes publish_artifact, update_artifact, list_artifacts, get_artifact and set_artifact_visibility, each calling the artifact endpoints and returning the artifact id, title, version number and the /a/<slug> URL.",
+      "touches": [
+        "parchmark-mcp/src/parchmark_mcp/server.py",
+        "parchmark-mcp/src/parchmark_mcp/client.py",
+        "parchmark-mcp/src/parchmark_mcp/models.py",
+        "parchmark-mcp/tests",
+        "parchmark-mcp/README.md"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "uv run pyright src/ tests/ && uv run pytest tests/ -q",
+        "cwd": "parchmark-mcp",
+        "assertions": [
+          "each tool returns the /a/<slug> URL",
+          "set_artifact_visibility accepts private and unlisted only"
+        ]
+      }
+    }
+  ]
+}

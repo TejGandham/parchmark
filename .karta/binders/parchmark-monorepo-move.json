@@ -1,0 +1,127 @@
+{
+  "slug": "parchmark-monorepo-move",
+  "title": "ParchMark monorepo restructure",
+  "summary": "Moves the current ParchMark web code into parchmark-web/ and folds the parchmark-mcp repository in at parchmark-mcp/, leaving a meta repository root that drives both.",
+  "motivation": "One repository for the web app and its MCP server, ahead of artifact work that spans both.",
+  "scope": {
+    "included": [
+      "git move of backend, ui, deploy, docs, makefiles, testdata, Dockerfile, docker-compose*.yml, authelia-dev-config.yml, the .env examples and the Makefile into parchmark-web/",
+      "a meta root holding .forgejo, .karta, .claude, .gitignore, .mcp.json, README.md, AGENTS.md, CLAUDE.md and a delegating Makefile",
+      "a copy of parchmark-mcp at parchmark-mcp/ with its nested .git removed",
+      "path updates in CI workflows, Makefiles, compose files, deploy scripts, .claude/settings.json and docs"
+    ],
+    "excluded": [
+      "carrying over the parchmark-mcp git history (a plain copy is deliberate)",
+      "any artifact, token or feature change",
+      "renaming or refactoring the moved code"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Python/FastAPI backend + Vue 3 UI + Python FastMCP MCP server, PostgreSQL"
+  },
+  "sme": ["minimalism", "python-fastapi", "vue"],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": true,
+    "isolation_params": ["COMPOSE_PROJECT_NAME"],
+    "cwd": "parchmark-web"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      { "name": "node", "version": ">=24" },
+      { "name": "python", "version": ">=3.14" }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "web-relocate",
+      "title": "Relocate the web app into parchmark-web",
+      "summary": "Moves every current top-level project into parchmark-web/ and rebuilds the repo root as a meta repository.",
+      "estimate": "M",
+      "depends_on": [],
+      "serialize": true,
+      "shared_resources": ["repo-layout"],
+      "contract": "parchmark-web/ holds backend, ui, deploy, docs, makefiles, testdata, Dockerfile, the docker-compose files, authelia-dev-config.yml, the .env examples and the Makefile. The repo root keeps .forgejo, .karta, .claude, .gitignore, .mcp.json, README.md, AGENTS.md, CLAUDE.md and a delegating Makefile whose targets run make -C parchmark-web. No backend/ or ui/ directory remains at the repo root.",
+      "touches": [
+        "parchmark-web/backend",
+        "parchmark-web/ui",
+        "parchmark-web/deploy",
+        "parchmark-web/docs",
+        "parchmark-web/makefiles",
+        "parchmark-web/testdata",
+        "parchmark-web/Dockerfile",
+        "parchmark-web/docker-compose.yml",
+        "parchmark-web/docker-compose.dev.yml",
+        "parchmark-web/docker-compose.prod.yml",
+        "parchmark-web/docker-compose.oidc-test.yml",
+        "parchmark-web/authelia-dev-config.yml",
+        "parchmark-web/Makefile",
+        "parchmark-web/AGENTS.md",
+        "Makefile",
+        "README.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".gitignore",
+        ".claude/settings.json",
+        ".forgejo/workflows/test.yml",
+        ".forgejo/workflows/deploy.yml"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "blast radius: moves every path in the repository and edits CI, Makefiles, compose files, deploy scripts and agent config",
+          "destructive op: rewrites tracked paths"
+        ]
+      },
+      "oracle": {
+        "type": "smoke",
+        "command": "make test",
+        "assertions": [
+          "make test passes from the repository root through the delegating Makefile",
+          "parchmark-web/backend and parchmark-web/ui exist",
+          "no backend/ or ui/ directory remains at the repository root"
+        ]
+      }
+    },
+    {
+      "id": "mcp-fold",
+      "title": "Fold parchmark-mcp into the repository root",
+      "summary": "Copies the MCP server into parchmark-mcp/, drops its nested git directory, and wires it into the root tooling and CI.",
+      "estimate": "M",
+      "depends_on": ["web-relocate"],
+      "serialize": true,
+      "contract": "parchmark-mcp/ holds the copied package (pyproject.toml, uv.lock, src, tests, docs, README.md, AGENTS.md, CLAUDE.md) with no nested .git. A root .pre-commit-config.yaml runs both projects' hooks. A CI job runs the MCP checks with uv.",
+      "touches": [
+        "parchmark-mcp/pyproject.toml",
+        "parchmark-mcp/uv.lock",
+        "parchmark-mcp/src",
+        "parchmark-mcp/tests",
+        "parchmark-mcp/docs",
+        "parchmark-mcp/README.md",
+        "parchmark-mcp/AGENTS.md",
+        ".pre-commit-config.yaml",
+        ".forgejo/workflows/test.yml",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability escalation: adds a second toolchain root and a new CI job",
+          "blast radius: edits root CI and the meta docs"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "uv run ruff check src/ tests/ && uv run ruff format --check src/ tests/ && uv run pyright src/ tests/ && uv run pytest tests/ -q",
+        "cwd": "parchmark-mcp",
+        "assertions": [
+          "ruff check, ruff format --check, pyright and pytest all pass",
+          "parchmark-mcp/uv.lock is tracked"
+        ]
+      }
+    }
+  ]
+}
