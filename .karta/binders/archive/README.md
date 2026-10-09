@@ -29,3 +29,5 @@ Closed:
 | settings-password-change | PR #128 |
 | deps-upgrade-latest | PR #141 |
 | backend-service-layer-notes-auth | PR #142 |
+| backend-hygiene | PR #147 |
+| auth-service-refresh-coverage | PR #161 |
