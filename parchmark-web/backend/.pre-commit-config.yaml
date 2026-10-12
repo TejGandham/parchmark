@@ -12,12 +12,12 @@ repos:
     hooks:
       - id: mypy
         # pre-commit runs hook commands from the repo root too, so this must
-        # be backend/pyproject.toml, not pyproject.toml.
-        args: [--config-file=backend/pyproject.toml]
+        # be parchmark-web/backend/pyproject.toml, not pyproject.toml.
+        args: [--config-file=parchmark-web/backend/pyproject.toml]
         # pre-commit resolves `files:` against repo-root-relative paths, not
-        # this config's own directory — must be backend/app/, not app/, or
-        # this hook silently matches zero files.
-        files: ^backend/app/.*\.py$
+        # this config's own directory — must be parchmark-web/backend/app/, not
+        # app/, or this hook silently matches zero files.
+        files: ^parchmark-web/backend/app/.*\.py$
         additional_dependencies: [
           "fastapi==0.141.1",
           "sqlalchemy>=2.0.51",

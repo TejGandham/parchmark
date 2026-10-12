@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "filepath=\"$CLAUDE_FILE_PATH\"; [ -z \"$filepath\" ] && exit 0; case \"$filepath\" in *.py) cd \"$CLAUDE_PROJECT_DIR/backend\" && uv run ruff format \"$filepath\" 2>/dev/null && uv run ruff check --fix \"$filepath\" 2>/dev/null ;; *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR/ui\" && npx prettier --write \"$filepath\" 2>/dev/null ;; esac; exit 0",
+            "command": "filepath=\"$CLAUDE_FILE_PATH\"; [ -z \"$filepath\" ] && exit 0; case \"$filepath\" in *.py) cd \"$CLAUDE_PROJECT_DIR/parchmark-web/backend\" && uv run ruff format \"$filepath\" 2>/dev/null && uv run ruff check --fix \"$filepath\" 2>/dev/null ;; *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR/parchmark-web/ui\" && npx prettier --write \"$filepath\" 2>/dev/null ;; esac; exit 0",
             "type": "command"
           }
         ],

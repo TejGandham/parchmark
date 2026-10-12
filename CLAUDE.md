@@ -2,6 +2,8 @@
 
 ## Migration history conventions
 
+These conventions govern `parchmark-web/backend/migrations` (the Alembic history of the web project).
+
 Alembic migration history is largely append-only, but a narrow exception
 exists for dep-removal hygiene. The boundaries below were established by
 F20 (dropping retired dependencies from `pyproject.toml`) when removing

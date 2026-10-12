@@ -5,17 +5,17 @@ description: Verify the frontend (markdownRender.ts / noteMockHelpers.ts) and ba
 
 # ParchMark Markdown Sync
 
-Use this skill after changing markdown title/strip logic in either the frontend (`ui/src/features/notes/noteMockHelpers.ts` or `ui/src/features/notes/markdownRender.ts`) or the backend (`backend/app/utils/markdown.py`). It verifies the shared title-extraction and first-H1-strip semantics stay equivalent.
+Paths below are relative to the repository root. Use this skill after changing markdown title/strip logic in either the frontend (`parchmark-web/ui/src/features/notes/noteMockHelpers.ts` or `parchmark-web/ui/src/features/notes/markdownRender.ts`) or the backend (`parchmark-web/backend/app/utils/markdown.py`). It verifies the shared title-extraction and first-H1-strip semantics stay equivalent.
 
-> **v2 caveat — read first.** The v2 Vue frontend currently renders **mock** notes (`ui/src/features/notes/mockNotes.ts`) and is not yet wired to backend-served notes, so FE/BE markdown parity is **forward-looking**, not a live runtime coupling — it matters once the notes API is wired. The backend `markdown.py` docstring still says it "mirrors the frontend markdown service" (historical intent), and the two sides have already drifted slightly (e.g. the default title: FE `extractTitle` returns `"Untitled"`, BE `extract_title` returns `"Untitled Note"`).
+> **v2 caveat — read first.** The v2 Vue frontend currently renders **mock** notes (`parchmark-web/ui/src/features/notes/mockNotes.ts`) and is not yet wired to backend-served notes, so FE/BE markdown parity is **forward-looking**, not a live runtime coupling — it matters once the notes API is wired. The backend `markdown.py` docstring still says it "mirrors the frontend markdown service" (historical intent), and the two sides have already drifted slightly (e.g. the default title: FE `extractTitle` returns `"Untitled"`, BE `extract_title` returns `"Untitled Note"`).
 
 ## Files
 
-- **Frontend — title/strip helpers:** `ui/src/features/notes/noteMockHelpers.ts` — `extractTitle()`, `stripTitle()`, `plainPreview()`
-- **Frontend — renderer (FE-only):** `ui/src/features/notes/markdownRender.ts` — `renderMarkdownBody()` (marked + DOMPurify; strips the title via `stripTitle`, rewrites ` ```mermaid ` fences to `<div class="mermaid">`)
-- **Backend:** `backend/app/utils/markdown.py` — `MarkdownService` (singleton `markdown_service`)
+- **Frontend — title/strip helpers:** `parchmark-web/ui/src/features/notes/noteMockHelpers.ts` — `extractTitle()`, `stripTitle()`, `plainPreview()`
+- **Frontend — renderer (FE-only):** `parchmark-web/ui/src/features/notes/markdownRender.ts` — `renderMarkdownBody()` (marked + DOMPurify; strips the title via `stripTitle`, rewrites ` ```mermaid ` fences to `<div class="mermaid">`)
+- **Backend:** `parchmark-web/backend/app/utils/markdown.py` — `MarkdownService` (singleton `markdown_service`)
 
-The old React-era `ui/src/utils/markdown.ts` and `ui/src/services/markdownService.ts` no longer exist.
+The old React-era `parchmark-web/ui/src/utils/markdown.ts` and `parchmark-web/ui/src/services/markdownService.ts` no longer exist.
 
 ## Steps
 
@@ -23,9 +23,9 @@ The old React-era `ui/src/utils/markdown.ts` and `ui/src/services/markdownServic
 
 ```bash
 # Frontend helpers
-grep -nE 'export function \w+' ui/src/features/notes/noteMockHelpers.ts ui/src/features/notes/markdownRender.ts
+grep -nE 'export function \w+' parchmark-web/ui/src/features/notes/noteMockHelpers.ts parchmark-web/ui/src/features/notes/markdownRender.ts
 # Backend methods (MarkdownService)
-grep -nE '    def [a-z]' backend/app/utils/markdown.py
+grep -nE '    def [a-z]' parchmark-web/backend/app/utils/markdown.py
 ```
 
 ### 2. Compare the inventory
@@ -80,4 +80,4 @@ DRIFT DETECTED:
 | A shared function exists on one side only | Flag as drift |
 | Different regex, same behavior | Note as potential drift; verify the edge cases above |
 | One-sided helper (render/preview/format/template) | Acceptable asymmetry — do not flag |
-| Frontend file not found at the path above | The FE markdown moved during the v2 rewrite; re-locate under `ui/src/features/notes/` |
+| Frontend file not found at the path above | The FE markdown moved during the v2 rewrite; re-locate under `parchmark-web/ui/src/features/notes/` |
