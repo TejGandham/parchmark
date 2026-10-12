@@ -1,0 +1,85 @@
+# Pre-commit configuration for the ParchMark meta repository.
+#
+# One config covers every project that lives side by side at the root:
+#
+#   parchmark-web/backend/  ruff (check only) + mypy
+#   parchmark-mcp/          ruff (autofix) + pyright, run through uv
+#
+# pre-commit resolves `files:` against the repository root — never against this
+# file's own directory — so each hook scopes itself to the project it belongs to.
+# The two ruff entries are deliberate: each stays in lockstep with the ruff pin
+# of its own project (parchmark-web/backend/pyproject.toml, parchmark-mcp/uv.lock).
+#
+# parchmark-web/backend/.pre-commit-config.yaml still works when passed with
+# --config or when run from that directory; this root file is what
+# `pre-commit install` wires up at the repository root.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3  # keep in lockstep with the ruff pin in parchmark-web/backend/pyproject.toml
+    hooks:
+      - id: ruff-check
+        alias: ruff-web-backend
+        args: [--no-fix]  # Only check, don't auto-fix
+        files: ^parchmark-web/backend/(app|tests)/.*\.py$
+      - id: ruff-format
+        alias: ruff-format-web-backend
+        args: [--check]  # Only check formatting, don't auto-format
+        files: ^parchmark-web/backend/(app|tests)/.*\.py$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.14  # keep in lockstep with the ruff pin in parchmark-mcp/uv.lock
+    hooks:
+      - id: ruff-check
+        alias: ruff-mcp
+        args: [--fix]
+        files: ^parchmark-mcp/(src|tests)/.*\.py$
+      - id: ruff-format
+        alias: ruff-format-mcp
+        files: ^parchmark-mcp/(src|tests)/.*\.py$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.3.1  # keep in lockstep with the mypy pin in parchmark-web/backend/pyproject.toml
+    hooks:
+      - id: mypy
+        # pre-commit runs hook commands from the repo root too, so this must
+        # be parchmark-web/backend/pyproject.toml, not pyproject.toml.
+        args: [--config-file=parchmark-web/backend/pyproject.toml]
+        # pre-commit resolves `files:` against repo-root-relative paths, not
+        # this config's own directory — must be parchmark-web/backend/app/, not
+        # app/, or this hook silently matches zero files.
+        files: ^parchmark-web/backend/app/.*\.py$
+        additional_dependencies: [
+          "fastapi==0.141.1",
+          "sqlalchemy>=2.0.51",
+          "pydantic>=2.0",
+          "pyjwt[crypto]>=2.13.0",
+          "pwdlib[bcrypt]==0.3.1",
+          "python-multipart==0.0.32",
+        ]
+
+  - repo: local
+    hooks:
+      - id: pyright-mcp
+        name: pyright (parchmark-mcp)
+        # --directory runs the command from parchmark-mcp/, so pyright picks up
+        # that project's pyproject.toml (`include = ["src", "tests"]`) and its
+        # locked pyright from the project venv.
+        entry: uv run --directory parchmark-mcp pyright
+        language: system
+        types: [python]
+        files: ^parchmark-mcp/(src|tests)/.*\.py$
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-json
+        exclude: 'tsconfig.*\.json$'  # Exclude tsconfig files which allow comments
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: debug-statements
+      - id: mixed-line-ending

@@ -10,17 +10,17 @@ Run pre-deployment migration verification:
 
 1. Check current migration head:
    ```bash
-   cd backend && uv run alembic heads
+   cd parchmark-web/backend && uv run alembic heads
    ```
 
 2. Check for pending migrations:
    ```bash
-   cd backend && uv run alembic check
+   cd parchmark-web/backend && uv run alembic check
    ```
 
 3. If migrations are pending, show the diff:
    ```bash
-   cd backend && uv run alembic history -r current:head
+   cd parchmark-web/backend && uv run alembic history -r current:head
    ```
 
 4. Report status:

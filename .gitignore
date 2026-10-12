@@ -23,12 +23,12 @@ parchmark.db-journal
 
 # Coverage reports and artifacts
 coverage/
-ui/coverage/
-ui/coverage_html/
-backend/coverage_html/
-backend/htmlcov/
-backend/coverage.xml
-backend/.coverage
+parchmark-web/ui/coverage/
+parchmark-web/ui/coverage_html/
+parchmark-web/backend/coverage_html/
+parchmark-web/backend/htmlcov/
+parchmark-web/backend/coverage.xml
+parchmark-web/backend/.coverage
 *.coverage
 .coverage.*
 htmlcov/
