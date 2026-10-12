@@ -7,7 +7,7 @@ Meta repository for ParchMark — the app and its supporting projects live side 
 | [`parchmark-web/`](parchmark-web/AGENTS.md) | The web application: Vue 3 + TypeScript frontend, FastAPI + PostgreSQL backend, Docker images |
 | [`parchmark-mcp/`](parchmark-mcp/AGENTS.md) | The MCP server: FastMCP tools for the notes API, consumed by Claude Code/Desktop and opencode |
 | `Makefile` | Delegating Makefile: every target runs `make -C parchmark-web <target>` |
-| `.forgejo/workflows/` | CI: tests, then image build + deploy to k3s on `main` |
+| `.forgejo/workflows/` | CI: tests on PR/push; image build + deploy to k3s on `main` |
 | `.karta/` | Karta binder state for planned work |
 | `.claude/skills/` | Project skills for agent sessions |
 
