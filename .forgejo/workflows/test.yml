@@ -37,6 +37,11 @@ jobs:
     env:
       DOCKER_HOST: tcp://localhost:2375
       TESTCONTAINERS_RYUK_DISABLED: "true"
+      # Cap pytest-xdist's `-n auto`. CI runs the 4-worker `test-backend-pytest-limited`
+      # target, which this does not affect; it guards a future switch to the auto-worker
+      # target, which would start one Postgres testcontainer per worker and oversubscribe
+      # the Forgejo runner host.
+      PYTEST_XDIST_AUTO_NUM_WORKERS: "4"
     strategy:
       matrix:
         python-version: ["3.14"]
