@@ -71,3 +71,40 @@ jobs:
 
       - name: Run tests with coverage
         run: make -C parchmark-web test-backend-pytest-limited
+
+  mcp-tests:
+    runs-on: ubuntu-latest
+    name: MCP Tests
+
+    steps:
+      - name: Checkout code
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Install uv
+        uses: https://github.com/astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "parchmark-mcp/uv.lock"
+
+      # parchmark-mcp declares requires-python >=3.11; CI runs the monorepo
+      # runtime (3.14), the same version the backend job pins.
+      - name: Setup Python with uv
+        run: |
+          cd parchmark-mcp
+          uv python install 3.14
+          uv python pin 3.14
+
+      - name: Sync dependencies with uv
+        run: cd parchmark-mcp && uv sync --all-extras --frozen
+
+      - name: Run ruff linting check
+        run: cd parchmark-mcp && uv run ruff check src/ tests/
+
+      - name: Run ruff formatting check
+        run: cd parchmark-mcp && uv run ruff format --check src/ tests/
+
+      - name: Run type checking
+        run: cd parchmark-mcp && uv run pyright src/ tests/
+
+      - name: Run tests
+        run: cd parchmark-mcp && uv run pytest tests/ -q
