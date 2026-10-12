@@ -20,16 +20,16 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: parchmark-web/ui/package-lock.json
 
       - name: Install dependencies
-        run: make test-ui-install
+        run: make -C parchmark-web test-ui-install
 
       - name: Run linting
-        run: make test-ui-lint
+        run: make -C parchmark-web test-ui-lint
 
       - name: Run tests
-        run: make test-ui-test
+        run: make -C parchmark-web test-ui-test
 
   backend-tests:
     runs-on: ubuntu-latest
@@ -49,25 +49,25 @@ jobs:
         uses: https://github.com/astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          cache-dependency-glob: "backend/pyproject.toml"
+          cache-dependency-glob: "parchmark-web/backend/pyproject.toml"
 
       - name: Setup Python with uv
         run: |
-          cd backend
+          cd parchmark-web/backend
           uv python install ${{ matrix.python-version }}
           uv python pin ${{ matrix.python-version }}
 
       - name: Sync dependencies with uv
-        run: make test-backend-install
+        run: make -C parchmark-web test-backend-install
 
       - name: Run ruff linting check
-        run: make test-backend-lint
+        run: make -C parchmark-web test-backend-lint
 
       - name: Run ruff formatting check
-        run: make test-backend-format
+        run: make -C parchmark-web test-backend-format
 
       - name: Run type checking
-        run: make test-backend-types
+        run: make -C parchmark-web test-backend-types
 
       - name: Run tests with coverage
-        run: make test-backend-pytest-limited
+        run: make -C parchmark-web test-backend-pytest-limited

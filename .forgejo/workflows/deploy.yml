@@ -36,7 +36,7 @@ jobs:
             --build-arg BUILD_DATE=${BUILD_DATE} \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:latest \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend:sha-${SHORT_SHA} \
-            -f ./backend/Dockerfile.prod ./backend
+            -f ./parchmark-web/backend/Dockerfile.prod ./parchmark-web/backend
           docker push --all-tags ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-backend
 
   # ============================================================================
@@ -64,7 +64,7 @@ jobs:
             --build-arg BUILD_DATE=${BUILD_DATE} \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:latest \
             -t ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend:sha-${SHORT_SHA} \
-            -f ./ui/Dockerfile ./ui
+            -f ./parchmark-web/ui/Dockerfile ./parchmark-web/ui
           docker push --all-tags ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/parchmark-frontend
 
   # ============================================================================

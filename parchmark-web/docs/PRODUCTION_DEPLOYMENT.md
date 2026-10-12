@@ -16,7 +16,7 @@ The k3s manifests (Deployments, ingress, secrets) live **outside this repo** —
 
 ## How a Deploy Happens
 
-Every push to `main` on Forgejo triggers two workflows (`.forgejo/workflows/`):
+Every push to `main` on Forgejo triggers two workflows (`.forgejo/workflows/` at the repository root):
 
 1. `test.yml` — full UI + backend quality gates.
 2. `deploy.yml` — builds the backend (`backend/Dockerfile.prod`) and frontend (`ui/Dockerfile`) images with `GIT_SHA`/`BUILD_DATE` build args, pushes both tags to the Forgejo registry, then runs `kubectl rollout restart` on both Deployments and waits for rollout status. The final CI step curls `http://localhost:8000/health` inside the backend pod.
