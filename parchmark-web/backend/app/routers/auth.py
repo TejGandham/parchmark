@@ -1,17 +1,19 @@
 """
 Authentication routes for ParchMark backend API.
-Handles user login and logout operations with JWT token management.
+Handles user login and logout operations with JWT token management, and
+issuing, listing and revoking personal API tokens.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
 from app.models.models import User
-from app.schemas.schemas import MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
-from app.services import auth_service
+from app.schemas.api_token import ApiTokenCreate, ApiTokenCreated, ApiTokenResponse
+from app.schemas.schemas import DeleteResponse, MessageResponse, RefreshTokenRequest, Token, UserLogin, UserResponse
+from app.services import api_token_service, auth_service
 
 # Create router for authentication endpoints
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -108,3 +110,42 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         UserResponse: User information (without password)
     """
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/tokens", response_model=ApiTokenCreated, status_code=status.HTTP_201_CREATED)
+async def create_api_token(
+    request: ApiTokenCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Create a personal API token for the current user.
+
+    The plaintext token is in this response only; it is never returned again.
+    Send it as ``Authorization: Bearer <token>`` from non-browser clients.
+    """
+    return await api_token_service.create_token(db, current_user, request)
+
+
+@router.get("/tokens", response_model=list[ApiTokenResponse])
+async def list_api_tokens(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """List metadata for the current user's API tokens, newest first."""
+    return await api_token_service.list_tokens(db, current_user)
+
+
+@router.delete("/tokens/{token_id}", response_model=DeleteResponse)
+async def revoke_api_token(
+    token_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """
+    Revoke one of the current user's API tokens.
+
+    Raises:
+        HTTPException: 404 if the token does not exist or belongs to another user
+    """
+    return await api_token_service.revoke_token(db, current_user, token_id)
