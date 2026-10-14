@@ -1,6 +1,4 @@
-"""ParchMark API client with JWT authentication."""
-
-from datetime import UTC, datetime, timedelta
+"""ParchMark API client authenticated with a personal API token."""
 
 import httpx
 from fastmcp.exceptions import ToolError
@@ -9,51 +7,11 @@ from parchmark_mcp.models import Note, NoteSummary
 
 
 class ParchMarkClient:
-    """Client for ParchMark REST API with automatic token management."""
+    """Client for ParchMark REST API that sends a personal API token on every request."""
 
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip("/")
-        self.username = username
-        self.password = password
-        self.access_token: str | None = None
-        self.refresh_token: str | None = None
-        self.token_expiry: datetime | None = None
-        self._http = httpx.AsyncClient(timeout=30.0)
-
-    async def _login(self) -> None:
-        """Authenticate and store tokens."""
-        response = await self._http.post(
-            f"{self.base_url}/auth/login",
-            json={"username": self.username, "password": self.password},
-        )
-        if response.status_code != 200:
-            raise ToolError("Authentication failed - check credentials")
-
-        tokens = response.json()
-        self.access_token = tokens["access_token"]
-        self.refresh_token = tokens["refresh_token"]
-        self.token_expiry = datetime.now(UTC) + timedelta(minutes=25)
-
-    async def _refresh(self) -> None:
-        """Refresh access token using refresh token."""
-        response = await self._http.post(
-            f"{self.base_url}/auth/refresh",
-            json={"refresh_token": self.refresh_token},
-        )
-        if response.status_code != 200:
-            await self._login()
-            return
-
-        tokens = response.json()
-        self.access_token = tokens["access_token"]
-        self.token_expiry = datetime.now(UTC) + timedelta(minutes=25)
-
-    async def _ensure_authenticated(self) -> None:
-        """Login or refresh token as needed."""
-        if self.access_token is None:
-            await self._login()
-        elif self.token_expiry and datetime.now(UTC) >= self.token_expiry:
-            await self._refresh()
+        self._http = httpx.AsyncClient(timeout=30.0, headers={"Authorization": f"Bearer {token}"})
 
     async def _request(
         self,
@@ -62,18 +20,14 @@ class ParchMarkClient:
         json_data: dict[str, str] | None = None,
     ) -> dict[str, str | int | list[dict[str, str]]] | list[dict[str, str]]:
         """Make authenticated request with error handling."""
-        await self._ensure_authenticated()
-
-        headers = {"Authorization": f"Bearer {self.access_token}"}
         response = await self._http.request(
             method,
             f"{self.base_url}{path}",
-            headers=headers,
             json=json_data,
         )
 
         if response.status_code == 401:
-            raise ToolError("Authentication failed - session expired")
+            raise ToolError("Authentication failed - check that PARCHMARK_TOKEN is valid and not revoked")
         if response.status_code == 404:
             raise ToolError("Note not found")
         if response.status_code >= 400:

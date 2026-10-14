@@ -8,57 +8,45 @@ from httpx import Response
 
 from parchmark_mcp.client import ParchMarkClient
 
+TOKEN = "pmat_test-token"
+
 
 @pytest.fixture
 def client() -> ParchMarkClient:
     """Create test client."""
-    return ParchMarkClient(
-        base_url="https://api.example.com",
-        username="testuser",
-        password="testpass",
-    )
-
-
-@pytest.fixture
-def mock_login(respx_mock: respx.MockRouter) -> respx.Route:
-    """Mock successful login."""
-    return respx_mock.post("https://api.example.com/auth/login").mock(
-        return_value=Response(
-            200,
-            json={
-                "access_token": "test-access-token",
-                "refresh_token": "test-refresh-token",
-                "token_type": "bearer",
-            },
-        )
-    )
+    return ParchMarkClient(base_url="https://api.example.com", token=TOKEN)
 
 
 @pytest.mark.asyncio
-async def test_login_success(client: ParchMarkClient, mock_login: respx.Route) -> None:
-    """Client stores tokens after successful login."""
-    await client._login()  # pyright: ignore[reportPrivateUsage]
-    assert client.access_token == "test-access-token"
-    assert client.refresh_token == "test-refresh-token"
-    assert mock_login.called
+async def test_sends_token_and_never_logs_in(client: ParchMarkClient, respx_mock: respx.MockRouter) -> None:
+    """Every request carries the token as a bearer header and no auth endpoint is called."""
+    list_route = respx_mock.get("https://api.example.com/notes/").mock(return_value=Response(200, json=[]))
+    delete_route = respx_mock.delete("https://api.example.com/notes/note-123").mock(
+        return_value=Response(200, json={"message": "Note deleted"})
+    )
+
+    await client.list_notes()
+    await client.delete_note("note-123")
+
+    # Only the two note requests went out: no login or refresh round-trip.
+    assert respx_mock.calls.call_count == 2
+    for route in (list_route, delete_route):
+        assert route.calls.last.request.headers["Authorization"] == f"Bearer {TOKEN}"
 
 
 @pytest.mark.asyncio
-async def test_login_failure(client: ParchMarkClient, respx_mock: respx.MockRouter) -> None:
-    """Client raises error on login failure."""
+async def test_rejected_token_raises(client: ParchMarkClient, respx_mock: respx.MockRouter) -> None:
+    """A 401 for an invalid or revoked token surfaces as a tool error."""
     from fastmcp.exceptions import ToolError
 
-    respx_mock.post("https://api.example.com/auth/login").mock(
-        return_value=Response(401, json={"detail": "Invalid credentials"})
-    )
-    with pytest.raises(ToolError, match="Authentication failed"):
-        await client._login()  # pyright: ignore[reportPrivateUsage]
+    respx_mock.get("https://api.example.com/notes/").mock(return_value=Response(401, json={"detail": "Unauthorized"}))
+    with pytest.raises(ToolError, match="PARCHMARK_TOKEN"):
+        await client.list_notes()
 
 
 @pytest.mark.asyncio
 async def test_list_notes(
     client: ParchMarkClient,
-    mock_login: respx.Route,
     respx_mock: respx.MockRouter,
 ) -> None:
     """Client lists notes successfully."""
@@ -84,7 +72,6 @@ async def test_list_notes(
 @pytest.mark.asyncio
 async def test_get_note(
     client: ParchMarkClient,
-    mock_login: respx.Route,
     respx_mock: respx.MockRouter,
 ) -> None:
     """Client gets single note with content."""
@@ -108,7 +95,6 @@ async def test_get_note(
 @pytest.mark.asyncio
 async def test_create_note(
     client: ParchMarkClient,
-    mock_login: respx.Route,
     respx_mock: respx.MockRouter,
 ) -> None:
     """Client creates note without a title so the API extracts it from the H1."""
@@ -135,7 +121,6 @@ async def test_create_note(
 @pytest.mark.asyncio
 async def test_delete_note(
     client: ParchMarkClient,
-    mock_login: respx.Route,
     respx_mock: respx.MockRouter,
 ) -> None:
     """Client deletes note successfully."""
