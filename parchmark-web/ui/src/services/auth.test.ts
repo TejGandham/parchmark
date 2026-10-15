@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getCurrentUser, login, logout, refreshToken } from "./auth";
+import {
+  createApiToken,
+  getCurrentUser,
+  listApiTokens,
+  login,
+  logout,
+  refreshToken,
+  revokeApiToken,
+} from "./auth";
 import { setAuthHooks } from "./http";
 
 /** Build a `fetch`-compatible `Response` carrying a JSON body. */
@@ -125,5 +133,64 @@ describe("auth service", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(logout()).resolves.toBeUndefined();
+  });
+
+  it("listApiTokens GETs /api/auth/tokens and returns the token metadata", async () => {
+    const tokens = [
+      { id: 2, name: "laptop", created_at: "2026-01-02T00:00:00Z" },
+      { id: 1, name: "ci", created_at: "2026-01-01T00:00:00Z" },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, tokens));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(listApiTokens()).resolves.toEqual(tokens);
+    expect(calledUrl(fetchMock)).toContain("/api/auth/tokens");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("GET");
+    expect(
+      new Headers(init.headers as HeadersInit | undefined).get("Authorization"),
+    ).toBe("Bearer access-token");
+  });
+
+  it("createApiToken POSTs the name and returns the one-time plaintext", async () => {
+    const created = {
+      id: 3,
+      name: "laptop",
+      created_at: "2026-01-03T00:00:00Z",
+      token: "pm_secret",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, created));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(createApiToken("laptop")).resolves.toEqual(created);
+    expect(calledUrl(fetchMock)).toContain("/api/auth/tokens");
+    const init = calledInit(fetchMock);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ name: "laptop" });
+  });
+
+  it("revokeApiToken DELETEs /api/auth/tokens/{id}", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(200, { message: "Token revoked", deleted_id: "3" }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(revokeApiToken(3)).resolves.toBeUndefined();
+    expect(calledUrl(fetchMock)).toContain("/api/auth/tokens/3");
+    expect(calledInit(fetchMock).method).toBe("DELETE");
+  });
+
+  it("revokeApiToken rejects with the backend detail", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(404, { detail: "Token not found" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(revokeApiToken(9)).rejects.toMatchObject({
+      status: 404,
+      detail: "Token not found",
+    });
   });
 });

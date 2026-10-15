@@ -1,5 +1,12 @@
 import { ref } from "vue";
 
+import {
+  createApiToken as createApiTokenRequest,
+  listApiTokens,
+  revokeApiToken as revokeApiTokenRequest,
+  type ApiTokenCreatedDTO,
+  type ApiTokenDTO,
+} from "../../services/auth";
 import { ApiError } from "../../services/http";
 import {
   changePassword as changePasswordRequest,
@@ -22,6 +29,14 @@ const exportingNotes = ref(false);
 const exportError = ref<string | null>(null);
 const deletingAccount = ref(false);
 const deleteError = ref<string | null>(null);
+// Token metadata only: the plaintext of a new token is handed back to the
+// caller and never kept in this module-level store.
+const apiTokens = ref<ApiTokenDTO[]>([]);
+const apiTokensLoading = ref(false);
+const apiTokensError = ref<string | null>(null);
+const creatingApiToken = ref(false);
+const revokingApiTokenId = ref<number | null>(null);
+const apiTokenActionError = ref<string | null>(null);
 
 function errorDetail(caught: unknown): string {
   return caught instanceof ApiError ? caught.detail : String(caught);
@@ -110,6 +125,56 @@ export async function deleteAccount(password: string): Promise<void> {
   }
 }
 
+export async function fetchApiTokens(): Promise<void> {
+  apiTokensLoading.value = true;
+  apiTokensError.value = null;
+
+  try {
+    apiTokens.value = await listApiTokens();
+  } catch (caught) {
+    apiTokensError.value = errorDetail(caught);
+  } finally {
+    apiTokensLoading.value = false;
+  }
+}
+
+export async function createApiToken(
+  name: string,
+): Promise<ApiTokenCreatedDTO> {
+  creatingApiToken.value = true;
+  apiTokenActionError.value = null;
+
+  try {
+    const created = await createApiTokenRequest(name);
+    const { id, created_at } = created;
+    apiTokens.value = [
+      { id, name: created.name, created_at },
+      ...apiTokens.value,
+    ];
+    return created;
+  } catch (caught) {
+    apiTokenActionError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    creatingApiToken.value = false;
+  }
+}
+
+export async function revokeApiToken(id: number): Promise<void> {
+  revokingApiTokenId.value = id;
+  apiTokenActionError.value = null;
+
+  try {
+    await revokeApiTokenRequest(id);
+    apiTokens.value = apiTokens.value.filter((token) => token.id !== id);
+  } catch (caught) {
+    apiTokenActionError.value = errorDetail(caught);
+    throw caught;
+  } finally {
+    revokingApiTokenId.value = null;
+  }
+}
+
 export function useSettings() {
   return {
     userInfo,
@@ -122,7 +187,16 @@ export function useSettings() {
     exportError,
     deletingAccount,
     deleteError,
+    apiTokens,
+    apiTokensLoading,
+    apiTokensError,
+    creatingApiToken,
+    revokingApiTokenId,
+    apiTokenActionError,
     fetchUserInfo,
+    fetchApiTokens,
+    createApiToken,
+    revokeApiToken,
     clearSettingsError,
     clearPasswordStatus,
     clearExportStatus,

@@ -1,4 +1,4 @@
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/settings", () => ({
@@ -8,11 +8,23 @@ vi.mock("../../services/settings", () => ({
   getUserInfo: vi.fn(),
 }));
 
+vi.mock("../../services/auth", () => ({
+  createApiToken: vi.fn(),
+  listApiTokens: vi.fn(),
+  revokeApiToken: vi.fn(),
+}));
+
 const { logoutMock } = vi.hoisted(() => ({ logoutMock: vi.fn() }));
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({ logout: logoutMock }),
 }));
 
+import {
+  createApiToken,
+  listApiTokens,
+  revokeApiToken,
+  type ApiTokenDTO,
+} from "../../services/auth";
 import { ApiError } from "../../services/http";
 import {
   changePassword,
@@ -30,6 +42,33 @@ const getUserInfoMock = vi.mocked(getUserInfo);
 const changePasswordMock = vi.mocked(changePassword);
 const exportNotesMock = vi.mocked(exportNotes);
 const deleteAccountMock = vi.mocked(deleteAccount);
+const listApiTokensMock = vi.mocked(listApiTokens);
+const createApiTokenMock = vi.mocked(createApiToken);
+const revokeApiTokenMock = vi.mocked(revokeApiToken);
+
+function token(overrides: Partial<ApiTokenDTO> = {}): ApiTokenDTO {
+  return {
+    id: 1,
+    name: "laptop",
+    created_at: "2026-01-01T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function buttonWithText(wrapper: VueWrapper, text: string) {
+  const button = wrapper
+    .findAll("button")
+    .find((candidate) => candidate.text().includes(text));
+  if (!button) throw new Error(`No button with text "${text}"`);
+  return button;
+}
+
+function setClipboard(writeText: ((text: string) => Promise<void>) | null) {
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: writeText ? { writeText } : undefined,
+  });
+}
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -55,6 +94,12 @@ describe("SettingsView", () => {
       exportError,
       deletingAccount,
       deleteError,
+      apiTokens,
+      apiTokensLoading,
+      apiTokensError,
+      creatingApiToken,
+      revokingApiTokenId,
+      apiTokenActionError,
     } = useSettings();
     userInfo.value = null;
     loading.value = false;
@@ -66,6 +111,17 @@ describe("SettingsView", () => {
     exportError.value = null;
     deletingAccount.value = false;
     deleteError.value = null;
+    apiTokens.value = [];
+    apiTokensLoading.value = false;
+    apiTokensError.value = null;
+    creatingApiToken.value = false;
+    revokingApiTokenId.value = null;
+    apiTokenActionError.value = null;
+    listApiTokensMock.mockReset();
+    listApiTokensMock.mockResolvedValue([]);
+    createApiTokenMock.mockReset();
+    revokeApiTokenMock.mockReset();
+    setClipboard(null);
     getUserInfoMock.mockReset();
     changePasswordMock.mockReset();
     exportNotesMock.mockReset();
@@ -434,5 +490,251 @@ describe("SettingsView", () => {
     ).toContain("Password is incorrect");
     expect(logoutMock).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("ada");
+  });
+
+  it("renders the signed-in user's API tokens", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    listApiTokensMock.mockResolvedValue([
+      token({ id: 2, name: "ci runner" }),
+      token(),
+    ]);
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(listApiTokensMock).toHaveBeenCalledOnce();
+    const rows = wrapper.findAll(".settings-view__token-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].text()).toContain("ci runner");
+    expect(rows[1].text()).toContain("laptop");
+    expect(rows[1].text()).toContain("Created Jan 1, 2026");
+    expect(wrapper.text()).not.toContain("No API tokens yet");
+  });
+
+  it("shows an empty state when the user has no API tokens", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("No API tokens yet");
+    expect(wrapper.find(".settings-view__token-list").exists()).toBe(false);
+  });
+
+  it("shows token list errors and retries the fetch", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    listApiTokensMock
+      .mockRejectedValueOnce(new ApiError(500, "tokens unavailable"))
+      .mockResolvedValueOnce([token()]);
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    const tokens = wrapper.get(".settings-view__tokens");
+    expect(tokens.get('[role="alert"]').text()).toContain("tokens unavailable");
+
+    await buttonWithText(wrapper, "Retry").trigger("click");
+    await flushPromises();
+
+    expect(listApiTokensMock).toHaveBeenCalledTimes(2);
+    expect(wrapper.find(".settings-view__token-row").text()).toContain(
+      "laptop",
+    );
+  });
+
+  it("keeps the create button disabled until a token name is typed", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    const button = wrapper.get("form.settings-view__token-form button");
+    expect(button.attributes("disabled")).toBeDefined();
+
+    await wrapper.get('input[name="token-name"]').setValue("   ");
+    expect(button.attributes("disabled")).toBeDefined();
+
+    await wrapper.get('input[name="token-name"]').setValue("laptop");
+    expect(button.attributes("disabled")).toBeUndefined();
+  });
+
+  it("creates a token through the API client and shows the plaintext until dismissed", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    createApiTokenMock.mockResolvedValue({
+      ...token({ id: 5, name: "laptop" }),
+      token: "pm_secret_plaintext",
+    });
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('input[name="token-name"]').setValue("  laptop  ");
+    await wrapper.get("form.settings-view__token-form").trigger("submit");
+    await flushPromises();
+
+    expect(createApiTokenMock).toHaveBeenCalledWith("laptop");
+    expect(wrapper.get(".settings-view__token-value").text()).toBe(
+      "pm_secret_plaintext",
+    );
+    expect(wrapper.text()).toContain("You won't be able to see it again");
+    expect(wrapper.find(".settings-view__token-row").text()).toContain(
+      "laptop",
+    );
+    expect(
+      (wrapper.get('input[name="token-name"]').element as HTMLInputElement)
+        .value,
+    ).toBe("");
+
+    await buttonWithText(wrapper, "Done").trigger("click");
+
+    expect(wrapper.find(".settings-view__token-value").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("pm_secret_plaintext");
+  });
+
+  it("does not show the plaintext again after Settings is reopened", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    createApiTokenMock.mockResolvedValue({
+      ...token({ id: 5 }),
+      token: "pm_secret_plaintext",
+    });
+
+    const first = mount(SettingsView);
+    await flushPromises();
+    await first.get('input[name="token-name"]').setValue("laptop");
+    await first.get("form.settings-view__token-form").trigger("submit");
+    await flushPromises();
+    expect(first.text()).toContain("pm_secret_plaintext");
+    first.unmount();
+
+    listApiTokensMock.mockResolvedValue([token({ id: 5 })]);
+    const second = mount(SettingsView);
+    await flushPromises();
+
+    expect(second.find(".settings-view__token-row").text()).toContain("laptop");
+    expect(second.text()).not.toContain("pm_secret_plaintext");
+  });
+
+  it("copies the new token to the clipboard", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    createApiTokenMock.mockResolvedValue({
+      ...token(),
+      token: "pm_secret_plaintext",
+    });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setClipboard(writeText);
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+    await wrapper.get('input[name="token-name"]').setValue("laptop");
+    await wrapper.get("form.settings-view__token-form").trigger("submit");
+    await flushPromises();
+
+    await buttonWithText(wrapper, "Copy token").trigger("click");
+    await flushPromises();
+
+    expect(writeText).toHaveBeenCalledWith("pm_secret_plaintext");
+    expect(
+      wrapper.get('.settings-view__new-token [role="status"]').text(),
+    ).toContain("Copied");
+  });
+
+  it("tells the user to copy by hand when the clipboard is unavailable", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    createApiTokenMock.mockResolvedValue({
+      ...token(),
+      token: "pm_secret_plaintext",
+    });
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+    await wrapper.get('input[name="token-name"]').setValue("laptop");
+    await wrapper.get("form.settings-view__token-form").trigger("submit");
+    await flushPromises();
+
+    await buttonWithText(wrapper, "Copy token").trigger("click");
+    await flushPromises();
+
+    expect(
+      wrapper.get('.settings-view__new-token [role="status"]').text(),
+    ).toContain("copy it by hand");
+    expect(wrapper.get(".settings-view__token-value").text()).toBe(
+      "pm_secret_plaintext",
+    );
+  });
+
+  it("shows create errors inline and keeps the typed name", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    createApiTokenMock.mockRejectedValue(new ApiError(422, "Name too long"));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+    await wrapper.get('input[name="token-name"]').setValue("laptop");
+    await wrapper.get("form.settings-view__token-form").trigger("submit");
+    await flushPromises();
+
+    expect(
+      wrapper.get('.settings-view__tokens [role="alert"]').text(),
+    ).toContain("Name too long");
+    expect(wrapper.find(".settings-view__token-value").exists()).toBe(false);
+    expect(
+      (wrapper.get('input[name="token-name"]').element as HTMLInputElement)
+        .value,
+    ).toBe("laptop");
+  });
+
+  it("revokes a token through the API client and removes it from the list", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    listApiTokensMock.mockResolvedValue([token()]);
+    revokeApiTokenMock.mockResolvedValue(undefined);
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('button[aria-label="Revoke laptop"]').trigger("click");
+    await flushPromises();
+
+    expect(revokeApiTokenMock).toHaveBeenCalledWith(1);
+    expect(wrapper.find(".settings-view__token-row").exists()).toBe(false);
+    expect(wrapper.text()).toContain("No API tokens yet");
+  });
+
+  it("hides the plaintext when the just-created token is revoked", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    createApiTokenMock.mockResolvedValue({
+      ...token({ id: 5 }),
+      token: "pm_secret_plaintext",
+    });
+    revokeApiTokenMock.mockResolvedValue(undefined);
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+    await wrapper.get('input[name="token-name"]').setValue("laptop");
+    await wrapper.get("form.settings-view__token-form").trigger("submit");
+    await flushPromises();
+
+    await wrapper.get('button[aria-label="Revoke laptop"]').trigger("click");
+    await flushPromises();
+
+    expect(revokeApiTokenMock).toHaveBeenCalledWith(5);
+    expect(wrapper.text()).not.toContain("pm_secret_plaintext");
+  });
+
+  it("shows revoke errors inline and keeps the token listed", async () => {
+    getUserInfoMock.mockResolvedValue(dto());
+    listApiTokensMock.mockResolvedValue([token()]);
+    revokeApiTokenMock.mockRejectedValue(new ApiError(404, "Token not found"));
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    await wrapper.get('button[aria-label="Revoke laptop"]').trigger("click");
+    await flushPromises();
+
+    expect(
+      wrapper.get('.settings-view__tokens [role="alert"]').text(),
+    ).toContain("Token not found");
+    expect(wrapper.find(".settings-view__token-row").text()).toContain(
+      "laptop",
+    );
   });
 });

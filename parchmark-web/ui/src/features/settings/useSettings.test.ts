@@ -7,11 +7,24 @@ vi.mock("../../services/settings", () => ({
   getUserInfo: vi.fn(),
 }));
 
+vi.mock("../../services/auth", () => ({
+  createApiToken: vi.fn(),
+  listApiTokens: vi.fn(),
+  revokeApiToken: vi.fn(),
+}));
+
 const { logoutMock } = vi.hoisted(() => ({ logoutMock: vi.fn() }));
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({ logout: logoutMock }),
 }));
 
+import {
+  createApiToken,
+  listApiTokens,
+  revokeApiToken,
+  type ApiTokenCreatedDTO,
+  type ApiTokenDTO,
+} from "../../services/auth";
 import { ApiError } from "../../services/http";
 import {
   changePassword,
@@ -28,6 +41,18 @@ const getUserInfoMock = vi.mocked(getUserInfo);
 const changePasswordMock = vi.mocked(changePassword);
 const exportNotesMock = vi.mocked(exportNotes);
 const deleteAccountMock = vi.mocked(deleteAccount);
+const listApiTokensMock = vi.mocked(listApiTokens);
+const createApiTokenMock = vi.mocked(createApiToken);
+const revokeApiTokenMock = vi.mocked(revokeApiToken);
+
+function token(overrides: Partial<ApiTokenDTO> = {}): ApiTokenDTO {
+  return {
+    id: 1,
+    name: "laptop",
+    created_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
 
 function dto(overrides: Partial<UserInfoDTO> = {}): UserInfoDTO {
   return {
@@ -53,6 +78,12 @@ describe("useSettings", () => {
       exportError,
       deletingAccount,
       deleteError,
+      apiTokens,
+      apiTokensLoading,
+      apiTokensError,
+      creatingApiToken,
+      revokingApiTokenId,
+      apiTokenActionError,
     } = useSettings();
     userInfo.value = null;
     loading.value = false;
@@ -64,6 +95,15 @@ describe("useSettings", () => {
     exportError.value = null;
     deletingAccount.value = false;
     deleteError.value = null;
+    apiTokens.value = [];
+    apiTokensLoading.value = false;
+    apiTokensError.value = null;
+    creatingApiToken.value = false;
+    revokingApiTokenId.value = null;
+    apiTokenActionError.value = null;
+    listApiTokensMock.mockReset();
+    createApiTokenMock.mockReset();
+    revokeApiTokenMock.mockReset();
     getUserInfoMock.mockReset();
     changePasswordMock.mockReset();
     exportNotesMock.mockReset();
@@ -312,5 +352,86 @@ describe("useSettings", () => {
     clearDeleteStatus();
 
     expect(deleteError.value).toBeNull();
+  });
+
+  it("fetchApiTokens stores the listed token metadata", async () => {
+    const { apiTokens, apiTokensLoading } = useSettings();
+    listApiTokensMock.mockResolvedValue([token({ id: 2 }), token()]);
+
+    const pending = useSettings().fetchApiTokens();
+    expect(apiTokensLoading.value).toBe(true);
+    await pending;
+
+    expect(listApiTokensMock).toHaveBeenCalledOnce();
+    expect(apiTokens.value).toEqual([token({ id: 2 }), token()]);
+    expect(apiTokensLoading.value).toBe(false);
+  });
+
+  it("on listApiTokens rejection, apiTokensError is set to ApiError.detail", async () => {
+    const { apiTokensError } = useSettings();
+    listApiTokensMock.mockRejectedValue(new ApiError(500, "tokens failed"));
+
+    await useSettings().fetchApiTokens();
+
+    expect(apiTokensError.value).toBe("tokens failed");
+  });
+
+  it("createApiToken returns the plaintext but stores only metadata, newest first", async () => {
+    const { apiTokens, creatingApiToken } = useSettings();
+    apiTokens.value = [token()];
+    const created: ApiTokenCreatedDTO = {
+      ...token({ id: 2, name: "ci" }),
+      token: "pm_secret",
+    };
+    createApiTokenMock.mockResolvedValue(created);
+
+    const pending = useSettings().createApiToken("ci");
+    expect(creatingApiToken.value).toBe(true);
+
+    await expect(pending).resolves.toEqual(created);
+    expect(createApiTokenMock).toHaveBeenCalledWith("ci");
+    expect(apiTokens.value).toEqual([token({ id: 2, name: "ci" }), token()]);
+    expect(JSON.stringify(apiTokens.value)).not.toContain("pm_secret");
+    expect(creatingApiToken.value).toBe(false);
+  });
+
+  it("on createApiToken rejection, apiTokenActionError is set and the list is unchanged", async () => {
+    const { apiTokens, apiTokenActionError } = useSettings();
+    apiTokens.value = [token()];
+    createApiTokenMock.mockRejectedValue(new ApiError(422, "name too long"));
+
+    await expect(useSettings().createApiToken("x")).rejects.toBeInstanceOf(
+      ApiError,
+    );
+
+    expect(apiTokenActionError.value).toBe("name too long");
+    expect(apiTokens.value).toEqual([token()]);
+  });
+
+  it("revokeApiToken calls the API and drops the token from the list", async () => {
+    const { apiTokens, revokingApiTokenId } = useSettings();
+    apiTokens.value = [token({ id: 2 }), token()];
+    revokeApiTokenMock.mockResolvedValue(undefined);
+
+    const pending = useSettings().revokeApiToken(2);
+    expect(revokingApiTokenId.value).toBe(2);
+    await pending;
+
+    expect(revokeApiTokenMock).toHaveBeenCalledWith(2);
+    expect(apiTokens.value).toEqual([token()]);
+    expect(revokingApiTokenId.value).toBeNull();
+  });
+
+  it("on revokeApiToken rejection, apiTokenActionError is set and the token stays listed", async () => {
+    const { apiTokens, apiTokenActionError } = useSettings();
+    apiTokens.value = [token()];
+    revokeApiTokenMock.mockRejectedValue(new ApiError(404, "Token not found"));
+
+    await expect(useSettings().revokeApiToken(1)).rejects.toBeInstanceOf(
+      ApiError,
+    );
+
+    expect(apiTokenActionError.value).toBe("Token not found");
+    expect(apiTokens.value).toEqual([token()]);
   });
 });
