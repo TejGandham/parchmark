@@ -3,11 +3,13 @@ import { computed, onMounted, ref } from "vue";
 
 import {
   AlertIcon,
+  CopyIcon,
   DownloadIcon,
   GearIcon,
   LockIcon,
   TrashIcon,
 } from "@/design-system/icons";
+import type { ApiTokenCreatedDTO } from "@/services/auth";
 
 import { useSettings } from "./useSettings";
 
@@ -22,7 +24,16 @@ const {
   exportError,
   deletingAccount,
   deleteError,
+  apiTokens,
+  apiTokensLoading,
+  apiTokensError,
+  creatingApiToken,
+  revokingApiTokenId,
+  apiTokenActionError,
   fetchUserInfo,
+  fetchApiTokens,
+  createApiToken,
+  revokeApiToken,
   exportNotes,
   changePassword,
   deleteAccount,
@@ -40,23 +51,32 @@ const DELETE_CONFIRMATION = "DELETE";
 const deletePassword = ref("");
 const deleteConfirmation = ref("");
 
+const tokenName = ref("");
+// The plaintext of a just-created token lives only in this view: it is gone once
+// dismissed or when Settings closes, and the API never returns it again.
+const createdToken = ref<ApiTokenCreatedDTO | null>(null);
+const copyStatus = ref<string | null>(null);
+
 onMounted(() => {
   void fetchUserInfo();
+  void fetchApiTokens();
 });
 
-const createdAtLabel = computed(() => {
-  if (!userInfo.value) return "";
-
-  const createdAt = new Date(userInfo.value.created_at);
-  if (Number.isNaN(createdAt.getTime())) {
-    return userInfo.value.created_at;
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
 
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(createdAt);
-});
+  }).format(date);
+}
+
+const createdAtLabel = computed(() =>
+  userInfo.value ? formatDateTime(userInfo.value.created_at) : "",
+);
 
 const authProviderLabel = computed(() => {
   const provider = userInfo.value?.auth_provider;
@@ -139,6 +159,44 @@ async function submitDeleteAccount() {
     // On success the auth session is cleared and App.vue returns to LoginView.
   } catch {
     // The settings store owns the visible delete error; the session is preserved.
+  }
+}
+
+async function submitCreateToken() {
+  const name = tokenName.value.trim();
+  if (!name) return;
+
+  try {
+    createdToken.value = await createApiToken(name);
+    copyStatus.value = null;
+    tokenName.value = "";
+  } catch {
+    // The settings store owns the visible token error.
+  }
+}
+
+async function copyCreatedToken() {
+  if (!createdToken.value) return;
+
+  try {
+    await navigator.clipboard.writeText(createdToken.value.token);
+    copyStatus.value = "Copied to the clipboard.";
+  } catch {
+    copyStatus.value = "Couldn't copy. Select the token and copy it by hand.";
+  }
+}
+
+function dismissCreatedToken() {
+  createdToken.value = null;
+  copyStatus.value = null;
+}
+
+async function submitRevokeToken(id: number) {
+  try {
+    await revokeApiToken(id);
+    if (createdToken.value?.id === id) dismissCreatedToken();
+  } catch {
+    // The settings store owns the visible token error.
   }
 }
 
@@ -318,6 +376,130 @@ async function submitExportNotes() {
 
       <section
         v-if="userInfo"
+        class="settings-view__tokens"
+        aria-labelledby="settings-tokens-title"
+      >
+        <div class="settings-view__section-heading">
+          <div class="settings-view__section-icon" aria-hidden="true">
+            <LockIcon />
+          </div>
+          <div>
+            <h2 id="settings-tokens-title">API tokens</h2>
+            <p>
+              Tokens let tools such as the ParchMark MCP server use your account
+              without your password. Revoke a token to cut off its access.
+            </p>
+          </div>
+        </div>
+
+        <div
+          v-if="createdToken"
+          class="settings-view__new-token"
+          aria-label="New API token"
+          role="region"
+        >
+          <p>
+            Copy <strong>{{ createdToken.name }}</strong> now. You won't be able
+            to see it again.
+          </p>
+          <code class="settings-view__token-value">{{
+            createdToken.token
+          }}</code>
+          <div class="settings-view__token-actions">
+            <button
+              class="settings-view__action-button"
+              type="button"
+              @click="copyCreatedToken"
+            >
+              <CopyIcon />
+              Copy token
+            </button>
+            <button
+              class="settings-view__secondary-button"
+              type="button"
+              @click="dismissCreatedToken"
+            >
+              Done
+            </button>
+          </div>
+          <p v-if="copyStatus" role="status">{{ copyStatus }}</p>
+        </div>
+
+        <form
+          class="settings-view__token-form"
+          @submit.prevent="submitCreateToken"
+        >
+          <label>
+            Token name
+            <input
+              v-model="tokenName"
+              autocomplete="off"
+              maxlength="100"
+              name="token-name"
+              placeholder="Laptop MCP server"
+              required
+              type="text"
+            />
+          </label>
+
+          <button
+            type="submit"
+            :disabled="!tokenName.trim() || creatingApiToken"
+          >
+            {{ creatingApiToken ? "Creating..." : "Create token" }}
+          </button>
+        </form>
+
+        <p
+          v-if="apiTokenActionError"
+          class="settings-view__inline-message is-error"
+          role="alert"
+        >
+          {{ apiTokenActionError }}
+        </p>
+
+        <div v-if="apiTokensLoading" class="settings-view__state" role="status">
+          Loading tokens...
+        </div>
+
+        <div
+          v-else-if="apiTokensError"
+          class="settings-view__state is-error"
+          role="alert"
+        >
+          <p>{{ apiTokensError }}</p>
+          <button type="button" @click="fetchApiTokens">Retry</button>
+        </div>
+
+        <p v-else-if="apiTokens.length === 0">No API tokens yet.</p>
+
+        <ul v-else class="settings-view__token-list" aria-label="API tokens">
+          <li
+            v-for="token in apiTokens"
+            :key="token.id"
+            class="settings-view__token-row"
+          >
+            <div>
+              <span class="settings-view__token-name">{{ token.name }}</span>
+              <span class="settings-view__token-date">
+                Created {{ formatDateTime(token.created_at) }}
+              </span>
+            </div>
+            <button
+              class="settings-view__secondary-button"
+              type="button"
+              :aria-label="`Revoke ${token.name}`"
+              :disabled="revokingApiTokenId === token.id"
+              @click="submitRevokeToken(token.id)"
+            >
+              {{ revokingApiTokenId === token.id ? "Revoking..." : "Revoke" }}
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <section
+        v-if="userInfo"
         class="settings-view__danger"
         aria-labelledby="settings-danger-title"
       >
@@ -477,6 +659,7 @@ async function submitExportNotes() {
 
 .settings-view__export,
 .settings-view__security,
+.settings-view__tokens,
 .settings-view__danger {
   padding-top: 30px;
   margin-top: 30px;
@@ -520,6 +703,7 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form,
+.settings-view__token-form,
 .settings-view__danger-form {
   display: grid;
   gap: 14px;
@@ -527,6 +711,7 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form label,
+.settings-view__token-form label,
 .settings-view__danger-form label {
   display: grid;
   gap: 6px;
@@ -538,6 +723,7 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form input,
+.settings-view__token-form input,
 .settings-view__danger-form input {
   width: 100%;
   min-width: 0;
@@ -553,6 +739,7 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form input:focus,
+.settings-view__token-form input:focus,
 .settings-view__danger-form input:focus {
   border-color: var(--accent);
   outline: 2px solid var(--focus-ring);
@@ -626,9 +813,11 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form button,
+.settings-view__token-form button,
 .settings-view__action-button,
 .settings-view__state button {
   display: inline-flex;
+  gap: 6px;
   align-items: center;
   justify-content: center;
   padding: 9px 14px;
@@ -646,7 +835,8 @@ async function submitExportNotes() {
     transform 0.1s ease;
 }
 
-.settings-view__password-form button {
+.settings-view__password-form button,
+.settings-view__token-form button {
   justify-self: start;
 }
 
@@ -658,7 +848,8 @@ async function submitExportNotes() {
   margin-top: 12px;
 }
 
-.settings-view__password-form button:disabled {
+.settings-view__password-form button:disabled,
+.settings-view__token-form button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
@@ -669,6 +860,7 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form button:not(:disabled):hover,
+.settings-view__token-form button:not(:disabled):hover,
 .settings-view__action-button:not(:disabled):hover,
 .settings-view__state button:hover {
   background: var(--accent);
@@ -677,12 +869,14 @@ async function submitExportNotes() {
 }
 
 .settings-view__password-form button:not(:disabled):active,
+.settings-view__token-form button:not(:disabled):active,
 .settings-view__action-button:not(:disabled):active,
 .settings-view__state button:active {
   transform: translateY(0);
 }
 
 .settings-view__password-form button:focus-visible,
+.settings-view__token-form button:focus-visible,
 .settings-view__action-button:focus-visible,
 .settings-view__state button:focus-visible {
   outline: none;
@@ -733,6 +927,119 @@ async function submitExportNotes() {
   color: var(--danger);
   background: var(--danger-surface);
   border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+.settings-view__tokens {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-view__tokens .settings-view__section-heading {
+  margin-bottom: 4px;
+}
+
+.settings-view__new-token {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: var(--r);
+}
+
+.settings-view__new-token p {
+  color: var(--text);
+}
+
+.settings-view__token-value {
+  display: block;
+  padding: 10px 11px;
+  color: var(--text);
+  font: 13px/1.5 var(--mono);
+  overflow-wrap: anywhere;
+  user-select: all;
+  background: var(--canvas);
+  border: 1px solid var(--line-2);
+  border-radius: var(--settings-control-radius);
+}
+
+.settings-view__token-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-view__action-button :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-view__token-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-2);
+}
+
+.settings-view__token-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.settings-view__token-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-view__token-name {
+  color: var(--text);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.settings-view__token-date {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-view__secondary-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 13px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--settings-primary-button-radius);
+  transition: border-color 0.15s ease;
+}
+
+.settings-view__token-row .settings-view__secondary-button {
+  color: var(--danger);
+}
+
+.settings-view__secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.settings-view__secondary-button:not(:disabled):hover {
+  border-color: currentColor;
+}
+
+.settings-view__secondary-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 @media (max-width: 53.75em) {
