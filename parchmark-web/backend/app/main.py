@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from app.auth.oidc_validator import oidc_validator
 from app.database.database import async_engine
 from app.database.init_db import init_database
-from app.routers import auth, health, notes, settings
+from app.routers import artifacts, auth, health, notes, settings
 from app.services.note_event_streams import note_event_stream_manager
 from app.services.note_events import create_note_event_listener
 from app.version import VERSION, get_version_info
@@ -176,6 +176,8 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+app.include_router(artifacts.router, prefix="/api")
+app.include_router(artifacts.content_router)
 app.include_router(health.router)
 
 

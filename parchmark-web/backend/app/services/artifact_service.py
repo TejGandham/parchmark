@@ -1,7 +1,9 @@
 """Artifact business logic: publish artifacts and their versions, read and manage them.
 
 Ownership rule: every lookup is filtered by the caller's user id, so another
-user's artifact behaves exactly like one that does not exist (404). Versions
+user's artifact behaves exactly like one that does not exist (404). The one
+exception is the unauthenticated read by slug, which only ever finds unlisted
+artifacts; a private one is a 404 there, exactly like a missing one. Versions
 are append-only; publishing adds the next version number and moves the
 artifact's current_version_id to it. Slugs carry 128 bits of randomness and
 never change once issued.
@@ -120,6 +122,22 @@ async def get_artifact(db: AsyncSession, current_user: User, artifact_id: int) -
         HTTPException: 404 if the artifact does not exist or belongs to another user.
     """
     return _to_response(*await _get_owned_artifact(db, current_user, artifact_id))
+
+
+async def get_unlisted_version(db: AsyncSession, slug: str) -> ArtifactVersion:
+    """Return the current version of the unlisted artifact with this slug, for readers without an account.
+
+    Raises:
+        HTTPException: 404 if no artifact has this slug or the artifact is private.
+    """
+    version = await db.scalar(
+        select(ArtifactVersion)
+        .join(Artifact, Artifact.current_version_id == ArtifactVersion.id)
+        .filter(Artifact.slug == slug, Artifact.visibility == "unlisted")
+    )
+    if version is None:
+        raise _not_found()
+    return version
 
 
 async def list_artifacts(db: AsyncSession, current_user: User) -> list[ArtifactResponse]:
