@@ -21,17 +21,12 @@ def get_client() -> ParchMarkClient:
     global _client
     if _client is None:
         base_url = os.environ.get("PARCHMARK_URL")
-        username = os.environ.get("PARCHMARK_USERNAME")
-        password = os.environ.get("PARCHMARK_PASSWORD")
+        token = os.environ.get("PARCHMARK_TOKEN")
 
-        if base_url is None or username is None or password is None:
-            raise ToolError("Missing environment variables: PARCHMARK_URL, PARCHMARK_USERNAME, PARCHMARK_PASSWORD")
+        if not base_url or not token:
+            raise ToolError("Missing environment variables: PARCHMARK_URL, PARCHMARK_TOKEN")
 
-        _client = ParchMarkClient(
-            base_url=base_url,
-            username=username,
-            password=password,
-        )
+        _client = ParchMarkClient(base_url=base_url, token=token)
     return _client
 
 

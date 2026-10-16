@@ -6,7 +6,7 @@ This guide covers installing parchmark-mcp for Claude Code, Claude Desktop, and 
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
-- A ParchMark account with API access
+- A ParchMark account and a personal API token for it (see [Getting a token](#getting-a-token))
 
 ## Environment Variables
 
@@ -15,8 +15,25 @@ All installation methods require these environment variables:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PARCHMARK_URL` | Yes | API base URL (e.g., `https://notes.example.com/api`) |
-| `PARCHMARK_USERNAME` | Yes | Your ParchMark username |
-| `PARCHMARK_PASSWORD` | Yes | Your ParchMark password |
+| `PARCHMARK_TOKEN` | Yes | Personal API token, sent as `Authorization: Bearer` on every request |
+
+`PARCHMARK_USERNAME` and `PARCHMARK_PASSWORD` are no longer read. If you are upgrading from a
+username/password setup, replace them with `PARCHMARK_TOKEN` in your MCP client config.
+
+### Getting a token
+
+Create a personal API token with `POST /api/auth/tokens` while signed in. The response holds the
+plaintext `token` once, so copy it then; ParchMark stores only a hash of it.
+
+```bash
+curl -s -X POST https://your-instance/api/auth/tokens \
+  -H "Authorization: Bearer <your access token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "claude-code"}'
+```
+
+`GET /api/auth/tokens` lists your tokens (name and id, never the plaintext), and
+`DELETE /api/auth/tokens/{token_id}` revokes one.
 
 ---
 
@@ -29,8 +46,7 @@ Run this single command to add the MCP server:
 ```bash
 claude mcp add parchmark -s user \
   -e "PARCHMARK_URL=https://your-instance/api" \
-  -e "PARCHMARK_USERNAME=your-username" \
-  -e "PARCHMARK_PASSWORD=your-password" \
+  -e "PARCHMARK_TOKEN=pmat_your-token" \
   -- uvx --from git+https://github.com/TejGandham/parchmark-mcp parchmark-mcp
 ```
 
@@ -54,8 +70,7 @@ Edit `~/.claude/mcp.json` (user scope) or `.mcp.json` (project scope):
       ],
       "env": {
         "PARCHMARK_URL": "https://your-instance/api",
-        "PARCHMARK_USERNAME": "your-username",
-        "PARCHMARK_PASSWORD": "your-password"
+        "PARCHMARK_TOKEN": "pmat_your-token"
       }
     }
   }
@@ -94,8 +109,7 @@ Add the parchmark server:
       ],
       "env": {
         "PARCHMARK_URL": "https://your-instance/api",
-        "PARCHMARK_USERNAME": "your-username",
-        "PARCHMARK_PASSWORD": "your-password"
+        "PARCHMARK_TOKEN": "pmat_your-token"
       }
     }
   }
@@ -126,8 +140,7 @@ Edit `~/.config/opencode/config.json` or `opencode.json` in your project root:
       ],
       "env": {
         "PARCHMARK_URL": "https://your-instance/api",
-        "PARCHMARK_USERNAME": "your-username",
-        "PARCHMARK_PASSWORD": "your-password"
+        "PARCHMARK_TOKEN": "pmat_your-token"
       }
     }
   }
@@ -149,8 +162,7 @@ args = [
 
 [mcp.parchmark.env]
 PARCHMARK_URL = "https://your-instance/api"
-PARCHMARK_USERNAME = "your-username"
-PARCHMARK_PASSWORD = "your-password"
+PARCHMARK_TOKEN = "pmat_your-token"
 ```
 
 ---
@@ -180,8 +192,7 @@ Then update your configuration to use the installed command directly:
       "command": "parchmark-mcp",
       "env": {
         "PARCHMARK_URL": "https://your-instance/api",
-        "PARCHMARK_USERNAME": "your-username",
-        "PARCHMARK_PASSWORD": "your-password"
+        "PARCHMARK_TOKEN": "pmat_your-token"
       }
     }
   }
@@ -246,16 +257,15 @@ uvx --refresh --from git+https://github.com/TejGandham/parchmark-mcp parchmark-m
 2. Test the server manually:
    ```bash
    PARCHMARK_URL=https://your-instance/api \
-   PARCHMARK_USERNAME=your-user \
-   PARCHMARK_PASSWORD=your-pass \
+   PARCHMARK_TOKEN=pmat_your-token \
    uvx --from git+https://github.com/TejGandham/parchmark-mcp parchmark-mcp
    ```
 
 ### Authentication errors
 
-- Verify your ParchMark credentials
+- Check that `PARCHMARK_TOKEN` is set to the full token, including the `pmat_` prefix
+- A revoked token returns 401; create a new one (see [Getting a token](#getting-a-token))
 - Ensure the URL points to the API endpoint (usually ends with `/api`)
-- Check that your account has API access enabled
 
 ### uvx not found
 

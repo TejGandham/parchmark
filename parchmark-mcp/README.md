@@ -36,16 +36,31 @@ pip install git+https://github.com/TejGandham/parchmark-mcp
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `PARCHMARK_URL` | API base URL | `https://parchmark.example.com/api` |
-| `PARCHMARK_USERNAME` | Your username | `myuser` |
-| `PARCHMARK_PASSWORD` | Your password | `mypassword` |
+| `PARCHMARK_TOKEN` | Personal API token, sent as `Authorization: Bearer` | `pmat_...` |
+
+The server never sees your password. `PARCHMARK_USERNAME` and `PARCHMARK_PASSWORD` are no longer read.
+
+### Getting a token
+
+Create a personal API token with `POST /api/auth/tokens` while signed in. The response holds the
+plaintext `token` once, so copy it then:
+
+```bash
+curl -s -X POST https://parchmark.example.com/api/auth/tokens \
+  -H "Authorization: Bearer <your access token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "claude-code"}'
+```
+
+Revoke a token with `DELETE /api/auth/tokens/{token_id}`; the server then gets a 401 and reports
+an authentication error.
 
 ### Claude Code Setup
 
 ```bash
 claude mcp add parchmark -s user \
   -e "PARCHMARK_URL=https://your-instance/api" \
-  -e "PARCHMARK_USERNAME=your-user" \
-  -e "PARCHMARK_PASSWORD=your-pass" \
+  -e "PARCHMARK_TOKEN=pmat_your-token" \
   -- uvx --from git+https://github.com/TejGandham/parchmark-mcp parchmark-mcp
 ```
 
@@ -59,8 +74,7 @@ Or manually add to `.mcp.json`:
       "args": ["--from", "git+https://github.com/TejGandham/parchmark-mcp", "parchmark-mcp"],
       "env": {
         "PARCHMARK_URL": "https://parchmark.example.com/api",
-        "PARCHMARK_USERNAME": "your-username",
-        "PARCHMARK_PASSWORD": "your-password"
+        "PARCHMARK_TOKEN": "pmat_your-token"
       }
     }
   }

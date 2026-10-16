@@ -15,8 +15,7 @@ from parchmark_mcp.models import DeleteResponse, Note, NotesListResponse, NoteSu
 def mock_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Set required environment variables."""
     monkeypatch.setenv("PARCHMARK_URL", "https://api.example.com")
-    monkeypatch.setenv("PARCHMARK_USERNAME", "testuser")
-    monkeypatch.setenv("PARCHMARK_PASSWORD", "testpass")
+    monkeypatch.setenv("PARCHMARK_TOKEN", "pmat_test-token")
 
 
 @pytest.fixture
@@ -43,11 +42,7 @@ def test_get_client_creates_singleton(mock_env: None) -> None:
 
         # Should only create once
         assert mock.call_count == 1
-        mock.assert_called_with(
-            base_url="https://api.example.com",
-            username="testuser",
-            password="testpass",
-        )
+        mock.assert_called_with(base_url="https://api.example.com", token="pmat_test-token")
 
 
 def test_get_client_missing_env_raises() -> None:
@@ -62,6 +57,29 @@ def test_get_client_missing_env_raises() -> None:
         pytest.raises(ToolError, match="Missing environment variables"),
     ):
         server_module.get_client()
+
+
+@pytest.mark.parametrize("token", [None, ""])
+def test_get_client_missing_token_raises(token: str | None) -> None:
+    """get_client raises when PARCHMARK_TOKEN is unset or empty, even with the old username/password set."""
+    from fastmcp.exceptions import ToolError
+
+    server_module._client = None  # pyright: ignore[reportPrivateUsage]
+    env = {
+        "PARCHMARK_URL": "https://api.example.com",
+        "PARCHMARK_USERNAME": "testuser",
+        "PARCHMARK_PASSWORD": "testpass",
+    }
+    if token is not None:
+        env["PARCHMARK_TOKEN"] = token
+
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.object(server_module, "ParchMarkClient") as mock,
+        pytest.raises(ToolError, match="PARCHMARK_TOKEN"),
+    ):
+        server_module.get_client()
+    mock.assert_not_called()
 
 
 @pytest.mark.asyncio

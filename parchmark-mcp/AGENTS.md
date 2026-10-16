@@ -20,7 +20,7 @@ parchmark-mcp/
 ├── src/parchmark_mcp/
 │   ├── __init__.py      # Package version
 │   ├── server.py        # FastMCP server, MCP tools, singleton client
-│   ├── client.py        # ParchMarkClient with JWT auth
+│   ├── client.py        # ParchMarkClient with API token auth
 │   └── models.py        # Pydantic models (Note, NoteSummary, etc.)
 ├── tests/
 │   ├── test_models.py   # Model validation tests
@@ -57,8 +57,9 @@ uv run pre-commit run --all-files     # Run all hooks manually
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PARCHMARK_URL` | Yes | API base URL (e.g., `https://notes.example.com/api`) |
-| `PARCHMARK_USERNAME` | Yes | ParchMark username |
-| `PARCHMARK_PASSWORD` | Yes | ParchMark password |
+| `PARCHMARK_TOKEN` | Yes | Personal API token (`pmat_...`), created with `POST /api/auth/tokens` |
+
+`PARCHMARK_USERNAME` and `PARCHMARK_PASSWORD` are no longer read.
 
 ## Code Patterns
 
@@ -111,11 +112,10 @@ async def method(self, note_id: str) -> Note:  # Return type required
 ### Mocking HTTP (respx)
 
 ```python
-@pytest.fixture
-def mock_login(respx_mock: respx.MockRouter) -> respx.Route:
-    return respx_mock.post("https://api.example.com/auth/login").mock(
-        return_value=Response(200, json={...})
-    )
+async def test_list_notes(client: ParchMarkClient, respx_mock: respx.MockRouter) -> None:
+    route = respx_mock.get("https://api.example.com/notes/").mock(return_value=Response(200, json=[]))
+    await client.list_notes()
+    assert route.calls.last.request.headers["Authorization"] == "Bearer pmat_test-token"
 ```
 
 ### Mocking Client in Server Tests
@@ -132,27 +132,15 @@ def mock_client() -> Generator[AsyncMock, None, None]:
 
 ```python
 # Use pyright ignore for intentional private access
-await client._login()  # pyright: ignore[reportPrivateUsage]
 server_module._client = None  # pyright: ignore[reportPrivateUsage]
 ```
 
 ## Gotchas
 
-### Login Uses JSON, Not Form Data
+### Token Auth, No Login
 
-```python
-# Correct - ParchMark API expects JSON
-response = await self._http.post(url, json={"username": ..., "password": ...})
-
-# Wrong - will fail with 422
-response = await self._http.post(url, data={"username": ..., "password": ...})
-```
-
-### Token Expiry
-
-- Access tokens expire in 30 minutes
-- Client refreshes at 25 minutes (5 min buffer)
-- If refresh fails, re-login automatically
+- The client sends `Authorization: Bearer <PARCHMARK_TOKEN>` on every request; there is no login or refresh call
+- Personal API tokens do not expire; a revoked token gets a 401, surfaced as a `ToolError`
 
 ### Pyright Strict Mode
 
