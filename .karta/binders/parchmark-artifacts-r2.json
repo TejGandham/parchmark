@@ -1,0 +1,448 @@
+{
+  "slug": "parchmark-artifacts-r2",
+  "title": "Publish and share artifacts in ParchMark, second pass",
+  "summary": "Finishes publishing and sharing artifacts in ParchMark: a secure viewer shows even private artifacts through short-lived signed links, every artifact carries a share link, and the MCP server hands that link back.",
+  "after": ["parchmark-monorepo-move"],
+  "supersedes": {
+    "slug": "parchmark-artifacts",
+    "carried": [
+      "token-backend",
+      "token-settings-ui",
+      "mcp-token-auth",
+      "artifact-model",
+      "artifact-publish-api"
+    ]
+  },
+  "motivation": "The first pass left the content origin unmerged and gave private artifacts, the default, no way to show in the viewer.",
+  "scope": {
+    "included": [
+      "per-user API tokens (create, list, revoke) and token auth in the backend and the MCP client",
+      "artifacts and artifact_versions tables, migration, service and ownership rules",
+      "REST endpoints to publish, update, list, get and delete artifacts and to set visibility",
+      "serving artifact content from a separate origin in a sandboxed iframe under a strict Content Security Policy",
+      "an Artifacts mode in the web app (gallery plus viewer) and token management in Settings",
+      "MCP tools publish_artifact, update_artifact, list_artifacts, get_artifact, set_artifact_visibility",
+      "a signed-link path on the content origin so the owner's web viewer can show any artifact, private ones included",
+      "an owner-only API call that returns an artifact's current raw text, used by the viewer for Markdown",
+      "share_url, the absolute share link, on every artifact API response",
+      "two new required backend settings, ARTIFACT_SIGNING_KEY and ARTIFACT_CONTENT_ORIGIN",
+      "an access-log filter that redacts the signature of signed links",
+      "a delete control, with a confirm step, in the viewer"
+    ],
+    "excluded": [
+      "binary artifact types (images, PDF) and object storage",
+      "JSX/React compilation and zipped static sites",
+      "scoped tokens (one full-account scope in v1)",
+      "org-wide read access and password-protected links",
+      "artifact comments and live-session feedback",
+      "auto-publishing heuristics (the calling agent decides when to publish)",
+      "a baseline Content-Security-Policy for the app itself (frontend nginx)",
+      "the out-of-repo k3s ingress and secret changes for the content origin (documented for ops, not built)"
+    ]
+  },
+  "design_facts": {
+    "source": null,
+    "stack": "Python/FastAPI backend + Vue 3 UI + Python FastMCP MCP server, PostgreSQL"
+  },
+  "sme": ["minimalism", "python-fastapi", "vue"],
+  "shared_terms": [
+    {
+      "id": "artifact-url-path",
+      "canonical": "/a/",
+      "items": [
+        "artifact-publish-api",
+        "artifact-content-origin",
+        "artifact-view-links",
+        "artifact-web-view",
+        "mcp-artifact-tools"
+      ]
+    }
+  ],
+  "env_contract": {
+    "command": "make dev",
+    "supports_isolation": true,
+    "isolation_params": ["COMPOSE_PROJECT_NAME"],
+    "cwd": "parchmark-web"
+  },
+  "runtime_contract": {
+    "runtimes": [
+      {
+        "name": "node",
+        "version": ">=24"
+      },
+      {
+        "name": "python",
+        "version": ">=3.14"
+      }
+    ],
+    "on_unavailable": "halt"
+  },
+  "work_items": [
+    {
+      "id": "token-backend",
+      "title": "Issue and revoke per-user API tokens",
+      "summary": "Adds a personal access token model and endpoints so a non-browser client can authenticate without the user's password.",
+      "estimate": "M",
+      "depends_on": [],
+      "serialize": true,
+      "shared_resources": ["db/migrations"],
+      "contract": "POST /api/auth/tokens creates a token and returns the plaintext once; GET /api/auth/tokens lists token metadata; DELETE /api/auth/tokens/{token_id} revokes it. An Authorization: Bearer token authenticates the same as a JWT access token inside the auth dependency.",
+      "touches": [
+        "parchmark-web/backend/app/models/api_token.py",
+        "parchmark-web/backend/app/schemas/api_token.py",
+        "parchmark-web/backend/app/services/api_token_service.py",
+        "parchmark-web/backend/app/routers/auth.py",
+        "parchmark-web/backend/app/auth/dependencies.py",
+        "parchmark-web/backend/migrations/versions",
+        "parchmark-web/backend/tests"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation: new authentication surface and new database table",
+          "destructive op: new migration",
+          "sensitive zone: credentials"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "a created token authenticates a request",
+          "a revoked token is rejected with 401",
+          "the plaintext is returned only at creation"
+        ]
+      }
+    },
+    {
+      "id": "token-settings-ui",
+      "title": "Manage tokens in Settings",
+      "summary": "Adds a Settings section to name, create, copy once and revoke API tokens.",
+      "estimate": "S",
+      "depends_on": ["token-backend"],
+      "contract": "The Settings view lists the signed-in user's tokens and creates and revokes them through the token endpoints; the plaintext is shown once after creation and never again.",
+      "touches": [
+        "parchmark-web/ui/src/features/settings",
+        "parchmark-web/ui/src/features/shell/SettingsView.vue",
+        "parchmark-web/ui/src/services/auth.ts",
+        "parchmark-web/ui/src/features/auth/useAuth.ts"
+      ],
+      "surface": {
+        "flagged": false,
+        "signals": []
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "npm run lint && npm run test",
+        "cwd": "parchmark-web/ui",
+        "assertions": ["the token list renders", "create and revoke call the API client"]
+      }
+    },
+    {
+      "id": "mcp-token-auth",
+      "title": "Authenticate the MCP server with a token",
+      "summary": "Switches the MCP server from a username and password to a PARCHMARK_TOKEN environment variable.",
+      "estimate": "S",
+      "depends_on": ["token-backend"],
+      "contract": "The MCP server reads PARCHMARK_URL and PARCHMARK_TOKEN and sends the token as Authorization: Bearer on every request. PARCHMARK_USERNAME and PARCHMARK_PASSWORD are no longer read.",
+      "touches": [
+        "parchmark-mcp/src/parchmark_mcp/client.py",
+        "parchmark-mcp/src/parchmark_mcp/server.py",
+        "parchmark-mcp/tests",
+        "parchmark-mcp/README.md",
+        "parchmark-mcp/docs/INSTALL.md"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation: replaces the documented environment variables",
+          "sensitive zone: credential handling"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "uv run pyright src/ tests/ && uv run pytest tests/ -q",
+        "cwd": "parchmark-mcp",
+        "assertions": [
+          "the client sends the token header and never logs in",
+          "a missing PARCHMARK_TOKEN raises a tool error"
+        ]
+      }
+    },
+    {
+      "id": "artifact-model",
+      "title": "Model artifacts and their versions",
+      "summary": "Adds artifacts and artifact_versions tables, a migration, and the service and ownership rules behind them.",
+      "estimate": "M",
+      "depends_on": [],
+      "serialize": true,
+      "shared_resources": ["db/migrations"],
+      "contract": "An artifact has an id, owner_id, stable unguessable slug, title, a visibility value of private or unlisted, and a current_version_id. A version has an id, artifact_id, monotonically increasing version number, content_type in html, markdown or svg, raw content, and a created_at. Every read is filtered by owner_id.",
+      "touches": [
+        "parchmark-web/backend/app/models/artifact.py",
+        "parchmark-web/backend/app/models/artifact_version.py",
+        "parchmark-web/backend/app/schemas/artifact.py",
+        "parchmark-web/backend/app/services/artifact_service.py",
+        "parchmark-web/backend/migrations/versions",
+        "parchmark-web/backend/tests"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": ["contract mutation: new database schema", "destructive op: new migration"]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "publishing a version increments the version number and moves current_version_id",
+          "another user's artifact is not readable"
+        ]
+      }
+    },
+    {
+      "id": "artifact-publish-api",
+      "title": "Publish artifacts over the API",
+      "summary": "Adds REST endpoints to publish an artifact, publish a new version, list, get, delete and set visibility.",
+      "estimate": "L",
+      "depends_on": ["artifact-model"],
+      "contract": "POST /api/artifacts publishes a new artifact and its first version; POST /api/artifacts/{artifact_id}/versions adds an immutable version; GET /api/artifacts lists the caller's artifacts; GET /api/artifacts/{artifact_id} returns metadata and the current version; POST /api/artifacts/{artifact_id}/visibility sets private or unlisted; DELETE /api/artifacts/{artifact_id} removes the artifact and its versions. The public content path is served under /a/<slug>.",
+      "touches": [
+        "parchmark-web/backend/app/routers/artifacts.py",
+        "parchmark-web/backend/app/services/artifact_service.py",
+        "parchmark-web/backend/app/schemas/artifact.py",
+        "parchmark-web/backend/app/main.py",
+        "parchmark-web/backend/tests"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": ["contract mutation: new public API surface"]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "publish, new version, list, get, set visibility and delete all behave as declared",
+          "an unlisted artifact is readable at its slug by an unauthenticated request and a private one is not"
+        ]
+      }
+    },
+    {
+      "id": "artifact-content-origin",
+      "title": "Serve artifact content from its own origin",
+      "summary": "Moves the public artifact link into its own router with strict security headers, adds the content origin setting, and returns a full share link on every artifact response.",
+      "estimate": "M",
+      "depends_on": ["artifact-publish-api"],
+      "contract": {
+        "reuse": "Start from commit 5db982d (built for the old artifact-render-origin item, never merged): cherry-pick or copy its changes to app/routers/artifact_content.py, app/routers/artifacts.py, app/main.py, tests/integration/artifacts/ and the three docs it edits, then apply the terms below. Drop its test test_the_app_origin_may_fetch_markdown_for_the_sanitized_renderer: the viewer no longer fetches Markdown from the content origin. Temporary bridging code is allowed only behind a KARTA-DEFER marker.",
+        "route": "GET /a/{slug} lives only in parchmark-web/backend/app/routers/artifact_content.py (router = APIRouter(prefix=\"/a\")), included by app/main.py with no prefix; its module docstring names the path /a/<slug>. app/routers/artifacts.py defines no content_router and no /a route, and main.py no longer includes artifacts.content_router. Red when: artifacts.py still exposes a content router, or the app serves /a/{slug} from any module other than app.routers.artifact_content.",
+        "unlisted_path": "GET /a/{slug} serves the raw content of the current version of an unlisted artifact. The route looks the slug up without raising (the service returns None for a private or unknown slug) and answers both with the constant 404 below. It never reads the Authorization header or any cookie and never sends Set-Cookie. Red when: a private artifact is served, a valid bearer token changes the outcome, or any response carries Set-Cookie.",
+        "headers": "Every 200 from the content route carries Content-Security-Policy = BASE + \"; \" + ADDITION, where BASE is `default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; base-uri 'none'; form-action 'none'`. html: Content-Type `text/html; charset=utf-8`, ADDITION `script-src 'unsafe-inline'; sandbox allow-scripts`. svg: `image/svg+xml; charset=utf-8`, ADDITION `sandbox`. markdown: `text/plain; charset=utf-8`, ADDITION `sandbox` (unlisted Markdown stays plain text for share-link recipients). Every response also carries X-Content-Type-Options: nosniff, Referrer-Policy: no-referrer and Cache-Control: no-store. No policy carries a frame-ancestors directive. Red when: any of these headers is missing or differs for any type, frame-ancestors appears, or the svg or markdown policy allows scripts.",
+        "not_found": "A private slug and an unknown slug both get one constant 404 that artifact_content.py builds itself (for example a module-level helper returning Response(status_code=404)): body `Not found` as `text/plain; charset=utf-8` (body text inferred), plus X-Content-Type-Options: nosniff, Referrer-Policy: no-referrer and Cache-Control: no-store, and nothing that depends on the slug or the query string. It never raises HTTPException, because the global handler in app/main.py echoes request.url.path into its JSON body. Red when: the private-slug and unknown-slug responses differ in status, in any header, or in any body byte, or the route raises HTTPException, or the body carries the slug or a reason.",
+        "origin_setting": "New module parchmark-web/backend/app/artifact_settings.py reads ARTIFACT_CONTENT_ORIGIN with os.getenv at import, following the SECRET_KEY pattern in app/auth/auth.py (operator decision; the repo has no settings object, so the python-fastapi pack's pydantic-settings advice is set aside here). It strips a trailing slash and raises ValueError, so the process does not start, when the value is unset or empty, its scheme is not http or https, it has no host, or it carries a path, query or fragment. app.main imports it through artifact_service. Red when: importing app.artifact_settings with the variable unset or invalid does not raise ValueError.",
+        "share_url": "ArtifactResponse in app/schemas/artifact.py gains share_url: str. app/services/artifact_service.py builds it in _to_response as f\"{ARTIFACT_CONTENT_ORIGIN}/a/{artifact.slug}\", so the create, new version, list, get and visibility responses all carry it, whatever the visibility. That f-string also keeps the shared term /a/ in a file the carried artifact-publish-api item touches. Red when: any of those responses lacks share_url, or it is built from the request host or any value other than ARTIFACT_CONTENT_ORIGIN.",
+        "env": "Dev value http://localhost:8000 in parchmark-web/backend/.env.example, parchmark-web/backend/.env.docker.example, parchmark-web/.env.example.oidc and the inline backend environment of parchmark-web/docker-compose.oidc-test.yml (docker-compose.yml and docker-compose.prod.yml read the backend env files, and docker-compose.dev.yml runs no backend, so none of them changes). parchmark-web/backend/.env.production.example carries a placeholder in the style of its SECRET_KEY line. The backend env block in parchmark-web/AGENTS.md lists the variable. tests/conftest.py sets it at module level before `from app.main import app` and adds it to the pytest_unconfigure cleanup list. Red when: the test session fails at import, or a listed file lacks the variable.",
+        "docs": "parchmark-web/docs/ARCHITECTURE.md and parchmark-web/docs/PRODUCTION_DEPLOYMENT.md take 5db982d's text with these changes: every claim that the viewer fetches Markdown from the content origin or over CORS is removed (the CORS sentence in Security Boundaries, the Markdown sentence in Artifact Content Isolation, and the ALLOWED_ORIGINS sentence in PRODUCTION_DEPLOYMENT.md); the sentence \"No backend env var changes\" becomes an ops instruction to set ARTIFACT_CONTENT_ORIGIN (scheme plus the content host) in the out-of-repo k3s secret; share_url is described as the backend-built share link. parchmark-web/docs/design-docs/core-beliefs.md keeps 5db982d's GET /a/{slug} public-endpoint entry. How the viewer gets Markdown is written by artifact-view-links, which adds that endpoint. Red when: a doc still says the viewer fetches Markdown from the content origin or over CORS, or PRODUCTION_DEPLOYMENT.md does not name ARTIFACT_CONTENT_ORIGIN.",
+        "ci_floor": "CI also runs ruff format --check and mypy on the backend (make test), which the oracle command does not; the build keeps both green."
+      },
+      "touches": [
+        "parchmark-web/backend/app/routers/artifact_content.py",
+        "parchmark-web/backend/app/routers/artifacts.py",
+        "parchmark-web/backend/app/main.py",
+        "parchmark-web/backend/app/schemas/artifact.py",
+        "parchmark-web/backend/app/services/artifact_service.py",
+        "parchmark-web/backend/app/artifact_settings.py",
+        "parchmark-web/backend/.env.example",
+        "parchmark-web/backend/.env.docker.example",
+        "parchmark-web/backend/.env.production.example",
+        "parchmark-web/.env.example.oidc",
+        "parchmark-web/docker-compose.oidc-test.yml",
+        "parchmark-web/AGENTS.md",
+        "parchmark-web/backend/tests",
+        "parchmark-web/docs/ARCHITECTURE.md",
+        "parchmark-web/docs/PRODUCTION_DEPLOYMENT.md",
+        "parchmark-web/docs/design-docs/core-beliefs.md"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "capability escalation: a new serving origin for untrusted content, with a per-type sandbox Content-Security-Policy",
+          "sensitive zone: untrusted HTML, SVG and Markdown rendering",
+          "contract mutation (additive): new required setting ARTIFACT_CONTENT_ORIGIN that refuses boot when unset, and a new share_url field on every artifact response",
+          "contract mutation (existing surface): /a/{slug} gains per-type media types, new headers and a constant 404 body in place of the JSON error body",
+          "scope of impact: artifacts.py, main.py, schemas, service and tests are also edited by the carried artifact-publish-api item and by artifact-view-links; depends_on orders all three, so none share a wave",
+          "scope of impact (expected, pre-justified by the reuse decision): the diff carries over commit 5db982d, so it spans router, tests, env files and docs at once"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "[route] app/routers/artifacts.py defines no content_router and the app's /a/{slug} route is served by app.routers.artifact_content; positive control: the same test fails on the 0bf58df tree, where artifacts.content_router exists",
+          "[headers] for unlisted html, svg and markdown artifacts the Content-Security-Policy equals the base policy plus that type's addition exactly, and no policy contains frame-ancestors",
+          "[headers] every 200 and 404 from the content route carries X-Content-Type-Options: nosniff, Referrer-Policy: no-referrer and Cache-Control: no-store, and none carries Set-Cookie",
+          "[headers] an svg artifact is served as image/svg+xml; charset=utf-8, a markdown one as text/plain; charset=utf-8 and an html one as text/html; charset=utf-8",
+          "[not_found] a private slug and an unknown slug return 404 responses whose status, full header dict and body bytes are equal when compared as a whole",
+          "[unlisted_path] a private slug requested with its owner's valid bearer token still returns that same constant 404",
+          "[share_url] the create, new version, list, get and visibility responses each carry share_url equal to ARTIFACT_CONTENT_ORIGIN + '/a/' + slug, for private and unlisted artifacts alike, while the test client's own host is testserver",
+          "[origin_setting] reloading app.artifact_settings with ARTIFACT_CONTENT_ORIGIN unset raises ValueError, and so do a value with no http or https scheme and a value with a path; a value with a trailing slash loads with the slash stripped (the test restores the module afterwards, as tests/unit/auth/test_auth.py does)"
+        ]
+      }
+    },
+    {
+      "id": "artifact-view-links",
+      "title": "Show private artifacts through short-lived signed links",
+      "summary": "Lets the owner's viewer open any artifact through a signed link that expires after five minutes, adds an owner-only call for an artifact's raw text, and keeps link signatures out of the access log.",
+      "estimate": "M",
+      "depends_on": ["artifact-content-origin"],
+      "contract": {
+        "signing_key": "app/artifact_settings.py also reads ARTIFACT_SIGNING_KEY with os.getenv at import and raises ValueError when it is unset or shorter than 32 characters. It is a dedicated HMAC key: no code derives it from SECRET_KEY or falls back to SECRET_KEY. Inferred, not an operator decision: the import also raises ValueError when the value equals SECRET_KEY. Red when: an import with the key unset or 31 characters long succeeds, or the signing path reads SECRET_KEY.",
+        "message": "A link signs the UTF-8 string f\"{slug}:{version}:{expiry}\" (version and expiry as base-10 integers; the slug alphabet has no colon) with HMAC-SHA256 under ARTIFACT_SIGNING_KEY; s is the lowercase hex digest, 64 characters. Verification recomputes the digest and compares with hmac.compare_digest. The sign and verify helpers live in app/services/artifact_service.py. Message layout and hex case are inferred. Red when: signatures are compared with == or !=, or a link signed under any other key or message layout verifies.",
+        "mint": "POST /api/artifacts/{artifact_id}/view-link (owner only, through get_current_user) returns 200 JSON ViewLinkResponse {url: str, expires_at: datetime}. url = f\"{ARTIFACT_CONTENT_ORIGIN}/a/{slug}?v={version}&e={expiry}&s={signature}\" for the current version, with expiry = int(time.time()) + 300; expires_at is that same instant as a UTC datetime (type inferred, matching created_at). Another user's artifact id and an unknown id both return 404. Red when: a non-owner or unknown id gets anything but 404, the url is relative or on another host, or expiry is not now + 300.",
+        "signed_path": "On GET /a/{slug}, a request carrying any of the query parameters v, e or s takes the signed path and must verify; it never falls back to the unlisted path (inferred rule). v, e and s are read as optional strings, so a missing, non-integer or malformed value gets the constant 404 from artifact-content-origin, never a 422. The request is served only when s matches the signature of slug:v:e, now <= e <= now + 300 (an expiry in the past or more than 300 seconds ahead is rejected), the slug exists, and that artifact has a version numbered v. It then serves exactly version v, current or not, private or unlisted. A request with none of v, e and s keeps the unlisted path, so a private artifact without a signature is still 404. The route never reads Authorization or cookies and never sends Set-Cookie. Red when: any listed failure returns anything but the constant 404, a 422 appears, or a valid link serves a version other than v.",
+        "headers_equal": "A signed 200 carries exactly the header set the unlisted path sends for the same artifact and version: the per-type Content-Security-Policy and Content-Type, nosniff, no-referrer and no-store, with no Set-Cookie and no frame-ancestors. Red when: the two header dicts differ.",
+        "content_endpoint": "GET /api/artifacts/{artifact_id}/content (owner only) returns 200 JSON ArtifactContentResponse {version: int, content_type: 'html' | 'markdown' | 'svg', content: str} for the current version. Another user's id and an unknown id return 404. The web viewer uses it for Markdown. Red when: a non-owner or unknown id gets anything but 404, or the response is not the current version.",
+        "log_redaction": "A logging.Filter subclass in app/main.py, added to logging.getLogger(\"uvicorn.access\") when app.main is imported (not in app/__main__.py, which `uvicorn app.main:app --reload` and the dev and compose commands bypass, and not in the lifespan, which a TestClient used without a with block never enters). It replaces the value of every s= query parameter with the fixed placeholder REDACTED inside record.args (uvicorn passes the request line as an argument, not in record.msg) and keeps the record (returns True). The placeholder text is inferred. Red when: a uvicorn-shaped access record for /a/<slug>?v=1&e=<expiry>&s=<hex> still shows <hex> after the filter, or the filter is not on the uvicorn.access logger after importing app.main.",
+        "env": "ARTIFACT_SIGNING_KEY with a dev value of at least 32 characters, different from SECRET_KEY, in the same carriers as ARTIFACT_CONTENT_ORIGIN: parchmark-web/backend/.env.example, parchmark-web/backend/.env.docker.example, parchmark-web/.env.example.oidc, the inline backend environment of parchmark-web/docker-compose.oidc-test.yml, a placeholder in parchmark-web/backend/.env.production.example, the backend env block of parchmark-web/AGENTS.md, and tests/conftest.py (set at module level before the app import, added to the pytest_unconfigure cleanup list). Red when: the test session fails at import, or a listed file lacks the variable.",
+        "docs": "parchmark-web/docs/ARCHITECTURE.md describes the signed link (what it signs, the 300-second lifetime, the expiry clamp, the constant 404, log redaction) and says the viewer frames every HTML and SVG artifact through a freshly minted signed link and fetches Markdown through GET /api/artifacts/{artifact_id}/content, rendering it with renderMarkdownBody. parchmark-web/docs/PRODUCTION_DEPLOYMENT.md tells ops to set ARTIFACT_SIGNING_KEY (a new random value of at least 32 characters, never SECRET_KEY) in the out-of-repo k3s secret. Red when: either doc omits these, or a doc still describes a CORS fetch of Markdown.",
+        "ci_floor": "CI also runs ruff format --check and mypy on the backend (make test), which the oracle command does not; the build keeps both green."
+      },
+      "touches": [
+        "parchmark-web/backend/app/routers/artifact_content.py",
+        "parchmark-web/backend/app/routers/artifacts.py",
+        "parchmark-web/backend/app/artifact_settings.py",
+        "parchmark-web/backend/app/services/artifact_service.py",
+        "parchmark-web/backend/app/schemas/artifact.py",
+        "parchmark-web/backend/app/main.py",
+        "parchmark-web/backend/.env.example",
+        "parchmark-web/backend/.env.docker.example",
+        "parchmark-web/backend/.env.production.example",
+        "parchmark-web/.env.example.oidc",
+        "parchmark-web/docker-compose.oidc-test.yml",
+        "parchmark-web/AGENTS.md",
+        "parchmark-web/backend/tests",
+        "parchmark-web/docs/ARCHITECTURE.md",
+        "parchmark-web/docs/PRODUCTION_DEPLOYMENT.md"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive zone: a new secret (ARTIFACT_SIGNING_KEY) and credential-like signed links that grant read access to private artifacts",
+          "contract mutation (additive): new endpoints POST /api/artifacts/{artifact_id}/view-link and GET /api/artifacts/{artifact_id}/content, a new required setting that refuses boot when unset, and signed query parameters on /a/{slug}",
+          "genuine architectural novelty: the first HMAC-signed URL scheme and the first logging filter in the backend",
+          "scope of impact: shares artifact_content.py, artifacts.py, artifact_settings.py, schemas, service, main.py, env files, docs and tests with artifact-content-origin; depends_on orders them, so they never share a wave"
+        ]
+      },
+      "oracle": {
+        "type": "integration",
+        "command": "uv run ruff check . && uv run pytest tests/ -q",
+        "cwd": "parchmark-web/backend",
+        "assertions": [
+          "[mint] the owner's POST /api/artifacts/{artifact_id}/view-link returns 200 with a url that starts with ARTIFACT_CONTENT_ORIGIN + '/a/' + slug + '?v=' and an expires_at 300 seconds ahead; another user's call and an unknown id each return 404",
+          "[signed_path][headers_equal] a signed GET of a private html artifact returns 200 with its bytes, and its header dict equals the header dict of an unsigned GET of the same artifact and version after it is made unlisted (no Origin header on either request)",
+          "[signed_path] after version 2 is published, a link signed for version 1 still serves version 1's bytes",
+          "[signed_path] each of these, signed with the real key over its own parameters so only the named condition fails, returns a 404 whose status, header dict and body bytes equal the unknown-slug 404 as a whole: an expiry in the past; an expiry of now + 301 (clamp); a version number the artifact does not have (wrong version); a slug no artifact has (unknown slug)",
+          "[signed_path] a tampered signature (one hex digit changed, or v changed under the original signature) and a private artifact requested with no signature each return that same constant 404",
+          "[signed_path] a non-integer v or e, or a missing s, returns the constant 404 and never 422",
+          "[signed_path] the owner's valid bearer token sent with a bad signature still gets the constant 404",
+          "[message] a link signed with SECRET_KEY instead of ARTIFACT_SIGNING_KEY gets the constant 404, and verification calls hmac.compare_digest (a spy patched in by the test sees the call)",
+          "[content_endpoint] GET /api/artifacts/{artifact_id}/content returns the current version's version, content_type and content to the owner, and 404 to another user and for an unknown id",
+          "[log_redaction] with the filter on uvicorn.access, caplog shows s=REDACTED and never the raw hex for a record shaped like uvicorn's access line; positive control: the same record logged with the filter removed shows the raw hex; after importing app.main the filter is on the uvicorn.access logger",
+          "[signing_key] reloading app.artifact_settings with ARTIFACT_SIGNING_KEY unset, or set to 31 characters, raises ValueError, and so does a value equal to SECRET_KEY (inferred term); the test restores the module afterwards"
+        ]
+      }
+    },
+    {
+      "id": "mcp-artifact-tools",
+      "title": "Publish artifacts from the MCP server",
+      "summary": "Adds MCP tools to publish, update, list, get and set the visibility of artifacts, each returning the share link the API gives back.",
+      "estimate": "M",
+      "depends_on": ["artifact-content-origin", "mcp-token-auth"],
+      "contract": {
+        "reuse": "Start from commit 401b5c4 (built for the old item of the same id, never merged): cherry-pick or copy its client.py, models.py, server.py, tests and README.md changes, then remove its URL computation (self.site_url and the f\"{self.site_url}/a/{record.slug}\" url in _to_artifact). Temporary bridging code is allowed only behind a KARTA-DEFER marker.",
+        "tools": "The server exposes publish_artifact(title, content, content_type), update_artifact(artifact_id, content, content_type), list_artifacts() -> {artifacts, count}, get_artifact(artifact_id) and set_artifact_visibility(artifact_id, visibility). Each calls the matching /artifacts endpoint under PARCHMARK_URL with the Bearer token from mcp-token-auth and returns id, title, version, content_type, visibility and url. content_type is html, markdown or svg; visibility is private or unlisted only. Red when: a tool is missing, or set_artifact_visibility accepts any other value.",
+        "url_relay": "ArtifactRecord parses share_url from the API response, and every tool's url is that share_url byte for byte. The MCP server never builds a URL from PARCHMARK_URL or the slug. A private artifact's result still carries url, alongside visibility private. Red when: url differs from the API's share_url, or the code derives it from PARCHMARK_URL.",
+        "docs": "parchmark-mcp/README.md replaces 401b5c4's sentence about the PARCHMARK_URL host: url is the share link the API returns, of the form <content origin>/a/<slug>, and it opens for others only after set_artifact_visibility makes the artifact unlisted. The tool docstrings and server instructions say the same. Red when: the README still says the URL comes from the PARCHMARK_URL host.",
+        "ci_floor": "CI also runs uv run ruff format --check src/ tests/, which the oracle command does not; the build keeps it green."
+      },
+      "touches": [
+        "parchmark-mcp/src/parchmark_mcp/server.py",
+        "parchmark-mcp/src/parchmark_mcp/client.py",
+        "parchmark-mcp/src/parchmark_mcp/models.py",
+        "parchmark-mcp/tests",
+        "parchmark-mcp/README.md"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "contract mutation (additive): five new MCP tools whose url is relayed from the API's share_url",
+          "scope of impact: server.py, client.py, tests and README.md are also edited by the carried mcp-token-auth item, which is already merged and ordered first by depends_on",
+          "scope of impact (expected, pre-justified by the reuse decision): the diff carries over commit 401b5c4, about 380 added lines across six files"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "uv run ruff check src/ tests/ && uv run pyright src/ tests/ && uv run pytest tests/ -q",
+        "cwd": "parchmark-mcp",
+        "assertions": [
+          "[url_relay] publish_artifact, update_artifact, list_artifacts, get_artifact and set_artifact_visibility each return url equal to the share_url in the mocked API response, where respx returns a share_url on a host different from PARCHMARK_URL (proof the url is relayed, not computed)",
+          "[tools] set_artifact_visibility accepts private and unlisted and rejects any other value",
+          "[url_relay] a private artifact's tool result carries both url (the API's share_url) and visibility private"
+        ]
+      }
+    },
+    {
+      "id": "artifact-web-view",
+      "title": "Add the Artifacts view to the web app",
+      "summary": "Adds an Artifacts mode with a gallery and a viewer that frames HTML and SVG through signed links, renders Markdown safely, and offers visibility, copy-link and delete controls.",
+      "estimate": "L",
+      "depends_on": ["artifact-content-origin", "artifact-view-links"],
+      "contract": {
+        "mode": "AppShell.vue gains an artifactsActive ref beside settingsActive, rendered as another v-else-if branch with the Artifacts view from parchmark-web/ui/src/features/artifacts. openArtifacts sets it and clears settingsActive; selectNote, createNote and openSettings clear it; the topbar gets activeNote null while it is set, as it does for Settings. A sidebar control (in SidebarDrawer.vue or UserFooter.vue, beside Settings) emits openArtifacts. Red when: Artifacts and Settings or a note show at once, or no sidebar control opens the mode.",
+        "api_client": "parchmark-web/ui/src/services/artifacts.ts wraps the endpoints with the existing request<T> helper in services/http.ts (Bearer token, ApiError): listArtifacts() GET /artifacts; createViewLink(id) POST /artifacts/{id}/view-link -> {url, expires_at}; getArtifactContent(id) GET /artifacts/{id}/content -> {version, content_type, content}; setArtifactVisibility(id, visibility) POST /artifacts/{id}/visibility; deleteArtifact(id) DELETE /artifacts/{id}. The artifact type carries share_url, with a doc comment saying it is the backend-built link <content origin>/a/<slug>. The UI never computes a URL: it relays share_url and the minted url. Red when: any URL the UI shows, copies or frames is built in the UI.",
+        "gallery": "Lists the signed-in user's artifacts from listArtifacts (title, content type, visibility, current version) with a stable :key; selecting one opens the viewer. Red when: the list does not come from the API.",
+        "framed_viewer": "For every html or svg artifact, private or unlisted alike (no branch on visibility), each time the viewer opens it calls createViewLink and renders <iframe :src=\"url\" sandbox=\"allow-scripts\" referrerpolicy=\"no-referrer\"> with src exactly the returned url. No srcdoc and no blob: URL anywhere, sandbox never carries allow-same-origin, and no iframe renders before the mint resolves; a failed mint shows an error and no iframe. Red when: src differs from the minted url, sandbox is anything but allow-scripts, referrerpolicy is missing, srcdoc appears, or a reopened artifact reuses an old link.",
+        "markdown_viewer": "For a markdown artifact the viewer calls getArtifactContent and renders content through MarkdownProse.vue (renderMarkdownBody, the DOMPurify path); no iframe and no request to the content origin. Red when: an iframe appears, or the text reaches v-html without renderMarkdownBody.",
+        "controls": "A visibility toggle (private, unlisted) calls setArtifactVisibility and shows the state the response returns. Copy link is enabled only while the artifact is unlisted and copies share_url exactly with navigator.clipboard.writeText. Delete asks for confirmation first; confirming calls deleteArtifact and returns to the gallery without that artifact; cancelling sends no request. Red when: copy link is enabled while private or copies anything but share_url, or delete calls the API without a confirmation.",
+        "coverage": "npm run test:coverage keeps the 90% thresholds for branches, functions, lines and statements in vite.config.ts green; new components use <script setup lang=\"ts\"> with typed props and emits."
+      },
+      "touches": [
+        "parchmark-web/ui/src/features/artifacts",
+        "parchmark-web/ui/src/features/shell/AppShell.vue",
+        "parchmark-web/ui/src/features/shell/SidebarDrawer.vue",
+        "parchmark-web/ui/src/features/shell/UserFooter.vue",
+        "parchmark-web/ui/src/features/shell/UserFooter.test.ts",
+        "parchmark-web/ui/src/features/shell/__tests__/AppShell.test.ts",
+        "parchmark-web/ui/src/features/shell/__tests__/SidebarDrawer.test.ts",
+        "parchmark-web/ui/src/services/artifacts.ts",
+        "parchmark-web/ui/src/services/artifacts.test.ts"
+      ],
+      "surface": {
+        "flagged": true,
+        "signals": [
+          "sensitive zone: frames untrusted HTML and SVG and renders untrusted Markdown",
+          "genuine architectural novelty: the first iframe and sandbox attribute in the UI"
+        ]
+      },
+      "oracle": {
+        "type": "unit",
+        "command": "npm run lint && npm run test:coverage",
+        "cwd": "parchmark-web/ui",
+        "assertions": [
+          "[gallery] the gallery lists the artifacts that the list endpoint returns",
+          "[framed_viewer] for an html artifact and an svg artifact, each tested private and unlisted, opening the viewer calls the mint endpoint and the iframe's src equals the returned url, its sandbox attribute equals \"allow-scripts\" exactly and its referrerpolicy equals \"no-referrer\"",
+          "[framed_viewer] no rendered element has a srcdoc attribute and no iframe src starts with blob:",
+          "[framed_viewer] opening the same artifact a second time calls the mint endpoint again",
+          "[markdown_viewer] for a markdown artifact the viewer calls the content endpoint, renders the text through renderMarkdownBody and no iframe exists",
+          "[controls] copy link is disabled while the artifact is private and, once unlisted, copies share_url exactly, where the mocked share_url is on a host other than the page's",
+          "[controls] the visibility toggle calls the visibility endpoint with the chosen value",
+          "[controls] delete calls the delete endpoint only after the confirm step, and cancelling the confirm step calls nothing",
+          "[mode] the sidebar control opens the Artifacts mode, and selecting a note or opening Settings closes it"
+        ]
+      }
+    }
+  ]
+}
