@@ -15,6 +15,7 @@ interface SidebarDrawerProps {
   tags: TagCount[];
   activeTags: string[];
   settingsActive?: boolean;
+  artifactsActive?: boolean;
   open?: boolean;
   loading?: boolean;
   error?: string | null;
@@ -22,6 +23,7 @@ interface SidebarDrawerProps {
 
 const props = withDefaults(defineProps<SidebarDrawerProps>(), {
   settingsActive: false,
+  artifactsActive: false,
   open: false,
   loading: false,
   error: null,
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   clearSearch: [];
   toggleTag: [tag: string];
   openSettings: [];
+  openArtifacts: [];
   retry: [];
 }>();
 </script>
@@ -96,11 +99,44 @@ const emit = defineEmits<{
       </template>
     </div>
 
+    <button
+      class="sidebar-artifacts"
+      :class="{ 'is-active': artifactsActive }"
+      type="button"
+      :aria-current="artifactsActive ? 'page' : undefined"
+      @click="emit('openArtifacts')"
+    >
+      Artifacts
+    </button>
+
     <UserFooter :active="settingsActive" @openSettings="emit('openSettings')" />
   </aside>
 </template>
 
 <style scoped>
+.sidebar-artifacts {
+  width: 100%;
+  padding: 10px 16px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--line);
+  transition: background-color 0.14s ease;
+}
+
+.sidebar-artifacts:hover,
+.sidebar-artifacts.is-active {
+  background: var(--menu-hover-surface);
+}
+
+.sidebar-artifacts:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--focus-ring);
+}
+
 .sidebar-drawer {
   position: relative;
   z-index: 2;

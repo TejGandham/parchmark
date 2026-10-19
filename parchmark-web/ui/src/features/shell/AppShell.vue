@@ -14,6 +14,7 @@ import {
 } from "@/features/notes/noteMockHelpers";
 import { useNoteEvents } from "@/features/notes/useNoteEvents";
 import { useNotes } from "@/features/notes/useNotes";
+import ArtifactsView from "@/features/artifacts/ArtifactsView.vue";
 import SettingsView from "@/features/settings/SettingsView.vue";
 
 import AppTopbar from "./AppTopbar.vue";
@@ -44,6 +45,7 @@ const activeTags = ref<string[]>([]);
 const menuOpen = ref(false);
 const navOpen = ref(false);
 const settingsActive = ref(false);
+const artifactsActive = ref(false);
 const draftContent = ref("");
 const storedTheme =
   typeof localStorage === "undefined" ? null : localStorage.getItem("pm_theme");
@@ -167,6 +169,7 @@ function selectNote(id: string) {
   menuOpen.value = false;
   navOpen.value = false;
   settingsActive.value = false;
+  artifactsActive.value = false;
 }
 
 async function createNote() {
@@ -180,6 +183,7 @@ async function createNote() {
     mode.value = "edit";
     navOpen.value = false;
     settingsActive.value = false;
+    artifactsActive.value = false;
   } catch {
     // The notes store owns the visible mutation error and leaves state intact.
   }
@@ -198,6 +202,16 @@ function pruneUnavailableActiveTags() {
 
 function openSettings() {
   settingsActive.value = true;
+  artifactsActive.value = false;
+  draftContent.value = "";
+  clearMutationError();
+  navOpen.value = false;
+  menuOpen.value = false;
+}
+
+function openArtifacts() {
+  artifactsActive.value = true;
+  settingsActive.value = false;
   draftContent.value = "";
   clearMutationError();
   navOpen.value = false;
@@ -340,6 +354,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
       :tags="tags"
       :activeTags="activeTags"
       :settingsActive="settingsActive"
+      :artifactsActive="artifactsActive"
       :open="navOpen"
       :loading="loading"
       :error="error"
@@ -347,6 +362,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
       @newNote="createNote"
       @toggleTag="toggleTag"
       @openSettings="openSettings"
+      @openArtifacts="openArtifacts"
       @retry="fetchNotes"
     />
 
@@ -362,7 +378,7 @@ function handleNoteMenuAction(id: NoteMenuAction) {
       <AppTopbar
         v-model:menuOpen="menuOpen"
         :mode="mode"
-        :activeNote="settingsActive ? null : activeNote"
+        :activeNote="settingsActive || artifactsActive ? null : activeNote"
         :activeTags="activeTags"
         :title="activeTitle"
         :theme="theme"
@@ -377,6 +393,8 @@ function handleNoteMenuAction(id: NoteMenuAction) {
       </div>
 
       <SettingsView v-if="settingsActive" />
+
+      <ArtifactsView v-else-if="artifactsActive" />
 
       <section v-else-if="activeNote" class="read-pane" aria-live="polite">
         <div class="measure">

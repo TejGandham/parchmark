@@ -85,8 +85,31 @@ const accountInfoDto = {
   auth_provider: "local",
 };
 
+const artifactDto = {
+  id: 1,
+  slug: "slug-1",
+  title: "Shell artifact",
+  visibility: "private",
+  created_at: "2026-10-01T10:00:00Z",
+  current_version: {
+    id: 10,
+    version: 1,
+    content_type: "html",
+    created_at: "2026-10-01T10:00:00Z",
+  },
+  share_url: "https://content.example.net/a/slug-1",
+};
+
 function fetchStub(url: string | URL | Request, init?: RequestInit) {
   const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET" && /\/artifacts$/.test(String(url))) {
+    return Promise.resolve(
+      new Response(JSON.stringify([artifactDto]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  }
   if (method === "GET" && String(url).includes("/notes/")) {
     return Promise.resolve(
       new Response(JSON.stringify(noteDtos), {
@@ -801,5 +824,81 @@ describe("AppShell live refresh", () => {
     await flushPromises();
 
     expect(wrapper.get(".doc-title").text()).toBe(before);
+  });
+
+  describe("Artifacts mode", () => {
+    it("opens from the sidebar control and hides the note and Settings", async () => {
+      const fetchMock = vi.fn(fetchStub);
+      vi.stubGlobal("fetch", fetchMock);
+      const wrapper = mount(AppShell);
+      await flushPromises();
+      expect(wrapper.find(".doc-title").exists()).toBe(true);
+
+      await wrapper.get(".sidebar-artifacts").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".artifacts-view").exists()).toBe(true);
+      expect(wrapper.get(".artifact-card").text()).toContain("Shell artifact");
+      expect(wrapper.find(".doc-title").exists()).toBe(false);
+      expect(wrapper.find(".settings-view").exists()).toBe(false);
+      expect(wrapper.find('[aria-label="Switch to edit mode"]').exists()).toBe(
+        false,
+      );
+      expect(wrapper.get(".sidebar-artifacts").classes()).toContain(
+        "is-active",
+      );
+      expect(
+        fetchMock.mock.calls.some(([url]) => /\/artifacts$/.test(String(url))),
+      ).toBe(true);
+    });
+
+    it("closes when a note is selected", async () => {
+      const wrapper = mount(AppShell);
+      await flushPromises();
+      await wrapper.get(".sidebar-artifacts").trigger("click");
+      await flushPromises();
+
+      await wrapper.findAll(".note-card")[1].trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".artifacts-view").exists()).toBe(false);
+      expect(wrapper.find(".doc-title").exists()).toBe(true);
+      expect(wrapper.get(".sidebar-artifacts").classes()).not.toContain(
+        "is-active",
+      );
+    });
+
+    it("closes when Settings opens, and opening Artifacts closes Settings", async () => {
+      const wrapper = mount(AppShell);
+      await flushPromises();
+      await wrapper.get(".sidebar-artifacts").trigger("click");
+      await flushPromises();
+
+      await wrapper.get(".user-footer__main").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".artifacts-view").exists()).toBe(false);
+      expect(wrapper.find(".settings-view").exists()).toBe(true);
+
+      await wrapper.get(".sidebar-artifacts").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".artifacts-view").exists()).toBe(true);
+      expect(wrapper.find(".settings-view").exists()).toBe(false);
+      expect(wrapper.get(".user-footer").classes()).not.toContain("is-active");
+    });
+
+    it("closes when a new note is created", async () => {
+      const wrapper = mount(AppShell);
+      await flushPromises();
+      await wrapper.get(".sidebar-artifacts").trigger("click");
+      await flushPromises();
+
+      await wrapper.get(".new-note-button").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".artifacts-view").exists()).toBe(false);
+      expect(wrapper.get(".doc-title").text()).toBe("Backend Created");
+    });
   });
 });
