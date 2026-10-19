@@ -9,8 +9,9 @@ marked.use({
   gfm: true,
 });
 
-export function renderMarkdownBody(markdown: string): string {
-  const raw = stripTitle(markdown).trim();
+/** Render Markdown as-is (no title stripping), sanitized with DOMPurify. */
+export function renderMarkdown(markdown: string): string {
+  const raw = markdown.trim();
   if (!raw) return "";
 
   const parsed = marked.parse(raw, { async: false }) as string;
@@ -23,4 +24,9 @@ export function renderMarkdownBody(markdown: string): string {
     ADD_TAGS: ["input"],
     ADD_ATTR: ["checked", "disabled", "type"],
   });
+}
+
+/** Notes: the leading H1 is the title, shown separately, so drop it. */
+export function renderMarkdownBody(markdown: string): string {
+  return renderMarkdown(stripTitle(markdown));
 }

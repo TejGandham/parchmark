@@ -185,7 +185,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - Reusable SFCs in `design-system/components/`: `DsMenu.vue`, `DsSegment.vue`, `DsToolButton.vue`. Icons are a hand-authored SVG factory in `design-system/icons/index.ts` (`createIcon(...)` → 18 components like `PlusIcon`, `SearchIcon`, `LockIcon`) — **no icon library dependency**
 
 ### Markdown
-- Frontend rendering lives in `ui/src/features/notes/markdownRender.ts`: `marked` (GFM) → rewrite `language-mermaid` fences into `<div class="mermaid">` → sanitize with `dompurify` (allows GFM task-list `input`s). `stripTitle()` (in `noteMockHelpers.ts`) drops the leading H1 before render; `MarkdownProse.vue` emits via `v-html`
+- Frontend rendering lives in `ui/src/features/notes/markdownRender.ts`: `marked` (GFM) → rewrite `language-mermaid` fences into `<div class="mermaid">` → sanitize with `dompurify` (allows GFM task-list `input`s). `stripTitle()` (in `noteMockHelpers.ts`) drops the leading H1 before rendering a note (`renderMarkdownBody`; artifacts use `renderMarkdown` and keep it); `MarkdownProse.vue` emits via `v-html`
 - Mermaid blocks are produced as markup only — **no mermaid runtime is wired** in this worktree
 - Backend (`backend/app/utils/markdown.py`) extracts the H1 title for note records; FE and BE title/H1 handling must stay in sync — use the `parchmark-markdown-sync` skill after editing either
 

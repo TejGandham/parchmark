@@ -2,7 +2,7 @@ import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MarkdownProse from "@/features/notes/MarkdownProse.vue";
-import { renderMarkdownBody } from "@/features/notes/markdownRender";
+import { renderMarkdown } from "@/features/notes/markdownRender";
 import { ApiError } from "@/services/http";
 import type {
   ArtifactContentType,
@@ -24,11 +24,11 @@ const api = vi.hoisted(() => ({
 vi.mock("@/services/artifacts", () => api);
 
 // Wrap the real sanitizer in a spy so the markdown path is proven to go
-// through renderMarkdownBody (the DOMPurify path) and nothing else.
+// through renderMarkdown (the DOMPurify path, title kept) and nothing else.
 vi.mock("@/features/notes/markdownRender", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/features/notes/markdownRender")>();
-  return { ...actual, renderMarkdownBody: vi.fn(actual.renderMarkdownBody) };
+  return { ...actual, renderMarkdown: vi.fn(actual.renderMarkdown) };
 });
 
 // A content origin on a host other than the page's (jsdom runs on localhost).
@@ -91,7 +91,7 @@ describe("ArtifactsView", () => {
   beforeEach(() => {
     mintCount = 0;
     for (const fn of Object.values(api)) fn.mockReset();
-    vi.mocked(renderMarkdownBody).mockClear();
+    vi.mocked(renderMarkdown).mockClear();
     api.createViewLink.mockImplementation((id: number) => {
       mintCount += 1;
       return Promise.resolve({
@@ -235,7 +235,7 @@ describe("ArtifactsView", () => {
   });
 
   describe("markdown viewer", () => {
-    it("renders content through renderMarkdownBody with no iframe", async () => {
+    it("renders content through renderMarkdown with no iframe", async () => {
       api.getArtifactContent.mockResolvedValue({
         version: 3,
         content_type: "markdown",
@@ -253,13 +253,32 @@ describe("ArtifactsView", () => {
       expect(wrapper.getComponent(MarkdownProse).props("markdown")).toBe(
         "Intro\n\n## Section\n\n<img src=x onerror=alert(1)>",
       );
-      expect(renderMarkdownBody).toHaveBeenCalledWith(
+      expect(renderMarkdown).toHaveBeenCalledWith(
         "Intro\n\n## Section\n\n<img src=x onerror=alert(1)>",
       );
       expect(wrapper.get(".prose h2").text()).toBe("Section");
       expect(wrapper.find(".prose img").exists()).toBe(true);
       expect(wrapper.find(".prose [onerror]").exists()).toBe(false);
       assertNoSrcdocOrBlob(wrapper.element);
+    });
+
+    it("keeps the leading H1 heading and still sanitizes", async () => {
+      api.getArtifactContent.mockResolvedValue({
+        version: 1,
+        content_type: "markdown",
+        content:
+          "# QA Markdown heading\n\n- item\n\n<script>alert(1)</script>\n",
+      });
+      const wrapper = await mountWith([
+        makeArtifact(9, "markdown", "private", "QA Markdown"),
+      ]);
+
+      await openCard(wrapper, "QA Markdown");
+
+      expect(wrapper.get(".prose h1").text()).toBe("QA Markdown heading");
+      expect(wrapper.get(".prose li").text()).toBe("item");
+      expect(wrapper.find(".prose script").exists()).toBe(false);
+      expect(wrapper.get(".prose").html()).not.toContain("alert(1)");
     });
 
     it("shows an error when the content request fails", async () => {

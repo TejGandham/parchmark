@@ -186,7 +186,7 @@ async function confirmDelete() {
       referrerpolicy="no-referrer"
     />
     <div v-else-if="!framed && markdown !== null" class="artifact-markdown">
-      <MarkdownProse :markdown="markdown" />
+      <MarkdownProse :markdown="markdown" keep-title />
     </div>
   </article>
 </template>
