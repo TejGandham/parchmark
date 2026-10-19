@@ -3,6 +3,7 @@ Integration tests for the artifact endpoints: the authenticated /api/artifacts
 routes and the unauthenticated public content path /a/<slug>.
 """
 
+import os
 from datetime import timedelta
 
 import pytest
@@ -46,7 +47,7 @@ class TestPublish:
     def test_publish_creates_a_private_artifact_at_version_one(self, client: TestClient, auth_headers):
         data = _publish(client, auth_headers)
 
-        assert set(data) == {"id", "slug", "title", "visibility", "created_at", "current_version"}
+        assert set(data) == {"id", "slug", "title", "visibility", "created_at", "current_version", "share_url"}
         assert data["title"] == PAGE["title"]
         assert data["visibility"] == "private"
         assert len(data["slug"]) >= 22
@@ -134,6 +135,33 @@ class TestManage:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+class TestShareUrl:
+    """Every artifact response carries the share link built from ARTIFACT_CONTENT_ORIGIN, never the request host."""
+
+    def _expected(self, artifact: dict) -> str:
+        return f"{os.environ['ARTIFACT_CONTENT_ORIGIN']}/a/{artifact['slug']}"
+
+    def test_every_response_carries_the_share_url(self, client: TestClient, auth_headers):
+        assert "testserver" not in os.environ["ARTIFACT_CONTENT_ORIGIN"]
+        created = _publish(client, auth_headers)
+        expected = self._expected(created)
+
+        new_version = client.post(f"{ARTIFACTS_URL}/{created['id']}/versions", headers=auth_headers, json=REVISION)
+        listed = client.get(ARTIFACTS_URL, headers=auth_headers).json()
+        fetched = client.get(f"{ARTIFACTS_URL}/{created['id']}", headers=auth_headers).json()
+        unlisted = _set_visibility(client, auth_headers, created["id"], "unlisted")
+        private = _set_visibility(client, auth_headers, created["id"], "private")
+
+        assert created["visibility"] == "private"
+        assert created["share_url"] == expected
+        assert new_version.json()["share_url"] == expected
+        assert [a["share_url"] for a in listed] == [expected]
+        assert fetched["share_url"] == expected
+        assert unlisted["visibility"] == "unlisted"
+        assert unlisted["share_url"] == expected
+        assert private["share_url"] == expected
+
+
 class TestAccess:
     @pytest.mark.parametrize(
         ("method", "path", "body"),
@@ -186,7 +214,7 @@ class TestPublicContent:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.text == PAGE["content"]
-        assert response.headers["content-type"] == "text/plain; charset=utf-8"
+        assert response.headers["content-type"] == "text/html; charset=utf-8"
         assert response.headers["x-content-type-options"] == "nosniff"
 
     def test_private_artifact_is_not_readable(self, client: TestClient, auth_headers):

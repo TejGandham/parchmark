@@ -1,18 +1,15 @@
 """
 Artifact routes for ParchMark backend API.
 
-``router`` (mounted under /api) lets the signed-in user publish artifacts and
+These routes (mounted under /api) let the signed-in user publish artifacts and
 new versions of them, list, read, delete them and set their visibility. Every
 one of these routes is filtered by owner, so another user's artifact is a 404.
 
-``content_router`` serves the public content path /a/<slug> without
-authentication. It only finds unlisted artifacts; a private one is a 404.
-
+The public content path /a/<slug> lives in ``app.routers.artifact_content``.
 The business logic lives in ``app.services.artifact_service``.
 """
 
 from fastapi import APIRouter, Depends, status
-from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -23,7 +20,6 @@ from app.schemas.schemas import DeleteResponse
 from app.services import artifact_service
 
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
-content_router = APIRouter(prefix="/a", tags=["artifacts"])
 
 
 @router.post("", response_model=ArtifactResponse, status_code=status.HTTP_201_CREATED)
@@ -85,15 +81,3 @@ async def delete_artifact(
 ) -> DeleteResponse:
     """Delete an artifact together with all of its versions."""
     return await artifact_service.delete_artifact(db, current_user, artifact_id)
-
-
-@content_router.get("/{slug}", response_class=PlainTextResponse)
-async def read_unlisted_artifact(slug: str, db: AsyncSession = Depends(get_async_db)) -> PlainTextResponse:
-    """
-    Return the current version's raw content of an unlisted artifact. No authentication.
-
-    The content is sent as plain text with nosniff, so a browser shows it and never
-    renders it as a page on this origin.
-    """
-    version = await artifact_service.get_unlisted_version(db, slug)
-    return PlainTextResponse(version.content, headers={"X-Content-Type-Options": "nosniff"})

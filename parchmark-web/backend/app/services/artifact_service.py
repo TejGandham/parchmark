@@ -15,6 +15,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.artifact_settings import ARTIFACT_CONTENT_ORIGIN
 from app.models.artifact import Artifact
 from app.models.artifact_version import ArtifactVersion
 from app.models.models import User
@@ -65,6 +66,7 @@ def _to_response(artifact: Artifact, version: ArtifactVersion) -> ArtifactRespon
             "visibility": artifact.visibility,
             "created_at": artifact.created_at,
             "current_version": ArtifactVersionResponse.model_validate(version),
+            "share_url": f"{ARTIFACT_CONTENT_ORIGIN}/a/{artifact.slug}",
         }
     )
 
@@ -124,20 +126,16 @@ async def get_artifact(db: AsyncSession, current_user: User, artifact_id: int) -
     return _to_response(*await _get_owned_artifact(db, current_user, artifact_id))
 
 
-async def get_unlisted_version(db: AsyncSession, slug: str) -> ArtifactVersion:
+async def get_unlisted_version(db: AsyncSession, slug: str) -> ArtifactVersion | None:
     """Return the current version of the unlisted artifact with this slug, for readers without an account.
 
-    Raises:
-        HTTPException: 404 if no artifact has this slug or the artifact is private.
+    Returns None when no artifact has this slug or the artifact is private; the caller cannot tell them apart.
     """
-    version = await db.scalar(
+    return await db.scalar(
         select(ArtifactVersion)
         .join(Artifact, Artifact.current_version_id == ArtifactVersion.id)
         .filter(Artifact.slug == slug, Artifact.visibility == "unlisted")
     )
-    if version is None:
-        raise _not_found()
-    return version
 
 
 async def list_artifacts(db: AsyncSession, current_user: User) -> list[ArtifactResponse]:

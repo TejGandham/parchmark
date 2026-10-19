@@ -48,3 +48,6 @@ class ArtifactResponse(BaseModel):
     visibility: ArtifactVisibility = Field(..., description="private (owner only) or unlisted (anyone with the link)")
     created_at: datetime = Field(..., description="When the artifact was first published")
     current_version: ArtifactVersionResponse = Field(..., description="The version currently served")
+    share_url: str = Field(
+        ..., description="Share link on the content origin; it serves the content only while the artifact is unlisted"
+    )
