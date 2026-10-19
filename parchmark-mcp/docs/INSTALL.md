@@ -22,8 +22,10 @@ username/password setup, replace them with `PARCHMARK_TOKEN` in your MCP client 
 
 ### Getting a token
 
-Create a personal API token with `POST /api/auth/tokens` while signed in. The response holds the
-plaintext `token` once, so copy it then; ParchMark stores only a hash of it.
+Create a personal API token in the web app's Settings, then pass it to the server as
+`PARCHMARK_TOKEN`. The plaintext is shown once, so copy it then; ParchMark stores only a hash of it.
+
+You can also create one with `POST /api/auth/tokens` while signed in:
 
 ```bash
 curl -s -X POST https://your-instance/api/auth/tokens \
@@ -300,3 +302,11 @@ Once installed, you'll have access to these tools:
 | `create_note` | Create a new note from markdown |
 | `update_note` | Update an existing note |
 | `delete_note` | Delete a note |
+| `publish_artifact` | Publish an HTML, Markdown or SVG document as a new private artifact (version 1) |
+| `update_artifact` | Publish a new version of an artifact; the `url` stays the same |
+| `list_artifacts` | List your artifacts, newest first |
+| `get_artifact` | Get one artifact by ID |
+| `set_artifact_visibility` | Set an artifact to `private` (owner only) or `unlisted` (anyone with the `url`) |
+
+Each artifact result includes a `url`, the share link the API returns. It opens for other people
+only once the artifact is `unlisted`.
