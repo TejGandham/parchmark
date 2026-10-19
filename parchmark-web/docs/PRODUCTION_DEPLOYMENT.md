@@ -55,6 +55,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 ALLOWED_ORIGINS=https://notes.engen.tech
 ARTIFACT_CONTENT_ORIGIN=https://<content-host>   # required: the backend refuses to start without it
+ARTIFACT_SIGNING_KEY=<python3 -c "import secrets; print(secrets.token_urlsafe(32))">   # required: never SECRET_KEY
 APPLY_MIGRATIONS=true
 OIDC_ISSUER_URL=https://auth.engen.tech
 OIDC_AUDIENCE=parchmark
@@ -81,6 +82,8 @@ curl -s -o /dev/null -D - https://<content-host>/a/<slug> | grep -i -e content-t
 ```
 
 Expect the artifact's media type, a policy containing `sandbox`, and no `set-cookie`.
+
+Set `ARTIFACT_SIGNING_KEY` in the same out-of-repo k3s secret: a new random value of at least 32 characters, generated for this purpose and never `SECRET_KEY`. The backend refuses to start when it is missing, shorter than 32 characters, or equal to `SECRET_KEY`. It signs the five-minute view links through which the web viewer shows private artifacts; rotating it only invalidates links already handed out.
 
 ## User Management
 

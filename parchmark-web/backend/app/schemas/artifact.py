@@ -51,3 +51,18 @@ class ArtifactResponse(BaseModel):
     share_url: str = Field(
         ..., description="Share link on the content origin; it serves the content only while the artifact is unlisted"
     )
+
+
+class ViewLinkResponse(BaseModel):
+    """A short-lived signed link that shows one version of the owner's artifact on the content origin."""
+
+    url: str = Field(..., description="Signed link to /a/<slug> on the content origin, valid until expires_at")
+    expires_at: datetime = Field(..., description="When the link stops working (UTC)")
+
+
+class ArtifactContentResponse(BaseModel):
+    """The raw content of an artifact's current version."""
+
+    version: int = Field(..., description="Version number of the returned content")
+    content_type: ArtifactContentType = Field(..., description="Kind of document: html, markdown or svg")
+    content: str = Field(..., description="Raw document content, as published")

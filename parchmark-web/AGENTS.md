@@ -139,6 +139,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
 ARTIFACT_CONTENT_ORIGIN=http://localhost:8000   # required: scheme + host serving /a/<slug> share links
+ARTIFACT_SIGNING_KEY=dev-artifact-signing-key-change-in-production   # required: >= 32 chars, never SECRET_KEY; signs view links
 OIDC_ISSUER_URL=https://auth.engen.tech
 OIDC_AUDIENCE=parchmark
 OIDC_OPAQUE_TOKEN_PREFIX=           # optional: restrict opaque token format (e.g. "authelia_at_")

@@ -2,9 +2,12 @@
 Public artifact content route: GET /a/<slug>.
 
 Returns the raw content of an unlisted artifact's current version, without
-authentication. A private slug and an unknown slug get one constant 404 that
-says nothing about the slug, and the route never reads the Authorization
-header or any cookie. The route is meant to be reached only through the
+authentication. A request carrying any of the query parameters v, e or s takes
+the signed path instead: it serves exactly version v of any artifact, private
+or not, only when s is a valid view-link signature of slug:v:e and e lies in
+the next 300 seconds (see app.services.artifact_service). Every failure, on
+either path, gets one constant 404 that says nothing about the slug, and the
+route never reads the Authorization header or any cookie. The route is meant to be reached only through the
 content origin, a host separate from the app (see docs/PRODUCTION_DEPLOYMENT.md). The web viewer frames it in an iframe whose
 sandbox attribute never carries allow-same-origin.
 
@@ -57,9 +60,22 @@ def _not_found() -> Response:
 # KARTA-SME-OVERRIDE(fapi.1): raw artifact bytes have no Pydantic shape; the route declares response_class=Response
 # and sets the media type per content type.
 @router.get("/{slug}", response_class=Response)
-async def read_artifact_content(slug: str, db: AsyncSession = Depends(get_async_db)) -> Response:
-    """Return the current version's raw content of an unlisted artifact under a sandboxing Content-Security-Policy."""
-    version = await artifact_service.get_unlisted_version(db, slug)
+async def read_artifact_content(
+    slug: str,
+    v: str | None = None,
+    e: str | None = None,
+    s: str | None = None,
+    db: AsyncSession = Depends(get_async_db),
+) -> Response:
+    """Return an artifact version's raw content under a sandboxing Content-Security-Policy.
+
+    Without v, e and s: the current version of an unlisted artifact. With any of them: the signed path, which
+    never falls back to the unlisted one. v, e and s are plain strings so a malformed value is the 404, not a 422.
+    """
+    if v is None and e is None and s is None:
+        version = await artifact_service.get_unlisted_version(db, slug)
+    else:
+        version = await artifact_service.get_signed_version(db, slug, v, e, s)
     if version is None:
         return _not_found()
     media_type, policy = _SERVED_AS[version.content_type]
