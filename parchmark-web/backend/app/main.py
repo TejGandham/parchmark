@@ -5,6 +5,7 @@ Configures CORS, routers, database initialization, and exception handlers.
 
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -26,6 +27,27 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+_SIGNATURE_PARAM = re.compile(r"([?&]s=)[^&\s]*")
+
+
+class SignatureRedactingFilter(logging.Filter):
+    """Replace every s= query value in an access-log record with REDACTED, so view-link signatures never reach logs.
+
+    uvicorn passes the request path as an argument of the access record, not inside record.msg.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                _SIGNATURE_PARAM.sub(r"\1REDACTED", arg) if isinstance(arg, str) else arg for arg in record.args
+            )
+        return True
+
+
+# At import, not in __main__ or the lifespan: `uvicorn app.main:app` bypasses the first, and a TestClient used
+# without a with block never enters the second.
+logging.getLogger("uvicorn.access").addFilter(SignatureRedactingFilter())
 
 
 @asynccontextmanager

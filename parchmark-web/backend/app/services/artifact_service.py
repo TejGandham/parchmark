@@ -7,26 +7,38 @@ artifacts; a private one is a 404 there, exactly like a missing one. Versions
 are append-only; publishing adds the next version number and moves the
 artifact's current_version_id to it. Slugs carry 128 bits of randomness and
 never change once issued.
+
+View links: the owner can mint a link to /a/<slug>?v=<version>&e=<expiry>&s=<signature> that shows exactly
+that version, private or not, for VIEW_LINK_LIFETIME_SECONDS. s is the lowercase hex HMAC-SHA256 of
+"<slug>:<version>:<expiry>" under ARTIFACT_SIGNING_KEY, a key of its own that is never SECRET_KEY.
 """
 
+import hashlib
+import hmac
 import secrets
+import time
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.artifact_settings import ARTIFACT_CONTENT_ORIGIN
+from app.artifact_settings import ARTIFACT_CONTENT_ORIGIN, ARTIFACT_SIGNING_KEY
 from app.models.artifact import Artifact
 from app.models.artifact_version import ArtifactVersion
 from app.models.models import User
 from app.schemas.artifact import (
+    ArtifactContentResponse,
     ArtifactCreate,
     ArtifactResponse,
     ArtifactVersionCreate,
     ArtifactVersionResponse,
     ArtifactVisibilityUpdate,
+    ViewLinkResponse,
 )
 from app.schemas.schemas import DeleteResponse
+
+VIEW_LINK_LIFETIME_SECONDS = 300
 
 
 def _not_found() -> HTTPException:
@@ -135,6 +147,72 @@ async def get_unlisted_version(db: AsyncSession, slug: str) -> ArtifactVersion |
         select(ArtifactVersion)
         .join(Artifact, Artifact.current_version_id == ArtifactVersion.id)
         .filter(Artifact.slug == slug, Artifact.visibility == "unlisted")
+    )
+
+
+def sign_view_link(slug: str, version: int, expiry: int) -> str:
+    """Return the lowercase hex HMAC-SHA256 of "slug:version:expiry" under ARTIFACT_SIGNING_KEY."""
+    message = f"{slug}:{version}:{expiry}".encode()
+    return hmac.new(ARTIFACT_SIGNING_KEY.encode(), message, hashlib.sha256).hexdigest()
+
+
+def verify_view_link(slug: str, version: int, expiry: int, signature: str) -> bool:
+    """Return whether signature is the view-link signature of slug:version:expiry, compared in constant time."""
+    return hmac.compare_digest(sign_view_link(slug, version, expiry).encode(), signature.encode())
+
+
+def _parse_count(value: str) -> int | None:
+    """Parse a base-10 ASCII integer from a query parameter; anything else is None."""
+    return int(value) if value.isascii() and value.isdigit() else None
+
+
+async def mint_view_link(db: AsyncSession, current_user: User, artifact_id: int) -> ViewLinkResponse:
+    """Return a signed link to the current version of one of the user's artifacts, valid for 300 seconds.
+
+    Raises:
+        HTTPException: 404 if the artifact does not exist or belongs to another user.
+    """
+    artifact, version = await _get_owned_artifact(db, current_user, artifact_id)
+    expiry = int(time.time()) + VIEW_LINK_LIFETIME_SECONDS
+    signature = sign_view_link(artifact.slug, version.version, expiry)
+    return ViewLinkResponse(
+        url=f"{ARTIFACT_CONTENT_ORIGIN}/a/{artifact.slug}?v={version.version}&e={expiry}&s={signature}",
+        expires_at=datetime.fromtimestamp(expiry, tz=UTC),
+    )
+
+
+async def get_signed_version(
+    db: AsyncSession, slug: str, v: str | None, e: str | None, s: str | None
+) -> ArtifactVersion | None:
+    """Return version v of the artifact with this slug when s signs slug:v:e and now <= e <= now + 300.
+
+    Visibility does not matter. Returns None for a missing or malformed parameter, a bad signature, an expiry
+    outside the window, an unknown slug, or a version the artifact does not have; the caller cannot tell them apart.
+    """
+    if v is None or e is None or s is None:
+        return None
+    version, expiry = _parse_count(v), _parse_count(e)
+    if version is None or expiry is None or not verify_view_link(slug, version, expiry, s):
+        return None
+    now = int(time.time())
+    if not now <= expiry <= now + VIEW_LINK_LIFETIME_SECONDS:
+        return None
+    return await db.scalar(
+        select(ArtifactVersion)
+        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+        .filter(Artifact.slug == slug, ArtifactVersion.version == version)
+    )
+
+
+async def get_artifact_content(db: AsyncSession, current_user: User, artifact_id: int) -> ArtifactContentResponse:
+    """Return the raw content of the current version of one of the user's artifacts.
+
+    Raises:
+        HTTPException: 404 if the artifact does not exist or belongs to another user.
+    """
+    _artifact, version = await _get_owned_artifact(db, current_user, artifact_id)
+    return ArtifactContentResponse.model_validate(
+        {"version": version.version, "content_type": version.content_type, "content": version.content}
     )
 
 

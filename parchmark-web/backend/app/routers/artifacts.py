@@ -15,7 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.database.database import get_async_db
 from app.models.models import User
-from app.schemas.artifact import ArtifactCreate, ArtifactResponse, ArtifactVersionCreate, ArtifactVisibilityUpdate
+from app.schemas.artifact import (
+    ArtifactContentResponse,
+    ArtifactCreate,
+    ArtifactResponse,
+    ArtifactVersionCreate,
+    ArtifactVisibilityUpdate,
+    ViewLinkResponse,
+)
 from app.schemas.schemas import DeleteResponse
 from app.services import artifact_service
 
@@ -71,6 +78,26 @@ async def set_visibility(
 ) -> ArtifactResponse:
     """Make an artifact private (owner only) or unlisted (anyone with its /a/<slug> link)."""
     return await artifact_service.set_visibility(db, current_user, artifact_id, request)
+
+
+@router.post("/{artifact_id}/view-link", response_model=ViewLinkResponse)
+async def mint_view_link(
+    artifact_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+) -> ViewLinkResponse:
+    """Mint a signed link that shows the current version on the content origin for 300 seconds, private or not."""
+    return await artifact_service.mint_view_link(db, current_user, artifact_id)
+
+
+@router.get("/{artifact_id}/content", response_model=ArtifactContentResponse)
+async def get_artifact_content(
+    artifact_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+) -> ArtifactContentResponse:
+    """Return the raw content of the current version (owner only); the web viewer renders Markdown from it."""
+    return await artifact_service.get_artifact_content(db, current_user, artifact_id)
 
 
 @router.delete("/{artifact_id}", response_model=DeleteResponse)
