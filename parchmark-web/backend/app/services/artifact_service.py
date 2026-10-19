@@ -161,9 +161,14 @@ def verify_view_link(slug: str, version: int, expiry: int, signature: str) -> bo
     return hmac.compare_digest(sign_view_link(slug, version, expiry).encode(), signature.encode())
 
 
+_MAX_COUNT_DIGITS = 18  # far above any version number or Unix time; keeps int() inside its conversion limit
+
+
 def _parse_count(value: str) -> int | None:
-    """Parse a base-10 ASCII integer from a query parameter; anything else is None."""
-    return int(value) if value.isascii() and value.isdigit() else None
+    """Parse a base-10 ASCII integer of at most 18 digits from a query parameter; anything else is None."""
+    if not (value.isascii() and value.isdigit() and len(value) <= _MAX_COUNT_DIGITS):
+        return None
+    return int(value)
 
 
 async def mint_view_link(db: AsyncSession, current_user: User, artifact_id: int) -> ViewLinkResponse:

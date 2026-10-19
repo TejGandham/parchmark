@@ -237,8 +237,10 @@ class TestSignedPath:
             {"v": "1"},
             {"s": "{signature}"},
             {"v": "", "e": "", "s": ""},
+            {"v": "9" * 4301, "e": "{expiry}", "s": "{signature}"},
+            {"v": "1", "e": "9" * 4301, "s": "{signature}"},
         ],
-        ids=["non-integer-v", "non-integer-e", "missing-s", "only-v", "only-s", "empty"],
+        ids=["non-integer-v", "non-integer-e", "missing-s", "only-v", "only-s", "empty", "oversized-v", "oversized-e"],
     )
     def test_malformed_parameters_are_the_constant_404_never_422(
         self, client: TestClient, auth_headers, frozen_now: int, query: dict[str, str]
