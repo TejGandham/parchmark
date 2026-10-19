@@ -50,6 +50,32 @@ describe("SidebarDrawer", () => {
     expect(wrapper.emitted("openSettings")).toBeTruthy();
   });
 
+  it("emits openArtifacts from the Artifacts control and marks it active", async () => {
+    const wrapper = mount(SidebarDrawer, {
+      props: { ...mountDrawerProps(), artifactsActive: true },
+    });
+
+    const control = wrapper.get(".sidebar-artifacts");
+    expect(control.text()).toContain("Artifacts");
+    expect(control.classes()).toContain("is-active");
+    expect(control.attributes("aria-current")).toBe("page");
+
+    await control.trigger("click");
+
+    expect(wrapper.emitted("openArtifacts")).toHaveLength(1);
+  });
+
+  it("leaves the Artifacts control inactive by default", () => {
+    const wrapper = mountDrawer();
+
+    expect(wrapper.get(".sidebar-artifacts").classes()).not.toContain(
+      "is-active",
+    );
+    expect(
+      wrapper.get(".sidebar-artifacts").attributes("aria-current"),
+    ).toBeUndefined();
+  });
+
   it("shows a loading indicator when loading=true", () => {
     const wrapper = mount(SidebarDrawer, {
       props: {
