@@ -1,4 +1,4 @@
-"""FastMCP server for ParchMark notes."""
+"""FastMCP server for ParchMark notes and artifacts."""
 
 import os
 
@@ -6,11 +6,24 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from parchmark_mcp.client import ParchMarkClient
-from parchmark_mcp.models import DeleteResponse, Note, NotesListResponse
+from parchmark_mcp.models import (
+    Artifact,
+    ArtifactContentType,
+    ArtifactsListResponse,
+    ArtifactVisibility,
+    DeleteResponse,
+    Note,
+    NotesListResponse,
+)
 
 mcp = FastMCP(
     "parchmark",
-    instructions="Manage ParchMark notes - create, read, update, delete markdown notes",
+    instructions=(
+        "Manage ParchMark notes - create, read, update, delete markdown notes. "
+        "Publish HTML, Markdown or SVG artifacts. Each artifact tool returns url, the share link the API gives "
+        "back (<content origin>/a/<slug>); it opens for others only after set_artifact_visibility makes the "
+        "artifact unlisted."
+    ),
 )
 
 _client: ParchMarkClient | None = None
@@ -90,6 +103,85 @@ async def delete_note(note_id: str) -> DeleteResponse:
     client = get_client()
     await client.delete_note(note_id)
     return DeleteResponse(success=True, message=f"Note {note_id} deleted")
+
+
+@mcp.tool()
+async def publish_artifact(title: str, content: str, content_type: ArtifactContentType) -> Artifact:
+    """Publish a self-contained HTML, Markdown or SVG document as a new artifact.
+
+    The artifact starts private (only its owner can see it) at version 1.
+    Its url opens for others only after set_artifact_visibility makes it unlisted.
+
+    Args:
+        title: Display title of the artifact
+        content: Raw document content
+        content_type: Kind of document: html, markdown or svg
+
+    Returns the artifact id, title, version, content_type, visibility and url, the share link
+    the API returns (<content origin>/a/<slug>).
+    """
+    client = get_client()
+    return await client.publish_artifact(title, content, content_type)
+
+
+@mcp.tool()
+async def update_artifact(artifact_id: int, content: str, content_type: ArtifactContentType) -> Artifact:
+    """Publish a new version of an existing artifact and make it the current one.
+
+    Earlier versions are kept unchanged; the url stays the same.
+
+    Args:
+        artifact_id: The identifier of the artifact to update
+        content: Raw document content of the new version
+        content_type: Kind of document: html, markdown or svg
+
+    Returns the artifact id, title, new version, content_type, visibility and url, the share
+    link the API returns (<content origin>/a/<slug>).
+    """
+    client = get_client()
+    return await client.update_artifact(artifact_id, content, content_type)
+
+
+@mcp.tool()
+async def list_artifacts() -> ArtifactsListResponse:
+    """List all artifacts of the authenticated user, newest first.
+
+    Each entry has the artifact id, title, current version, content_type, visibility and url,
+    the share link the API returns (<content origin>/a/<slug>).
+    """
+    client = get_client()
+    artifacts = await client.list_artifacts()
+    return ArtifactsListResponse(artifacts=artifacts, count=len(artifacts))
+
+
+@mcp.tool()
+async def get_artifact(artifact_id: int) -> Artifact:
+    """Get one artifact by ID.
+
+    Args:
+        artifact_id: The identifier of the artifact
+
+    Returns the artifact id, title, current version, content_type, visibility and url, the
+    share link the API returns (<content origin>/a/<slug>).
+    """
+    client = get_client()
+    return await client.get_artifact(artifact_id)
+
+
+@mcp.tool()
+async def set_artifact_visibility(artifact_id: int, visibility: ArtifactVisibility) -> Artifact:
+    """Set who can open an artifact.
+
+    Args:
+        artifact_id: The identifier of the artifact
+        visibility: "private" (only the owner) or "unlisted" (anyone with the url); nothing else
+            is accepted
+
+    Returns the artifact id, title, current version, content_type, visibility and url, the
+    share link the API returns (<content origin>/a/<slug>).
+    """
+    client = get_client()
+    return await client.set_artifact_visibility(artifact_id, visibility)
 
 
 def main() -> None:

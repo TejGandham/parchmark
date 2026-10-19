@@ -1,6 +1,6 @@
 # parchmark-mcp
 
-MCP server for managing ParchMark notes via Claude Code/Desktop.
+MCP server for managing ParchMark notes and publishing artifacts via Claude Code/Desktop.
 
 ## Installation
 
@@ -90,6 +90,17 @@ Or manually add to `.mcp.json`:
 | `create_note` | `content` | Create a new note from markdown |
 | `update_note` | `note_id`, `content` | Update an existing note |
 | `delete_note` | `note_id` | Delete a note |
+| `publish_artifact` | `title`, `content`, `content_type` | Publish an HTML, Markdown or SVG document as a new private artifact (version 1) |
+| `update_artifact` | `artifact_id`, `content`, `content_type` | Publish a new version of an artifact and make it current |
+| `list_artifacts` | None | List your artifacts, newest first |
+| `get_artifact` | `artifact_id` | Get one artifact |
+| `set_artifact_visibility` | `artifact_id`, `visibility` | Set `private` (only you) or `unlisted` (anyone with the link); no other value is accepted |
+
+`content_type` is one of `html`, `markdown` or `svg`. Every artifact tool returns the artifact
+`id`, `title`, current `version` number, `content_type`, `visibility` and `url`. The `url` is the
+share link the API returns, of the form `<content origin>/a/<slug>`; the server passes it through
+unchanged. A new artifact is private and still has a `url`, but the link opens for others only after
+`set_artifact_visibility` makes it `unlisted`.
 
 ## Architecture
 
