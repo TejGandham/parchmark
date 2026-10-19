@@ -42,6 +42,7 @@ transitively via a router-level `dependencies=[...]`), **OR**
 | `GET` | `/api/health` |
 | `POST` | `/api/auth/login` |
 | `POST` | `/api/auth/refresh` |
+| `GET` | `/a/{slug}` (unlisted artifact content, for the content origin only; a private artifact is a 404) |
 
 Any new public endpoint requires an explicit update to this list —
 public routes don't become public by accident.

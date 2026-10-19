@@ -133,6 +133,7 @@ Routers are thin dependency wiring; CRUD and auth business logic lives in servic
 - **`services/notes_service.py`**: CRUD orchestration, note-ID generation, ORM→schema conversion, markdown processing, ownership 404s, and `SQLAlchemyError` → 500 handling. All functions take `(db, current_user, ...)` and return response schemas; the single ownership gate is `_get_owned_note` (`Note.id == note_id AND Note.user_id == user_id`)
 - **`routers/auth.py`** / **`services/auth_service.py`**: login credential validation, token issuance/refresh, user lookup
 - **`routers/settings.py`** / **`services/settings_service.py`**: account info, local-password changes, account deletion (ORM cascade), export filename sanitization, ZIP streaming
+- **`routers/artifact_content.py`**: the public content route `GET /a/{slug}`, outside `/api`, returns the raw content of an unlisted artifact's current version (via `artifact_service.get_unlisted_version`) under a sandboxing Content-Security-Policy; see [Artifact Content Isolation](#artifact-content-isolation)
 
 `services/` also holds `health_service.py` (DB connectivity), `note_events.py` (in-process broker + per-worker `LISTEN` consumer), and `note_event_streams.py` (`NoteEventStreamManager`).
 
@@ -250,12 +251,24 @@ The frontend processes markdown for **display only**: `noteMockHelpers.ts` (`ext
 
 ### Security Boundaries
 
-- **XSS defense is exactly one funnel:** DOMPurify over marked output in `markdownRender.ts`, consumed via `v-html` only in `MarkdownProse.vue`. The backend stores user markdown verbatim. Any new render surface must route through `renderMarkdownBody` or re-sanitize.
-- **No security headers** are set anywhere (no CSP, X-Frame-Options, X-Content-Type-Options — verified in both nginx confs); **no rate limiting** exists on login, refresh, or anything else (no middleware, no nginx `limit_req`). Plans must not assume either.
+- **XSS defense is exactly one funnel:** DOMPurify over marked output in `markdownRender.ts`, consumed via `v-html` only in `MarkdownProse.vue`. The backend stores user markdown verbatim. Any new render surface must route through `renderMarkdownBody` or re-sanitize. The single exception is artifact HTML and SVG, which are never rendered on the app origin at all — see [Artifact Content Isolation](#artifact-content-isolation).
+- **No security headers** are set on the app (no CSP, X-Frame-Options, X-Content-Type-Options — verified in both nginx confs); only the artifact content route sets them. **No rate limiting** exists on login, refresh, or anything else (no middleware, no nginx `limit_req`). Plans must not assume either.
 - **Tokens live in localStorage; there are no cookies**, hence no CSRF surface by construction. The SSE stream authenticates via `fetch`+`ReadableStream` specifically because `EventSource` cannot send an Authorization header.
 - **CORS** (`ALLOWED_ORIGINS`, credentialed, 5 methods) matters in dev; in production nginx serves `/api/` same-origin so CORS is mostly inert.
 - **Tenant isolation:** every note query filters by `current_user.id` (single gate `_get_owned_note`; 404 masking); the event stream isolates per-user at three layers (see pipeline section). These are core-beliefs invariants with dedicated tests.
 - Export filenames pass a sanitizer before entering the ZIP; OIDC validation checks `aud`/`azp`/`client_id` against `OIDC_AUDIENCE`.
+
+### Artifact Content Isolation
+
+Artifact content (HTML, SVG, Markdown) is untrusted and stored verbatim. It is shown only from the **content origin**, a host separate from the app whose ingress routes only `/a/` to the backend (production setup in [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md#artifact-content-origin); in dev the backend itself at `http://localhost:8000` is the content origin, a different origin from Vite's `:5173`, which proxies only `/api`).
+
+- `GET /a/{slug}` (`routers/artifact_content.py`) is public and reads only **unlisted** artifacts' current version; it never reads the Authorization header or any cookie and sets no cookies.
+- A private slug and an unknown slug get one constant 404 (`Not found` as `text/plain; charset=utf-8`), built by the router itself instead of raised as `HTTPException`, because the global handler echoes the request path, and with it the slug, into its JSON body.
+- Media types: HTML → `text/html`, SVG → `image/svg+xml`, Markdown → `text/plain`, all `charset=utf-8`. Every response, 404 included, carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` (the slug is the read capability) and `Cache-Control: no-store` (making an artifact private again takes effect at once).
+- Every 200 carries `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; base-uri 'none'; form-action 'none'` plus, for HTML only, `script-src 'unsafe-inline'; sandbox allow-scripts`, and for SVG and Markdown a bare `sandbox`. Nothing loads from the network, nothing submits, and the `sandbox` directive gives the document an opaque origin even when the share link is opened directly, so it can read no cookies or storage of any origin. The policy sets no `frame-ancestors`: the document holds no authority, so any page may frame it.
+- The web viewer frames `/a/{slug}` on the content origin in an `<iframe>` whose `sandbox` attribute may carry `allow-scripts` but **never `allow-same-origin`** (together they would undo the sandbox).
+- The route can only find unlisted artifacts, so a private artifact's link serves nothing until its owner makes it unlisted.
+- `share_url` on every artifact response is the backend-built share link `ARTIFACT_CONTENT_ORIGIN + /a/<slug>` (`artifact_service._to_response`), whatever the visibility; it is never derived from the request host.
 
 ### Concurrency Model
 
@@ -324,13 +337,14 @@ There is **no settings object**. Each module reads its own env vars at import ti
 
 - `DATABASE_URL` is validated postgresql-only and rewritten to `postgresql+asyncpg://` for the app engine (`database/database.py`); alembic uses the sync URL.
 - `SECRET_KEY` refuses to boot when missing/short (`auth/auth.py`).
+- `ARTIFACT_CONTENT_ORIGIN` (`artifact_settings.py`) refuses to boot when unset, not http(s), hostless, or carrying a path, query or fragment; a trailing slash is stripped. Share links are built from it.
 - `ALLOWED_ORIGINS` drives CORS (`main.py`); OIDC vars are read by `oidc_validator.py`; `HOST`/`PORT`/`ENVIRONMENT` are dev-server knobs (`__main__.py`).
 - Frontend config is **build-time only**: `VITE_API_URL` (default `/api`) plus `__GIT_SHA__`/`__BUILD_DATE__` define-constants from `vite.config.ts`.
 
 ### Process Model (production)
 
 - **Backend:** one uvicorn worker per container (no `workers` arg); scale-out is k3s replicas. Non-root user, multi-stage uv build (`backend/Dockerfile.prod`), container HEALTHCHECK curls `/api/health`. The entrypoint runs `alembic upgrade head` iff `APPLY_MIGRATIONS=true` **before** the app starts — enabled on a single deployment path; replicas run false.
-- **Frontend:** static Vite `dist/` served by nginx (`ui/Dockerfile`). `USE_HTTPS` selects the conf, and **the two confs differ materially**: `nginx.http.conf` proxies `location /api/` → `http://parchmark-backend:8000` (same-origin; the upstream name must resolve as a service), while `nginx.https.conf` is **static-only** — no `/api` proxy — and assumes an external proxy routes the API. A backend route outside `/api` is unreachable through same-origin serving.
+- **Frontend:** static Vite `dist/` served by nginx (`ui/Dockerfile`). `USE_HTTPS` selects the conf, and **the two confs differ materially**: `nginx.http.conf` proxies `location /api/` → `http://parchmark-backend:8000` (same-origin; the upstream name must resolve as a service), while `nginx.https.conf` is **static-only** — no `/api` proxy — and assumes an external proxy routes the API. A backend route outside `/api` is unreachable through same-origin serving; that is deliberate for `/a/`, which only the separate content origin routes (see [Artifact Content Isolation](#artifact-content-isolation)).
 - **CI/CD (Forgejo):** `test.yml` (UI: Node 24 lint+tests; backend: ruff/format/mypy/pytest against DinD) and `deploy.yml` (push to main: build both images with `GIT_SHA`/`BUILD_DATE`, tag `latest` + `sha-<7>`, push to the **cluster-internal** Forgejo registry, `kubectl rollout restart`). **Verified caveat: `deploy.yml` has no `needs:` dependency on `test.yml`** — the "tests gate images" ordering is convention/timing, not enforced. Rollback = repin a `sha-` tag on the k3s Deployment.
 - **Out of repo:** k3s manifests (Deployments, ingress, secrets, replica counts, runtime env). Adding a backend env var requires a manifest change no PR here can make. `docker-compose.prod.yml` + `deploy/update.sh` are the retired pre-k3s path — reference only.
 
@@ -392,7 +406,7 @@ Deliberate simplifications and latent hazards a plan should treat as facts, not 
 - **Greenfield deployments get no note-events trigger** (migration-only DDL vs `create_all` bootstrap).
 - **422 responses don't match the pinned error shape**, and the FE renders them as bare status text.
 - **`deploy.yml` doesn't wait for `test.yml`** — the test gate is convention, not CI-enforced.
-- **No rate limiting, no security headers/CSP** anywhere.
+- **No rate limiting** anywhere, and **no security headers/CSP** on the app (only the artifact content route sets them).
 - **Seeding runs in every environment**, production included; seeded IDs are non-standard (`"1"`,`"2"`,`"3"`).
 - **Fresh-vs-brownfield schema divergences** (email index, `auth_provider` length).
 - **Prod `version` reports `"dev"`** — trust `gitSha` only.
