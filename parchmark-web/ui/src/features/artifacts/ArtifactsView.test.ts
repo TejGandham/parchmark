@@ -11,6 +11,7 @@ import type {
 } from "@/services/artifacts";
 
 import ArtifactsView from "./ArtifactsView.vue";
+import { resetArtifactRoute } from "./useArtifactRoute";
 
 enableAutoUnmount(afterEach);
 
@@ -89,6 +90,8 @@ function assertNoSrcdocOrBlob(root: Element) {
 
 describe("ArtifactsView", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    resetArtifactRoute();
     mintCount = 0;
     for (const fn of Object.values(api)) fn.mockReset();
     vi.mocked(renderMarkdown).mockClear();

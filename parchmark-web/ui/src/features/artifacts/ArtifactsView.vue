@@ -1,25 +1,45 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { listArtifacts, type ArtifactDTO } from "@/services/artifacts";
 
 import ArtifactViewer from "./ArtifactViewer.vue";
 import { errorDetail } from "./errorDetail";
+import { useArtifactRoute } from "./useArtifactRoute";
+
+const emit = defineEmits<{
+  selectedTitle: [title: string | null];
+}>();
+
+// The open artifact lives in the address bar (/artifacts/<id>), so a reload,
+// Back and Forward all land on the same artifact.
+const { location, go } = useArtifactRoute();
 
 const artifacts = ref<ArtifactDTO[]>([]);
 const loading = ref(false);
+const loaded = ref(false);
 const error = ref<string | null>(null);
-const selectedId = ref<number | null>(null);
+
+const selectedId = computed(() => location.value?.artifactId ?? null);
 
 const selected = computed(
   () => artifacts.value.find((item) => item.id === selectedId.value) ?? null,
 );
+
+function openArtifact(id: number) {
+  go({ artifactId: id });
+}
+
+function showList({ replace = false } = {}) {
+  go({ artifactId: null }, { replace });
+}
 
 async function fetchArtifacts() {
   loading.value = true;
   error.value = null;
   try {
     artifacts.value = await listArtifacts();
+    loaded.value = true;
   } catch (caught) {
     error.value = errorDetail(caught);
   } finally {
@@ -35,8 +55,22 @@ function replaceArtifact(updated: ArtifactDTO) {
 
 function removeArtifact(id: number) {
   artifacts.value = artifacts.value.filter((item) => item.id !== id);
-  selectedId.value = null;
+  showList({ replace: true });
 }
+
+// An id the owner's list does not contain (unknown, deleted or another
+// user's) falls back to the list, replacing the dead address.
+watch([selectedId, loaded], ([id, isLoaded]) => {
+  if (isLoaded && id !== null && selected.value === null) {
+    showList({ replace: true });
+  }
+});
+
+watch(
+  () => selected.value?.title ?? null,
+  (title) => emit("selectedTitle", title),
+  { immediate: true },
+);
 
 onMounted(fetchArtifacts);
 </script>
@@ -47,7 +81,7 @@ onMounted(fetchArtifacts);
       v-if="selected"
       :key="selected.id"
       :artifact="selected"
-      @back="selectedId = null"
+      @back="showList()"
       @updated="replaceArtifact"
       @deleted="removeArtifact"
     />
@@ -79,7 +113,7 @@ onMounted(fetchArtifacts);
           <button
             class="artifact-card"
             type="button"
-            @click="selectedId = item.id"
+            @click="openArtifact(item.id)"
           >
             <span class="artifact-card__title">{{ item.title }}</span>
             <span class="artifact-card__meta">
