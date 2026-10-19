@@ -2,14 +2,21 @@
 interface BreadcrumbTrailProps {
   title: string;
   activeTags: string[];
+  section?: "notes" | "artifacts";
 }
 
-defineProps<BreadcrumbTrailProps>();
+withDefaults(defineProps<BreadcrumbTrailProps>(), { section: "notes" });
 </script>
 
 <template>
-  <nav class="breadcrumb-trail" aria-label="Current note">
-    <template v-if="activeTags.length">
+  <nav
+    class="breadcrumb-trail"
+    :aria-label="
+      section === 'artifacts' ? 'Artifacts location' : 'Current note'
+    "
+  >
+    <span v-if="section === 'artifacts'">Artifacts</span>
+    <template v-else-if="activeTags.length">
       <span>Filtered</span>
       <strong v-for="tag in activeTags" :key="tag">#{{ tag }}</strong>
     </template>

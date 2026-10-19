@@ -17,9 +17,14 @@ interface AppTopbarProps {
   dirty?: boolean;
   theme: "light" | "dark";
   menuOpen: boolean;
+  section?: "notes" | "artifacts";
+  artifactTitle?: string | null;
 }
 
-defineProps<AppTopbarProps>();
+withDefaults(defineProps<AppTopbarProps>(), {
+  section: "notes",
+  artifactTitle: null,
+});
 const emit = defineEmits<{
   openDrawer: [];
   startEdit: [];
@@ -49,8 +54,15 @@ function startEdit() {
     </DsToolButton>
 
     <BreadcrumbTrail
-      :title="activeNote ? title : ''"
+      :title="
+        section === 'artifacts'
+          ? (artifactTitle ?? '')
+          : activeNote
+            ? title
+            : ''
+      "
       :activeTags="activeTags"
+      :section="section"
     />
 
     <div class="app-topbar__spacer" />
