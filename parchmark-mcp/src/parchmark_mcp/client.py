@@ -3,7 +3,14 @@
 import httpx
 from fastmcp.exceptions import ToolError
 
-from parchmark_mcp.models import Note, NoteSummary
+from parchmark_mcp.models import (
+    Artifact,
+    ArtifactContentType,
+    ArtifactRecord,
+    ArtifactVisibility,
+    Note,
+    NoteSummary,
+)
 
 
 class ParchMarkClient:
@@ -18,6 +25,7 @@ class ParchMarkClient:
         method: str,
         path: str,
         json_data: dict[str, str] | None = None,
+        not_found: str = "Note not found",
     ) -> dict[str, str | int | list[dict[str, str]]] | list[dict[str, str]]:
         """Make authenticated request with error handling."""
         response = await self._http.request(
@@ -29,7 +37,7 @@ class ParchMarkClient:
         if response.status_code == 401:
             raise ToolError("Authentication failed - check that PARCHMARK_TOKEN is valid and not revoked")
         if response.status_code == 404:
-            raise ToolError("Note not found")
+            raise ToolError(not_found)
         if response.status_code >= 400:
             raise ToolError(f"API error: {response.status_code}")
 
@@ -74,3 +82,57 @@ class ParchMarkClient:
     async def delete_note(self, note_id: str) -> None:
         """Delete a note."""
         await self._request("DELETE", f"/notes/{note_id}")
+
+    async def _artifact_request(self, method: str, path: str, json_data: dict[str, str] | None = None) -> Artifact:
+        """Call an artifact endpoint that returns one artifact."""
+        data = await self._request(method, path, json_data=json_data, not_found="Artifact not found")
+        if isinstance(data, list):
+            raise ToolError("Unexpected response format")
+        return self._to_artifact(ArtifactRecord.model_validate(data))
+
+    @staticmethod
+    def _to_artifact(record: ArtifactRecord) -> Artifact:
+        """Flatten the API record; url is the API's share_url, never built here."""
+        return Artifact(
+            id=record.id,
+            title=record.title,
+            version=record.current_version.version,
+            content_type=record.current_version.content_type,
+            visibility=record.visibility,
+            url=record.share_url,
+        )
+
+    async def publish_artifact(self, title: str, content: str, content_type: ArtifactContentType) -> Artifact:
+        """Publish a new artifact; the content becomes version 1."""
+        return await self._artifact_request(
+            "POST",
+            "/artifacts",
+            json_data={"title": title, "content": content, "content_type": content_type},
+        )
+
+    async def update_artifact(self, artifact_id: int, content: str, content_type: ArtifactContentType) -> Artifact:
+        """Publish the next version of an artifact and make it current."""
+        return await self._artifact_request(
+            "POST",
+            f"/artifacts/{artifact_id}/versions",
+            json_data={"content": content, "content_type": content_type},
+        )
+
+    async def list_artifacts(self) -> list[Artifact]:
+        """List the user's artifacts, newest first."""
+        data = await self._request("GET", "/artifacts")
+        if not isinstance(data, list):
+            raise ToolError("Unexpected response format")
+        return [self._to_artifact(ArtifactRecord.model_validate(item)) for item in data]
+
+    async def get_artifact(self, artifact_id: int) -> Artifact:
+        """Get one of the user's artifacts with its current version."""
+        return await self._artifact_request("GET", f"/artifacts/{artifact_id}")
+
+    async def set_artifact_visibility(self, artifact_id: int, visibility: ArtifactVisibility) -> Artifact:
+        """Make an artifact private or unlisted."""
+        return await self._artifact_request(
+            "POST",
+            f"/artifacts/{artifact_id}/visibility",
+            json_data={"visibility": visibility},
+        )
