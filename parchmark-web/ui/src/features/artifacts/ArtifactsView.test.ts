@@ -258,6 +258,7 @@ describe("ArtifactsView", () => {
       );
       expect(renderMarkdown).toHaveBeenCalledWith(
         "Intro\n\n## Section\n\n<img src=x onerror=alert(1)>",
+        { linksInNewTab: true },
       );
       expect(wrapper.get(".prose h2").text()).toBe("Section");
       expect(wrapper.find(".prose img").exists()).toBe(true);
@@ -282,6 +283,26 @@ describe("ArtifactsView", () => {
       expect(wrapper.get(".prose li").text()).toBe("item");
       expect(wrapper.find(".prose script").exists()).toBe(false);
       expect(wrapper.get(".prose").html()).not.toContain("alert(1)");
+    });
+
+    it("opens links to other pages in a new tab and leaves fragment links alone", async () => {
+      api.getArtifactContent.mockResolvedValue({
+        version: 1,
+        content_type: "markdown",
+        content: "[Example link](https://example.com/)\n\n[Jump](#section)\n",
+      });
+      const wrapper = await mountWith([
+        makeArtifact(9, "markdown", "private", "QA Markdown"),
+      ]);
+
+      await openCard(wrapper, "QA Markdown");
+
+      const [external, fragment] = wrapper.findAll(".prose a");
+      expect(external.attributes("target")).toBe("_blank");
+      expect(external.attributes("rel")).toBe("noopener noreferrer");
+      expect(fragment.attributes("href")).toBe("#section");
+      expect(fragment.attributes("target")).toBeUndefined();
+      expect(fragment.attributes("rel")).toBeUndefined();
     });
 
     it("shows an error when the content request fails", async () => {
