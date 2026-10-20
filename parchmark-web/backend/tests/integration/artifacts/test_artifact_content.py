@@ -40,7 +40,7 @@ POLICY_ADDITIONS = {
 COMMON_HEADERS = {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
-    "cache-control": "no-store",
+    "cache-control": "no-store, no-transform",
 }
 
 
@@ -142,6 +142,7 @@ def test_head_answers_like_get_without_a_body(client: TestClient, auth_headers, 
 
     assert head.status_code == status.HTTP_200_OK
     assert dict(head.headers) == dict(get.headers)
+    assert head.headers["cache-control"] == COMMON_HEADERS["cache-control"]
     assert head.content == b""
 
 
@@ -182,4 +183,5 @@ class TestNotFound:
         for head in (head_private, head_unknown, head_as_owner):
             assert head.status_code == status.HTTP_404_NOT_FOUND
             assert dict(head.headers) == dict(get_unknown.headers)
+            assert head.headers["cache-control"] == COMMON_HEADERS["cache-control"]
             assert head.content == b""

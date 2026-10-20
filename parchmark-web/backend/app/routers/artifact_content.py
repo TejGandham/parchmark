@@ -46,8 +46,9 @@ _COMMON_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     # The slug is the read capability; never leak it to sites the artifact links to.
     "Referrer-Policy": "no-referrer",
-    # A visibility change back to private must take effect at once, so no cache may keep a copy.
-    "Cache-Control": "no-store",
+    # A visibility change back to private must take effect at once, so no cache may keep a copy;
+    # no-transform keeps proxies (Cloudflare's Email Obfuscation and other HTML rewriting) off the bytes.
+    "Cache-Control": "no-store, no-transform",
 }
 
 
