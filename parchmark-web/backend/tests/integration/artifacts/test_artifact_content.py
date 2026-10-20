@@ -133,6 +133,18 @@ def test_sends_no_cookies_and_ignores_the_ones_it_receives(client: TestClient, a
     assert response.headers["referrer-policy"] == "no-referrer"
 
 
+@pytest.mark.parametrize("content_type", list(DOCUMENTS))
+def test_head_answers_like_get_without_a_body(client: TestClient, auth_headers, content_type: str):
+    get = _read_unlisted(client, auth_headers, content_type)
+    slug = get.url.path.removeprefix("/a/")
+
+    head = client.head(f"/a/{slug}")
+
+    assert head.status_code == status.HTTP_200_OK
+    assert dict(head.headers) == dict(get.headers)
+    assert head.content == b""
+
+
 class TestNotFound:
     def test_private_and_unknown_slugs_get_the_same_constant_404(self, client: TestClient, auth_headers):
         private = _publish(client, auth_headers, "html")
@@ -158,3 +170,16 @@ class TestNotFound:
         assert as_owner.status_code == status.HTTP_404_NOT_FOUND
         assert dict(as_owner.headers) == dict(anonymous.headers)
         assert as_owner.content == anonymous.content
+
+    def test_head_on_private_and_unknown_slugs_is_the_get_404_without_a_body(self, client: TestClient, auth_headers):
+        private = _publish(client, auth_headers, "html")
+        get_unknown = client.get("/a/no-such-slug")
+
+        head_private = client.head(f"/a/{private['slug']}")
+        head_unknown = client.head("/a/no-such-slug")
+        head_as_owner = client.head(f"/a/{private['slug']}", headers=auth_headers)
+
+        for head in (head_private, head_unknown, head_as_owner):
+            assert head.status_code == status.HTTP_404_NOT_FOUND
+            assert dict(head.headers) == dict(get_unknown.headers)
+            assert head.content == b""

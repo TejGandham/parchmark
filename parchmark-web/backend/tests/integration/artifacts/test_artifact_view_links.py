@@ -156,6 +156,35 @@ class TestSignedPath:
         assert "set-cookie" not in signed.headers
         assert "frame-ancestors" not in signed.headers["content-security-policy"]
 
+    def test_head_on_a_minted_link_answers_like_get_without_a_body(self, client: TestClient, auth_headers):
+        artifact = _publish(client, auth_headers)
+        path = _relative(_mint(client, auth_headers, artifact["id"]).json()["url"])
+
+        get = client.get(path)
+        head = client.head(path)
+
+        assert head.status_code == get.status_code == status.HTTP_200_OK
+        assert dict(head.headers) == dict(get.headers)
+        assert head.content == b""
+
+    def test_head_on_a_badly_signed_link_is_the_constant_404_without_a_body(
+        self, client: TestClient, auth_headers, frozen_now: int
+    ):
+        artifact = _publish(client, auth_headers)
+        expiry = frozen_now + 60
+        signature = _sign(artifact["slug"], 1, expiry)
+        flipped = ("0" if signature[0] != "0" else "1") + signature[1:]
+        unknown = client.get("/a/no-such-slug")
+
+        for path in (
+            _signed_path(artifact["slug"], 1, expiry, flipped),
+            _signed_path(artifact["slug"], 1, frozen_now - 1),
+        ):
+            head = client.head(path)
+            assert head.status_code == status.HTTP_404_NOT_FOUND
+            assert dict(head.headers) == dict(unknown.headers)
+            assert head.content == b""
+
     def test_a_link_for_version_1_still_serves_version_1_after_version_2_is_published(
         self, client: TestClient, auth_headers
     ):

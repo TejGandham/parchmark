@@ -1,5 +1,5 @@
 """
-Public artifact content route: GET /a/<slug>.
+Public artifact content route: GET and HEAD /a/<slug>.
 
 Returns the raw content of an unlisted artifact's current version, without
 authentication. A request carrying any of the query parameters v, e or s takes
@@ -58,8 +58,9 @@ def _not_found() -> Response:
 
 
 # KARTA-SME-OVERRIDE(fapi.1): raw artifact bytes have no Pydantic shape; the route declares response_class=Response
-# and sets the media type per content type.
-@router.get("/{slug}", response_class=Response)
+# and sets the media type per content type. HEAD runs the same lookup, so it answers every request with GET's status
+# and headers; the server drops the body.
+@router.api_route("/{slug}", methods=["GET", "HEAD"], response_class=Response)
 async def read_artifact_content(
     slug: str,
     v: str | None = None,
