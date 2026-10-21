@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "npm run build:tokens && vue-tsc --noEmit -p tsconfig.json && vite build",
+    "build": "npm run build:tokens && vue-tsc --noEmit -p tsconfig.build.json && vite build",
     "build:tokens": "node src/design-system/tokens/build.mjs",
     "lint": "vue-tsc --noEmit -p tsconfig.json && prettier --check \"src/**/*.{ts,vue}\" \"src/design-system/base.css\" \"*.{html,json,ts}\"",
     "format": "prettier --write \"src/**/*.{ts,vue}\" \"src/design-system/base.css\" \"*.{html,json,ts}\"",
