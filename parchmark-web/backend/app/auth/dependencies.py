@@ -1,7 +1,7 @@
 """
 Authentication dependencies for FastAPI routes.
 Provides dependency functions for protected routes and user authentication.
-Supports both local JWT and OIDC federated authentication.
+Supports local JWT, personal API token, and OIDC federated authentication.
 """
 
 import logging
@@ -19,6 +19,7 @@ from app.auth.oidc_validator import oidc_validator
 from app.database.database import get_async_db
 from app.models.models import User
 from app.schemas.schemas import TokenData
+from app.services import api_token_service
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +62,12 @@ async def get_current_user(
     Dependency function to get the current authenticated user.
 
     Supports hybrid authentication:
-    1. Attempts to verify as local JWT first
-    2. If local JWT fails, attempts OIDC validation
-    3. For OIDC users, creates user if missing (with race condition handling)
-    4. Returns the user object for use in protected routes
+    1. A personal API token (``pmat_`` prefix) is resolved by its digest and
+       never falls through to the other methods, so it is not sent to the IdP
+    2. Otherwise attempts to verify as local JWT
+    3. If local JWT fails, attempts OIDC validation
+    4. For OIDC users, creates user if missing (with race condition handling)
+    5. Returns the user object for use in protected routes
 
     Args:
         credentials: HTTP Bearer credentials containing the JWT token
@@ -77,6 +80,12 @@ async def get_current_user(
         HTTPException: If token is invalid, expired, or user not found
     """
     token = credentials.credentials
+
+    if api_token_service.is_api_token(token):
+        api_token_user = await api_token_service.get_user_by_token(db, token)
+        if api_token_user is None:
+            raise credentials_exception
+        return api_token_user
 
     # Try local JWT first
     try:

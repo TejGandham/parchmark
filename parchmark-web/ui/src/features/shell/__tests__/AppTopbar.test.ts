@@ -51,6 +51,37 @@ describe("AppTopbar", () => {
     expect(wrapper.emitted("noteAction")?.[0]).toEqual(["copy"]);
   });
 
+  it("labels the note breadcrumb as the current note", () => {
+    const wrapper = mountTopbar();
+
+    expect(wrapper.get("nav").attributes("aria-label")).toBe("Current note");
+  });
+
+  it("reads Artifacts in the breadcrumb while the Artifacts list is open", () => {
+    const wrapper = mountTopbar({
+      activeNote: null,
+      section: "artifacts",
+      artifactTitle: null,
+    });
+
+    const nav = wrapper.get("nav");
+    expect(nav.text()).toBe("Artifacts");
+    expect(nav.text()).not.toContain("All notes");
+    expect(nav.attributes("aria-label")).toBe("Artifacts location");
+  });
+
+  it("names the open artifact after Artifacts in the breadcrumb", () => {
+    const wrapper = mountTopbar({
+      activeNote: null,
+      section: "artifacts",
+      artifactTitle: "QA SVG",
+    });
+
+    const nav = wrapper.get("nav");
+    expect(nav.text()).toMatch(/^Artifacts\s*\/\s*QA SVG$/);
+    expect(nav.get("strong").text()).toBe("QA SVG");
+  });
+
   it("keeps note controls available in edit mode", () => {
     const wrapper = mountTopbar({ mode: "edit" });
 

@@ -1,81 +1,43 @@
-"""ParchMark API client with JWT authentication."""
-
-from datetime import UTC, datetime, timedelta
+"""ParchMark API client authenticated with a personal API token."""
 
 import httpx
 from fastmcp.exceptions import ToolError
 
-from parchmark_mcp.models import Note, NoteSummary
+from parchmark_mcp.models import (
+    Artifact,
+    ArtifactContentType,
+    ArtifactRecord,
+    ArtifactVisibility,
+    Note,
+    NoteSummary,
+)
 
 
 class ParchMarkClient:
-    """Client for ParchMark REST API with automatic token management."""
+    """Client for ParchMark REST API that sends a personal API token on every request."""
 
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip("/")
-        self.username = username
-        self.password = password
-        self.access_token: str | None = None
-        self.refresh_token: str | None = None
-        self.token_expiry: datetime | None = None
-        self._http = httpx.AsyncClient(timeout=30.0)
-
-    async def _login(self) -> None:
-        """Authenticate and store tokens."""
-        response = await self._http.post(
-            f"{self.base_url}/auth/login",
-            json={"username": self.username, "password": self.password},
-        )
-        if response.status_code != 200:
-            raise ToolError("Authentication failed - check credentials")
-
-        tokens = response.json()
-        self.access_token = tokens["access_token"]
-        self.refresh_token = tokens["refresh_token"]
-        self.token_expiry = datetime.now(UTC) + timedelta(minutes=25)
-
-    async def _refresh(self) -> None:
-        """Refresh access token using refresh token."""
-        response = await self._http.post(
-            f"{self.base_url}/auth/refresh",
-            json={"refresh_token": self.refresh_token},
-        )
-        if response.status_code != 200:
-            await self._login()
-            return
-
-        tokens = response.json()
-        self.access_token = tokens["access_token"]
-        self.token_expiry = datetime.now(UTC) + timedelta(minutes=25)
-
-    async def _ensure_authenticated(self) -> None:
-        """Login or refresh token as needed."""
-        if self.access_token is None:
-            await self._login()
-        elif self.token_expiry and datetime.now(UTC) >= self.token_expiry:
-            await self._refresh()
+        self._http = httpx.AsyncClient(timeout=30.0, headers={"Authorization": f"Bearer {token}"})
 
     async def _request(
         self,
         method: str,
         path: str,
         json_data: dict[str, str] | None = None,
+        not_found: str = "Note not found",
     ) -> dict[str, str | int | list[dict[str, str]]] | list[dict[str, str]]:
         """Make authenticated request with error handling."""
-        await self._ensure_authenticated()
-
-        headers = {"Authorization": f"Bearer {self.access_token}"}
         response = await self._http.request(
             method,
             f"{self.base_url}{path}",
-            headers=headers,
             json=json_data,
         )
 
         if response.status_code == 401:
-            raise ToolError("Authentication failed - session expired")
+            raise ToolError("Authentication failed - check that PARCHMARK_TOKEN is valid and not revoked")
         if response.status_code == 404:
-            raise ToolError("Note not found")
+            raise ToolError(not_found)
         if response.status_code >= 400:
             raise ToolError(f"API error: {response.status_code}")
 
@@ -120,3 +82,57 @@ class ParchMarkClient:
     async def delete_note(self, note_id: str) -> None:
         """Delete a note."""
         await self._request("DELETE", f"/notes/{note_id}")
+
+    async def _artifact_request(self, method: str, path: str, json_data: dict[str, str] | None = None) -> Artifact:
+        """Call an artifact endpoint that returns one artifact."""
+        data = await self._request(method, path, json_data=json_data, not_found="Artifact not found")
+        if isinstance(data, list):
+            raise ToolError("Unexpected response format")
+        return self._to_artifact(ArtifactRecord.model_validate(data))
+
+    @staticmethod
+    def _to_artifact(record: ArtifactRecord) -> Artifact:
+        """Flatten the API record; url is the API's share_url, never built here."""
+        return Artifact(
+            id=record.id,
+            title=record.title,
+            version=record.current_version.version,
+            content_type=record.current_version.content_type,
+            visibility=record.visibility,
+            url=record.share_url,
+        )
+
+    async def publish_artifact(self, title: str, content: str, content_type: ArtifactContentType) -> Artifact:
+        """Publish a new artifact; the content becomes version 1."""
+        return await self._artifact_request(
+            "POST",
+            "/artifacts",
+            json_data={"title": title, "content": content, "content_type": content_type},
+        )
+
+    async def update_artifact(self, artifact_id: int, content: str, content_type: ArtifactContentType) -> Artifact:
+        """Publish the next version of an artifact and make it current."""
+        return await self._artifact_request(
+            "POST",
+            f"/artifacts/{artifact_id}/versions",
+            json_data={"content": content, "content_type": content_type},
+        )
+
+    async def list_artifacts(self) -> list[Artifact]:
+        """List the user's artifacts, newest first."""
+        data = await self._request("GET", "/artifacts")
+        if not isinstance(data, list):
+            raise ToolError("Unexpected response format")
+        return [self._to_artifact(ArtifactRecord.model_validate(item)) for item in data]
+
+    async def get_artifact(self, artifact_id: int) -> Artifact:
+        """Get one of the user's artifacts with its current version."""
+        return await self._artifact_request("GET", f"/artifacts/{artifact_id}")
+
+    async def set_artifact_visibility(self, artifact_id: int, visibility: ArtifactVisibility) -> Artifact:
+        """Make an artifact private or unlisted."""
+        return await self._artifact_request(
+            "POST",
+            f"/artifacts/{artifact_id}/visibility",
+            json_data={"visibility": visibility},
+        )

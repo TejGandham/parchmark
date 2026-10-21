@@ -5,6 +5,7 @@ Configures CORS, routers, database initialization, and exception handlers.
 
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ from fastapi.responses import JSONResponse
 from app.auth.oidc_validator import oidc_validator
 from app.database.database import async_engine
 from app.database.init_db import init_database
-from app.routers import auth, health, notes, settings
+from app.routers import artifact_content, artifacts, auth, health, notes, settings
 from app.services.note_event_streams import note_event_stream_manager
 from app.services.note_events import create_note_event_listener
 from app.version import VERSION, get_version_info
@@ -26,6 +27,27 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+_SIGNATURE_PARAM = re.compile(r"([?&]s=)[^&\s]*")
+
+
+class SignatureRedactingFilter(logging.Filter):
+    """Replace every s= query value in an access-log record with REDACTED, so view-link signatures never reach logs.
+
+    uvicorn passes the request path as an argument of the access record, not inside record.msg.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                _SIGNATURE_PARAM.sub(r"\1REDACTED", arg) if isinstance(arg, str) else arg for arg in record.args
+            )
+        return True
+
+
+# At import, not in __main__ or the lifespan: `uvicorn app.main:app` bypasses the first, and a TestClient used
+# without a with block never enters the second.
+logging.getLogger("uvicorn.access").addFilter(SignatureRedactingFilter())
 
 
 @asynccontextmanager
@@ -176,6 +198,8 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+app.include_router(artifacts.router, prefix="/api")
+app.include_router(artifact_content.router)
 app.include_router(health.router)
 
 

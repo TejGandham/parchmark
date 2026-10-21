@@ -1,5 +1,5 @@
 {
-  "setup": "make -C parchmark-web install-all",
+  "setup": "make -C parchmark-web install-all && (cd parchmark-mcp && uv sync --all-extras --frozen)",
   "preflight": "curl -sf --unix-socket \"${DOCKER_HOST#unix://}\" http://localhost/_ping >/dev/null 2>&1",
   "on_unavailable": "Docker is required for the backend testcontainers suite. On this host the Docker daemon runs inside the vader-incus-docker-host Incus instance and is exposed through an Incus unix-socket proxy at /home/dev/.docker/incus.sock. Set DOCKER_HOST=unix:///home/dev/.docker/incus.sock plus TESTCONTAINERS_HOST_OVERRIDE and TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE (see homelab-docs/vader/incus/vader-incus-docker-host/README.md)."
 }

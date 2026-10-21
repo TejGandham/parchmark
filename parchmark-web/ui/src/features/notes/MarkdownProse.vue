@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { renderMarkdownBody } from "./markdownRender";
+import { renderMarkdown, renderMarkdownBody } from "./markdownRender";
 
 const props = defineProps<{
   markdown: string;
+  /** Render the leading H1 too (artifacts); notes show it as the title. */
+  keepTitle?: boolean;
+  /** Open links in a new tab (artifacts), so a click never navigates the app away. */
+  linksInNewTab?: boolean;
 }>();
 
-const renderedMarkdown = computed(() => renderMarkdownBody(props.markdown));
+const renderedMarkdown = computed(() => {
+  const options = { linksInNewTab: props.linksInNewTab };
+  return props.keepTitle
+    ? renderMarkdown(props.markdown, options)
+    : renderMarkdownBody(props.markdown, options);
+});
 </script>
 
 <template>

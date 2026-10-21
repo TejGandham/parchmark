@@ -45,4 +45,29 @@ describe("MarkdownProse", () => {
       ),
     ).toBe(true);
   });
+
+  it("leaves a note's links as plain same-tab links", () => {
+    const wrapper = mount(MarkdownProse, {
+      props: { markdown: "# Note\n\n[Example link](https://example.com/)" },
+    });
+    const link = wrapper.get("a");
+
+    expect(link.attributes("target")).toBeUndefined();
+    expect(link.attributes("rel")).toBeUndefined();
+  });
+
+  it("opens links in a new tab when linksInNewTab is set", () => {
+    const wrapper = mount(MarkdownProse, {
+      props: {
+        markdown: "[Example link](https://example.com/)\n\n[Jump](#section)",
+        keepTitle: true,
+        linksInNewTab: true,
+      },
+    });
+    const [external, fragment] = wrapper.findAll("a");
+
+    expect(external.attributes("target")).toBe("_blank");
+    expect(external.attributes("rel")).toBe("noopener noreferrer");
+    expect(fragment.attributes("target")).toBeUndefined();
+  });
 });

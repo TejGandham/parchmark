@@ -12,7 +12,7 @@ A violation of any of these is a bug or a security issue, not a style
 preference. Every diff must be checked against these rules; work that
 violates them must not ship.
 
-### 1. Tenant isolation on every Note ORM operation
+### 1. Tenant isolation on every Note and Artifact ORM operation
 
 Every SQLAlchemy statement that touches the `Note` table — `select(Note)`,
 `select_from(Note)`, `update(Note)`, `delete(Note)`, `db.query(Note)` — in
@@ -22,6 +22,15 @@ statement.
 
 `<user_id>` is either `current_user.id` from request scope or a trusted
 argument passed to an explicitly named internal helper.
+
+Artifacts and their versions are isolated the same way: every statement that
+touches `Artifact` or `ArtifactVersion` must filter on
+`Artifact.owner_id == <user_id>`. One exception, and only when the owner asks
+for it: artifacts are `private` by default, and an artifact its owner has
+explicitly made `unlisted` is readable by anyone holding its share link,
+`GET /a/{slug}` on the content origin. A private artifact's content is reached
+only by its owner through the authenticated API, or through a signed view
+link the owner mints, which expires after 300 seconds.
 
 Rationale: ParchMark is multi-tenant; a missing `user_id` filter is a direct
 IDOR / cross-user data leak. This is the single highest-stakes rule in the
@@ -42,6 +51,8 @@ transitively via a router-level `dependencies=[...]`), **OR**
 | `GET` | `/api/health` |
 | `POST` | `/api/auth/login` |
 | `POST` | `/api/auth/refresh` |
+| `GET` | `/a/{slug}` (unlisted artifact content, for the content origin only; a private artifact is a 404) |
+| `HEAD` | `/a/{slug}` (the same status and headers as `GET`, without the body) |
 
 Any new public endpoint requires an explicit update to this list —
 public routes don't become public by accident.

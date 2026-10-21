@@ -97,11 +97,12 @@ parchmark-web/
 │   └── src/
 │       ├── main.ts      # createApp(App).mount("#app"); imports tokens.css then base.css
 │       ├── App.vue      # top-level auth gate: loading → LoginView → AppShell
-│       ├── features/    # auth/, shell/, notes/, settings/ (feature-first; SFCs + .ts)
+│       ├── features/    # auth/, shell/, notes/, settings/, artifacts/ (feature-first; SFCs + .ts)
 │       ├── design-system/  # base.css, tokens.css (generated), tokens/ (DTCG JSON + build.mjs), components/ (Ds*.vue), icons/
-│       └── services/    # http.ts (ofetch) + auth.ts + notes.ts + noteEvents.ts + settings.ts
+│       └── services/    # http.ts (ofetch) + auth.ts (incl. API-token calls) + notes.ts + noteEvents.ts + settings.ts + artifacts.ts
 ├── backend/             # Backend (FastAPI)
-│   └── app/             # auth/, database/, models/, routers/, schemas/, services/
+│   └── app/             # auth/, database/, models/, routers/, schemas/, services/, artifact_settings.py
+│                        # artifacts: routers/{artifacts,artifact_content}.py, services/{artifact_service,api_token_service}.py
 ├── makefiles/           # modular make targets
 ├── deploy/              # production scripts
 ├── docs/
@@ -121,7 +122,11 @@ The full, current API is discoverable at:
 - Dev: <http://localhost:8000/docs>
 - Prod: <https://assets-api.engen.tech/docs>
 
-Notable non-obvious endpoints: `GET /api/health` (DB + version info).
+Notable non-obvious endpoints:
+- `GET /api/health` (DB + version info).
+- `/api/auth/tokens`: create (`POST`, plaintext returned once), list (`GET`), revoke (`DELETE /{token_id}`) personal API tokens.
+- `/api/artifacts`: publish (`POST`), new version (`POST /{id}/versions`), list (`GET`), get (`GET /{id}`), visibility (`POST /{id}/visibility`), delete (`DELETE /{id}`), signed view link (`POST /{id}/view-link`), owner-only raw content (`GET /{id}/content`).
+- `GET /a/{slug}`: public, outside `/api`, served on the content origin (`ARTIFACT_CONTENT_ORIGIN`); unlisted artifacts only unless the request carries a signed view link.
 
 ## Environment Variables
 
@@ -138,6 +143,8 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
+ARTIFACT_CONTENT_ORIGIN=http://localhost:8000   # required: scheme + host serving /a/<slug> share links
+ARTIFACT_SIGNING_KEY=dev-artifact-signing-key-change-in-production   # required: >= 32 chars, never SECRET_KEY; signs view links
 OIDC_ISSUER_URL=https://auth.engen.tech
 OIDC_AUDIENCE=parchmark
 OIDC_OPAQUE_TOKEN_PREFIX=           # optional: restrict opaque token format (e.g. "authelia_at_")
@@ -178,7 +185,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - Reusable SFCs in `design-system/components/`: `DsMenu.vue`, `DsSegment.vue`, `DsToolButton.vue`. Icons are a hand-authored SVG factory in `design-system/icons/index.ts` (`createIcon(...)` → 18 components like `PlusIcon`, `SearchIcon`, `LockIcon`) — **no icon library dependency**
 
 ### Markdown
-- Frontend rendering lives in `ui/src/features/notes/markdownRender.ts`: `marked` (GFM) → rewrite `language-mermaid` fences into `<div class="mermaid">` → sanitize with `dompurify` (allows GFM task-list `input`s). `stripTitle()` (in `noteMockHelpers.ts`) drops the leading H1 before render; `MarkdownProse.vue` emits via `v-html`
+- Frontend rendering lives in `ui/src/features/notes/markdownRender.ts`: `marked` (GFM) → rewrite `language-mermaid` fences into `<div class="mermaid">` → sanitize with `dompurify` (allows GFM task-list `input`s). `stripTitle()` (in `noteMockHelpers.ts`) drops the leading H1 before rendering a note (`renderMarkdownBody`; artifacts use `renderMarkdown` and keep it); `MarkdownProse.vue` emits via `v-html`
 - Mermaid blocks are produced as markup only — **no mermaid runtime is wired** in this worktree
 - Backend (`backend/app/utils/markdown.py`) extracts the H1 title for note records; FE and BE title/H1 handling must stay in sync — use the `parchmark-markdown-sync` skill after editing either
 
@@ -193,6 +200,7 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 ### Auth (backend)
 - Hybrid auth: local JWT (HS256) + OIDC via Authelia (opaque or JWT access tokens). OIDC JWT path is **RS256** (JWKS); Authelia issues opaque tokens (`authelia_at_...`) by default — validated via userinfo endpoint, not JWT decode
 - Logout is **stateless** — no server-side invalidation/blacklist
+- Personal API tokens: a Bearer token with the `pmat_` prefix is resolved by its SHA-256 digest in `get_current_user` (`app/services/api_token_service.py`) and never falls through to JWT/OIDC. Created in Settings, used by the MCP server as `PARCHMARK_TOKEN`; revoking one stops it at once
 - OIDC validator (`app/auth/oidc_validator.py`) uses a shared httpx client with discovery/JWKS caching (double-checked locking)
 
 ### Migrations
@@ -209,6 +217,8 @@ For code patterns, conventions, and style, see [`docs/design-docs/code-patterns.
 - **No router.** Inside the app, "navigation" is ref toggles in `features/shell/AppShell.vue`: `mode` (`"read"|"edit"`), `activeId` (selected note), `settingsActive`, `navOpen` (mobile drawer). Views are `v-if`/`v-else-if` `<section>`s (`SettingsView` vs read pane vs empty state)
 - Shell pieces live in `features/shell/`: `AppTopbar`, `SidebarDrawer`, `UserFooter`, `BreadcrumbTrail`, `SearchBox`, `TagFilter`, `ReadEditSegment`, `ThemeToggleButton`, `OverflowNoteMenu`
 - The notes list and persisted note mutations use the backend notes API through the `useNotes` composable (`features/notes/useNotes.ts`, a module-singleton mirroring `useAuth`); `AppShell.vue` calls `useNotes()` and `fetchNotes()` on mount. `services/notes.ts` (`listNotes()`, `createNote()`, `updateNote()`, `deleteNote()`, `NoteDTO`) is the notes API client. `NoteDTO.tags` comes from the backend `NoteResponse` contract and is copied into `NoteMock` for `TagFilter`/`NoteCard`. `AppShell.vue` persists new notes, draft saves, deletes, and tag add/remove through `useNotes`; tag edits use `PUT /notes/{note_id}` with the full replacement tag set. While authenticated, `AppShell.vue` also opens the note-events SSE stream through `useNoteEvents` (`features/notes/useNoteEvents.ts`, over `services/noteEvents.ts`) once the initial list loads; each created/updated/deleted event schedules one debounced `fetchNotes` via `useNotes().scheduleRefetch`, and when the refreshed list no longer holds the active note the shell reselects the newest remaining note. The stream is torn down on unmount and on sign-out (`cancelScheduledRefetch` drops any pending refetch) and reopened on re-authentication. Selection, search/tag filtering, copy, and single-note export remain local browser state/actions. Full-notes export runs from `SettingsView` through `useSettings()` and `GET /settings/export-notes`. Local-account password change also lives in `SettingsView`: `useSettings().changePassword` -> `services/settings.ts` `changePassword()` -> `POST /settings/change-password` (accounts without a local password hash — OIDC sign-ins — get a 400 pointing the user at their identity provider). The `SettingsView` danger zone deletes the account through `useSettings().deleteAccount(password)` -> `DELETE /settings/delete-account` (local users send their current password; OIDC/no-local-password accounts send the typed "DELETE" confirmation as the password), then calls `useAuth().logout()` so `App.vue` falls back to the login gate; API errors render inline and keep the session. `SidebarDrawer.vue` accepts `loading`/`error` props and emits a `retry` event to refetch.
+- **API tokens flow.** `SettingsView` -> `useSettings()` (`fetchApiTokens`, `createApiToken`, `revokeApiToken`) -> `services/auth.ts` -> `/api/auth/tokens`. The plaintext of a new token is shown once in the view. The MCP server reads the token from `PARCHMARK_TOKEN`.
+- **Artifacts flow.** The sidebar `Artifacts` button sets `artifactsActive` in `AppShell.vue` and shows `features/artifacts/ArtifactsView.vue` (list, visibility, delete via `services/artifacts.ts` -> `/api/artifacts`). `ArtifactViewer.vue` mints a view link (`POST /api/artifacts/{id}/view-link`) and frames HTML/SVG in a sandboxed iframe on the content origin; Markdown is fetched through `GET /api/artifacts/{id}/content` and rendered locally.
 
 ### Deployment
 - Tests must pass before images build (CI gate)

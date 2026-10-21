@@ -2,7 +2,7 @@
 
 > Domain map, layer dependencies, runtime contracts, and cross-cutting concerns for ParchMark. Implementation plans should be able to rely on this document without re-deriving the system from source; where a detail is deliberately delegated (commands, env-var values, endpoint catalogs), the pointer says where it lives.
 
-ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, the settings notes export returns a ZIP download, and live note refresh rides an authenticated Server-Sent Events stream. Auth, note CRUD, tag edits, full-notes export, and live note-events refresh are wired to the backend. Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](../AGENTS.md).
+ParchMark is a full-stack markdown note-taking app with two domains: a Vue 3 frontend (`ui/`) and a FastAPI backend (`backend/`). They communicate over `/api/*`; most calls are JSON REST endpoints, the settings notes export returns a ZIP download, and live note refresh rides an authenticated Server-Sent Events stream. Auth, note CRUD, tag edits, full-notes export, and live note-events refresh are wired to the backend. Two further features sit beside notes: personal API tokens (non-browser clients such as the MCP server authenticate with a `pmat_` Bearer token created in Settings) and artifacts (versioned HTML, Markdown or SVG documents published under a share link, with HTML and SVG shown only from a separate content origin). Copy and single-note export stay browser-only. For API endpoints, environment variables, commands, and coding patterns, see [AGENTS.md](../AGENTS.md).
 
 ```
 +----------------------+         +-----------------------+
@@ -37,13 +37,13 @@ Layers are listed bottom-up. Code may only import from layers **below** it—nev
  |  src/App.vue, src/main.ts           |
  +-------------------------------------+
  |  Features                           |  Feature modules (SFCs + composables)
- |  features/{auth,shell,notes,settings}/ |
+ |  features/{auth,shell,notes,settings,artifacts}/ |
  +-------------------------------------+
  |  Design system                      |  Ds* components, icons, generated tokens
  |  design-system/                     |
  +-------------------------------------+
- |  Services                           |  HTTP client + auth/notes/settings API wrappers
- |  services/{http.ts,auth.ts,notes.ts,noteEvents.ts,settings.ts} |
+ |  Services                           |  HTTP client + auth/notes/settings/artifacts API wrappers
+ |  services/{http.ts,auth.ts,notes.ts,noteEvents.ts,settings.ts,artifacts.ts} |
  +-------------------------------------+
 ```
 
@@ -88,15 +88,15 @@ Layers are listed bottom-up. Code may only import from layers **below** it. The 
 ```
 Main         main.py                          App bootstrap, lifespan, CORS, routers
   ^
-Routers      routers/{auth,notes,settings,health}   API endpoint handlers (thin delegation)
+Routers      routers/{auth,notes,settings,health,artifacts,artifact_content}   API endpoint handlers (thin delegation)
   ^
-Services     services/                        Notes/auth/settings orchestration, health checks, note-event broker/streams
+Services     services/                        Notes/auth/settings/API-token/artifact orchestration, health checks, note-event broker/streams
   ^
 Auth         auth/                            JWT, OIDC, dependencies
   ^
 Schemas      schemas/                         Pydantic request/response models
   ^
-Models       models/                          SQLAlchemy ORM (User, Note, NoteTag)
+Models       models/                          SQLAlchemy ORM (User, Note, NoteTag, ApiToken, Artifact, ArtifactVersion)
   ^
 Database     database/                        Engine, sessions, init, seed
 ```
@@ -131,8 +131,10 @@ Routers are thin dependency wiring; CRUD and auth business logic lives in servic
 
 - **`routers/notes.py`**: dependency wiring plus calls into `services/notes_service.py` for CRUD; keeps the SSE stream — `GET /api/notes/events` returns a `StreamingResponse` of Server-Sent Events (see [Live Note Events](#live-note-events-pipeline))
 - **`services/notes_service.py`**: CRUD orchestration, note-ID generation, ORM→schema conversion, markdown processing, ownership 404s, and `SQLAlchemyError` → 500 handling. All functions take `(db, current_user, ...)` and return response schemas; the single ownership gate is `_get_owned_note` (`Note.id == note_id AND Note.user_id == user_id`)
-- **`routers/auth.py`** / **`services/auth_service.py`**: login credential validation, token issuance/refresh, user lookup
+- **`routers/auth.py`** / **`services/auth_service.py`**: login credential validation, token issuance/refresh, user lookup. The same router serves `POST|GET /api/auth/tokens` and `DELETE /api/auth/tokens/{token_id}`, backed by **`services/api_token_service.py`** (create, list, revoke, and the digest lookup `get_current_user` uses)
 - **`routers/settings.py`** / **`services/settings_service.py`**: account info, local-password changes, account deletion (ORM cascade), export filename sanitization, ZIP streaming
+- **`routers/artifacts.py`** / **`services/artifact_service.py`**: owner-only artifact API under `/api/artifacts` (publish, new version, list, get, visibility, delete, view-link, content); every query filters by owner and another user's id is a 404. `artifact_service` also signs and verifies view links
+- **`routers/artifact_content.py`**: the public content route `GET /a/{slug}`, outside `/api`, returns the raw content of an unlisted artifact's current version (via `artifact_service.get_unlisted_version`), or with a signed view link any version of any artifact (via `artifact_service.get_signed_version`), under a sandboxing Content-Security-Policy; see [Artifact Content Isolation](#artifact-content-isolation)
 
 `services/` also holds `health_service.py` (DB connectivity), `note_events.py` (in-process broker + per-worker `LISTEN` consumer), and `note_event_streams.py` (`NoteEventStreamManager`).
 
@@ -150,6 +152,9 @@ Protected routes use FastAPI's `Depends()` to pull `get_current_user` (Auth laye
 |-|-|
 | `User` | int autoincrement PK; `username` String(50) unique+indexed; `password_hash` **nullable** (OIDC users); `oidc_sub` String(255) unique+indexed nullable; `auth_provider` defaults `"local"`; table-level CHECK `valid_auth_credentials` (local ⇒ password_hash NOT NULL, oidc ⇒ oidc_sub NOT NULL); `notes` relationship `cascade="all, delete-orphan"` — account deletion cascades in the **ORM**, not via DB FK |
 | `Note` | **String(50) PK, app-generated**: `f"note-{epoch_ms}"` in `notes_service.py` (seed rows use literal ids "1"/"2"/"3"); `user_id` FK indexed, **no `ondelete`** (cascade is ORM-side only); `updated_at` via `onupdate=func.now()` |
+| `ApiToken` | int PK; `user_id` FK indexed with DB-side `ondelete="CASCADE"`; `name` String(100); `token_hash` String(64) unique+indexed, the SHA-256 hex digest of the plaintext (the plaintext is returned once at creation and never stored); `created_at` |
+| `Artifact` | int PK; `owner_id` FK indexed with `ondelete="CASCADE"`; `slug` String(32) unique+indexed, the share-link capability; `title` String(255); `visibility` `private` (default) or `unlisted`, CHECK-enforced; `current_version_id` FK to `artifact_versions` (nullable, `use_alter`) |
+| `ArtifactVersion` | immutable snapshot; `artifact_id` FK `ondelete="CASCADE"`; `version` starts at 1, unique per artifact, CHECK > 0; `content_type` `html`\|`markdown`\|`svg`, CHECK-enforced; `content` Text, stored verbatim |
 | `NoteTag` | one row per tag; `note_id` FK **with DB-side `ondelete="CASCADE"`** + `passive_deletes=True`; `UniqueConstraint(note_id, tag)`; CHECK `length(tag) > 0`; ordered by tag |
 
 ### Dual-Path Schema Creation (the central invariant)
@@ -203,16 +208,17 @@ Alembic's `env.py` overrides `sqlalchemy.url` from `DATABASE_URL` and runs **syn
 
 ### Authentication
 
-Two auth providers unified behind a single dependency:
+Three credential types unified behind a single dependency:
 
 - **Local JWT**: HS256, bcrypt-hashed passwords. Both tokens carry `{sub, exp, type}` where `type` ∈ `access`/`refresh` and is **enforced** — a refresh token can never authenticate a request, an access token can never refresh. Expiries 30min/7d (env-overridable). `SECRET_KEY` is fail-fast at import: missing or <32 chars refuses to boot.
+- **Personal API tokens**: `pmat_`-prefixed Bearer tokens for non-browser clients (the MCP server sends one as `PARCHMARK_TOKEN`). A signed-in user creates, lists and revokes them through `/api/auth/tokens` (Settings UI); the plaintext is returned once and only its SHA-256 digest is stored. A token resolves to its owner by digest, so it carries the owner's full access, and revoking it (deleting the row) stops it at once. Revoked or unknown tokens get the standard 401.
 - **OIDC (Authelia)**: opaque tokens (heuristic: not 3 dot-segments, ≥20 chars, optional `OIDC_OPAQUE_TOKEN_PREFIX` gate) validated via the userinfo endpoint with `azp`/`client_id` checks; JWT access tokens validated RS256/JWKS; when audience validation fails as a **mismatch**, the validator retries without `aud` verification and accepts only if the token's `client_id` equals the configured audience — but a token entirely **lacking** an `aud` claim is rejected outright (the retry gate matches the mismatch error text, which the missing-claim error does not contain). Discovery and JWKS are cached 1h behind double-checked `asyncio.Lock`s; `OIDC_DISCOVERY_URL` may differ from the issuer (CDN bypass). One shared `httpx.AsyncClient`, closed by lifespan.
 
-**Resolution order** (`auth/dependencies.py::get_current_user`): local JWT first (failure is a control-flow branch, logged at debug) → OIDC validate → look up by `oidc_sub`, fetching userinfo if claims are missing → **auto-provision** (`auth_provider="oidc"`, `password_hash=None`) with IntegrityError race recovery (rollback + re-query). All expected OIDC failures collapse into a shared 401.
+**Resolution order** (`auth/dependencies.py::get_current_user`): a `pmat_`-prefixed token is resolved as an API token and never falls through to JWT or OIDC (so it is never sent to the identity provider); otherwise local JWT first (failure is a control-flow branch, logged at debug) → OIDC validate → look up by `oidc_sub`, fetching userinfo if claims are missing → **auto-provision** (`auth_provider="oidc"`, `password_hash=None`) with IntegrityError race recovery (rollback + re-query). All expected OIDC failures collapse into a shared 401.
 
 **Statelessness decisions:** refresh mints a new pair but the old refresh token is **not invalidated** (replayable until `exp`); logout proves auth and returns a message — no server-side revocation of any kind. Local login is refused for OIDC-only users (`password_hash IS NULL`).
 
-**Public routes** are an explicit allowlist governed by [core-beliefs.md](design-docs/core-beliefs.md) (belief #2): health endpoints, login, refresh. Adding a public endpoint requires updating that table; enforcement is convention plus per-endpoint 401 tests (no auto-enumerating test exists — verified).
+**Public routes** are an explicit allowlist governed by [core-beliefs.md](design-docs/core-beliefs.md) (belief #2): health endpoints, login, refresh, and `GET`/`HEAD /a/{slug}` (unlisted artifact content, served on the content origin; see [Artifact Content Isolation](#artifact-content-isolation)). Adding a public endpoint requires updating that table; enforcement is convention plus per-endpoint 401 tests (no auto-enumerating test exists — verified).
 
 **Frontend:** the `useAuth()` composable is a module-level singleton holding `{accessToken, refreshToken, user}`, persisted to localStorage under `pm_auth` via `useStorage`. `restoreSession()` (App.vue mount) validates via `GET /auth/me` and clears the session on any error; `login()` stores the pair then fetches `/auth/me` (login response carries no user); `logout()` is best-effort then clears unconditionally. Refresh dedup: a module-level `refreshPromise` shares one in-flight refresh across concurrent 401s. `http.ts` owns the retry rule across all three transports (`request`, `requestRaw` for downloads, `requestStream` for SSE): **exactly one refresh + one retry on 401, never for `/auth/refresh` itself** — `isRefreshCall` matches only that exact path, so every other `/auth/*` route still gets the retry. ofetch is created `retry: false` so it cannot double-retry. Refresh failure clears the session and the gate drops to `LoginView` reactively.
 
@@ -244,18 +250,33 @@ Two auth providers unified behind a single dependency:
 
 The backend owns title/H1 handling in `utils/markdown.py`: a `MarkdownService` class (exposed as the `markdown_service` singleton); `extract_title` and `format_content` are applied when notes are created or updated (`remove_h1` and `create_empty_note` exist on the service but are currently uncalled). `format_content` is near-identity (strips; only rewrites bare-H1-only content). **Markdown is stored verbatim — there is no server-side sanitization.**
 
-The frontend processes markdown for **display only**: `noteMockHelpers.ts` (`extractTitle`, `stripTitle`, preview/word-count/grouping helpers) and `markdownRender.ts` — `renderMarkdownBody()` strips the H1 (shown separately as the doc title), parses with `marked` (GFM), rewrites `language-mermaid` fences into `<div class="mermaid">` **before** sanitizing, then applies `dompurify` (allowing GFM task-list `input`s). No mermaid runtime is wired.
+The frontend processes markdown for **display only**: `noteMockHelpers.ts` (`extractTitle`, `stripTitle`, preview/word-count/grouping helpers) and `markdownRender.ts` — `renderMarkdown()` parses with `marked` (GFM), rewrites `language-mermaid` fences into `<div class="mermaid">` **before** sanitizing, then applies `dompurify` (allowing GFM task-list `input`s). `renderMarkdownBody()` strips the H1 (shown separately as the note title) and then calls `renderMarkdown()`. No mermaid runtime is wired.
 
 **Round-trip invariant:** backend `extract_title`/`remove_h1` and frontend `extractTitle`/`stripTitle` must agree on what an H1 title is — use the `parchmark-markdown-sync` skill after editing either side.
 
 ### Security Boundaries
 
-- **XSS defense is exactly one funnel:** DOMPurify over marked output in `markdownRender.ts`, consumed via `v-html` only in `MarkdownProse.vue`. The backend stores user markdown verbatim. Any new render surface must route through `renderMarkdownBody` or re-sanitize.
-- **No security headers** are set anywhere (no CSP, X-Frame-Options, X-Content-Type-Options — verified in both nginx confs); **no rate limiting** exists on login, refresh, or anything else (no middleware, no nginx `limit_req`). Plans must not assume either.
+- **XSS defense is exactly one funnel:** DOMPurify over marked output in `markdownRender.ts`, consumed via `v-html` only in `MarkdownProse.vue`. The backend stores user markdown verbatim. Any new render surface must route through `renderMarkdown` / `renderMarkdownBody` or re-sanitize. The single exception is artifact HTML and SVG, which are never rendered on the app origin at all — see [Artifact Content Isolation](#artifact-content-isolation). Artifact Markdown is no exception: the viewer renders it through `renderMarkdown`, the same sanitizing path minus the H1 strip, so an artifact's first heading stays.
+- **No security headers** are set on the app (no CSP, X-Frame-Options, X-Content-Type-Options — verified in both nginx confs); only the artifact content route sets them. **No rate limiting** exists on login, refresh, or anything else (no middleware, no nginx `limit_req`). Plans must not assume either.
 - **Tokens live in localStorage; there are no cookies**, hence no CSRF surface by construction. The SSE stream authenticates via `fetch`+`ReadableStream` specifically because `EventSource` cannot send an Authorization header.
 - **CORS** (`ALLOWED_ORIGINS`, credentialed, 5 methods) matters in dev; in production nginx serves `/api/` same-origin so CORS is mostly inert.
 - **Tenant isolation:** every note query filters by `current_user.id` (single gate `_get_owned_note`; 404 masking); the event stream isolates per-user at three layers (see pipeline section). These are core-beliefs invariants with dedicated tests.
 - Export filenames pass a sanitizer before entering the ZIP; OIDC validation checks `aud`/`azp`/`client_id` against `OIDC_AUDIENCE`.
+
+### Artifact Content Isolation
+
+Artifact content (HTML, SVG, Markdown) is untrusted and stored verbatim. HTML and SVG are shown only from the **content origin**, a host separate from the app whose ingress routes only `/a/` to the backend (production setup in [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md#artifact-content-origin); in dev the backend itself at `http://localhost:8000` is the content origin, a different origin from Vite's `:5173`, which proxies only `/api`).
+
+- `GET /a/{slug}` (`routers/artifact_content.py`) is public and, without the query parameters `v`, `e` and `s`, reads only **unlisted** artifacts' current version; it never reads the Authorization header or any cookie and sets no cookies.
+- **Signed view links.** The owner mints one with `POST /api/artifacts/{artifact_id}/view-link`, which returns `{url, expires_at}` for the current version: `ARTIFACT_CONTENT_ORIGIN/a/<slug>?v=<version>&e=<expiry>&s=<signature>`, with `expiry = now + 300` seconds. `s` is the lowercase hex HMAC-SHA256 of the UTF-8 string `<slug>:<version>:<expiry>` under `ARTIFACT_SIGNING_KEY`, a dedicated key that is never `SECRET_KEY` (sign and verify live in `artifact_service`; verification uses `hmac.compare_digest`). A request carrying any of `v`, `e` or `s` takes the signed path and never falls back to the unlisted one. It is served only when the signature matches, `now <= e <= now + 300` (an expiry in the past or more than 300 seconds ahead is rejected, so no one can mint a longer-lived link with a valid key), the slug exists and the artifact has version `v`; it then serves exactly version `v`, private or unlisted, current or not, with the same headers as the unlisted path. `v`, `e` and `s` are read as plain strings, so a missing or malformed value is the constant 404, never a 422.
+- A private slug, an unknown slug and every signed-path failure get one constant 404 (`Not found` as `text/plain; charset=utf-8`), built by the router itself instead of raised as `HTTPException`, because the global handler echoes the request path, and with it the slug, into its JSON body.
+- Media types: HTML → `text/html`, SVG → `image/svg+xml`, Markdown → `text/plain`, all `charset=utf-8`. Every response, 404 included, carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` (the slug is the read capability) and `Cache-Control: no-store, no-transform` (making an artifact private again takes effect at once, and proxies such as Cloudflare pass the bytes through unchanged).
+- Every 200 carries `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; base-uri 'none'; form-action 'none'` plus, for HTML only, `script-src 'unsafe-inline'; sandbox allow-scripts`, and for SVG and Markdown a bare `sandbox`. Nothing loads from the network, nothing submits, and the `sandbox` directive gives the document an opaque origin even when the share link is opened directly, so it can read no cookies or storage of any origin. The policy sets no `frame-ancestors`: the document holds no authority, so any page may frame it.
+- The web viewer frames every HTML and SVG artifact through a freshly minted signed link on the content origin, in an `<iframe>` whose `sandbox` attribute may carry `allow-scripts` but **never `allow-same-origin`** (together they would undo the sandbox). It fetches Markdown through the owner-only `GET /api/artifacts/{artifact_id}/content` (`{version, content_type, content}` of the current version; 404 for another user's or an unknown id) and renders it with `renderMarkdown` (sanitized, leading H1 kept).
+- The Artifacts view is the only screen with its own address: `/artifacts` for the list and `/artifacts/<id>` for one artifact, kept with the History API (nginx already falls back to `index.html` for unknown paths). Notes and Settings have no URLs and stay at `/`.
+- **Log redaction.** A link signature is a read credential for five minutes, so `main.py` adds `SignatureRedactingFilter` to the `uvicorn.access` logger at import; it replaces every `s=` query value in the access line's arguments with `REDACTED`.
+- Without a signature the route can only find unlisted artifacts, so a private artifact's share link serves nothing until its owner makes it unlisted.
+- `share_url` on every artifact response is the backend-built share link `ARTIFACT_CONTENT_ORIGIN + /a/<slug>` (`artifact_service._to_response`), whatever the visibility; it is never derived from the request host.
 
 ### Concurrency Model
 
@@ -308,8 +329,9 @@ No store library. State is held in Vue reactivity:
 |-|-|-|
 | `useAuth()` (composable singleton) | `pm_auth` = `{ accessToken, refreshToken, user }` (localStorage via `useStorage`) | `error`, `pending`, `refreshPromise` |
 | `useNotes()` (composable singleton) | Nothing | `notes`, `loading`, `error`, `creating`, `updating`, `deletingId`, `mutationError` (reset on reload; `fetchNotes()` populates from `GET /notes/`) |
-| `useSettings()` (composable singleton) | Nothing | `userInfo`, `loading`, `error`, `changingPassword`, `passwordError`, `passwordSuccess`, `exportingNotes`, `exportError`, `deletingAccount`, `deleteError` |
-| `AppShell.vue` (local refs) | Nothing | `activeId`, `mode` (read/edit), `search`, `activeTags`, `menuOpen`, `navOpen`, `settingsActive`, `draftContent` |
+| `useSettings()` (composable singleton) | Nothing | `userInfo`, `loading`, `error`, `changingPassword`, `passwordError`, `passwordSuccess`, `exportingNotes`, `exportError`, `deletingAccount`, `deleteError`, `apiTokens` (metadata only), `apiTokensLoading`, `apiTokensError`, `creatingApiToken`, `revokingApiTokenId`, `apiTokenActionError` |
+| `ArtifactsView.vue` / `ArtifactViewer.vue` (local refs) | Nothing | artifact list, selection, loading/error; view link and Markdown body fetched on open |
+| `AppShell.vue` (local refs) | Nothing | `activeId`, `mode` (read/edit), `search`, `activeTags`, `menuOpen`, `navOpen`, `settingsActive`, `artifactsActive`, `draftContent` |
 | Theme (`AppShell.vue`) | `pm_theme` = `"light"` \| `"dark"` (localStorage; read on init, written on change, mirrored to the `data-theme` attribute) | `theme` ref |
 
 `useAuth()` returns the same shared module-level refs on every call. Per-view UI state stays local to the SFC that owns it. `useNoteEvents` is intentionally **not** a singleton.
@@ -324,13 +346,15 @@ There is **no settings object**. Each module reads its own env vars at import ti
 
 - `DATABASE_URL` is validated postgresql-only and rewritten to `postgresql+asyncpg://` for the app engine (`database/database.py`); alembic uses the sync URL.
 - `SECRET_KEY` refuses to boot when missing/short (`auth/auth.py`).
+- `ARTIFACT_CONTENT_ORIGIN` (`artifact_settings.py`) refuses to boot when unset, not http(s), hostless, or carrying a path, query or fragment; a trailing slash is stripped. Share links are built from it.
+- `ARTIFACT_SIGNING_KEY` (`artifact_settings.py`) refuses to boot when unset, shorter than 32 characters, or equal to `SECRET_KEY`. It signs view links and nothing else.
 - `ALLOWED_ORIGINS` drives CORS (`main.py`); OIDC vars are read by `oidc_validator.py`; `HOST`/`PORT`/`ENVIRONMENT` are dev-server knobs (`__main__.py`).
 - Frontend config is **build-time only**: `VITE_API_URL` (default `/api`) plus `__GIT_SHA__`/`__BUILD_DATE__` define-constants from `vite.config.ts`.
 
 ### Process Model (production)
 
 - **Backend:** one uvicorn worker per container (no `workers` arg); scale-out is k3s replicas. Non-root user, multi-stage uv build (`backend/Dockerfile.prod`), container HEALTHCHECK curls `/api/health`. The entrypoint runs `alembic upgrade head` iff `APPLY_MIGRATIONS=true` **before** the app starts — enabled on a single deployment path; replicas run false.
-- **Frontend:** static Vite `dist/` served by nginx (`ui/Dockerfile`). `USE_HTTPS` selects the conf, and **the two confs differ materially**: `nginx.http.conf` proxies `location /api/` → `http://parchmark-backend:8000` (same-origin; the upstream name must resolve as a service), while `nginx.https.conf` is **static-only** — no `/api` proxy — and assumes an external proxy routes the API. A backend route outside `/api` is unreachable through same-origin serving.
+- **Frontend:** static Vite `dist/` served by nginx (`ui/Dockerfile`). `USE_HTTPS` selects the conf, and **the two confs differ materially**: `nginx.http.conf` proxies `location /api/` → `http://parchmark-backend:8000` (same-origin; the upstream name must resolve as a service), while `nginx.https.conf` is **static-only** — no `/api` proxy — and assumes an external proxy routes the API. A backend route outside `/api` is unreachable through same-origin serving; that is deliberate for `/a/`, which only the separate content origin routes (see [Artifact Content Isolation](#artifact-content-isolation)).
 - **CI/CD (Forgejo):** `test.yml` (UI: Node 24 lint+tests; backend: ruff/format/mypy/pytest against DinD) and `deploy.yml` (push to main: build both images with `GIT_SHA`/`BUILD_DATE`, tag `latest` + `sha-<7>`, push to the **cluster-internal** Forgejo registry, `kubectl rollout restart`). **Verified caveat: `deploy.yml` has no `needs:` dependency on `test.yml`** — the "tests gate images" ordering is convention/timing, not enforced. Rollback = repin a `sha-` tag on the k3s Deployment.
 - **Out of repo:** k3s manifests (Deployments, ingress, secrets, replica counts, runtime env). Adding a backend env var requires a manifest change no PR here can make. `docker-compose.prod.yml` + `deploy/update.sh` are the retired pre-k3s path — reference only.
 
@@ -392,7 +416,7 @@ Deliberate simplifications and latent hazards a plan should treat as facts, not 
 - **Greenfield deployments get no note-events trigger** (migration-only DDL vs `create_all` bootstrap).
 - **422 responses don't match the pinned error shape**, and the FE renders them as bare status text.
 - **`deploy.yml` doesn't wait for `test.yml`** — the test gate is convention, not CI-enforced.
-- **No rate limiting, no security headers/CSP** anywhere.
+- **No rate limiting** anywhere, and **no security headers/CSP** on the app (only the artifact content route sets them).
 - **Seeding runs in every environment**, production included; seeded IDs are non-standard (`"1"`,`"2"`,`"3"`).
 - **Fresh-vs-brownfield schema divergences** (email index, `auth_provider` length).
 - **Prod `version` reports `"dev"`** — trust `gitSha` only.

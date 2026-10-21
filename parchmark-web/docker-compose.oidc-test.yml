@@ -56,6 +56,8 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173,http://127.0.0.1:8080
+      ARTIFACT_CONTENT_ORIGIN: http://localhost:8000
+      ARTIFACT_SIGNING_KEY: dev-artifact-signing-key-change-in-production
       HOST: 0.0.0.0
       PORT: 8000
       ENVIRONMENT: development
